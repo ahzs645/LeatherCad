@@ -29,6 +29,18 @@ const MOBILE_MEDIA_QUERY = '(max-width: 1100px)'
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
 
+const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
+  { value: 'pan', label: 'Move' },
+  { value: 'line', label: 'Line' },
+  { value: 'arc', label: 'Arc' },
+  { value: 'bezier', label: 'Bezier' },
+  { value: 'fold', label: 'Fold' },
+]
+
+function toolLabel(tool: Tool) {
+  return TOOL_OPTIONS.find((entry) => entry.value === tool)?.label ?? tool
+}
+
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -97,7 +109,7 @@ function newLayerName(index: number) {
 
 function App() {
   const initialLayerIdRef = useRef(uid())
-  const [tool, setTool] = useState<Tool>('line')
+  const [tool, setTool] = useState<Tool>('pan')
   const [shapes, setShapes] = useState<Shape[]>([])
   const [foldLines, setFoldLines] = useState<FoldLine[]>([])
   const [layers, setLayers] = useState<Layer[]>(() => [
@@ -314,6 +326,7 @@ function App() {
         setIsMobileLayout(true)
         setMobileViewMode('editor')
         setShowMobileMenu(false)
+        setTool('pan')
       } else {
         setIsMobileLayout(false)
         setMobileViewMode('split')
@@ -687,6 +700,7 @@ function App() {
     setActiveLayerId(sample.activeLayerId)
     setShapes(sample.objects)
     setFoldLines(sample.foldLines)
+    setTool('pan')
     setShowThreePreview(true)
     if (isMobileLayout) {
       setMobileViewMode('editor')
@@ -835,7 +849,7 @@ function App() {
   const setActiveTool = (nextTool: Tool) => {
     setTool(nextTool)
     clearDraft()
-    setStatus(`Tool selected: ${nextTool}`)
+    setStatus(`Tool selected: ${toolLabel(nextTool)}`)
   }
 
   const workspaceClassName = `workspace ${isMobileLayout ? `mobile-${mobileViewMode}` : 'desktop'}`
@@ -850,29 +864,45 @@ function App() {
     <div className="app-shell">
       <header className={topbarClassName}>
         <div className="group tool-group">
-          <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
-            Pan
-          </button>
-          <button className={tool === 'line' ? 'active' : ''} onClick={() => setActiveTool('line')}>
-            Line
-          </button>
-          <button className={tool === 'arc' ? 'active' : ''} onClick={() => setActiveTool('arc')}>
-            Arc
-          </button>
-          <button className={tool === 'bezier' ? 'active' : ''} onClick={() => setActiveTool('bezier')}>
-            Bezier
-          </button>
-          <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
-            Fold
-          </button>
+          {isMobileLayout ? (
+            <select
+              className="tool-select-mobile"
+              value={tool}
+              onChange={(event) => setActiveTool(event.target.value as Tool)}
+            >
+              {TOOL_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  Tool: {option.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <>
+              <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
+                Move
+              </button>
+              <button className={tool === 'line' ? 'active' : ''} onClick={() => setActiveTool('line')}>
+                Line
+              </button>
+              <button className={tool === 'arc' ? 'active' : ''} onClick={() => setActiveTool('arc')}>
+                Arc
+              </button>
+              <button className={tool === 'bezier' ? 'active' : ''} onClick={() => setActiveTool('bezier')}>
+                Bezier
+              </button>
+              <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
+                Fold
+              </button>
+            </>
+          )}
           {isMobileLayout && (
             <button className="mobile-menu-toggle" onClick={() => setShowMobileMenu((previous) => !previous)}>
-              {showMobileMenu ? 'Close Menu' : 'Menu'}
+              {showMobileMenu ? 'Close' : 'Options'}
             </button>
           )}
         </div>
 
-        <div className="group preset-controls">
+        <div className={`group preset-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <select
             className="preset-select"
             value={selectedPresetId}
@@ -887,7 +917,7 @@ function App() {
           <button onClick={() => handleLoadPreset()}>Load Preset</button>
         </div>
 
-        <div className="group zoom-controls">
+        <div className={`group zoom-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <button onClick={() => handleZoomStep(0.85)}>-</button>
           <button onClick={() => handleZoomStep(1.15)}>+</button>
           <button onClick={handleFitView}>Fit</button>
@@ -969,7 +999,7 @@ function App() {
             onClick={() => setMobileViewMode('editor')}
             disabled={!isMobileLayout}
           >
-            Editor
+            2D
           </button>
           <button
             className={mobileViewMode === 'preview' ? 'active' : ''}
@@ -1080,10 +1110,10 @@ function App() {
       </main>
 
       <footer className="statusbar">
-        <span>Tool: {tool}</span>
+        <span>Tool: {toolLabel(tool)}</span>
         <span>{status}</span>
-        <span>Tip: wheel/zoom buttons for zoom, pan tool to move view, Fold tool assigns bend lines for 3D.</span>
-        <span>Mobile: use Editor / 3D / Split buttons to focus workspace.</span>
+        <span>Tip: wheel/zoom buttons for zoom, Move tool to pan, Fold tool assigns bend lines for 3D.</span>
+        <span>Mobile: use 2D / 3D / Split buttons to focus workspace.</span>
       </footer>
 
       <input
