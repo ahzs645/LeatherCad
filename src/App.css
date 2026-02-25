@@ -255,6 +255,26 @@ button:disabled {
   background: var(--surface-panel);
 }
 
+.preview-pane-mobile-split {
+  overflow: auto;
+}
+
+.preview-pane-mobile-split .three-preview-shell {
+  min-height: 100%;
+  grid-template-rows: auto minmax(130px, 1fr) auto;
+}
+
+.preview-pane-mobile-split .three-preview-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-panel);
+}
+
+.preview-pane-mobile-split .three-preview-controls {
+  max-height: 44vh;
+}
+
 .panel-hidden {
   display: none;
 }

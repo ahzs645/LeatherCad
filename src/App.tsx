@@ -1100,6 +1100,7 @@ function App() {
   const showLayerOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'layers')
   const showFileOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'file')
   const showMeta = !isMobileLayout || showMobileMenu
+  const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
   const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
 
   return (
@@ -1411,27 +1412,33 @@ function App() {
             </g>
           </svg>
 
-          <div className="layer-legend" aria-label="Layer order legend">
-            <div className="layer-legend-header">
-              <span>Layer Legend</span>
-              <span>Front -&gt; Back</span>
+          {showLayerLegend && (
+            <div className="layer-legend" aria-label="Layer order legend">
+              <div className="layer-legend-header">
+                <span>Layer Legend</span>
+                <span>Front -&gt; Back</span>
+              </div>
+              <div className="layer-legend-items">
+                {layers.map((layer, index) => (
+                  <div key={layer.id} className="layer-legend-item">
+                    <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }} />
+                    <span className="layer-legend-label">
+                      {index + 1}. {layer.name}
+                      {layer.visible ? '' : ' (hidden)'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="layer-legend-items">
-              {layers.map((layer, index) => (
-                <div key={layer.id} className="layer-legend-item">
-                  <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }} />
-                  <span className="layer-legend-label">
-                    {index + 1}. {layer.name}
-                    {layer.visible ? '' : ' (hidden)'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
         </section>
 
         {showThreePreview && (
-          <aside className={`preview-pane ${hidePreviewPane ? 'panel-hidden' : ''}`}>
+          <aside
+            className={`preview-pane ${hidePreviewPane ? 'panel-hidden' : ''} ${
+              isMobileLayout && mobileViewMode === 'split' ? 'preview-pane-mobile-split' : ''
+            }`}
+          >
             <ThreePreviewPanel
               key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
               shapes={visibleShapes}

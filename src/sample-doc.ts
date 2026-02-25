@@ -6,34 +6,82 @@ type PresetDefinition = {
   doc: DocFile
 }
 
-const DEFAULT_PATTERN_LAYER: Layer = {
-  id: 'layer-pattern',
-  name: 'Pattern',
-  visible: true,
-  locked: false,
+function makeLayer(id: string, name: string): Layer {
+  return {
+    id,
+    name,
+    visible: true,
+    locked: false,
+  }
 }
 
-const DEFAULT_STITCH_LAYER: Layer = {
-  id: 'layer-stitch-guides',
-  name: 'Stitch Guides',
-  visible: true,
-  locked: false,
+function line(id: string, layerId: string, x1: number, y1: number, x2: number, y2: number): Shape {
+  return {
+    id,
+    type: 'line',
+    layerId,
+    start: { x: x1, y: y1 },
+    end: { x: x2, y: y2 },
+  }
 }
 
-function buildDoc(name: string, patternShapes: Shape[], stitchShapes: Shape[], foldLines: FoldLine[]): DocFile {
+function arc(id: string, layerId: string, sx: number, sy: number, mx: number, my: number, ex: number, ey: number): Shape {
+  return {
+    id,
+    type: 'arc',
+    layerId,
+    start: { x: sx, y: sy },
+    mid: { x: mx, y: my },
+    end: { x: ex, y: ey },
+  }
+}
+
+function bezier(
+  id: string,
+  layerId: string,
+  sx: number,
+  sy: number,
+  cx: number,
+  cy: number,
+  ex: number,
+  ey: number,
+): Shape {
+  return {
+    id,
+    type: 'bezier',
+    layerId,
+    start: { x: sx, y: sy },
+    control: { x: cx, y: cy },
+    end: { x: ex, y: ey },
+  }
+}
+
+function rectangle(idPrefix: string, layerId: string, minX: number, minY: number, maxX: number, maxY: number): Shape[] {
+  return [
+    line(`${idPrefix}-top`, layerId, minX, minY, maxX, minY),
+    line(`${idPrefix}-right`, layerId, maxX, minY, maxX, maxY),
+    line(`${idPrefix}-bottom`, layerId, maxX, maxY, minX, maxY),
+    line(`${idPrefix}-left`, layerId, minX, maxY, minX, minY),
+  ]
+}
+
+function stitchBox(idPrefix: string, layerId: string, minX: number, minY: number, maxX: number, maxY: number, inset: number): Shape[] {
+  return rectangle(idPrefix, layerId, minX + inset, minY + inset, maxX - inset, maxY - inset)
+}
+
+function buildDoc(
+  name: string,
+  layers: Layer[],
+  shapes: Shape[],
+  foldLines: FoldLine[],
+  activeLayerId = layers[0]?.id ?? 'layer-1',
+): DocFile {
   return {
     version: 1,
     units: 'mm',
-    layers: [
-      {
-        ...DEFAULT_PATTERN_LAYER,
-      },
-      {
-        ...DEFAULT_STITCH_LAYER,
-      },
-    ],
-    activeLayerId: DEFAULT_PATTERN_LAYER.id,
-    objects: [...patternShapes, ...stitchShapes].map((shape) => ({
+    layers,
+    activeLayerId,
+    objects: shapes.map((shape) => ({
       ...shape,
       id: `${name}-${shape.id}`,
     })),
@@ -45,112 +93,32 @@ function buildDoc(name: string, patternShapes: Shape[], stitchShapes: Shape[], f
   }
 }
 
-const walletPattern: Shape[] = [
-  {
-    id: 'outline-top',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -220, y: -140 },
-    end: { x: 220, y: -140 },
-  },
-  {
-    id: 'outline-right',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 220, y: -140 },
-    end: { x: 220, y: 140 },
-  },
-  {
-    id: 'outline-bottom',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 220, y: 140 },
-    end: { x: -220, y: 140 },
-  },
-  {
-    id: 'outline-left',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -220, y: 140 },
-    end: { x: -220, y: -140 },
-  },
-  {
-    id: 'left-slot-top',
-    type: 'bezier',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -200, y: -50 },
-    control: { x: -112, y: -92 },
-    end: { x: -20, y: -50 },
-  },
-  {
-    id: 'right-slot-top',
-    type: 'bezier',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 20, y: -50 },
-    control: { x: 112, y: -92 },
-    end: { x: 200, y: -50 },
-  },
-  {
-    id: 'left-pocket-mouth',
-    type: 'arc',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -198, y: 86 },
-    mid: { x: -110, y: 34 },
-    end: { x: -22, y: 86 },
-  },
-  {
-    id: 'right-pocket-mouth',
-    type: 'arc',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 22, y: 86 },
-    mid: { x: 110, y: 34 },
-    end: { x: 198, y: 86 },
-  },
-  {
-    id: 'card-divider-left',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -96, y: -50 },
-    end: { x: -96, y: 96 },
-  },
-  {
-    id: 'card-divider-right',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 96, y: -50 },
-    end: { x: 96, y: 96 },
-  },
-]
+const walletShellLayer = makeLayer('wallet-shell', 'Outer Shell')
+const walletLeftPocketLayer = makeLayer('wallet-left-pocket', 'Left Pocket')
+const walletRightPocketLayer = makeLayer('wallet-right-pocket', 'Right Pocket')
 
-const walletStitch: Shape[] = [
-  {
-    id: 'stitch-guide-top',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: -200, y: -122 },
-    end: { x: 200, y: -122 },
-  },
-  {
-    id: 'stitch-guide-right',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: 200, y: -122 },
-    end: { x: 200, y: 122 },
-  },
-  {
-    id: 'stitch-guide-bottom',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: 200, y: 122 },
-    end: { x: -200, y: 122 },
-  },
-  {
-    id: 'stitch-guide-left',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: -200, y: 122 },
-    end: { x: -200, y: -122 },
-  },
+const walletLayers: Layer[] = [walletShellLayer, walletLeftPocketLayer, walletRightPocketLayer]
+
+const walletShapes: Shape[] = [
+  ...rectangle('shell-outline', walletShellLayer.id, -220, -140, 220, 140),
+  ...stitchBox('shell-stitch', walletShellLayer.id, -220, -140, 220, 140, 16),
+  line('shell-center-seam', walletShellLayer.id, 0, -140, 0, 140),
+
+  ...rectangle('left-pocket-outline', walletLeftPocketLayer.id, -206, -106, -8, 120),
+  arc('left-pocket-mouth', walletLeftPocketLayer.id, -194, 86, -107, 40, -20, 86),
+  bezier('left-card-slot', walletLeftPocketLayer.id, -188, -50, -106, -88, -24, -50),
+  line('left-card-divider', walletLeftPocketLayer.id, -98, -48, -98, 84),
+  line('left-pocket-stitch-left', walletLeftPocketLayer.id, -194, -92, -194, 106),
+  line('left-pocket-stitch-right', walletLeftPocketLayer.id, -20, -92, -20, 106),
+  line('left-pocket-stitch-bottom', walletLeftPocketLayer.id, -194, 106, -20, 106),
+
+  ...rectangle('right-pocket-outline', walletRightPocketLayer.id, 8, -106, 206, 120),
+  arc('right-pocket-mouth', walletRightPocketLayer.id, 20, 86, 107, 40, 194, 86),
+  bezier('right-card-slot', walletRightPocketLayer.id, 24, -50, 106, -88, 188, -50),
+  line('right-card-divider', walletRightPocketLayer.id, 98, -48, 98, 84),
+  line('right-pocket-stitch-left', walletRightPocketLayer.id, 20, -92, 20, 106),
+  line('right-pocket-stitch-right', walletRightPocketLayer.id, 194, -92, 194, 106),
+  line('right-pocket-stitch-bottom', walletRightPocketLayer.id, 20, 106, 194, 106),
 ]
 
 const walletFolds: FoldLine[] = [
@@ -164,177 +132,70 @@ const walletFolds: FoldLine[] = [
   },
 ]
 
-const cardSleevePattern: Shape[] = [
-  {
-    id: 'outline-top',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -150, y: -95 },
-    end: { x: 150, y: -95 },
-  },
-  {
-    id: 'outline-right',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 150, y: -95 },
-    end: { x: 150, y: 95 },
-  },
-  {
-    id: 'outline-bottom',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 150, y: 95 },
-    end: { x: -150, y: 95 },
-  },
-  {
-    id: 'outline-left',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -150, y: 95 },
-    end: { x: -150, y: -95 },
-  },
-  {
-    id: 'thumb-cutout',
-    type: 'arc',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -54, y: 95 },
-    mid: { x: 0, y: 56 },
-    end: { x: 54, y: 95 },
-  },
-]
+const sleeveBackLayer = makeLayer('sleeve-back', 'Sleeve Back')
+const sleeveFrontLayer = makeLayer('sleeve-front', 'Sleeve Front Pocket')
 
-const cardSleeveStitch: Shape[] = [
-  {
-    id: 'stitch-guide-top',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: -130, y: -78 },
-    end: { x: 130, y: -78 },
-  },
-  {
-    id: 'stitch-guide-right',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: 130, y: -78 },
-    end: { x: 130, y: 78 },
-  },
-  {
-    id: 'stitch-guide-bottom',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: 130, y: 78 },
-    end: { x: -130, y: 78 },
-  },
-  {
-    id: 'stitch-guide-left',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: -130, y: 78 },
-    end: { x: -130, y: -78 },
-  },
+const cardSleeveLayers: Layer[] = [sleeveBackLayer, sleeveFrontLayer]
+
+const cardSleeveShapes: Shape[] = [
+  ...rectangle('sleeve-back-outline', sleeveBackLayer.id, -164, -102, 164, 102),
+  ...stitchBox('sleeve-back-stitch', sleeveBackLayer.id, -164, -102, 164, 102, 14),
+
+  line('sleeve-front-left', sleeveFrontLayer.id, -150, -84, -150, 98),
+  line('sleeve-front-right', sleeveFrontLayer.id, 150, -84, 150, 98),
+  line('sleeve-front-bottom', sleeveFrontLayer.id, 150, 98, -150, 98),
+  arc('sleeve-thumb-cutout', sleeveFrontLayer.id, -58, -84, 0, -126, 58, -84),
+  line('sleeve-front-stitch-left', sleeveFrontLayer.id, -138, -72, -138, 86),
+  line('sleeve-front-stitch-right', sleeveFrontLayer.id, 138, -72, 138, 86),
+  line('sleeve-front-stitch-bottom', sleeveFrontLayer.id, 138, 86, -138, 86),
 ]
 
 const cardSleeveFolds: FoldLine[] = [
   {
     id: 'sleeve-crease',
     name: 'Optional Crease',
-    start: { x: 0, y: -95 },
-    end: { x: 0, y: 95 },
-    angleDeg: 18,
+    start: { x: 0, y: -102 },
+    end: { x: 0, y: 102 },
+    angleDeg: 16,
     maxAngleDeg: 120,
   },
 ]
 
-const triFoldPattern: Shape[] = [
-  {
-    id: 'outline-top',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -300, y: -120 },
-    end: { x: 300, y: -120 },
-  },
-  {
-    id: 'outline-right',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 300, y: -120 },
-    end: { x: 300, y: 120 },
-  },
-  {
-    id: 'outline-bottom',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 300, y: 120 },
-    end: { x: -300, y: 120 },
-  },
-  {
-    id: 'outline-left',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -300, y: 120 },
-    end: { x: -300, y: -120 },
-  },
-  {
-    id: 'window-left',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: -100, y: -120 },
-    end: { x: -100, y: 120 },
-  },
-  {
-    id: 'window-right',
-    type: 'line',
-    layerId: DEFAULT_PATTERN_LAYER.id,
-    start: { x: 100, y: -120 },
-    end: { x: 100, y: 120 },
-  },
-]
+const triCenterLayer = makeLayer('tri-center', 'Center Body')
+const triLeftFlapLayer = makeLayer('tri-left-flap', 'Left Flap')
+const triRightFlapLayer = makeLayer('tri-right-flap', 'Right Flap')
 
-const triFoldStitch: Shape[] = [
-  {
-    id: 'stitch-guide-top',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: -280, y: -104 },
-    end: { x: 280, y: -104 },
-  },
-  {
-    id: 'stitch-guide-right',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: 280, y: -104 },
-    end: { x: 280, y: 104 },
-  },
-  {
-    id: 'stitch-guide-bottom',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: 280, y: 104 },
-    end: { x: -280, y: 104 },
-  },
-  {
-    id: 'stitch-guide-left',
-    type: 'line',
-    layerId: DEFAULT_STITCH_LAYER.id,
-    start: { x: -280, y: 104 },
-    end: { x: -280, y: -104 },
-  },
+const triFoldLayers: Layer[] = [triCenterLayer, triLeftFlapLayer, triRightFlapLayer]
+
+const triFoldShapes: Shape[] = [
+  ...rectangle('tri-center-outline', triCenterLayer.id, -110, -118, 110, 118),
+  ...stitchBox('tri-center-stitch', triCenterLayer.id, -110, -118, 110, 118, 12),
+
+  ...rectangle('tri-left-outline', triLeftFlapLayer.id, -302, -118, -100, 118),
+  line('tri-left-window', triLeftFlapLayer.id, -196, -118, -196, 118),
+  arc('tri-left-id-cut', triLeftFlapLayer.id, -286, 48, -202, 12, -118, 48),
+  ...stitchBox('tri-left-stitch', triLeftFlapLayer.id, -302, -118, -100, 118, 12),
+
+  ...rectangle('tri-right-outline', triRightFlapLayer.id, 100, -118, 302, 118),
+  line('tri-right-window', triRightFlapLayer.id, 196, -118, 196, 118),
+  arc('tri-right-id-cut', triRightFlapLayer.id, 118, 48, 202, 12, 286, 48),
+  ...stitchBox('tri-right-stitch', triRightFlapLayer.id, 100, -118, 302, 118, 12),
 ]
 
 const triFoldFolds: FoldLine[] = [
   {
     id: 'tri-fold-left',
     name: 'Tri-Fold Left',
-    start: { x: -100, y: -120 },
-    end: { x: -100, y: 120 },
+    start: { x: -100, y: -118 },
+    end: { x: -100, y: 118 },
     angleDeg: 32,
     maxAngleDeg: 180,
   },
   {
     id: 'tri-fold-right',
     name: 'Tri-Fold Right',
-    start: { x: 100, y: -120 },
-    end: { x: 100, y: 120 },
+    start: { x: 100, y: -118 },
+    end: { x: 100, y: 118 },
     angleDeg: 28,
     maxAngleDeg: 180,
   },
@@ -344,17 +205,17 @@ export const PRESET_DOCS: PresetDefinition[] = [
   {
     id: 'wallet',
     label: 'Wallet',
-    doc: buildDoc('wallet', walletPattern, walletStitch, walletFolds),
+    doc: buildDoc('wallet', walletLayers, walletShapes, walletFolds, walletShellLayer.id),
   },
   {
     id: 'card-sleeve',
     label: 'Card Sleeve',
-    doc: buildDoc('card-sleeve', cardSleevePattern, cardSleeveStitch, cardSleeveFolds),
+    doc: buildDoc('card-sleeve', cardSleeveLayers, cardSleeveShapes, cardSleeveFolds, sleeveBackLayer.id),
   },
   {
     id: 'trifold',
     label: 'Tri-fold Layout',
-    doc: buildDoc('trifold', triFoldPattern, triFoldStitch, triFoldFolds),
+    doc: buildDoc('trifold', triFoldLayers, triFoldShapes, triFoldFolds, triCenterLayer.id),
   },
 ]
 
