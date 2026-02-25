@@ -95,6 +95,7 @@
 }
 
 .topbar-mobile .layer-controls,
+.topbar-mobile .line-type-controls,
 .topbar-mobile .file-controls,
 .topbar-mobile .group.meta {
   width: 100%;
@@ -109,18 +110,24 @@
   flex-wrap: wrap;
 }
 
+.line-type-controls {
+  flex-wrap: wrap;
+}
+
 .preset-controls,
 .zoom-controls {
   flex-wrap: nowrap;
 }
 
-.layer-label {
+.layer-label,
+.line-type-label {
   font-size: 12px;
   color: var(--text-muted-strong);
 }
 
 .layer-select,
-.preset-select {
+.preset-select,
+.line-type-select {
   border-radius: 7px;
   border: 1px solid var(--border-color);
   background: var(--surface-input);
@@ -135,6 +142,10 @@
 
 .preset-select {
   min-width: 134px;
+}
+
+.line-type-select {
+  min-width: 164px;
 }
 
 .group.meta {
@@ -708,6 +719,11 @@ button:disabled {
 
 @media (max-width: 800px) {
   .layer-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .line-type-select {
     min-width: 0;
     width: 100%;
   }

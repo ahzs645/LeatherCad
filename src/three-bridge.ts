@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { sampleShapePoints } from './cad-geometry'
-import type { FoldLine, Layer, Shape, TextureSource } from './cad-types'
+import type { FoldLine, Layer, LineType, Shape, TextureSource } from './cad-types'
 
 type ModelTransform = {
   scale: number
@@ -214,6 +214,7 @@ export class ThreeBridge {
   private currentRoughness: THREE.Texture | null = null
 
   private layers: Layer[] = []
+  private lineTypes: LineType[] = []
   private shapes: Shape[] = []
   private foldLines: FoldLine[] = []
   private activeFoldAxis = new THREE.Vector3(0, 0, 1)
@@ -308,11 +309,24 @@ export class ThreeBridge {
   }
 
   private shapeColor(shape: Shape) {
-    const layer = this.layers.find((entry) => entry.id === shape.layerId)
-    const fingerprint = `${layer?.name ?? ''} ${shape.id}`.toLowerCase()
-    if (fingerprint.includes('stitch') || fingerprint.includes('seam') || fingerprint.includes('thread')) {
+    const lineType = this.lineTypes.find((entry) => entry.id === shape.lineTypeId)
+    if (lineType?.role === 'stitch') {
       return STITCH_LINE_COLOR
     }
+    if (lineType?.role === 'fold') {
+      return FOLD_LINE_COLOR
+    }
+
+    const layer = this.layers.find((entry) => entry.id === shape.layerId)
+    const fallbackFingerprint = `${layer?.name ?? ''} ${shape.id}`.toLowerCase()
+    if (
+      fallbackFingerprint.includes('stitch') ||
+      fallbackFingerprint.includes('seam') ||
+      fallbackFingerprint.includes('thread')
+    ) {
+      return STITCH_LINE_COLOR
+    }
+
     return CUT_LINE_COLOR
   }
 
@@ -714,8 +728,9 @@ export class ThreeBridge {
     }
   }
 
-  setDocument(layers: Layer[], shapes: Shape[], foldLines: FoldLine[]) {
+  setDocument(layers: Layer[], shapes: Shape[], foldLines: FoldLine[], lineTypes: LineType[] = []) {
     this.layers = [...layers]
+    this.lineTypes = [...lineTypes]
     this.shapes = [...shapes]
     this.foldLines = [...foldLines]
     if (this.foldLines.length > 0) {

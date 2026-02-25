@@ -1,4 +1,10 @@
 import type { DocFile, FoldLine, Layer, Shape } from './cad-types'
+import {
+  CUT_LINE_TYPE_ID,
+  DEFAULT_ACTIVE_LINE_TYPE_ID,
+  STITCH_LINE_TYPE_ID,
+  createDefaultLineTypes,
+} from './line-types'
 
 type PresetDefinition = {
   id: string
@@ -16,21 +22,33 @@ function makeLayer(id: string, name: string, stackLevel = 0): Layer {
   }
 }
 
-function line(id: string, layerId: string, x1: number, y1: number, x2: number, y2: number): Shape {
+function line(id: string, layerId: string, x1: number, y1: number, x2: number, y2: number, lineTypeId = CUT_LINE_TYPE_ID): Shape {
   return {
     id,
     type: 'line',
     layerId,
+    lineTypeId,
     start: { x: x1, y: y1 },
     end: { x: x2, y: y2 },
   }
 }
 
-function arc(id: string, layerId: string, sx: number, sy: number, mx: number, my: number, ex: number, ey: number): Shape {
+function arc(
+  id: string,
+  layerId: string,
+  sx: number,
+  sy: number,
+  mx: number,
+  my: number,
+  ex: number,
+  ey: number,
+  lineTypeId = CUT_LINE_TYPE_ID,
+): Shape {
   return {
     id,
     type: 'arc',
     layerId,
+    lineTypeId,
     start: { x: sx, y: sy },
     mid: { x: mx, y: my },
     end: { x: ex, y: ey },
@@ -46,28 +64,38 @@ function bezier(
   cy: number,
   ex: number,
   ey: number,
+  lineTypeId = CUT_LINE_TYPE_ID,
 ): Shape {
   return {
     id,
     type: 'bezier',
     layerId,
+    lineTypeId,
     start: { x: sx, y: sy },
     control: { x: cx, y: cy },
     end: { x: ex, y: ey },
   }
 }
 
-function rectangle(idPrefix: string, layerId: string, minX: number, minY: number, maxX: number, maxY: number): Shape[] {
+function rectangle(
+  idPrefix: string,
+  layerId: string,
+  minX: number,
+  minY: number,
+  maxX: number,
+  maxY: number,
+  lineTypeId = CUT_LINE_TYPE_ID,
+): Shape[] {
   return [
-    line(`${idPrefix}-top`, layerId, minX, minY, maxX, minY),
-    line(`${idPrefix}-right`, layerId, maxX, minY, maxX, maxY),
-    line(`${idPrefix}-bottom`, layerId, maxX, maxY, minX, maxY),
-    line(`${idPrefix}-left`, layerId, minX, maxY, minX, minY),
+    line(`${idPrefix}-top`, layerId, minX, minY, maxX, minY, lineTypeId),
+    line(`${idPrefix}-right`, layerId, maxX, minY, maxX, maxY, lineTypeId),
+    line(`${idPrefix}-bottom`, layerId, maxX, maxY, minX, maxY, lineTypeId),
+    line(`${idPrefix}-left`, layerId, minX, maxY, minX, minY, lineTypeId),
   ]
 }
 
 function stitchBox(idPrefix: string, layerId: string, minX: number, minY: number, maxX: number, maxY: number, inset: number): Shape[] {
-  return rectangle(idPrefix, layerId, minX + inset, minY + inset, maxX - inset, maxY - inset)
+  return rectangle(idPrefix, layerId, minX + inset, minY + inset, maxX - inset, maxY - inset, STITCH_LINE_TYPE_ID)
 }
 
 function buildDoc(
@@ -82,6 +110,8 @@ function buildDoc(
     units: 'mm',
     layers,
     activeLayerId,
+    lineTypes: createDefaultLineTypes(),
+    activeLineTypeId: DEFAULT_ACTIVE_LINE_TYPE_ID,
     objects: shapes.map((shape) => ({
       ...shape,
       id: `${name}-${shape.id}`,
@@ -109,17 +139,17 @@ const walletShapes: Shape[] = [
   arc('left-pocket-mouth', walletLeftPocketLayer.id, -194, 86, -107, 40, -20, 86),
   bezier('left-card-slot', walletLeftPocketLayer.id, -188, -50, -106, -88, -24, -50),
   line('left-card-divider', walletLeftPocketLayer.id, -98, -48, -98, 84),
-  line('left-pocket-stitch-left', walletLeftPocketLayer.id, -194, -92, -194, 106),
-  line('left-pocket-stitch-right', walletLeftPocketLayer.id, -20, -92, -20, 106),
-  line('left-pocket-stitch-bottom', walletLeftPocketLayer.id, -194, 106, -20, 106),
+  line('left-pocket-stitch-left', walletLeftPocketLayer.id, -194, -92, -194, 106, STITCH_LINE_TYPE_ID),
+  line('left-pocket-stitch-right', walletLeftPocketLayer.id, -20, -92, -20, 106, STITCH_LINE_TYPE_ID),
+  line('left-pocket-stitch-bottom', walletLeftPocketLayer.id, -194, 106, -20, 106, STITCH_LINE_TYPE_ID),
 
   ...rectangle('right-pocket-outline', walletRightPocketLayer.id, 8, -106, 206, 120),
   arc('right-pocket-mouth', walletRightPocketLayer.id, 20, 86, 107, 40, 194, 86),
   bezier('right-card-slot', walletRightPocketLayer.id, 24, -50, 106, -88, 188, -50),
   line('right-card-divider', walletRightPocketLayer.id, 98, -48, 98, 84),
-  line('right-pocket-stitch-left', walletRightPocketLayer.id, 20, -92, 20, 106),
-  line('right-pocket-stitch-right', walletRightPocketLayer.id, 194, -92, 194, 106),
-  line('right-pocket-stitch-bottom', walletRightPocketLayer.id, 20, 106, 194, 106),
+  line('right-pocket-stitch-left', walletRightPocketLayer.id, 20, -92, 20, 106, STITCH_LINE_TYPE_ID),
+  line('right-pocket-stitch-right', walletRightPocketLayer.id, 194, -92, 194, 106, STITCH_LINE_TYPE_ID),
+  line('right-pocket-stitch-bottom', walletRightPocketLayer.id, 20, 106, 194, 106, STITCH_LINE_TYPE_ID),
 ]
 
 const walletFolds: FoldLine[] = [
@@ -146,9 +176,9 @@ const cardSleeveShapes: Shape[] = [
   line('sleeve-front-right', sleeveFrontLayer.id, 150, -84, 150, 98),
   line('sleeve-front-bottom', sleeveFrontLayer.id, 150, 98, -150, 98),
   arc('sleeve-thumb-cutout', sleeveFrontLayer.id, -58, -84, 0, -126, 58, -84),
-  line('sleeve-front-stitch-left', sleeveFrontLayer.id, -138, -72, -138, 86),
-  line('sleeve-front-stitch-right', sleeveFrontLayer.id, 138, -72, 138, 86),
-  line('sleeve-front-stitch-bottom', sleeveFrontLayer.id, 138, 86, -138, 86),
+  line('sleeve-front-stitch-left', sleeveFrontLayer.id, -138, -72, -138, 86, STITCH_LINE_TYPE_ID),
+  line('sleeve-front-stitch-right', sleeveFrontLayer.id, 138, -72, 138, 86, STITCH_LINE_TYPE_ID),
+  line('sleeve-front-stitch-bottom', sleeveFrontLayer.id, 138, 86, -138, 86, STITCH_LINE_TYPE_ID),
 ]
 
 const cardSleeveFolds: FoldLine[] = [

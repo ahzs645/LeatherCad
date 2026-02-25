@@ -17,8 +17,17 @@ import {
   shapeToSvg,
   uid,
 } from './cad-geometry'
-import type { DocFile, FoldLine, Layer, Point, Shape, Tool, Viewport } from './cad-types'
+import type { DocFile, FoldLine, Layer, LineType, Point, Shape, Tool, Viewport } from './cad-types'
 import { ThreePreviewPanel } from './components/ThreePreviewPanel'
+import {
+  DEFAULT_ACTIVE_LINE_TYPE_ID,
+  createDefaultLineTypes,
+  lineTypeStrokeDasharray,
+  normalizeLineTypes,
+  parseLineType,
+  resolveActiveLineTypeId,
+  resolveShapeLineTypeId,
+} from './line-types'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './sample-doc'
 
 const GRID_STEP = 100
@@ -94,11 +103,6 @@ function interpolateHexColor(startHex: string, endHex: string, ratio: number) {
   return `#${channelToHex(red)}${channelToHex(green)}${channelToHex(blue)}`
 }
 
-function looksLikeStitch(shape: Shape, layerName: string) {
-  const fingerprint = `${shape.id} ${layerName}`.toLowerCase()
-  return fingerprint.includes('stitch') || fingerprint.includes('seam') || fingerprint.includes('thread')
-}
-
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -172,6 +176,8 @@ function newLayerName(index: number) {
 
 function App() {
   const initialLayerIdRef = useRef(uid())
+  const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
+  const [activeLineTypeId, setActiveLineTypeId] = useState(DEFAULT_ACTIVE_LINE_TYPE_ID)
   const [tool, setTool] = useState<Tool>('pan')
   const [shapes, setShapes] = useState<Shape[]>([])
   const [foldLines, setFoldLines] = useState<FoldLine[]>([])
@@ -212,10 +218,19 @@ function App() {
   )
 
   const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? layers[0] ?? null, [layers, activeLayerId])
+  const activeLineType = useMemo(
+    () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
+    [lineTypes, activeLineTypeId],
+  )
+  const lineTypesById = useMemo(
+    () => Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType])),
+    [lineTypes],
+  )
   const visibleShapes = useMemo(() => {
     const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
-    return shapes.filter((shape) => visibleLayerIds.has(shape.layerId))
-  }, [layers, shapes])
+    const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
+    return shapes.filter((shape) => visibleLayerIds.has(shape.layerId) && visibleLineTypeIds.has(shape.lineTypeId))
+  }, [layers, lineTypes, shapes])
   const layerColorsById = useMemo(() => {
     const colorMap: Record<string, string> = {}
     const denominator = Math.max(layers.length - 1, 1)
@@ -279,6 +294,7 @@ function App() {
   const activeLayerColor = activeLayer
     ? displayLayerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR
     : DEFAULT_FRONT_LAYER_COLOR
+  const activeLineTypeDasharray = lineTypeStrokeDasharray(activeLineType?.style ?? 'solid')
 
   const gridLines = useMemo(() => {
     const lines: ReactElement[] = []
@@ -302,15 +318,15 @@ function App() {
 
     if (tool === 'line' || tool === 'fold') {
       return (
-        <line
-          x1={draftPoints[0].x}
-          y1={draftPoints[0].y}
-          x2={cursorPoint.x}
-          y2={cursorPoint.y}
-          className={tool === 'fold' ? 'fold-preview' : 'shape-preview'}
-          style={tool === 'fold' ? undefined : { stroke: activeLayerColor }}
-        />
-      )
+          <line
+            x1={draftPoints[0].x}
+            y1={draftPoints[0].y}
+            x2={cursorPoint.x}
+            y2={cursorPoint.y}
+            className={tool === 'fold' ? 'fold-preview' : 'shape-preview'}
+            style={tool === 'fold' ? undefined : { stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+          />
+        )
     }
 
     if (tool === 'arc') {
@@ -322,12 +338,18 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className="shape-preview"
-            style={{ stroke: activeLayerColor }}
+            style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
           />
         )
       }
 
-      return <path d={arcPath(draftPoints[0], draftPoints[1], cursorPoint)} className="shape-preview" style={{ stroke: activeLayerColor }} />
+      return (
+        <path
+          d={arcPath(draftPoints[0], draftPoints[1], cursorPoint)}
+          className="shape-preview"
+          style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+        />
+      )
     }
 
     if (tool === 'bezier') {
@@ -339,7 +361,7 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className="shape-preview"
-            style={{ stroke: activeLayerColor }}
+            style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
           />
         )
       }
@@ -350,13 +372,13 @@ function App() {
             draftPoints[1].y,
           )} ${round(cursorPoint.x)} ${round(cursorPoint.y)}`}
           className="shape-preview"
-          style={{ stroke: activeLayerColor }}
+          style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
         />
       )
     }
 
     return null
-  }, [cursorPoint, draftPoints, tool, activeLayerColor])
+  }, [cursorPoint, draftPoints, tool, activeLayerColor, activeLineTypeDasharray])
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current
@@ -462,6 +484,20 @@ function App() {
     return true
   }
 
+  const ensureActiveLineTypeWritable = () => {
+    if (!activeLineType) {
+      setStatus('No active line type available')
+      return false
+    }
+
+    if (!activeLineType.visible) {
+      setStatus('Active line type is hidden. Show it before drawing.')
+      return false
+    }
+
+    return true
+  }
+
   useEffect(() => {
     const media = window.matchMedia(MOBILE_MEDIA_QUERY)
     const sync = () => {
@@ -491,6 +527,16 @@ function App() {
       setActiveLayerId(layers[0].id)
     }
   }, [layers, activeLayerId])
+
+  useEffect(() => {
+    if (lineTypes.length === 0) {
+      setLineTypes(createDefaultLineTypes())
+      return
+    }
+    if (!lineTypes.some((lineType) => lineType.id === activeLineTypeId)) {
+      setActiveLineTypeId(lineTypes[0].id)
+    }
+  }, [lineTypes, activeLineTypeId])
 
   useEffect(() => {
     setLayerColorOverrides((previous) => {
@@ -556,7 +602,7 @@ function App() {
     setCursorPoint(point)
 
     if (tool === 'line') {
-      if (!ensureActiveLayerWritable()) {
+      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
         return
       }
 
@@ -579,6 +625,7 @@ function App() {
           id: uid(),
           type: 'line',
           layerId: activeLayerId,
+          lineTypeId: activeLineTypeId,
           start,
           end: point,
         },
@@ -619,7 +666,7 @@ function App() {
     }
 
     if (tool === 'arc') {
-      if (!ensureActiveLayerWritable()) {
+      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
         return
       }
 
@@ -635,6 +682,7 @@ function App() {
           id: uid(),
           type: 'arc',
           layerId: activeLayerId,
+          lineTypeId: activeLineTypeId,
           start: draftPoints[0],
           mid: draftPoints[1],
           end: point,
@@ -646,7 +694,7 @@ function App() {
     }
 
     if (tool === 'bezier') {
-      if (!ensureActiveLayerWritable()) {
+      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
         return
       }
 
@@ -662,6 +710,7 @@ function App() {
           id: uid(),
           type: 'bezier',
           layerId: activeLayerId,
+          lineTypeId: activeLineTypeId,
           start: draftPoints[0],
           control: draftPoints[1],
           end: point,
@@ -758,6 +807,8 @@ function App() {
       units: 'mm',
       layers,
       activeLayerId,
+      lineTypes,
+      activeLineTypeId,
       objects: shapes,
       foldLines,
     }
@@ -781,6 +832,8 @@ function App() {
         foldLines?: unknown[]
         layers?: unknown[]
         activeLayerId?: unknown
+        lineTypes?: unknown[]
+        activeLineTypeId?: unknown
       }
 
       if (!Array.isArray(parsed.objects)) {
@@ -810,6 +863,12 @@ function App() {
           ? parsed.activeLayerId
           : nextLayers[0].id
 
+      const parsedLineTypes = Array.isArray(parsed.lineTypes)
+        ? parsed.lineTypes.map((candidate, index) => parseLineType(candidate, index)).filter((lineType): lineType is LineType => lineType !== null)
+        : []
+      const nextLineTypes = normalizeLineTypes(parsedLineTypes)
+      const nextActiveLineTypeId = resolveActiveLineTypeId(nextLineTypes, parsed.activeLineTypeId)
+
       const nextShapes: Shape[] = []
       for (const candidate of parsed.objects) {
         if (!isShapeLike(candidate)) {
@@ -821,12 +880,18 @@ function App() {
             ? (candidate as { layerId: string }).layerId
             : nextActiveLayerId
         const layerId = nextLayers.some((layer) => layer.id === rawLayerId) ? rawLayerId : nextActiveLayerId
+        const lineTypeId = resolveShapeLineTypeId(
+          nextLineTypes,
+          (candidate as { lineTypeId?: unknown }).lineTypeId,
+          nextActiveLineTypeId,
+        )
 
         if (candidate.type === 'line') {
           nextShapes.push({
             id: uid(),
             type: 'line',
             layerId,
+            lineTypeId,
             start: candidate.start,
             end: candidate.end,
           })
@@ -835,6 +900,7 @@ function App() {
             id: uid(),
             type: 'arc',
             layerId,
+            lineTypeId,
             start: candidate.start,
             mid: candidate.mid,
             end: candidate.end,
@@ -844,6 +910,7 @@ function App() {
             id: uid(),
             type: 'bezier',
             layerId,
+            lineTypeId,
             start: candidate.start,
             control: candidate.control,
             end: candidate.end,
@@ -863,6 +930,8 @@ function App() {
 
       setLayers(nextLayers)
       setActiveLayerId(nextActiveLayerId)
+      setLineTypes(nextLineTypes)
+      setActiveLineTypeId(nextActiveLineTypeId)
       setShapes(nextShapes)
       setFoldLines(nextFoldLines)
       setLayerColorOverrides({})
@@ -888,6 +957,9 @@ function App() {
 
     setLayers(sample.layers)
     setActiveLayerId(sample.activeLayerId)
+    const presetLineTypes = normalizeLineTypes(sample.lineTypes ?? [])
+    setLineTypes(presetLineTypes)
+    setActiveLineTypeId(resolveActiveLineTypeId(presetLineTypes, sample.activeLineTypeId))
     setShapes(sample.objects)
     setFoldLines(sample.foldLines)
     setLayerColorOverrides({})
@@ -1046,6 +1118,26 @@ function App() {
     setStatus(`Deleted layer and moved its shapes to "${fallbackLayer.name}"`)
   }
 
+  const handleToggleActiveLineTypeVisibility = () => {
+    if (!activeLineType) {
+      setStatus('No active line type to update')
+      return
+    }
+
+    setLineTypes((previous) =>
+      previous.map((lineType) =>
+        lineType.id === activeLineType.id
+          ? {
+              ...lineType,
+              visible: !lineType.visible,
+            }
+          : lineType,
+      ),
+    )
+
+    setStatus(activeLineType.visible ? `Line type hidden: ${activeLineType.name}` : `Line type shown: ${activeLineType.name}`)
+  }
+
   const handleSetLayerColorOverride = (layerId: string, nextColor: string) => {
     const normalizedColor = normalizeHexColor(nextColor, layerColorsById[layerId] ?? DEFAULT_FRONT_LAYER_COLOR)
     setLayerColorOverrides((previous) => ({
@@ -1138,6 +1230,7 @@ function App() {
     }
 
     const baseLayerId = uid()
+    const defaultLineTypes = createDefaultLineTypes()
     setLayers([
       {
         id: baseLayerId,
@@ -1148,6 +1241,8 @@ function App() {
       },
     ])
     setActiveLayerId(baseLayerId)
+    setLineTypes(defaultLineTypes)
+    setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
     setShapes([])
     setFoldLines([])
     setLayerColorOverrides({})
@@ -1299,6 +1394,26 @@ function App() {
           <button onClick={handleResetView}>Reset</button>
         </div>
 
+        <div className={`group line-type-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
+          <span className="line-type-label">Line Type</span>
+          <select
+            className="line-type-select"
+            value={activeLineType?.id ?? ''}
+            onChange={(event) => setActiveLineTypeId(event.target.value)}
+          >
+            {lineTypes.map((lineType) => (
+              <option key={lineType.id} value={lineType.id}>
+                {lineType.name}
+                {` [${lineType.role}]`}
+                {lineType.visible ? '' : ' (hidden)'}
+              </option>
+            ))}
+          </select>
+          <button onClick={handleToggleActiveLineTypeVisibility} disabled={!activeLineType}>
+            {activeLineType?.visible ? 'Hide Type' : 'Show Type'}
+          </button>
+        </div>
+
         <div className={`group layer-controls ${showLayerOptions ? '' : 'mobile-hidden'}`}>
           <span className="layer-label">Layer</span>
           <select
@@ -1395,6 +1510,7 @@ function App() {
               <button
                 onClick={() => {
                   const baseLayerId = uid()
+                  const defaultLineTypes = createDefaultLineTypes()
                   setLayers([
                     {
                       id: baseLayerId,
@@ -1405,6 +1521,8 @@ function App() {
                     },
                   ])
                   setActiveLayerId(baseLayerId)
+                  setLineTypes(defaultLineTypes)
+                  setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
                   setShapes([])
                   setFoldLines([])
                   setLayerColorOverrides({})
@@ -1422,6 +1540,7 @@ function App() {
           <span>{Math.round(viewport.scale * 100)}% zoom</span>
           <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
           <span>{layers.length} layers</span>
+          <span>{lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types</span>
           <span>{foldLines.length} bends</span>
         </div>
       </header>
@@ -1442,10 +1561,15 @@ function App() {
               {gridLines}
 
               {visibleShapes.map((shape) => {
-                const layerName = layers.find((layer) => layer.id === shape.layerId)?.name ?? ''
-                const layerStroke = looksLikeStitch(shape, layerName)
-                  ? stitchStrokeColor
-                  : displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
+                const lineType = lineTypesById[shape.lineTypeId]
+                const lineTypeRole = lineType?.role ?? 'cut'
+                const layerStroke =
+                  lineTypeRole === 'stitch'
+                    ? stitchStrokeColor
+                    : lineTypeRole === 'fold'
+                      ? foldStrokeColor
+                      : displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
+                const strokeDasharray = lineTypeStrokeDasharray(lineType?.style ?? 'solid')
                 if (shape.type === 'line') {
                   return (
                     <line
@@ -1455,7 +1579,7 @@ function App() {
                       x2={shape.end.x}
                       y2={shape.end.y}
                       className="shape-line"
-                      style={{ stroke: layerStroke }}
+                      style={{ stroke: layerStroke, strokeDasharray }}
                     />
                   )
                 }
@@ -1466,7 +1590,7 @@ function App() {
                       key={shape.id}
                       d={arcPath(shape.start, shape.mid, shape.end)}
                       className="shape-line"
-                      style={{ stroke: layerStroke }}
+                      style={{ stroke: layerStroke, strokeDasharray }}
                     />
                   )
                 }
@@ -1478,7 +1602,7 @@ function App() {
                       shape.control.y,
                     )} ${round(shape.end.x)} ${round(shape.end.y)}`}
                     className="shape-line"
-                    style={{ stroke: layerStroke }}
+                    style={{ stroke: layerStroke, strokeDasharray }}
                   />
                 )
               })}
@@ -1580,6 +1704,7 @@ function App() {
               shapes={visibleShapes}
               foldLines={foldLines}
               layers={layers}
+              lineTypes={lineTypes}
               themeMode={themeMode}
               isMobileLayout={isMobileLayout}
               onUpdateFoldLine={(foldLineId, angleDeg) =>

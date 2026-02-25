@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FoldLine, Layer, Shape, TextureSource } from '../cad-types'
+import type { FoldLine, Layer, LineType, Shape, TextureSource } from '../cad-types'
 import { ThreeBridge } from '../three-bridge'
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]
   foldLines: FoldLine[]
   layers: Layer[]
+  lineTypes: LineType[]
   themeMode: 'dark' | 'light'
   isMobileLayout: boolean
   onUpdateFoldLine: (foldLineId: string, angleDeg: number) => void
@@ -19,7 +20,15 @@ const DEFAULT_TEXTURE_FORM: TextureSource = {
   roughnessUrl: '',
 }
 
-export function ThreePreviewPanel({ shapes, foldLines, layers, themeMode, isMobileLayout, onUpdateFoldLine }: ThreePreviewPanelProps) {
+export function ThreePreviewPanel({
+  shapes,
+  foldLines,
+  layers,
+  lineTypes,
+  themeMode,
+  isMobileLayout,
+  onUpdateFoldLine,
+}: ThreePreviewPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const bridgeRef = useRef<ThreeBridge | null>(null)
@@ -87,8 +96,8 @@ export function ThreePreviewPanel({ shapes, foldLines, layers, themeMode, isMobi
       return
     }
 
-    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines)
-  }, [layers, shapesIn3dView, foldLines])
+    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines, lineTypes)
+  }, [layers, shapesIn3dView, foldLines, lineTypes])
 
   useEffect(() => {
     bridgeRef.current?.setTheme(themeMode)

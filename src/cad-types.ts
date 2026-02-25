@@ -5,27 +5,49 @@ export type Point = {
   y: number
 }
 
-export type LineShape = {
+export type LineTypeRole = 'cut' | 'stitch' | 'fold' | 'guide' | 'mark'
+
+export type LineTypeStyle = 'solid' | 'dashed' | 'dotted'
+
+export type LineType = {
   id: string
-  type: 'line'
+  name: string
+  role: LineTypeRole
+  style: LineTypeStyle
+  color: string
+  visible: boolean
+}
+
+type BaseShape = {
+  id: string
   layerId: string
+  lineTypeId: string
+}
+
+export type LineShape = {
+  id: BaseShape['id']
+  type: 'line'
+  layerId: BaseShape['layerId']
+  lineTypeId: BaseShape['lineTypeId']
   start: Point
   end: Point
 }
 
 export type ArcShape = {
-  id: string
+  id: BaseShape['id']
   type: 'arc'
-  layerId: string
+  layerId: BaseShape['layerId']
+  lineTypeId: BaseShape['lineTypeId']
   start: Point
   mid: Point
   end: Point
 }
 
 export type BezierShape = {
-  id: string
+  id: BaseShape['id']
   type: 'bezier'
-  layerId: string
+  layerId: BaseShape['layerId']
+  lineTypeId: BaseShape['lineTypeId']
   start: Point
   control: Point
   end: Point
@@ -55,6 +77,8 @@ export type DocFile = {
   units: 'mm'
   layers: Layer[]
   activeLayerId: string
+  lineTypes: LineType[]
+  activeLineTypeId: string
   objects: Shape[]
   foldLines: FoldLine[]
 }
