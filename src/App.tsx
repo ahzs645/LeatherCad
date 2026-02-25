@@ -235,6 +235,27 @@ function App() {
     }
     return stackMap
   }, [layers])
+  const stackColorsByLevel = useMemo(() => {
+    const uniqueStackLevels = Array.from(new Set(layers.map((layer) => layerStackLevels[layer.id] ?? 0))).sort(
+      (left, right) => left - right,
+    )
+    const denominator = Math.max(uniqueStackLevels.length - 1, 1)
+    const colorMap: Record<number, string> = {}
+
+    uniqueStackLevels.forEach((stackLevel, index) => {
+      colorMap[stackLevel] = interpolateHexColor(frontLayerColor, backLayerColor, index / denominator)
+    })
+
+    return colorMap
+  }, [layers, layerStackLevels, frontLayerColor, backLayerColor])
+  const stackColorsByLayerId = useMemo(() => {
+    const colorMap: Record<string, string> = {}
+    for (const [index, layer] of layers.entries()) {
+      const stackLevel = layerStackLevels[layer.id] ?? index
+      colorMap[layer.id] = stackColorsByLevel[stackLevel] ?? DEFAULT_FRONT_LAYER_COLOR
+    }
+    return colorMap
+  }, [layers, layerStackLevels, stackColorsByLevel])
   const stackLegendEntries = useMemo(() => {
     const grouped = new Map<number, string[]>()
     for (const layer of layers) {
@@ -245,10 +266,17 @@ function App() {
     }
 
     return Array.from(grouped.entries())
-      .map(([stackLevel, layerNames]) => ({ stackLevel, layerNames }))
+      .map(([stackLevel, layerNames]) => ({
+        stackLevel,
+        layerNames,
+        color: stackColorsByLevel[stackLevel] ?? DEFAULT_FRONT_LAYER_COLOR,
+      }))
       .sort((left, right) => left.stackLevel - right.stackLevel)
-  }, [layers, layerStackLevels])
-  const activeLayerColor = activeLayer ? layerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR : DEFAULT_FRONT_LAYER_COLOR
+  }, [layers, layerStackLevels, stackColorsByLevel])
+  const displayLayerColorsById = legendMode === 'stack' ? stackColorsByLayerId : layerColorsById
+  const activeLayerColor = activeLayer
+    ? displayLayerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR
+    : DEFAULT_FRONT_LAYER_COLOR
 
   const gridLines = useMemo(() => {
     const lines: ReactElement[] = []
@@ -1414,7 +1442,7 @@ function App() {
                 const layerName = layers.find((layer) => layer.id === shape.layerId)?.name ?? ''
                 const layerStroke = looksLikeStitch(shape, layerName)
                   ? stitchStrokeColor
-                  : layerColorsById[shape.layerId] ?? fallbackLayerStroke
+                  : displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
                 if (shape.type === 'line') {
                   return (
                     <line
@@ -1519,6 +1547,7 @@ function App() {
                   <div className="stack-legend-items">
                     {stackLegendEntries.map((entry) => (
                       <div key={`stack-${entry.stackLevel}`} className="stack-legend-item">
+                        <span className="layer-legend-swatch" style={{ backgroundColor: entry.color }} />
                         <span className="stack-level-chip">{`z${entry.stackLevel}`}</span>
                         <span className="stack-level-label">{entry.layerNames.join(', ')}</span>
                       </div>
