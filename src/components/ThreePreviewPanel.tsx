@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import type { FoldLine, Shape, TextureSource } from '../cad-types'
+import type { FoldLine, Layer, Shape, TextureSource } from '../cad-types'
 import { ThreeBridge } from '../three-bridge'
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]
   foldLines: FoldLine[]
+  layers: Layer[]
   isMobileLayout: boolean
   onUpdateFoldLine: (foldLineId: string, angleDeg: number) => void
 }
@@ -17,7 +18,7 @@ const DEFAULT_TEXTURE_FORM: TextureSource = {
   roughnessUrl: '',
 }
 
-export function ThreePreviewPanel({ shapes, foldLines, isMobileLayout, onUpdateFoldLine }: ThreePreviewPanelProps) {
+export function ThreePreviewPanel({ shapes, foldLines, layers, isMobileLayout, onUpdateFoldLine }: ThreePreviewPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const bridgeRef = useRef<ThreeBridge | null>(null)
@@ -60,9 +61,8 @@ export function ThreePreviewPanel({ shapes, foldLines, isMobileLayout, onUpdateF
       return
     }
 
-    bridgeRef.current.setShapes(shapes)
-    bridgeRef.current.setFoldLines(foldLines)
-  }, [shapes, foldLines])
+    bridgeRef.current.setDocument(layers, shapes, foldLines)
+  }, [layers, shapes, foldLines])
 
   return (
     <div className={`three-preview-shell ${showControls ? '' : 'preview-controls-collapsed'}`}>

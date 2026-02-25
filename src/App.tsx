@@ -134,7 +134,9 @@ function App() {
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null)
+  const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
+    null,
+  )
 
   const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? layers[0] ?? null, [layers, activeLayerId])
   const visibleShapes = useMemo(() => {
@@ -285,12 +287,13 @@ function App() {
     setStatus('View fit to visible shapes')
   }
 
-  const beginPan = (clientX: number, clientY: number) => {
+  const beginPan = (clientX: number, clientY: number, pointerId: number) => {
     panRef.current = {
       startX: clientX,
       startY: clientY,
       originX: viewport.x,
       originY: viewport.y,
+      pointerId,
     }
     setIsPanning(true)
   }
@@ -361,18 +364,28 @@ function App() {
   }, [])
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0 && !(event.button === 1 || event.button === 2)) {
+    if (event.pointerType !== 'touch' && event.button !== 0 && !(event.button === 1 || event.button === 2)) {
+      return
+    }
+
+    if (event.pointerType === 'touch' && panRef.current && panRef.current.pointerId !== event.pointerId) {
       return
     }
 
     if (tool === 'pan' || event.button === 1 || event.button === 2) {
       event.preventDefault()
-      beginPan(event.clientX, event.clientY)
-      event.currentTarget.setPointerCapture(event.pointerId)
+      beginPan(event.clientX, event.clientY, event.pointerId)
+      if (event.pointerType !== 'touch') {
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId)
+        } catch {
+          // Touch browsers can throw here; pan still works without capture.
+        }
+      }
       return
     }
 
-    if (event.button !== 0) {
+    if (event.pointerType !== 'touch' && event.button !== 0) {
       return
     }
 
@@ -501,13 +514,18 @@ function App() {
   }
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (isPanning && panRef.current) {
-      const deltaX = event.clientX - panRef.current.startX
-      const deltaY = event.clientY - panRef.current.startY
+    const panState = panRef.current
+    if (isPanning && panState) {
+      if (event.pointerType === 'touch' && event.pointerId !== panState.pointerId) {
+        return
+      }
+
+      const deltaX = event.clientX - panState.startX
+      const deltaY = event.clientY - panState.startY
       setViewport((previous) => ({
         ...previous,
-        x: panRef.current!.originX + deltaX,
-        y: panRef.current!.originY + deltaY,
+        x: panState.originX + deltaX,
+        y: panState.originY + deltaY,
       }))
       return
     }
@@ -523,14 +541,25 @@ function App() {
   }
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (!isPanning) {
+    const panState = panRef.current
+    if (!isPanning || !panState) {
+      return
+    }
+
+    if (event.pointerType === 'touch' && event.pointerId !== panState.pointerId) {
       return
     }
 
     setIsPanning(false)
     panRef.current = null
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
+    if (event.pointerType !== 'touch') {
+      try {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId)
+        }
+      } catch {
+        // Safe no-op for browsers that fail pointer capture checks.
+      }
     }
   }
 
@@ -1091,6 +1120,7 @@ function App() {
               key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
               shapes={visibleShapes}
               foldLines={foldLines}
+              layers={layers}
               isMobileLayout={isMobileLayout}
               onUpdateFoldLine={(foldLineId, angleDeg) =>
                 setFoldLines((previous) =>

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { getBounds, sampleShapePoints } from './cad-geometry'
-import type { FoldLine, Shape, TextureSource } from './cad-types'
+import type { FoldLine, Layer, Shape, TextureSource } from './cad-types'
 
 type ModelTransform = {
   scale: number
@@ -9,25 +9,51 @@ type ModelTransform = {
   centerY: number
 }
 
-function clearGroup(group: THREE.Group) {
-  while (group.children.length > 0) {
-    const child = group.children[0]
-    group.remove(child)
+type ShapeSegment = {
+  start: THREE.Vector2
+  end: THREE.Vector2
+  color: string
+}
 
-    if ('geometry' in child && child.geometry instanceof THREE.BufferGeometry) {
-      child.geometry.dispose()
+type Bounds2 = {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+const EPSILON = 1e-6
+const CUT_LINE_COLOR = '#38bdf8'
+const STITCH_LINE_COLOR = '#f97316'
+const FOLD_LINE_COLOR = '#fb7185'
+
+function disposeObjectGraph(root: THREE.Object3D, preservedMaterials: Set<THREE.Material>) {
+  root.traverse((object) => {
+    const meshLike = object as THREE.Mesh
+    if ('geometry' in meshLike && meshLike.geometry instanceof THREE.BufferGeometry) {
+      meshLike.geometry.dispose()
     }
 
-    if ('material' in child) {
-      const material = child.material
+    if ('material' in meshLike) {
+      const material = meshLike.material
       if (Array.isArray(material)) {
         for (const entry of material) {
-          entry.dispose()
+          if (!preservedMaterials.has(entry)) {
+            entry.dispose()
+          }
         }
-      } else if (material instanceof THREE.Material) {
+      } else if (material instanceof THREE.Material && !preservedMaterials.has(material)) {
         material.dispose()
       }
     }
+  })
+}
+
+function clearGroup(group: THREE.Group, preservedMaterials: Set<THREE.Material>) {
+  while (group.children.length > 0) {
+    const child = group.children[0]
+    group.remove(child)
+    disposeObjectGraph(child, preservedMaterials)
   }
 }
 
@@ -42,6 +68,96 @@ function loadTexture(loader: THREE.TextureLoader, url: string): Promise<THREE.Te
   })
 }
 
+function sideOfLine(point: THREE.Vector2, lineStart: THREE.Vector2, lineEnd: THREE.Vector2) {
+  const direction = lineEnd.clone().sub(lineStart)
+  return direction.x * (point.y - lineStart.y) - direction.y * (point.x - lineStart.x)
+}
+
+function polygonBounds(points: THREE.Vector2[]): Bounds2 {
+  let minX = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+
+  for (const point of points) {
+    minX = Math.min(minX, point.x)
+    maxX = Math.max(maxX, point.x)
+    minY = Math.min(minY, point.y)
+    maxY = Math.max(maxY, point.y)
+  }
+
+  return {
+    minX,
+    maxX,
+    minY,
+    maxY,
+  }
+}
+
+function clipPolygonByLine(points: THREE.Vector2[], lineStart: THREE.Vector2, lineEnd: THREE.Vector2, keepPositive: boolean) {
+  if (points.length === 0) {
+    return [] as THREE.Vector2[]
+  }
+
+  const result: THREE.Vector2[] = []
+  const sideCheck = (value: number) => (keepPositive ? value >= -EPSILON : value <= EPSILON)
+
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index]
+    const next = points[(index + 1) % points.length]
+    const currentSide = sideOfLine(current, lineStart, lineEnd)
+    const nextSide = sideOfLine(next, lineStart, lineEnd)
+    const currentInside = sideCheck(currentSide)
+    const nextInside = sideCheck(nextSide)
+
+    if (currentInside && nextInside) {
+      result.push(next.clone())
+      continue
+    }
+
+    if (currentInside && !nextInside) {
+      const denominator = currentSide - nextSide
+      if (Math.abs(denominator) > EPSILON) {
+        const t = currentSide / denominator
+        result.push(current.clone().lerp(next, t))
+      }
+      continue
+    }
+
+    if (!currentInside && nextInside) {
+      const denominator = currentSide - nextSide
+      if (Math.abs(denominator) > EPSILON) {
+        const t = currentSide / denominator
+        result.push(current.clone().lerp(next, t))
+      }
+      result.push(next.clone())
+    }
+  }
+
+  return result
+}
+
+function segmentLengthSquared(a: THREE.Vector2, b: THREE.Vector2) {
+  const dx = a.x - b.x
+  const dy = a.y - b.y
+  return dx * dx + dy * dy
+}
+
+function lineIntersectionOnSegment(
+  a: THREE.Vector2,
+  b: THREE.Vector2,
+  sideA: number,
+  sideB: number,
+) {
+  const denominator = sideA - sideB
+  if (Math.abs(denominator) <= EPSILON) {
+    return null
+  }
+
+  const t = sideA / denominator
+  return a.clone().lerp(b, t)
+}
+
 export class ThreeBridge {
   private canvas: HTMLCanvasElement
   private renderer: THREE.WebGLRenderer
@@ -49,23 +165,39 @@ export class ThreeBridge {
   private camera: THREE.PerspectiveCamera
   private controls: OrbitControls
   private frameId: number | null = null
-  private patternGroup = new THREE.Group()
-  private foldGroup = new THREE.Group()
-  private walletGroup = new THREE.Group()
-  private rightFlapPivot = new THREE.Group()
+
+  private modelRoot = new THREE.Group()
+  private staticSideGroup = new THREE.Group()
+  private foldingPivot = new THREE.Group()
+  private foldingSideGroup = new THREE.Group()
+  private foldGuideGroup = new THREE.Group()
+  private preservedMaterials: Set<THREE.Material>
+
   private leftMaterial = new THREE.MeshStandardMaterial({
     color: '#8a6742',
     roughness: 0.88,
     metalness: 0.05,
     side: THREE.DoubleSide,
   })
+
   private rightMaterial = new THREE.MeshStandardMaterial({
     color: '#8a6742',
     roughness: 0.88,
     metalness: 0.05,
     side: THREE.DoubleSide,
   })
+
   private textureLoader = new THREE.TextureLoader()
+  private currentAlbedo: THREE.Texture | null = null
+  private currentNormal: THREE.Texture | null = null
+  private currentRoughness: THREE.Texture | null = null
+
+  private layers: Layer[] = []
+  private shapes: Shape[] = []
+  private foldLines: FoldLine[] = []
+  private activeFoldAxis = new THREE.Vector3(0, 0, 1)
+  private activeFoldAngleDeg = 0
+
   private transform: ModelTransform = {
     scale: 1,
     centerX: 0,
@@ -75,6 +207,7 @@ export class ThreeBridge {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.textureLoader.crossOrigin = 'anonymous'
+    this.preservedMaterials = new Set([this.leftMaterial, this.rightMaterial])
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -105,15 +238,16 @@ export class ThreeBridge {
 
     this.setupLights()
     this.setupSceneHelpers()
-    this.setupWalletProxy()
 
-    this.patternGroup.position.set(0, 0.6, 0)
-    this.foldGroup.position.copy(this.patternGroup.position)
+    this.foldingPivot.add(this.foldingSideGroup)
+    this.modelRoot.add(this.staticSideGroup)
+    this.modelRoot.add(this.foldingPivot)
+    this.modelRoot.add(this.foldGuideGroup)
+    this.modelRoot.position.set(0, -0.08, 0.1)
+    this.modelRoot.rotation.x = -0.7
+    this.scene.add(this.modelRoot)
 
-    this.scene.add(this.patternGroup)
-    this.scene.add(this.foldGroup)
-    this.scene.add(this.walletGroup)
-
+    this.rebuildModel()
     this.animate()
   }
 
@@ -148,37 +282,300 @@ export class ThreeBridge {
     this.scene.add(stand)
   }
 
-  private setupWalletProxy() {
-    this.walletGroup.position.set(0, -0.08, 0.1)
-    this.walletGroup.rotation.x = -0.7
-
-    const leftPanel = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.15), this.leftMaterial)
-    leftPanel.position.x = -0.475
-
-    const rightPanel = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.15), this.rightMaterial)
-    rightPanel.position.x = 0.475
-
-    this.rightFlapPivot.add(rightPanel)
-
-    const seam = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, -0.6, 0.001),
-        new THREE.Vector3(0, 0.6, 0.001),
-      ]),
-      new THREE.LineBasicMaterial({ color: '#f97316' }),
+  private projectPoint(point: { x: number; y: number }) {
+    return new THREE.Vector2(
+      (point.x - this.transform.centerX) * this.transform.scale,
+      -(point.y - this.transform.centerY) * this.transform.scale,
     )
-
-    this.walletGroup.add(leftPanel)
-    this.walletGroup.add(this.rightFlapPivot)
-    this.walletGroup.add(seam)
   }
 
-  private projectPoint(x: number, y: number) {
-    return new THREE.Vector3(
-      (x - this.transform.centerX) * this.transform.scale,
-      0.01,
-      -(y - this.transform.centerY) * this.transform.scale,
+  private foldAxisFromLine(lineStart: THREE.Vector2, lineEnd: THREE.Vector2) {
+    const axis = new THREE.Vector3(lineEnd.x - lineStart.x, 0, lineEnd.y - lineStart.y)
+    if (axis.lengthSq() <= EPSILON) {
+      return new THREE.Vector3(0, 0, 1)
+    }
+    return axis.normalize()
+  }
+
+  private updateFoldRotation() {
+    const radians = -THREE.MathUtils.degToRad(THREE.MathUtils.clamp(this.activeFoldAngleDeg, 0, 180))
+    this.foldingSideGroup.quaternion.setFromAxisAngle(this.activeFoldAxis, radians)
+  }
+
+  private shapeColor(shape: Shape) {
+    const layer = this.layers.find((entry) => entry.id === shape.layerId)
+    const fingerprint = `${layer?.name ?? ''} ${shape.id}`.toLowerCase()
+    if (fingerprint.includes('stitch') || fingerprint.includes('seam') || fingerprint.includes('thread')) {
+      return STITCH_LINE_COLOR
+    }
+    return CUT_LINE_COLOR
+  }
+
+  private addSegmentLine(group: THREE.Group, segment: ShapeSegment, pivot: THREE.Vector2 | null) {
+    if (segmentLengthSquared(segment.start, segment.end) <= EPSILON) {
+      return
+    }
+
+    const offsetX = pivot?.x ?? 0
+    const offsetY = pivot?.y ?? 0
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(segment.start.x - offsetX, 0.003, segment.start.y - offsetY),
+        new THREE.Vector3(segment.end.x - offsetX, 0.003, segment.end.y - offsetY),
+      ]),
+      new THREE.LineBasicMaterial({ color: segment.color }),
     )
+    group.add(line)
+  }
+
+  private createPanelMesh(
+    points: THREE.Vector2[],
+    material: THREE.MeshStandardMaterial,
+    bounds: Bounds2,
+    pivot: THREE.Vector2 | null,
+  ) {
+    if (points.length < 3) {
+      return null
+    }
+
+    const pivotX = pivot?.x ?? 0
+    const pivotY = pivot?.y ?? 0
+    const width = Math.max(bounds.maxX - bounds.minX, EPSILON)
+    const height = Math.max(bounds.maxY - bounds.minY, EPSILON)
+
+    const vertices: number[] = []
+    const normals: number[] = []
+    const uvs: number[] = []
+    for (const point of points) {
+      vertices.push(point.x - pivotX, 0, point.y - pivotY)
+      normals.push(0, 1, 0)
+      uvs.push((point.x - bounds.minX) / width, (point.y - bounds.minY) / height)
+    }
+
+    const indices: number[] = []
+    for (let index = 1; index < points.length - 1; index += 1) {
+      indices.push(0, index, index + 1)
+    }
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+    geometry.setIndex(indices)
+    geometry.computeBoundingSphere()
+
+    return new THREE.Mesh(geometry, material)
+  }
+
+  private addPanelOutline(points: THREE.Vector2[], group: THREE.Group, color: string, pivot: THREE.Vector2 | null) {
+    if (points.length < 2) {
+      return
+    }
+
+    const offsetX = pivot?.x ?? 0
+    const offsetY = pivot?.y ?? 0
+    const outlinePoints = points.map((point) => new THREE.Vector3(point.x - offsetX, 0.004, point.y - offsetY))
+    outlinePoints.push(new THREE.Vector3(points[0].x - offsetX, 0.004, points[0].y - offsetY))
+
+    const outline = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(outlinePoints),
+      new THREE.LineBasicMaterial({ color }),
+    )
+    group.add(outline)
+  }
+
+  private splitSegmentByFold(start: THREE.Vector2, end: THREE.Vector2, foldStart: THREE.Vector2, foldEnd: THREE.Vector2) {
+    const sideStart = sideOfLine(start, foldStart, foldEnd)
+    const sideEnd = sideOfLine(end, foldStart, foldEnd)
+    const onStart = Math.abs(sideStart) <= EPSILON
+    const onEnd = Math.abs(sideEnd) <= EPSILON
+
+    if (onStart && onEnd) {
+      return {
+        positive: [{ start, end }],
+        negative: [{ start, end }],
+      }
+    }
+
+    if ((sideStart >= -EPSILON && sideEnd >= -EPSILON) || (onStart && sideEnd > EPSILON) || (onEnd && sideStart > EPSILON)) {
+      return { positive: [{ start, end }], negative: [] as Array<{ start: THREE.Vector2; end: THREE.Vector2 }> }
+    }
+
+    if ((sideStart <= EPSILON && sideEnd <= EPSILON) || (onStart && sideEnd < -EPSILON) || (onEnd && sideStart < -EPSILON)) {
+      return { positive: [] as Array<{ start: THREE.Vector2; end: THREE.Vector2 }>, negative: [{ start, end }] }
+    }
+
+    const intersection = lineIntersectionOnSegment(start, end, sideStart, sideEnd)
+    if (!intersection) {
+      if (sideStart >= 0) {
+        return { positive: [{ start, end }], negative: [] as Array<{ start: THREE.Vector2; end: THREE.Vector2 }> }
+      }
+      return { positive: [] as Array<{ start: THREE.Vector2; end: THREE.Vector2 }>, negative: [{ start, end }] }
+    }
+
+    if (sideStart >= 0) {
+      return {
+        positive: [{ start, end: intersection }],
+        negative: [{ start: intersection, end }],
+      }
+    }
+
+    return {
+      positive: [{ start: intersection, end }],
+      negative: [{ start, end: intersection }],
+    }
+  }
+
+  private computeTransform() {
+    let bounds = getBounds(this.shapes)
+    if (this.shapes.length === 0 && this.foldLines.length > 0) {
+      let minX = Number.POSITIVE_INFINITY
+      let maxX = Number.NEGATIVE_INFINITY
+      let minY = Number.POSITIVE_INFINITY
+      let maxY = Number.NEGATIVE_INFINITY
+
+      for (const foldLine of this.foldLines) {
+        minX = Math.min(minX, foldLine.start.x, foldLine.end.x)
+        maxX = Math.max(maxX, foldLine.start.x, foldLine.end.x)
+        minY = Math.min(minY, foldLine.start.y, foldLine.end.y)
+        maxY = Math.max(maxY, foldLine.start.y, foldLine.end.y)
+      }
+
+      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
+        const padding = 160
+        bounds = {
+          minX: minX - padding,
+          minY: minY - padding,
+          width: Math.max(200, maxX - minX + padding * 2),
+          height: Math.max(200, maxY - minY + padding * 2),
+        }
+      }
+    }
+
+    const longest = Math.max(bounds.width, bounds.height, 1)
+    this.transform = {
+      scale: 1.65 / longest,
+      centerX: bounds.minX + bounds.width / 2,
+      centerY: bounds.minY + bounds.height / 2,
+    }
+
+    return bounds
+  }
+
+  private buildShapeSegments(foldStart: THREE.Vector2, foldEnd: THREE.Vector2) {
+    const positiveSegments: ShapeSegment[] = []
+    const negativeSegments: ShapeSegment[] = []
+
+    for (const shape of this.shapes) {
+      const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 28)
+      const color = this.shapeColor(shape)
+
+      for (let index = 0; index < sampled.length - 1; index += 1) {
+        const start = this.projectPoint(sampled[index])
+        const end = this.projectPoint(sampled[index + 1])
+        const split = this.splitSegmentByFold(start, end, foldStart, foldEnd)
+
+        for (const segment of split.positive) {
+          if (segmentLengthSquared(segment.start, segment.end) > EPSILON) {
+            positiveSegments.push({
+              start: segment.start.clone(),
+              end: segment.end.clone(),
+              color,
+            })
+          }
+        }
+
+        for (const segment of split.negative) {
+          if (segmentLengthSquared(segment.start, segment.end) > EPSILON) {
+            negativeSegments.push({
+              start: segment.start.clone(),
+              end: segment.end.clone(),
+              color,
+            })
+          }
+        }
+      }
+    }
+
+    return { positiveSegments, negativeSegments }
+  }
+
+  private rebuildModel() {
+    clearGroup(this.staticSideGroup, this.preservedMaterials)
+    clearGroup(this.foldingSideGroup, this.preservedMaterials)
+    clearGroup(this.foldGuideGroup, this.preservedMaterials)
+
+    const bounds = this.computeTransform()
+    const minX = bounds.minX
+    const minY = bounds.minY
+    const maxX = bounds.minX + bounds.width
+    const maxY = bounds.minY + bounds.height
+    const rectangle = [
+      this.projectPoint({ x: minX, y: minY }),
+      this.projectPoint({ x: maxX, y: minY }),
+      this.projectPoint({ x: maxX, y: maxY }),
+      this.projectPoint({ x: minX, y: maxY }),
+    ]
+    const rectangleBounds = polygonBounds(rectangle)
+
+    let foldStart = this.foldLines.length > 0 ? this.projectPoint(this.foldLines[0].start) : new THREE.Vector2(0, rectangleBounds.minY)
+    let foldEnd = this.foldLines.length > 0 ? this.projectPoint(this.foldLines[0].end) : new THREE.Vector2(0, rectangleBounds.maxY)
+    if (segmentLengthSquared(foldStart, foldEnd) <= EPSILON) {
+      foldStart = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.minY)
+      foldEnd = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.maxY)
+    }
+
+    let positivePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, true)
+    let negativePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, false)
+
+    if (positivePolygon.length < 3 || negativePolygon.length < 3) {
+      foldStart = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.minY)
+      foldEnd = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.maxY)
+      positivePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, true)
+      negativePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, false)
+    }
+
+    const foldMid = foldStart.clone().add(foldEnd).multiplyScalar(0.5)
+    this.foldingPivot.position.set(foldMid.x, 0, foldMid.y)
+    this.activeFoldAxis = this.foldAxisFromLine(foldStart, foldEnd)
+
+    const staticPanel = this.createPanelMesh(negativePolygon, this.leftMaterial, rectangleBounds, null)
+    if (staticPanel) {
+      this.staticSideGroup.add(staticPanel)
+      this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null)
+    }
+
+    const foldingPanel = this.createPanelMesh(positivePolygon, this.rightMaterial, rectangleBounds, foldMid)
+    if (foldingPanel) {
+      this.foldingSideGroup.add(foldingPanel)
+      this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid)
+    }
+
+    const { positiveSegments, negativeSegments } = this.buildShapeSegments(foldStart, foldEnd)
+    for (const segment of negativeSegments) {
+      this.addSegmentLine(this.staticSideGroup, segment, null)
+    }
+    for (const segment of positiveSegments) {
+      this.addSegmentLine(this.foldingSideGroup, segment, foldMid)
+    }
+
+    for (const foldLine of this.foldLines) {
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(this.projectPoint(foldLine.start).x, 0.005, this.projectPoint(foldLine.start).y),
+          new THREE.Vector3(this.projectPoint(foldLine.end).x, 0.005, this.projectPoint(foldLine.end).y),
+        ]),
+        new THREE.LineDashedMaterial({
+          color: FOLD_LINE_COLOR,
+          dashSize: 0.06,
+          gapSize: 0.035,
+        }),
+      )
+      line.computeLineDistances()
+      this.foldGuideGroup.add(line)
+    }
+
+    this.updateFoldRotation()
   }
 
   private animate = () => {
@@ -187,93 +584,88 @@ export class ThreeBridge {
     this.frameId = requestAnimationFrame(this.animate)
   }
 
+  private applyTextureMaps(albedo: THREE.Texture | null, normal: THREE.Texture | null, roughness: THREE.Texture | null) {
+    if (this.currentAlbedo && this.currentAlbedo !== albedo) {
+      this.currentAlbedo.dispose()
+    }
+    if (this.currentNormal && this.currentNormal !== normal) {
+      this.currentNormal.dispose()
+    }
+    if (this.currentRoughness && this.currentRoughness !== roughness) {
+      this.currentRoughness.dispose()
+    }
+
+    this.currentAlbedo = albedo
+    this.currentNormal = normal
+    this.currentRoughness = roughness
+
+    for (const material of [this.leftMaterial, this.rightMaterial]) {
+      material.map = albedo
+      material.normalMap = normal
+      material.roughnessMap = roughness
+      material.needsUpdate = true
+    }
+  }
+
+  setDocument(layers: Layer[], shapes: Shape[], foldLines: FoldLine[]) {
+    this.layers = [...layers]
+    this.shapes = [...shapes]
+    this.foldLines = [...foldLines]
+    if (this.foldLines.length > 0) {
+      this.activeFoldAngleDeg = this.foldLines[0].angleDeg
+    }
+    this.rebuildModel()
+  }
+
+  setLayers(layers: Layer[]) {
+    this.layers = [...layers]
+    this.rebuildModel()
+  }
+
   setShapes(shapes: Shape[]) {
-    clearGroup(this.patternGroup)
-
-    const bounds = getBounds(shapes)
-    const longest = Math.max(bounds.width, bounds.height, 1)
-
-    this.transform = {
-      scale: 1.65 / longest,
-      centerX: bounds.minX + bounds.width / 2,
-      centerY: bounds.minY + bounds.height / 2,
-    }
-
-    for (const shape of shapes) {
-      const sampled = sampleShapePoints(shape)
-      const points = sampled.map((point) => this.projectPoint(point.x, point.y))
-      const geometry = new THREE.BufferGeometry().setFromPoints(points)
-      const material = new THREE.LineBasicMaterial({ color: '#38bdf8' })
-      const line = new THREE.Line(geometry, material)
-      this.patternGroup.add(line)
-    }
+    this.shapes = [...shapes]
+    this.rebuildModel()
   }
 
   setFoldLines(foldLines: FoldLine[]) {
-    clearGroup(this.foldGroup)
-
-    for (const foldLine of foldLines) {
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          this.projectPoint(foldLine.start.x, foldLine.start.y),
-          this.projectPoint(foldLine.end.x, foldLine.end.y),
-        ]),
-        new THREE.LineDashedMaterial({
-          color: '#ef4444',
-          dashSize: 0.06,
-          gapSize: 0.035,
-        }),
-      )
-      line.computeLineDistances()
-      this.foldGroup.add(line)
+    this.foldLines = [...foldLines]
+    if (this.foldLines.length > 0) {
+      this.activeFoldAngleDeg = this.foldLines[0].angleDeg
     }
-
-    if (foldLines.length > 0) {
-      this.setFoldAngle(foldLines[0].angleDeg)
-    }
+    this.rebuildModel()
   }
 
   setFoldAngle(angleDeg: number) {
-    const clamped = THREE.MathUtils.clamp(angleDeg, 0, 180)
-    this.rightFlapPivot.rotation.y = -THREE.MathUtils.degToRad(clamped)
+    this.activeFoldAngleDeg = THREE.MathUtils.clamp(angleDeg, 0, 180)
+    this.updateFoldRotation()
   }
 
   async setTexture(texture: TextureSource) {
     const albedo = await loadTexture(this.textureLoader, texture.albedoUrl)
     albedo.colorSpace = THREE.SRGBColorSpace
+    albedo.wrapS = THREE.RepeatWrapping
+    albedo.wrapT = THREE.RepeatWrapping
 
     let normal: THREE.Texture | null = null
     let roughness: THREE.Texture | null = null
 
     if (texture.normalUrl && texture.normalUrl.trim().length > 0) {
       normal = await loadTexture(this.textureLoader, texture.normalUrl)
+      normal.wrapS = THREE.RepeatWrapping
+      normal.wrapT = THREE.RepeatWrapping
     }
 
     if (texture.roughnessUrl && texture.roughnessUrl.trim().length > 0) {
       roughness = await loadTexture(this.textureLoader, texture.roughnessUrl)
+      roughness.wrapS = THREE.RepeatWrapping
+      roughness.wrapT = THREE.RepeatWrapping
     }
 
-    this.leftMaterial.map = albedo
-    this.rightMaterial.map = albedo
-    this.leftMaterial.normalMap = normal
-    this.rightMaterial.normalMap = normal
-    this.leftMaterial.roughnessMap = roughness
-    this.rightMaterial.roughnessMap = roughness
-
-    this.leftMaterial.needsUpdate = true
-    this.rightMaterial.needsUpdate = true
+    this.applyTextureMaps(albedo, normal, roughness)
   }
 
   useDefaultTexture() {
-    this.leftMaterial.map = null
-    this.rightMaterial.map = null
-    this.leftMaterial.normalMap = null
-    this.rightMaterial.normalMap = null
-    this.leftMaterial.roughnessMap = null
-    this.rightMaterial.roughnessMap = null
-
-    this.leftMaterial.needsUpdate = true
-    this.rightMaterial.needsUpdate = true
+    this.applyTextureMaps(null, null, null)
   }
 
   resize(width: number, height: number) {
@@ -291,9 +683,11 @@ export class ThreeBridge {
       this.frameId = null
     }
 
-    clearGroup(this.patternGroup)
-    clearGroup(this.foldGroup)
+    clearGroup(this.staticSideGroup, this.preservedMaterials)
+    clearGroup(this.foldingSideGroup, this.preservedMaterials)
+    clearGroup(this.foldGuideGroup, this.preservedMaterials)
 
+    this.applyTextureMaps(null, null, null)
     this.controls.dispose()
     this.leftMaterial.dispose()
     this.rightMaterial.dispose()
