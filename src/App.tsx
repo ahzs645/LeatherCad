@@ -31,6 +31,8 @@ const DEFAULT_BACK_LAYER_COLOR = '#f97316'
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
 const STITCH_COLOR_DARK = '#f59e0b'
 const STITCH_COLOR_LIGHT = '#b45309'
+const FOLD_COLOR_DARK = '#ef4444'
+const FOLD_COLOR_LIGHT = '#dc2626'
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
 type MobileOptionsTab = 'view' | 'layers' | 'file'
@@ -1180,6 +1182,7 @@ function App() {
   const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
   const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
   const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
+  const foldStrokeColor = themeMode === 'light' ? FOLD_COLOR_LIGHT : FOLD_COLOR_DARK
 
   return (
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
@@ -1538,10 +1541,6 @@ function App() {
                         </div>
                       ))}
                     </div>
-                    <div className="layer-legend-key">
-                      <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
-                      <span>Stitch lines</span>
-                    </div>
                   </>
                 ) : (
                   <div className="stack-legend-items">
@@ -1554,6 +1553,17 @@ function App() {
                     ))}
                   </div>
                 )}
+
+                <div className="legend-key-list">
+                  <div className="legend-key-item">
+                    <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
+                    <span>Stitch lines</span>
+                  </div>
+                  <div className="legend-key-item">
+                    <span className="layer-legend-swatch" style={{ backgroundColor: foldStrokeColor }} />
+                    <span>Bend lines / areas</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}

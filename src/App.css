@@ -408,14 +408,19 @@ button:disabled {
   text-overflow: ellipsis;
 }
 
-.layer-legend-key {
+.legend-key-list {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+}
+
+.legend-key-item {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 11px;
   color: var(--text-subtle);
-  border-top: 1px solid var(--border-color);
-  padding-top: 6px;
 }
 
 .stack-legend-items {
