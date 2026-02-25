@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { getBounds, sampleShapePoints } from './cad-geometry'
+import { sampleShapePoints } from './cad-geometry'
 import type { FoldLine, Layer, Shape, TextureSource } from './cad-types'
 
 type ModelTransform = {
@@ -26,6 +26,7 @@ const EPSILON = 1e-6
 const CUT_LINE_COLOR = '#38bdf8'
 const STITCH_LINE_COLOR = '#f97316'
 const FOLD_LINE_COLOR = '#fb7185'
+const LAYER_STACK_STEP = 0.012
 
 function disposeObjectGraph(root: THREE.Object3D, preservedMaterials: Set<THREE.Material>) {
   root.traverse((object) => {
@@ -86,11 +87,31 @@ function polygonBounds(points: THREE.Vector2[]): Bounds2 {
     maxY = Math.max(maxY, point.y)
   }
 
+  return { minX, maxX, minY, maxY }
+}
+
+function padBounds(bounds: Bounds2, padding: number) {
   return {
-    minX,
-    maxX,
-    minY,
-    maxY,
+    minX: bounds.minX - padding,
+    maxX: bounds.maxX + padding,
+    minY: bounds.minY - padding,
+    maxY: bounds.maxY + padding,
+  }
+}
+
+function ensureMinSpan(bounds: Bounds2, minSpan: number) {
+  const width = bounds.maxX - bounds.minX
+  const height = bounds.maxY - bounds.minY
+  const halfWidth = Math.max(width, minSpan) / 2
+  const halfHeight = Math.max(height, minSpan) / 2
+  const centerX = (bounds.minX + bounds.maxX) / 2
+  const centerY = (bounds.minY + bounds.maxY) / 2
+
+  return {
+    minX: centerX - halfWidth,
+    maxX: centerX + halfWidth,
+    minY: centerY - halfHeight,
+    maxY: centerY + halfHeight,
   }
 }
 
@@ -143,12 +164,7 @@ function segmentLengthSquared(a: THREE.Vector2, b: THREE.Vector2) {
   return dx * dx + dy * dy
 }
 
-function lineIntersectionOnSegment(
-  a: THREE.Vector2,
-  b: THREE.Vector2,
-  sideA: number,
-  sideB: number,
-) {
+function lineIntersectionOnSegment(a: THREE.Vector2, b: THREE.Vector2, sideA: number, sideB: number) {
   const denominator = sideA - sideB
   if (Math.abs(denominator) <= EPSILON) {
     return null
@@ -267,19 +283,6 @@ export class ThreeBridge {
     const grid = new THREE.GridHelper(4.2, 14, '#334155', '#1e293b')
     grid.position.y = -0.35
     this.scene.add(grid)
-
-    const stand = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.4, 1.4),
-      new THREE.MeshStandardMaterial({
-        color: '#172554',
-        roughness: 0.96,
-        metalness: 0.02,
-        side: THREE.DoubleSide,
-      }),
-    )
-    stand.rotation.x = -Math.PI / 2
-    stand.position.y = 0.58
-    this.scene.add(stand)
   }
 
   private projectPoint(point: { x: number; y: number }) {
@@ -311,7 +314,7 @@ export class ThreeBridge {
     return CUT_LINE_COLOR
   }
 
-  private addSegmentLine(group: THREE.Group, segment: ShapeSegment, pivot: THREE.Vector2 | null) {
+  private addSegmentLine(group: THREE.Group, segment: ShapeSegment, pivot: THREE.Vector2 | null, yOffset: number) {
     if (segmentLengthSquared(segment.start, segment.end) <= EPSILON) {
       return
     }
@@ -320,8 +323,8 @@ export class ThreeBridge {
     const offsetY = pivot?.y ?? 0
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(segment.start.x - offsetX, 0.003, segment.start.y - offsetY),
-        new THREE.Vector3(segment.end.x - offsetX, 0.003, segment.end.y - offsetY),
+        new THREE.Vector3(segment.start.x - offsetX, yOffset + 0.003, segment.start.y - offsetY),
+        new THREE.Vector3(segment.end.x - offsetX, yOffset + 0.003, segment.end.y - offsetY),
       ]),
       new THREE.LineBasicMaterial({ color: segment.color }),
     )
@@ -333,6 +336,7 @@ export class ThreeBridge {
     material: THREE.MeshStandardMaterial,
     bounds: Bounds2,
     pivot: THREE.Vector2 | null,
+    yOffset: number,
   ) {
     if (points.length < 3) {
       return null
@@ -347,7 +351,7 @@ export class ThreeBridge {
     const normals: number[] = []
     const uvs: number[] = []
     for (const point of points) {
-      vertices.push(point.x - pivotX, 0, point.y - pivotY)
+      vertices.push(point.x - pivotX, yOffset, point.y - pivotY)
       normals.push(0, 1, 0)
       uvs.push((point.x - bounds.minX) / width, (point.y - bounds.minY) / height)
     }
@@ -367,15 +371,15 @@ export class ThreeBridge {
     return new THREE.Mesh(geometry, material)
   }
 
-  private addPanelOutline(points: THREE.Vector2[], group: THREE.Group, color: string, pivot: THREE.Vector2 | null) {
+  private addPanelOutline(points: THREE.Vector2[], group: THREE.Group, color: string, pivot: THREE.Vector2 | null, yOffset: number) {
     if (points.length < 2) {
       return
     }
 
     const offsetX = pivot?.x ?? 0
     const offsetY = pivot?.y ?? 0
-    const outlinePoints = points.map((point) => new THREE.Vector3(point.x - offsetX, 0.004, point.y - offsetY))
-    outlinePoints.push(new THREE.Vector3(points[0].x - offsetX, 0.004, points[0].y - offsetY))
+    const outlinePoints = points.map((point) => new THREE.Vector3(point.x - offsetX, yOffset + 0.004, point.y - offsetY))
+    outlinePoints.push(new THREE.Vector3(points[0].x - offsetX, yOffset + 0.004, points[0].y - offsetY))
 
     const outline = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(outlinePoints),
@@ -426,47 +430,86 @@ export class ThreeBridge {
     }
   }
 
-  private computeTransform() {
-    let bounds = getBounds(this.shapes)
-    if (this.shapes.length === 0 && this.foldLines.length > 0) {
-      let minX = Number.POSITIVE_INFINITY
-      let maxX = Number.NEGATIVE_INFINITY
-      let minY = Number.POSITIVE_INFINITY
-      let maxY = Number.NEGATIVE_INFINITY
+  private buildBoundsFromShapes(shapes: Shape[]) {
+    if (shapes.length === 0) {
+      return null
+    }
 
-      for (const foldLine of this.foldLines) {
-        minX = Math.min(minX, foldLine.start.x, foldLine.end.x)
-        maxX = Math.max(maxX, foldLine.start.x, foldLine.end.x)
-        minY = Math.min(minY, foldLine.start.y, foldLine.end.y)
-        maxY = Math.max(maxY, foldLine.start.y, foldLine.end.y)
-      }
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
 
-      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
-        const padding = 160
-        bounds = {
-          minX: minX - padding,
-          minY: minY - padding,
-          width: Math.max(200, maxX - minX + padding * 2),
-          height: Math.max(200, maxY - minY + padding * 2),
-        }
+    for (const shape of shapes) {
+      for (const point of sampleShapePoints(shape, shape.type === 'line' ? 1 : 20)) {
+        minX = Math.min(minX, point.x)
+        maxX = Math.max(maxX, point.x)
+        minY = Math.min(minY, point.y)
+        maxY = Math.max(maxY, point.y)
       }
     }
 
-    const longest = Math.max(bounds.width, bounds.height, 1)
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return null
+    }
+
+    return { minX, maxX, minY, maxY }
+  }
+
+  private buildBoundsFromFoldLines() {
+    if (this.foldLines.length === 0) {
+      return null
+    }
+
+    let minX = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+
+    for (const foldLine of this.foldLines) {
+      minX = Math.min(minX, foldLine.start.x, foldLine.end.x)
+      maxX = Math.max(maxX, foldLine.start.x, foldLine.end.x)
+      minY = Math.min(minY, foldLine.start.y, foldLine.end.y)
+      maxY = Math.max(maxY, foldLine.start.y, foldLine.end.y)
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return null
+    }
+
+    return { minX, maxX, minY, maxY }
+  }
+
+  private computeTransform() {
+    let bounds = this.buildBoundsFromShapes(this.shapes)
+    if (bounds) {
+      bounds = ensureMinSpan(bounds, 80)
+    } else {
+      const foldBounds = this.buildBoundsFromFoldLines()
+      if (foldBounds) {
+        bounds = ensureMinSpan(padBounds(foldBounds, 60), 120)
+      } else {
+        bounds = { minX: -220, maxX: 220, minY: -140, maxY: 140 }
+      }
+    }
+
+    const width = Math.max(bounds.maxX - bounds.minX, 1)
+    const height = Math.max(bounds.maxY - bounds.minY, 1)
+    const longest = Math.max(width, height, 1)
     this.transform = {
       scale: 1.65 / longest,
-      centerX: bounds.minX + bounds.width / 2,
-      centerY: bounds.minY + bounds.height / 2,
+      centerX: (bounds.minX + bounds.maxX) / 2,
+      centerY: (bounds.minY + bounds.maxY) / 2,
     }
 
     return bounds
   }
 
-  private buildShapeSegments(foldStart: THREE.Vector2, foldEnd: THREE.Vector2) {
+  private buildShapeSegments(shapes: Shape[], foldStart: THREE.Vector2, foldEnd: THREE.Vector2) {
     const positiveSegments: ShapeSegment[] = []
     const negativeSegments: ShapeSegment[] = []
 
-    for (const shape of this.shapes) {
+    for (const shape of shapes) {
       const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 28)
       const color = this.shapeColor(shape)
 
@@ -505,65 +548,108 @@ export class ThreeBridge {
     clearGroup(this.foldingSideGroup, this.preservedMaterials)
     clearGroup(this.foldGuideGroup, this.preservedMaterials)
 
-    const bounds = this.computeTransform()
-    const minX = bounds.minX
-    const minY = bounds.minY
-    const maxX = bounds.minX + bounds.width
-    const maxY = bounds.minY + bounds.height
-    const rectangle = [
-      this.projectPoint({ x: minX, y: minY }),
-      this.projectPoint({ x: maxX, y: minY }),
-      this.projectPoint({ x: maxX, y: maxY }),
-      this.projectPoint({ x: minX, y: maxY }),
+    const documentBounds = this.computeTransform()
+    const documentRectangle = [
+      this.projectPoint({ x: documentBounds.minX, y: documentBounds.minY }),
+      this.projectPoint({ x: documentBounds.maxX, y: documentBounds.minY }),
+      this.projectPoint({ x: documentBounds.maxX, y: documentBounds.maxY }),
+      this.projectPoint({ x: documentBounds.minX, y: documentBounds.maxY }),
     ]
-    const rectangleBounds = polygonBounds(rectangle)
+    const projectedDocumentBounds = polygonBounds(documentRectangle)
 
-    let foldStart = this.foldLines.length > 0 ? this.projectPoint(this.foldLines[0].start) : new THREE.Vector2(0, rectangleBounds.minY)
-    let foldEnd = this.foldLines.length > 0 ? this.projectPoint(this.foldLines[0].end) : new THREE.Vector2(0, rectangleBounds.maxY)
+    let foldStart =
+      this.foldLines.length > 0
+        ? this.projectPoint(this.foldLines[0].start)
+        : new THREE.Vector2((projectedDocumentBounds.minX + projectedDocumentBounds.maxX) / 2, projectedDocumentBounds.minY)
+    let foldEnd =
+      this.foldLines.length > 0
+        ? this.projectPoint(this.foldLines[0].end)
+        : new THREE.Vector2((projectedDocumentBounds.minX + projectedDocumentBounds.maxX) / 2, projectedDocumentBounds.maxY)
+
     if (segmentLengthSquared(foldStart, foldEnd) <= EPSILON) {
-      foldStart = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.minY)
-      foldEnd = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.maxY)
-    }
-
-    let positivePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, true)
-    let negativePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, false)
-
-    if (positivePolygon.length < 3 || negativePolygon.length < 3) {
-      foldStart = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.minY)
-      foldEnd = new THREE.Vector2((rectangleBounds.minX + rectangleBounds.maxX) / 2, rectangleBounds.maxY)
-      positivePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, true)
-      negativePolygon = clipPolygonByLine(rectangle, foldStart, foldEnd, false)
+      foldStart = new THREE.Vector2((projectedDocumentBounds.minX + projectedDocumentBounds.maxX) / 2, projectedDocumentBounds.minY)
+      foldEnd = new THREE.Vector2((projectedDocumentBounds.minX + projectedDocumentBounds.maxX) / 2, projectedDocumentBounds.maxY)
     }
 
     const foldMid = foldStart.clone().add(foldEnd).multiplyScalar(0.5)
     this.foldingPivot.position.set(foldMid.x, 0, foldMid.y)
     this.activeFoldAxis = this.foldAxisFromLine(foldStart, foldEnd)
 
-    const staticPanel = this.createPanelMesh(negativePolygon, this.leftMaterial, rectangleBounds, null)
-    if (staticPanel) {
-      this.staticSideGroup.add(staticPanel)
-      this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null)
+    const layerOrder = this.layers.map((layer) => layer.id)
+    const layerSlices: Array<{ layerId: string; shapes: Shape[] }> = []
+
+    for (const layerId of layerOrder) {
+      const layerShapes = this.shapes.filter((shape) => shape.layerId === layerId)
+      if (layerShapes.length > 0) {
+        layerSlices.push({ layerId, shapes: layerShapes })
+      }
     }
 
-    const foldingPanel = this.createPanelMesh(positivePolygon, this.rightMaterial, rectangleBounds, foldMid)
-    if (foldingPanel) {
-      this.foldingSideGroup.add(foldingPanel)
-      this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid)
+    const orphanShapes = this.shapes.filter((shape) => !layerOrder.includes(shape.layerId))
+    if (orphanShapes.length > 0) {
+      layerSlices.push({ layerId: '__orphan__', shapes: orphanShapes })
     }
 
-    const { positiveSegments, negativeSegments } = this.buildShapeSegments(foldStart, foldEnd)
-    for (const segment of negativeSegments) {
-      this.addSegmentLine(this.staticSideGroup, segment, null)
-    }
-    for (const segment of positiveSegments) {
-      this.addSegmentLine(this.foldingSideGroup, segment, foldMid)
+    if (layerSlices.length === 0 && this.shapes.length > 0) {
+      layerSlices.push({ layerId: '__all__', shapes: this.shapes })
     }
 
+    if (layerSlices.length === 0) {
+      layerSlices.push({ layerId: '__empty__', shapes: [] })
+    }
+
+    for (const [index, layerSlice] of layerSlices.entries()) {
+      const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
+      const layerRectangle = [
+        this.projectPoint({ x: layerBounds.minX, y: layerBounds.minY }),
+        this.projectPoint({ x: layerBounds.maxX, y: layerBounds.minY }),
+        this.projectPoint({ x: layerBounds.maxX, y: layerBounds.maxY }),
+        this.projectPoint({ x: layerBounds.minX, y: layerBounds.maxY }),
+      ]
+      const layerProjectedBounds = polygonBounds(layerRectangle)
+
+      let positivePolygon = clipPolygonByLine(layerRectangle, foldStart, foldEnd, true)
+      let negativePolygon = clipPolygonByLine(layerRectangle, foldStart, foldEnd, false)
+      if (positivePolygon.length < 3 && negativePolygon.length < 3) {
+        positivePolygon = []
+        negativePolygon = layerRectangle.map((point) => point.clone())
+      }
+
+      const yOffset = index * LAYER_STACK_STEP
+
+      if (negativePolygon.length >= 3) {
+        const staticPanel = this.createPanelMesh(negativePolygon, this.leftMaterial, layerProjectedBounds, null, yOffset)
+        if (staticPanel) {
+          this.staticSideGroup.add(staticPanel)
+          this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null, yOffset)
+        }
+      }
+
+      if (positivePolygon.length >= 3) {
+        const foldingPanel = this.createPanelMesh(positivePolygon, this.rightMaterial, layerProjectedBounds, foldMid, yOffset)
+        if (foldingPanel) {
+          this.foldingSideGroup.add(foldingPanel)
+          this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid, yOffset)
+        }
+      }
+
+      const { positiveSegments, negativeSegments } = this.buildShapeSegments(layerSlice.shapes, foldStart, foldEnd)
+      for (const segment of negativeSegments) {
+        this.addSegmentLine(this.staticSideGroup, segment, null, yOffset)
+      }
+      for (const segment of positiveSegments) {
+        this.addSegmentLine(this.foldingSideGroup, segment, foldMid, yOffset)
+      }
+    }
+
+    const guideYOffset = Math.max(layerSlices.length - 1, 0) * LAYER_STACK_STEP + 0.006
     for (const foldLine of this.foldLines) {
+      const projectedStart = this.projectPoint(foldLine.start)
+      const projectedEnd = this.projectPoint(foldLine.end)
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(this.projectPoint(foldLine.start).x, 0.005, this.projectPoint(foldLine.start).y),
-          new THREE.Vector3(this.projectPoint(foldLine.end).x, 0.005, this.projectPoint(foldLine.end).y),
+          new THREE.Vector3(projectedStart.x, guideYOffset, projectedStart.y),
+          new THREE.Vector3(projectedEnd.x, guideYOffset, projectedEnd.y),
         ]),
         new THREE.LineDashedMaterial({
           color: FOLD_LINE_COLOR,
