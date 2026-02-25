@@ -111,6 +111,35 @@
   min-width: 120px;
 }
 
+.mobile-options-tabs {
+  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-options-tabs button {
+  flex: 0 0 auto;
+}
+
+.mobile-action-row {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.action-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: 7px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
 button {
   border: 1px solid #334155;
   border-radius: 8px;
@@ -431,6 +460,23 @@ button:disabled {
   color: #cbd5e1;
 }
 
+.layer-toggle-list {
+  display: grid;
+  gap: 6px;
+}
+
+.layer-toggle-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #bfdbfe;
+}
+
+.layer-toggle-item input {
+  margin: 0;
+}
+
 .field-row {
   display: grid;
   gap: 4px;
@@ -531,6 +577,11 @@ button:disabled {
 
   .tool-select-mobile {
     min-width: 114px;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .action-select {
     font-size: 12px;
     padding: 6px 8px;
   }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FoldLine, Layer, Shape, TextureSource } from '../cad-types'
 import { ThreeBridge } from '../three-bridge'
 
@@ -26,6 +26,31 @@ export function ThreePreviewPanel({ shapes, foldLines, layers, isMobileLayout, o
   const [textureForm, setTextureForm] = useState<TextureSource>(DEFAULT_TEXTURE_FORM)
   const [textureStatus, setTextureStatus] = useState('Default leather material active')
   const [showControls, setShowControls] = useState(!isMobileLayout)
+  const [hidden3dLayerIds, setHidden3dLayerIds] = useState<string[]>([])
+  const effectiveHidden3dLayerIds = useMemo(
+    () => hidden3dLayerIds.filter((layerId) => layers.some((layer) => layer.id === layerId)),
+    [hidden3dLayerIds, layers],
+  )
+
+  const visible3dLayerIdSet = useMemo(
+    () =>
+      new Set(
+        layers
+          .filter((layer) => layer.visible && !effectiveHidden3dLayerIds.includes(layer.id))
+          .map((layer) => layer.id),
+      ),
+    [layers, effectiveHidden3dLayerIds],
+  )
+
+  const shapesIn3dView = useMemo(
+    () => shapes.filter((shape) => visible3dLayerIdSet.has(shape.layerId)),
+    [shapes, visible3dLayerIdSet],
+  )
+
+  const visibleLayerCountIn3d = useMemo(
+    () => layers.filter((layer) => layer.visible && !effectiveHidden3dLayerIds.includes(layer.id)).length,
+    [layers, effectiveHidden3dLayerIds],
+  )
 
   useEffect(() => {
     if (!canvasRef.current) {
@@ -61,15 +86,15 @@ export function ThreePreviewPanel({ shapes, foldLines, layers, isMobileLayout, o
       return
     }
 
-    bridgeRef.current.setDocument(layers, shapes, foldLines)
-  }, [layers, shapes, foldLines])
+    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines)
+  }, [layers, shapesIn3dView, foldLines])
 
   return (
     <div className={`three-preview-shell ${showControls ? '' : 'preview-controls-collapsed'}`}>
       <div className="three-preview-header">
         <div>
           <h2>3D Preview Bridge</h2>
-          <p>2D shapes: {shapes.length} | fold lines: {foldLines.length}</p>
+          <p>2D shapes: {shapesIn3dView.length} | fold lines: {foldLines.length}</p>
           <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
         </div>
         {isMobileLayout && (
@@ -85,6 +110,55 @@ export function ThreePreviewPanel({ shapes, foldLines, layers, isMobileLayout, o
 
       {showControls && (
         <div className="three-preview-controls">
+          <div className="control-block">
+            <h3>3D Layer Visibility</h3>
+            <p className="hint">
+              Showing {visibleLayerCountIn3d} of {layers.length} layers in 3D.
+            </p>
+            {layers.length === 0 ? (
+              <p className="hint">No layers available.</p>
+            ) : (
+              <>
+                <div className="layer-toggle-list">
+                  {layers.map((layer) => {
+                    const checked = layer.visible && !effectiveHidden3dLayerIds.includes(layer.id)
+                    const disabled = !layer.visible
+                    return (
+                      <label key={layer.id} className="layer-toggle-item">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={disabled}
+                          onChange={() =>
+                            setHidden3dLayerIds((previous) =>
+                              previous.includes(layer.id) ? previous.filter((entry) => entry !== layer.id) : [...previous, layer.id],
+                            )
+                          }
+                        />
+                        <span>
+                          {layer.name}
+                          {layer.visible ? '' : ' (hidden in 2D)'}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+                <div className="button-row">
+                  <button
+                    onClick={() =>
+                      setHidden3dLayerIds(
+                        layers.filter((layer) => layer.visible).map((layer) => layer.id),
+                      )
+                    }
+                  >
+                    Hide All
+                  </button>
+                  <button onClick={() => setHidden3dLayerIds([])}>Show All</button>
+                </div>
+              </>
+            )}
+          </div>
+
           <div className="control-block">
             <h3>Bend Controls</h3>
             {foldLines.length === 0 ? (

@@ -31,6 +31,17 @@ const DEFAULT_BACK_LAYER_COLOR = '#f97316'
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
+type MobileOptionsTab = 'view' | 'layers' | 'file'
+type MobileLayerAction =
+  | 'add'
+  | 'rename'
+  | 'toggle-visibility'
+  | 'toggle-lock'
+  | 'move-up'
+  | 'move-down'
+  | 'delete'
+  | 'colors'
+type MobileFileAction = 'save-json' | 'load-json' | 'load-preset' | 'export-svg' | 'toggle-3d' | 'clear'
 
 const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'pan', label: 'Move' },
@@ -38,6 +49,12 @@ const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'arc', label: 'Arc' },
   { value: 'bezier', label: 'Bezier' },
   { value: 'fold', label: 'Fold' },
+]
+
+const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
+  { value: 'view', label: 'View' },
+  { value: 'layers', label: 'Layers' },
+  { value: 'file', label: 'File' },
 ]
 
 function toolLabel(tool: Tool) {
@@ -159,6 +176,9 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [mobileOptionsTab, setMobileOptionsTab] = useState<MobileOptionsTab>('view')
+  const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
+  const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
   const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
@@ -379,6 +399,7 @@ function App() {
         setIsMobileLayout(true)
         setMobileViewMode('editor')
         setShowMobileMenu(false)
+        setMobileOptionsTab('view')
         setTool('pan')
       } else {
         setIsMobileLayout(false)
@@ -971,6 +992,88 @@ function App() {
     setStatus('Layer color continuum reset')
   }
 
+  const handleRunMobileLayerAction = () => {
+    if (mobileLayerAction === 'add') {
+      handleAddLayer()
+      return
+    }
+
+    if (mobileLayerAction === 'rename') {
+      handleRenameActiveLayer()
+      return
+    }
+
+    if (mobileLayerAction === 'toggle-visibility') {
+      handleToggleLayerVisibility()
+      return
+    }
+
+    if (mobileLayerAction === 'toggle-lock') {
+      handleToggleLayerLock()
+      return
+    }
+
+    if (mobileLayerAction === 'move-up') {
+      handleMoveLayer(-1)
+      return
+    }
+
+    if (mobileLayerAction === 'move-down') {
+      handleMoveLayer(1)
+      return
+    }
+
+    if (mobileLayerAction === 'delete') {
+      handleDeleteLayer()
+      return
+    }
+
+    setShowLayerColorModal(true)
+  }
+
+  const handleRunMobileFileAction = () => {
+    if (mobileFileAction === 'save-json') {
+      handleSaveJson()
+      return
+    }
+
+    if (mobileFileAction === 'load-json') {
+      fileInputRef.current?.click()
+      return
+    }
+
+    if (mobileFileAction === 'load-preset') {
+      handleLoadPreset()
+      return
+    }
+
+    if (mobileFileAction === 'export-svg') {
+      handleExportSvg()
+      return
+    }
+
+    if (mobileFileAction === 'toggle-3d') {
+      setShowThreePreview((previous) => !previous)
+      return
+    }
+
+    const baseLayerId = uid()
+    setLayers([
+      {
+        id: baseLayerId,
+        name: 'Layer 1',
+        visible: true,
+        locked: false,
+      },
+    ])
+    setActiveLayerId(baseLayerId)
+    setShapes([])
+    setFoldLines([])
+    setLayerColorOverrides({})
+    clearDraft()
+    setStatus('Document cleared and reset to Layer 1')
+  }
+
   const setActiveTool = (nextTool: Tool) => {
     setTool(nextTool)
     clearDraft()
@@ -983,7 +1086,10 @@ function App() {
   }`
   const hideCanvasPane = isMobileLayout && showThreePreview && mobileViewMode === 'preview'
   const hidePreviewPane = isMobileLayout && (mobileViewMode === 'editor' || !showThreePreview)
-  const hideMobileOnlyControls = isMobileLayout && !showMobileMenu
+  const showViewOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'view')
+  const showLayerOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'layers')
+  const showFileOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'file')
+  const showMeta = !isMobileLayout || showMobileMenu
 
   return (
     <div className="app-shell">
@@ -1021,13 +1127,38 @@ function App() {
             </>
           )}
           {isMobileLayout && (
-            <button className="mobile-menu-toggle" onClick={() => setShowMobileMenu((previous) => !previous)}>
+            <button
+              className="mobile-menu-toggle"
+              onClick={() =>
+                setShowMobileMenu((previous) => {
+                  const next = !previous
+                  if (next) {
+                    setMobileOptionsTab('view')
+                  }
+                  return next
+                })
+              }
+            >
               {showMobileMenu ? 'Close' : 'Options'}
             </button>
           )}
         </div>
 
-        <div className={`group preset-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
+        {isMobileLayout && showMobileMenu && (
+          <div className="group mobile-options-tabs">
+            {MOBILE_OPTIONS_TABS.map((tab) => (
+              <button
+                key={tab.value}
+                className={mobileOptionsTab === tab.value ? 'active' : ''}
+                onClick={() => setMobileOptionsTab(tab.value)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className={`group preset-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
           <select
             className="preset-select"
             value={selectedPresetId}
@@ -1042,14 +1173,14 @@ function App() {
           <button onClick={() => handleLoadPreset()}>Load Preset</button>
         </div>
 
-        <div className={`group zoom-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
+        <div className={`group zoom-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
           <button onClick={() => handleZoomStep(0.85)}>-</button>
           <button onClick={() => handleZoomStep(1.15)}>+</button>
           <button onClick={handleFitView}>Fit</button>
           <button onClick={handleResetView}>Reset</button>
         </div>
 
-        <div className={`group layer-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
+        <div className={`group layer-controls ${showLayerOptions ? '' : 'mobile-hidden'}`}>
           <span className="layer-label">Layer</span>
           <select
             className="layer-select"
@@ -1067,59 +1198,103 @@ function App() {
               </option>
             ))}
           </select>
-          <button onClick={handleAddLayer}>+ Layer</button>
-          <button onClick={handleRenameActiveLayer} disabled={!activeLayer}>
-            Rename
-          </button>
-          <button onClick={handleToggleLayerVisibility} disabled={!activeLayer}>
-            {activeLayer?.visible ? 'Hide' : 'Show'}
-          </button>
-          <button onClick={handleToggleLayerLock} disabled={!activeLayer}>
-            {activeLayer?.locked ? 'Unlock' : 'Lock'}
-          </button>
-          <button onClick={() => handleMoveLayer(-1)} disabled={!activeLayer || layers.length < 2}>
-            Up
-          </button>
-          <button onClick={() => handleMoveLayer(1)} disabled={!activeLayer || layers.length < 2}>
-            Down
-          </button>
-          <button onClick={handleDeleteLayer} disabled={!activeLayer || layers.length < 2}>
-            Delete
-          </button>
-          <button onClick={() => setShowLayerColorModal(true)} disabled={layers.length === 0}>
-            Colors
-          </button>
+          {isMobileLayout ? (
+            <div className="group mobile-action-row">
+              <select
+                className="action-select"
+                value={mobileLayerAction}
+                onChange={(event) => setMobileLayerAction(event.target.value as MobileLayerAction)}
+              >
+                <option value="add">Add Layer</option>
+                <option value="rename">Rename Layer</option>
+                <option value="toggle-visibility">{activeLayer?.visible ? 'Hide Layer' : 'Show Layer'}</option>
+                <option value="toggle-lock">{activeLayer?.locked ? 'Unlock Layer' : 'Lock Layer'}</option>
+                <option value="move-up">Move Layer Up</option>
+                <option value="move-down">Move Layer Down</option>
+                <option value="delete">Delete Layer</option>
+                <option value="colors">Layer Colors</option>
+              </select>
+              <button onClick={handleRunMobileLayerAction} disabled={layers.length === 0}>
+                Apply
+              </button>
+            </div>
+          ) : (
+            <>
+              <button onClick={handleAddLayer}>+ Layer</button>
+              <button onClick={handleRenameActiveLayer} disabled={!activeLayer}>
+                Rename
+              </button>
+              <button onClick={handleToggleLayerVisibility} disabled={!activeLayer}>
+                {activeLayer?.visible ? 'Hide' : 'Show'}
+              </button>
+              <button onClick={handleToggleLayerLock} disabled={!activeLayer}>
+                {activeLayer?.locked ? 'Unlock' : 'Lock'}
+              </button>
+              <button onClick={() => handleMoveLayer(-1)} disabled={!activeLayer || layers.length < 2}>
+                Up
+              </button>
+              <button onClick={() => handleMoveLayer(1)} disabled={!activeLayer || layers.length < 2}>
+                Down
+              </button>
+              <button onClick={handleDeleteLayer} disabled={!activeLayer || layers.length < 2}>
+                Delete
+              </button>
+              <button onClick={() => setShowLayerColorModal(true)} disabled={layers.length === 0}>
+                Colors
+              </button>
+            </>
+          )}
         </div>
 
-        <div className={`group file-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
-          <button onClick={handleSaveJson}>Save JSON</button>
-          <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
-          <button onClick={() => handleLoadPreset()}>Load Preset</button>
-          <button onClick={handleExportSvg}>Export SVG</button>
-          <button onClick={() => setShowThreePreview((previous) => !previous)}>
-            {showThreePreview ? 'Hide 3D' : 'Show 3D'}
-          </button>
-          <button
-            onClick={() => {
-              const baseLayerId = uid()
-              setLayers([
-                {
-                  id: baseLayerId,
-                  name: 'Layer 1',
-                  visible: true,
-                  locked: false,
-                },
-              ])
-              setActiveLayerId(baseLayerId)
-              setShapes([])
-              setFoldLines([])
-              setLayerColorOverrides({})
-              clearDraft()
-              setStatus('Document cleared and reset to Layer 1')
-            }}
-          >
-            Clear
-          </button>
+        <div className={`group file-controls ${showFileOptions ? '' : 'mobile-hidden'}`}>
+          {isMobileLayout ? (
+            <div className="group mobile-action-row">
+              <select
+                className="action-select"
+                value={mobileFileAction}
+                onChange={(event) => setMobileFileAction(event.target.value as MobileFileAction)}
+              >
+                <option value="save-json">Save JSON</option>
+                <option value="load-json">Load JSON</option>
+                <option value="load-preset">Load Preset</option>
+                <option value="export-svg">Export SVG</option>
+                <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
+                <option value="clear">Clear Document</option>
+              </select>
+              <button onClick={handleRunMobileFileAction}>Apply</button>
+            </div>
+          ) : (
+            <>
+              <button onClick={handleSaveJson}>Save JSON</button>
+              <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
+              <button onClick={() => handleLoadPreset()}>Load Preset</button>
+              <button onClick={handleExportSvg}>Export SVG</button>
+              <button onClick={() => setShowThreePreview((previous) => !previous)}>
+                {showThreePreview ? 'Hide 3D' : 'Show 3D'}
+              </button>
+              <button
+                onClick={() => {
+                  const baseLayerId = uid()
+                  setLayers([
+                    {
+                      id: baseLayerId,
+                      name: 'Layer 1',
+                      visible: true,
+                      locked: false,
+                    },
+                  ])
+                  setActiveLayerId(baseLayerId)
+                  setShapes([])
+                  setFoldLines([])
+                  setLayerColorOverrides({})
+                  clearDraft()
+                  setStatus('Document cleared and reset to Layer 1')
+                }}
+              >
+                Clear
+              </button>
+            </>
+          )}
         </div>
 
         <div className="group mobile-view-controls">
@@ -1146,7 +1321,7 @@ function App() {
           </button>
         </div>
 
-        <div className={`group meta ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
+        <div className={`group meta ${showMeta ? '' : 'mobile-hidden'}`}>
           <span>{Math.round(viewport.scale * 100)}% zoom</span>
           <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
           <span>{layers.length} layers</span>
