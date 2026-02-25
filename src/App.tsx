@@ -32,6 +32,7 @@ const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
 type MobileOptionsTab = 'view' | 'layers' | 'file'
+type ThemeMode = 'dark' | 'light'
 type MobileLayerAction =
   | 'add'
   | 'rename'
@@ -180,6 +181,7 @@ function App() {
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
+  const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
   const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
   const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
@@ -1074,6 +1076,14 @@ function App() {
     setStatus('Document cleared and reset to Layer 1')
   }
 
+  const handleToggleTheme = () => {
+    setThemeMode((previous) => {
+      const next = previous === 'dark' ? 'light' : 'dark'
+      setStatus(next === 'light' ? 'White mode enabled' : 'Dark mode enabled')
+      return next
+    })
+  }
+
   const setActiveTool = (nextTool: Tool) => {
     setTool(nextTool)
     clearDraft()
@@ -1090,23 +1100,49 @@ function App() {
   const showLayerOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'layers')
   const showFileOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'file')
   const showMeta = !isMobileLayout || showMobileMenu
+  const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
       <header className={topbarClassName}>
         <div className="group tool-group">
           {isMobileLayout ? (
-            <select
-              className="tool-select-mobile"
-              value={tool}
-              onChange={(event) => setActiveTool(event.target.value as Tool)}
-            >
-              {TOOL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  Tool: {option.label}
-                </option>
-              ))}
-            </select>
+            <>
+              <select
+                className="tool-select-mobile"
+                value={tool}
+                onChange={(event) => setActiveTool(event.target.value as Tool)}
+              >
+                {TOOL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    Tool: {option.label}
+                  </option>
+                ))}
+              </select>
+              <div className="mobile-view-inline-tabs" role="tablist" aria-label="Mobile view mode">
+                <button
+                  className={mobileViewMode === 'editor' ? 'active' : ''}
+                  onClick={() => setMobileViewMode('editor')}
+                  disabled={!isMobileLayout}
+                >
+                  2D
+                </button>
+                <button
+                  className={mobileViewMode === 'preview' ? 'active' : ''}
+                  onClick={() => setMobileViewMode('preview')}
+                  disabled={!isMobileLayout || !showThreePreview}
+                >
+                  3D
+                </button>
+                <button
+                  className={mobileViewMode === 'split' ? 'active' : ''}
+                  onClick={() => setMobileViewMode('split')}
+                  disabled={!isMobileLayout || !showThreePreview}
+                >
+                  Split
+                </button>
+              </div>
+            </>
           ) : (
             <>
               <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
@@ -1171,6 +1207,7 @@ function App() {
             ))}
           </select>
           <button onClick={() => handleLoadPreset()}>Load Preset</button>
+          <button onClick={handleToggleTheme}>{themeMode === 'dark' ? 'White Mode' : 'Dark Mode'}</button>
         </div>
 
         <div className={`group zoom-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
@@ -1297,30 +1334,6 @@ function App() {
           )}
         </div>
 
-        <div className="group mobile-view-controls">
-          <button
-            className={mobileViewMode === 'editor' ? 'active' : ''}
-            onClick={() => setMobileViewMode('editor')}
-            disabled={!isMobileLayout}
-          >
-            2D
-          </button>
-          <button
-            className={mobileViewMode === 'preview' ? 'active' : ''}
-            onClick={() => setMobileViewMode('preview')}
-            disabled={!isMobileLayout || !showThreePreview}
-          >
-            3D
-          </button>
-          <button
-            className={mobileViewMode === 'split' ? 'active' : ''}
-            onClick={() => setMobileViewMode('split')}
-            disabled={!isMobileLayout || !showThreePreview}
-          >
-            Split
-          </button>
-        </div>
-
         <div className={`group meta ${showMeta ? '' : 'mobile-hidden'}`}>
           <span>{Math.round(viewport.scale * 100)}% zoom</span>
           <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
@@ -1345,7 +1358,7 @@ function App() {
               {gridLines}
 
               {visibleShapes.map((shape) => {
-                const layerStroke = layerColorsById[shape.layerId] ?? '#e2e8f0'
+                const layerStroke = layerColorsById[shape.layerId] ?? fallbackLayerStroke
                 if (shape.type === 'line') {
                   return (
                     <line
@@ -1406,7 +1419,7 @@ function App() {
             <div className="layer-legend-items">
               {layers.map((layer, index) => (
                 <div key={layer.id} className="layer-legend-item">
-                  <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? '#e2e8f0' }} />
+                  <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }} />
                   <span className="layer-legend-label">
                     {index + 1}. {layer.name}
                     {layer.visible ? '' : ' (hidden)'}
@@ -1424,6 +1437,7 @@ function App() {
               shapes={visibleShapes}
               foldLines={foldLines}
               layers={layers}
+              themeMode={themeMode}
               isMobileLayout={isMobileLayout}
               onUpdateFoldLine={(foldLineId, angleDeg) =>
                 setFoldLines((previous) =>

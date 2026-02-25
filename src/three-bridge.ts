@@ -188,6 +188,11 @@ export class ThreeBridge {
   private foldingSideGroup = new THREE.Group()
   private foldGuideGroup = new THREE.Group()
   private preservedMaterials: Set<THREE.Material>
+  private ambientLight = new THREE.AmbientLight('#ffffff', 0.55)
+  private keyLight = new THREE.DirectionalLight('#dbeafe', 0.9)
+  private rimLight = new THREE.DirectionalLight('#93c5fd', 0.35)
+  private grid = new THREE.GridHelper(4.2, 14, '#334155', '#1e293b')
+  private themeMode: 'dark' | 'light' = 'dark'
 
   private leftMaterial = new THREE.MeshStandardMaterial({
     color: '#8a6742',
@@ -254,6 +259,7 @@ export class ThreeBridge {
 
     this.setupLights()
     this.setupSceneHelpers()
+    this.setTheme('dark')
 
     this.foldingPivot.add(this.foldingSideGroup)
     this.modelRoot.add(this.staticSideGroup)
@@ -268,21 +274,17 @@ export class ThreeBridge {
   }
 
   private setupLights() {
-    const ambient = new THREE.AmbientLight('#ffffff', 0.55)
-    const key = new THREE.DirectionalLight('#dbeafe', 0.9)
-    key.position.set(1.2, 2.2, 1.4)
-    const rim = new THREE.DirectionalLight('#93c5fd', 0.35)
-    rim.position.set(-1.4, 1.2, -1.4)
+    this.keyLight.position.set(1.2, 2.2, 1.4)
+    this.rimLight.position.set(-1.4, 1.2, -1.4)
 
-    this.scene.add(ambient)
-    this.scene.add(key)
-    this.scene.add(rim)
+    this.scene.add(this.ambientLight)
+    this.scene.add(this.keyLight)
+    this.scene.add(this.rimLight)
   }
 
   private setupSceneHelpers() {
-    const grid = new THREE.GridHelper(4.2, 14, '#334155', '#1e293b')
-    grid.position.y = -0.35
-    this.scene.add(grid)
+    this.grid.position.y = -0.35
+    this.scene.add(this.grid)
   }
 
   private projectPoint(point: { x: number; y: number }) {
@@ -724,6 +726,44 @@ export class ThreeBridge {
   setFoldAngle(angleDeg: number) {
     this.activeFoldAngleDeg = THREE.MathUtils.clamp(angleDeg, 0, 180)
     this.updateFoldRotation()
+  }
+
+  setTheme(themeMode: 'dark' | 'light') {
+    this.themeMode = themeMode
+
+    if (this.themeMode === 'light') {
+      this.scene.background = new THREE.Color('#eef4ff')
+      this.ambientLight.intensity = 0.6
+      this.keyLight.color.set('#ffffff')
+      this.keyLight.intensity = 0.82
+      this.rimLight.color.set('#93c5fd')
+      this.rimLight.intensity = 0.22
+    } else {
+      this.scene.background = new THREE.Color('#0a1220')
+      this.ambientLight.intensity = 0.55
+      this.keyLight.color.set('#dbeafe')
+      this.keyLight.intensity = 0.9
+      this.rimLight.color.set('#93c5fd')
+      this.rimLight.intensity = 0.35
+    }
+
+    const gridMaterials = Array.isArray(this.grid.material) ? this.grid.material : [this.grid.material]
+    for (const [index, material] of gridMaterials.entries()) {
+      if (!(material instanceof THREE.LineBasicMaterial)) {
+        continue
+      }
+
+      material.color.set(
+        this.themeMode === 'light'
+          ? index === 0
+            ? '#b7c5dc'
+            : '#d8e0ee'
+          : index === 0
+            ? '#334155'
+            : '#1e293b',
+      )
+      material.needsUpdate = true
+    }
   }
 
   async setTexture(texture: TextureSource) {

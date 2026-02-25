@@ -6,6 +6,7 @@ type ThreePreviewPanelProps = {
   shapes: Shape[]
   foldLines: FoldLine[]
   layers: Layer[]
+  themeMode: 'dark' | 'light'
   isMobileLayout: boolean
   onUpdateFoldLine: (foldLineId: string, angleDeg: number) => void
 }
@@ -18,7 +19,7 @@ const DEFAULT_TEXTURE_FORM: TextureSource = {
   roughnessUrl: '',
 }
 
-export function ThreePreviewPanel({ shapes, foldLines, layers, isMobileLayout, onUpdateFoldLine }: ThreePreviewPanelProps) {
+export function ThreePreviewPanel({ shapes, foldLines, layers, themeMode, isMobileLayout, onUpdateFoldLine }: ThreePreviewPanelProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const bridgeRef = useRef<ThreeBridge | null>(null)
@@ -88,6 +89,10 @@ export function ThreePreviewPanel({ shapes, foldLines, layers, isMobileLayout, o
 
     bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines)
   }, [layers, shapesIn3dView, foldLines])
+
+  useEffect(() => {
+    bridgeRef.current?.setTheme(themeMode)
+  }, [themeMode])
 
   return (
     <div className={`three-preview-shell ${showControls ? '' : 'preview-controls-collapsed'}`}>
