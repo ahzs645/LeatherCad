@@ -26,6 +26,9 @@ const GRID_EXTENT = 4000
 const MIN_ZOOM = 0.2
 const MAX_ZOOM = 6
 const MOBILE_MEDIA_QUERY = '(max-width: 1100px)'
+const DEFAULT_FRONT_LAYER_COLOR = '#60a5fa'
+const DEFAULT_BACK_LAYER_COLOR = '#f97316'
+const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
 
@@ -39,6 +42,33 @@ const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
 
 function toolLabel(tool: Tool) {
   return TOOL_OPTIONS.find((entry) => entry.value === tool)?.label ?? tool
+}
+
+function channelToHex(value: number) {
+  const clamped = clamp(Math.round(value), 0, 255)
+  return clamped.toString(16).padStart(2, '0')
+}
+
+function normalizeHexColor(value: string, fallback: string) {
+  const candidate = value.trim()
+  if (HEX_COLOR_PATTERN.test(candidate)) {
+    return candidate.toLowerCase()
+  }
+  return fallback
+}
+
+function interpolateHexColor(startHex: string, endHex: string, ratio: number) {
+  const clampedRatio = clamp(ratio, 0, 1)
+  const parseChannel = (hex: string, offset: number) => Number.parseInt(hex.slice(offset, offset + 2), 16)
+
+  const start = normalizeHexColor(startHex, DEFAULT_FRONT_LAYER_COLOR)
+  const end = normalizeHexColor(endHex, DEFAULT_BACK_LAYER_COLOR)
+
+  const red = parseChannel(start, 1) + (parseChannel(end, 1) - parseChannel(start, 1)) * clampedRatio
+  const green = parseChannel(start, 3) + (parseChannel(end, 3) - parseChannel(start, 3)) * clampedRatio
+  const blue = parseChannel(start, 5) + (parseChannel(end, 5) - parseChannel(start, 5)) * clampedRatio
+
+  return `#${channelToHex(red)}${channelToHex(green)}${channelToHex(blue)}`
 }
 
 function downloadFile(filename: string, content: string, mimeType: string) {
@@ -129,6 +159,10 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showLayerColorModal, setShowLayerColorModal] = useState(false)
+  const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
+  const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
+  const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
 
@@ -143,6 +177,18 @@ function App() {
     const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
     return shapes.filter((shape) => visibleLayerIds.has(shape.layerId))
   }, [layers, shapes])
+  const layerColorsById = useMemo(() => {
+    const colorMap: Record<string, string> = {}
+    const denominator = Math.max(layers.length - 1, 1)
+
+    for (const [index, layer] of layers.entries()) {
+      const continuumColor = interpolateHexColor(frontLayerColor, backLayerColor, index / denominator)
+      colorMap[layer.id] = layerColorOverrides[layer.id] ?? continuumColor
+    }
+
+    return colorMap
+  }, [layers, frontLayerColor, backLayerColor, layerColorOverrides])
+  const activeLayerColor = activeLayer ? layerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR : DEFAULT_FRONT_LAYER_COLOR
 
   const gridLines = useMemo(() => {
     const lines: ReactElement[] = []
@@ -172,6 +218,7 @@ function App() {
           x2={cursorPoint.x}
           y2={cursorPoint.y}
           className={tool === 'fold' ? 'fold-preview' : 'shape-preview'}
+          style={tool === 'fold' ? undefined : { stroke: activeLayerColor }}
         />
       )
     }
@@ -185,11 +232,12 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className="shape-preview"
+            style={{ stroke: activeLayerColor }}
           />
         )
       }
 
-      return <path d={arcPath(draftPoints[0], draftPoints[1], cursorPoint)} className="shape-preview" />
+      return <path d={arcPath(draftPoints[0], draftPoints[1], cursorPoint)} className="shape-preview" style={{ stroke: activeLayerColor }} />
     }
 
     if (tool === 'bezier') {
@@ -201,6 +249,7 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className="shape-preview"
+            style={{ stroke: activeLayerColor }}
           />
         )
       }
@@ -211,12 +260,13 @@ function App() {
             draftPoints[1].y,
           )} ${round(cursorPoint.x)} ${round(cursorPoint.y)}`}
           className="shape-preview"
+          style={{ stroke: activeLayerColor }}
         />
       )
     }
 
     return null
-  }, [cursorPoint, draftPoints, tool])
+  }, [cursorPoint, draftPoints, tool, activeLayerColor])
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current
@@ -350,6 +400,24 @@ function App() {
       setActiveLayerId(layers[0].id)
     }
   }, [layers, activeLayerId])
+
+  useEffect(() => {
+    setLayerColorOverrides((previous) => {
+      const layerIdSet = new Set(layers.map((layer) => layer.id))
+      let changed = false
+      const next: Record<string, string> = {}
+
+      for (const [layerId, color] of Object.entries(previous)) {
+        if (layerIdSet.has(layerId)) {
+          next[layerId] = color
+        } else {
+          changed = true
+        }
+      }
+
+      return changed ? next : previous
+    })
+  }, [layers])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -705,6 +773,7 @@ function App() {
       setActiveLayerId(nextActiveLayerId)
       setShapes(nextShapes)
       setFoldLines(nextFoldLines)
+      setLayerColorOverrides({})
       clearDraft()
       setStatus(`Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${nextLayers.length} layers)`)
     } catch (error) {
@@ -729,6 +798,7 @@ function App() {
     setActiveLayerId(sample.activeLayerId)
     setShapes(sample.objects)
     setFoldLines(sample.foldLines)
+    setLayerColorOverrides({})
     setTool('pan')
     setShowThreePreview(true)
     if (isMobileLayout) {
@@ -875,6 +945,32 @@ function App() {
     setStatus(`Deleted layer and moved its shapes to "${fallbackLayer.name}"`)
   }
 
+  const handleSetLayerColorOverride = (layerId: string, nextColor: string) => {
+    const normalizedColor = normalizeHexColor(nextColor, layerColorsById[layerId] ?? DEFAULT_FRONT_LAYER_COLOR)
+    setLayerColorOverrides((previous) => ({
+      ...previous,
+      [layerId]: normalizedColor,
+    }))
+  }
+
+  const handleClearLayerColorOverride = (layerId: string) => {
+    setLayerColorOverrides((previous) => {
+      if (!(layerId in previous)) {
+        return previous
+      }
+      const next = { ...previous }
+      delete next[layerId]
+      return next
+    })
+  }
+
+  const handleResetLayerColors = () => {
+    setFrontLayerColor(DEFAULT_FRONT_LAYER_COLOR)
+    setBackLayerColor(DEFAULT_BACK_LAYER_COLOR)
+    setLayerColorOverrides({})
+    setStatus('Layer color continuum reset')
+  }
+
   const setActiveTool = (nextTool: Tool) => {
     setTool(nextTool)
     clearDraft()
@@ -990,6 +1086,9 @@ function App() {
           <button onClick={handleDeleteLayer} disabled={!activeLayer || layers.length < 2}>
             Delete
           </button>
+          <button onClick={() => setShowLayerColorModal(true)} disabled={layers.length === 0}>
+            Colors
+          </button>
         </div>
 
         <div className={`group file-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
@@ -1014,6 +1113,7 @@ function App() {
               setActiveLayerId(baseLayerId)
               setShapes([])
               setFoldLines([])
+              setLayerColorOverrides({})
               clearDraft()
               setStatus('Document cleared and reset to Layer 1')
             }}
@@ -1070,6 +1170,7 @@ function App() {
               {gridLines}
 
               {visibleShapes.map((shape) => {
+                const layerStroke = layerColorsById[shape.layerId] ?? '#e2e8f0'
                 if (shape.type === 'line') {
                   return (
                     <line
@@ -1079,12 +1180,20 @@ function App() {
                       x2={shape.end.x}
                       y2={shape.end.y}
                       className="shape-line"
+                      style={{ stroke: layerStroke }}
                     />
                   )
                 }
 
                 if (shape.type === 'arc') {
-                  return <path key={shape.id} d={arcPath(shape.start, shape.mid, shape.end)} className="shape-line" />
+                  return (
+                    <path
+                      key={shape.id}
+                      d={arcPath(shape.start, shape.mid, shape.end)}
+                      className="shape-line"
+                      style={{ stroke: layerStroke }}
+                    />
+                  )
                 }
 
                 return (
@@ -1094,6 +1203,7 @@ function App() {
                       shape.control.y,
                     )} ${round(shape.end.x)} ${round(shape.end.y)}`}
                     className="shape-line"
+                    style={{ stroke: layerStroke }}
                   />
                 )
               })}
@@ -1112,6 +1222,24 @@ function App() {
               {previewElement}
             </g>
           </svg>
+
+          <div className="layer-legend" aria-label="Layer order legend">
+            <div className="layer-legend-header">
+              <span>Layer Legend</span>
+              <span>Front -&gt; Back</span>
+            </div>
+            <div className="layer-legend-items">
+              {layers.map((layer, index) => (
+                <div key={layer.id} className="layer-legend-item">
+                  <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? '#e2e8f0' }} />
+                  <span className="layer-legend-label">
+                    {index + 1}. {layer.name}
+                    {layer.visible ? '' : ' (hidden)'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </section>
 
         {showThreePreview && (
@@ -1138,6 +1266,87 @@ function App() {
           </aside>
         )}
       </main>
+
+      {showLayerColorModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowLayerColorModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowLayerColorModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div className="layer-color-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="layer-color-modal-header">
+              <h2>Layer Color Settings</h2>
+              <button onClick={() => setShowLayerColorModal(false)}>Done</button>
+            </div>
+
+            <p className="hint">Layer 1 is treated as front. Lower rows move toward back.</p>
+
+            <div className="layer-color-range">
+              <label className="field-row">
+                <span>Front color</span>
+                <input
+                  type="color"
+                  value={frontLayerColor}
+                  onChange={(event) =>
+                    setFrontLayerColor(normalizeHexColor(event.target.value, DEFAULT_FRONT_LAYER_COLOR))
+                  }
+                />
+              </label>
+              <label className="field-row">
+                <span>Back color</span>
+                <input
+                  type="color"
+                  value={backLayerColor}
+                  onChange={(event) =>
+                    setBackLayerColor(normalizeHexColor(event.target.value, DEFAULT_BACK_LAYER_COLOR))
+                  }
+                />
+              </label>
+            </div>
+
+            <div
+              className="layer-color-gradient-preview"
+              style={{
+                background: `linear-gradient(90deg, ${frontLayerColor}, ${backLayerColor})`,
+              }}
+            />
+
+            <div className="layer-color-list">
+              {layers.map((layer, index) => {
+                const color = layerColorsById[layer.id] ?? DEFAULT_FRONT_LAYER_COLOR
+                const hasOverride = layer.id in layerColorOverrides
+                return (
+                  <div key={layer.id} className="layer-color-item">
+                    <span className="layer-color-order">{index + 1}</span>
+                    <span className="layer-color-name">{layer.name}</span>
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(event) => handleSetLayerColorOverride(layer.id, event.target.value)}
+                    />
+                    <button
+                      onClick={() => handleClearLayerColorOverride(layer.id)}
+                      disabled={!hasOverride}
+                      title={hasOverride ? 'Remove custom color override' : 'Using continuum color'}
+                    >
+                      Auto
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="layer-color-modal-actions">
+              <button onClick={handleResetLayerColors}>Reset Colors</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="statusbar">
         <span>Tool: {toolLabel(tool)}</span>
