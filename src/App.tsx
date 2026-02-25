@@ -19,7 +19,7 @@ import {
 } from './cad-geometry'
 import type { DocFile, FoldLine, Layer, Point, Shape, Tool, Viewport } from './cad-types'
 import { ThreePreviewPanel } from './components/ThreePreviewPanel'
-import { SAMPLE_WALLET_DOC } from './sample-doc'
+import { DEFAULT_PRESET_ID, PRESET_DOCS } from './sample-doc'
 
 const GRID_STEP = 100
 const GRID_EXTENT = 4000
@@ -117,6 +117,7 @@ function App() {
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
 
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -214,6 +215,62 @@ function App() {
       x: (clientX - rect.left - viewport.x) / viewport.scale,
       y: (clientY - rect.top - viewport.y) / viewport.scale,
     }
+  }
+
+  const zoomAtScreenPoint = (screenX: number, screenY: number, zoomFactor: number) => {
+    setViewport((previous) => {
+      const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
+      const worldX = (screenX - previous.x) / previous.scale
+      const worldY = (screenY - previous.y) / previous.scale
+      return {
+        x: screenX - worldX * nextScale,
+        y: screenY - worldY * nextScale,
+        scale: nextScale,
+      }
+    })
+  }
+
+  const handleZoomStep = (zoomFactor: number) => {
+    const svg = svgRef.current
+    if (!svg) {
+      return
+    }
+
+    const rect = svg.getBoundingClientRect()
+    zoomAtScreenPoint(rect.width / 2, rect.height / 2, zoomFactor)
+  }
+
+  const handleResetView = () => {
+    setViewport({ x: 560, y: 360, scale: 1 })
+    setStatus('View reset')
+  }
+
+  const handleFitView = () => {
+    const svg = svgRef.current
+    if (!svg) {
+      return
+    }
+
+    if (visibleShapes.length === 0) {
+      handleResetView()
+      return
+    }
+
+    const rect = svg.getBoundingClientRect()
+    const bounds = getBounds(visibleShapes)
+    const margin = 40
+    const fitScale = clamp(
+      Math.min((rect.width - margin * 2) / bounds.width, (rect.height - margin * 2) / bounds.height),
+      MIN_ZOOM,
+      MAX_ZOOM,
+    )
+
+    setViewport({
+      scale: fitScale,
+      x: rect.width / 2 - (bounds.minX + bounds.width / 2) * fitScale,
+      y: rect.height / 2 - (bounds.minY + bounds.height / 2) * fitScale,
+    })
+    setStatus('View fit to visible shapes')
   }
 
   const beginPan = (clientX: number, clientY: number) => {
@@ -475,18 +532,7 @@ function App() {
     const screenX = event.clientX - rect.left
     const screenY = event.clientY - rect.top
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9
-
-    setViewport((previous) => {
-      const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
-      const worldX = (screenX - previous.x) / previous.scale
-      const worldY = (screenY - previous.y) / previous.scale
-
-      return {
-        x: screenX - worldX * nextScale,
-        y: screenY - worldY * nextScale,
-        scale: nextScale,
-      }
-    })
+    zoomAtScreenPoint(screenX, screenY, zoomFactor)
   }
 
   const handleExportSvg = () => {
@@ -625,11 +671,17 @@ function App() {
     }
   }
 
-  const handleLoadSample = () => {
+  const handleLoadPreset = (presetId = selectedPresetId) => {
+    const preset = PRESET_DOCS.find((entry) => entry.id === presetId)
+    if (!preset) {
+      setStatus('Preset not found')
+      return
+    }
+
     const sample =
       typeof structuredClone === 'function'
-        ? structuredClone(SAMPLE_WALLET_DOC)
-        : (JSON.parse(JSON.stringify(SAMPLE_WALLET_DOC)) as DocFile)
+        ? structuredClone(preset.doc)
+        : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
 
     setLayers(sample.layers)
     setActiveLayerId(sample.activeLayerId)
@@ -642,7 +694,7 @@ function App() {
     }
     clearDraft()
     setStatus(
-      `Loaded sample: Wallet demo (${sample.objects.length} shapes, ${sample.foldLines.length} folds, ${sample.layers.length} layers)`,
+      `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`,
     )
   }
 
@@ -820,6 +872,28 @@ function App() {
           )}
         </div>
 
+        <div className="group preset-controls">
+          <select
+            className="preset-select"
+            value={selectedPresetId}
+            onChange={(event) => setSelectedPresetId(event.target.value)}
+          >
+            {PRESET_DOCS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+          <button onClick={() => handleLoadPreset()}>Load Preset</button>
+        </div>
+
+        <div className="group zoom-controls">
+          <button onClick={() => handleZoomStep(0.85)}>-</button>
+          <button onClick={() => handleZoomStep(1.15)}>+</button>
+          <button onClick={handleFitView}>Fit</button>
+          <button onClick={handleResetView}>Reset</button>
+        </div>
+
         <div className={`group layer-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <span className="layer-label">Layer</span>
           <select
@@ -862,7 +936,7 @@ function App() {
         <div className={`group file-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <button onClick={handleSaveJson}>Save JSON</button>
           <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
-          <button onClick={handleLoadSample}>Load Sample</button>
+          <button onClick={() => handleLoadPreset()}>Load Preset</button>
           <button onClick={handleExportSvg}>Export SVG</button>
           <button onClick={() => setShowThreePreview((previous) => !previous)}>
             {showThreePreview ? 'Hide 3D' : 'Show 3D'}
@@ -1008,7 +1082,7 @@ function App() {
       <footer className="statusbar">
         <span>Tool: {tool}</span>
         <span>{status}</span>
-        <span>Tip: wheel to zoom, middle/right drag to pan, Fold tool assigns bend lines for 3D preview.</span>
+        <span>Tip: wheel/zoom buttons for zoom, pan tool to move view, Fold tool assigns bend lines for 3D.</span>
         <span>Mobile: use Editor / 3D / Split buttons to focus workspace.</span>
       </footer>
 

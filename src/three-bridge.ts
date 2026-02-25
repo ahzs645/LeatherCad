@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { getBounds, sampleShapePoints } from './cad-geometry'
 import type { FoldLine, Shape, TextureSource } from './cad-types'
 
@@ -46,6 +47,7 @@ export class ThreeBridge {
   private renderer: THREE.WebGLRenderer
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
+  private controls: OrbitControls
   private frameId: number | null = null
   private patternGroup = new THREE.Group()
   private foldGroup = new THREE.Group()
@@ -88,6 +90,18 @@ export class ThreeBridge {
     this.camera = new THREE.PerspectiveCamera(50, Math.max(this.canvas.clientWidth, 1) / Math.max(this.canvas.clientHeight, 1), 0.01, 100)
     this.camera.position.set(0, 1.2, 2.4)
     this.camera.lookAt(0, 0, 0)
+
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+    this.controls.enableDamping = true
+    this.controls.dampingFactor = 0.07
+    this.controls.enablePan = true
+    this.controls.panSpeed = 0.65
+    this.controls.rotateSpeed = 0.8
+    this.controls.zoomSpeed = 0.9
+    this.controls.minDistance = 0.7
+    this.controls.maxDistance = 5.5
+    this.controls.target.set(0, 0.22, 0)
+    this.controls.update()
 
     this.setupLights()
     this.setupSceneHelpers()
@@ -168,6 +182,7 @@ export class ThreeBridge {
   }
 
   private animate = () => {
+    this.controls.update()
     this.renderer.render(this.scene, this.camera)
     this.frameId = requestAnimationFrame(this.animate)
   }
@@ -279,6 +294,7 @@ export class ThreeBridge {
     clearGroup(this.patternGroup)
     clearGroup(this.foldGroup)
 
+    this.controls.dispose()
     this.leftMaterial.dispose()
     this.rightMaterial.dispose()
     this.renderer.dispose()

@@ -70,6 +70,7 @@ export function ThreePreviewPanel({ shapes, foldLines, isMobileLayout, onUpdateF
         <div>
           <h2>3D Preview Bridge</h2>
           <p>2D shapes: {shapes.length} | fold lines: {foldLines.length}</p>
+          <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
         </div>
         {isMobileLayout && (
           <button className="preview-controls-toggle" onClick={() => setShowControls((previous) => !previous)}>
