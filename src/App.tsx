@@ -18,6 +18,7 @@ import {
   uid,
 } from './cad-geometry'
 import type { DocFile, FoldLine, Layer, LineType, Point, Shape, Tool, Viewport } from './cad-types'
+import { LineTypePalette } from './components/LineTypePalette'
 import { ThreePreviewPanel } from './components/ThreePreviewPanel'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
@@ -28,6 +29,7 @@ import {
   resolveActiveLineTypeId,
   resolveShapeLineTypeId,
 } from './line-types'
+import { applyLineTypeToShapeIds, countShapesByLineType } from './line-type-ops'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './sample-doc'
 
 const GRID_STEP = 100
@@ -203,6 +205,8 @@ function App() {
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
+  const [showLineTypePalette, setShowLineTypePalette] = useState(false)
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([])
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
   const [legendMode, setLegendMode] = useState<LegendMode>('layer')
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
@@ -226,6 +230,9 @@ function App() {
     () => Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType])),
     [lineTypes],
   )
+  const selectedShapeIdSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds])
+  const shapeCountsByLineType = useMemo(() => countShapesByLineType(shapes), [shapes])
+  const selectedShapeCount = selectedShapeIds.length
   const visibleShapes = useMemo(() => {
     const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
     const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
@@ -294,6 +301,15 @@ function App() {
   const activeLayerColor = activeLayer
     ? displayLayerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR
     : DEFAULT_FRONT_LAYER_COLOR
+  const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
+  const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
+  const foldStrokeColor = themeMode === 'light' ? FOLD_COLOR_LIGHT : FOLD_COLOR_DARK
+  const activeLineTypeStrokeColor =
+    activeLineType?.role === 'stitch'
+      ? stitchStrokeColor
+      : activeLineType?.role === 'fold'
+        ? foldStrokeColor
+        : activeLineType?.color ?? activeLayerColor
   const activeLineTypeDasharray = lineTypeStrokeDasharray(activeLineType?.style ?? 'solid')
 
   const gridLines = useMemo(() => {
@@ -324,7 +340,7 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className={tool === 'fold' ? 'fold-preview' : 'shape-preview'}
-            style={tool === 'fold' ? undefined : { stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+            style={tool === 'fold' ? undefined : { stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
           />
         )
     }
@@ -338,7 +354,7 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className="shape-preview"
-            style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+            style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
           />
         )
       }
@@ -347,7 +363,7 @@ function App() {
         <path
           d={arcPath(draftPoints[0], draftPoints[1], cursorPoint)}
           className="shape-preview"
-          style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
         />
       )
     }
@@ -361,7 +377,7 @@ function App() {
             x2={cursorPoint.x}
             y2={cursorPoint.y}
             className="shape-preview"
-            style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+            style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
           />
         )
       }
@@ -372,13 +388,13 @@ function App() {
             draftPoints[1].y,
           )} ${round(cursorPoint.x)} ${round(cursorPoint.y)}`}
           className="shape-preview"
-          style={{ stroke: activeLayerColor, strokeDasharray: activeLineTypeDasharray }}
+          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
         />
       )
     }
 
     return null
-  }, [cursorPoint, draftPoints, tool, activeLayerColor, activeLineTypeDasharray])
+  }, [cursorPoint, draftPoints, tool, activeLineTypeStrokeColor, activeLineTypeDasharray])
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current
@@ -537,6 +553,17 @@ function App() {
       setActiveLineTypeId(lineTypes[0].id)
     }
   }, [lineTypes, activeLineTypeId])
+
+  useEffect(() => {
+    setSelectedShapeIds((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
+      const next = previous.filter((shapeId) => shapeIdSet.has(shapeId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [shapes])
 
   useEffect(() => {
     setLayerColorOverrides((previous) => {
@@ -719,6 +746,32 @@ function App() {
       clearDraft()
       setStatus('Bezier created')
     }
+  }
+
+  const handleShapePointerDown = (event: ReactPointerEvent<SVGElement>, shapeId: string) => {
+    if (tool !== 'pan') {
+      return
+    }
+
+    if (event.pointerType !== 'touch' && event.button !== 0) {
+      return
+    }
+
+    event.stopPropagation()
+
+    setSelectedShapeIds((previous) => {
+      const isAlreadySelected = previous.includes(shapeId)
+      let next: string[]
+
+      if (event.shiftKey) {
+        next = isAlreadySelected ? previous.filter((entry) => entry !== shapeId) : [...previous, shapeId]
+      } else {
+        next = isAlreadySelected && previous.length === 1 ? [] : [shapeId]
+      }
+
+      setStatus(next.length === 0 ? 'Shape selection cleared' : `${next.length} shape${next.length === 1 ? '' : 's'} selected`)
+      return next
+    })
   }
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -934,6 +987,7 @@ function App() {
       setActiveLineTypeId(nextActiveLineTypeId)
       setShapes(nextShapes)
       setFoldLines(nextFoldLines)
+      setSelectedShapeIds([])
       setLayerColorOverrides({})
       clearDraft()
       setStatus(`Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${nextLayers.length} layers)`)
@@ -962,6 +1016,7 @@ function App() {
     setActiveLineTypeId(resolveActiveLineTypeId(presetLineTypes, sample.activeLineTypeId))
     setShapes(sample.objects)
     setFoldLines(sample.foldLines)
+    setSelectedShapeIds([])
     setLayerColorOverrides({})
     setTool('pan')
     setShowThreePreview(true)
@@ -1138,6 +1193,106 @@ function App() {
     setStatus(activeLineType.visible ? `Line type hidden: ${activeLineType.name}` : `Line type shown: ${activeLineType.name}`)
   }
 
+  const handleShowAllLineTypes = () => {
+    setLineTypes((previous) => previous.map((lineType) => ({ ...lineType, visible: true })))
+    setStatus('All line types shown')
+  }
+
+  const handleIsolateActiveLineType = () => {
+    if (!activeLineType) {
+      setStatus('No active line type to isolate')
+      return
+    }
+
+    setLineTypes((previous) =>
+      previous.map((lineType) => ({
+        ...lineType,
+        visible: lineType.id === activeLineType.id,
+      })),
+    )
+    setStatus(`Isolated line type: ${activeLineType.name}`)
+  }
+
+  const handleUpdateActiveLineTypeRole = (role: LineType['role']) => {
+    if (!activeLineType) {
+      return
+    }
+    setLineTypes((previous) =>
+      previous.map((lineType) =>
+        lineType.id === activeLineType.id
+          ? {
+              ...lineType,
+              role,
+            }
+          : lineType,
+      ),
+    )
+    setStatus(`Line type role set to ${role}`)
+  }
+
+  const handleUpdateActiveLineTypeStyle = (style: LineType['style']) => {
+    if (!activeLineType) {
+      return
+    }
+    setLineTypes((previous) =>
+      previous.map((lineType) =>
+        lineType.id === activeLineType.id
+          ? {
+              ...lineType,
+              style,
+            }
+          : lineType,
+      ),
+    )
+    setStatus(`Line type style set to ${style}`)
+  }
+
+  const handleUpdateActiveLineTypeColor = (color: string) => {
+    if (!activeLineType) {
+      return
+    }
+    const normalized = normalizeHexColor(color, activeLineType.color)
+    setLineTypes((previous) =>
+      previous.map((lineType) =>
+        lineType.id === activeLineType.id
+          ? {
+              ...lineType,
+              color: normalized,
+            }
+          : lineType,
+      ),
+    )
+  }
+
+  const handleSelectShapesByActiveLineType = () => {
+    if (!activeLineType) {
+      return
+    }
+
+    const nextSelected = shapes.filter((shape) => shape.lineTypeId === activeLineType.id).map((shape) => shape.id)
+    setSelectedShapeIds(nextSelected)
+    setStatus(`Selected ${nextSelected.length} shapes on ${activeLineType.name}`)
+  }
+
+  const handleAssignSelectedToActiveLineType = () => {
+    if (!activeLineType) {
+      return
+    }
+
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to assign')
+      return
+    }
+
+    setShapes((previous) => applyLineTypeToShapeIds(previous, selectedShapeIdSet, activeLineType.id))
+    setStatus(`Assigned ${selectedShapeIdSet.size} selected shapes to ${activeLineType.name}`)
+  }
+
+  const handleClearShapeSelection = () => {
+    setSelectedShapeIds([])
+    setStatus('Shape selection cleared')
+  }
+
   const handleSetLayerColorOverride = (layerId: string, nextColor: string) => {
     const normalizedColor = normalizeHexColor(nextColor, layerColorsById[layerId] ?? DEFAULT_FRONT_LAYER_COLOR)
     setLayerColorOverrides((previous) => ({
@@ -1245,6 +1400,7 @@ function App() {
     setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
     setShapes([])
     setFoldLines([])
+    setSelectedShapeIds([])
     setLayerColorOverrides({})
     clearDraft()
     setStatus('Document cleared and reset to Layer 1')
@@ -1275,9 +1431,6 @@ function App() {
   const showFileOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'file')
   const showMeta = !isMobileLayout || showMobileMenu
   const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
-  const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
-  const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
-  const foldStrokeColor = themeMode === 'light' ? FOLD_COLOR_LIGHT : FOLD_COLOR_DARK
 
   return (
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
@@ -1412,6 +1565,7 @@ function App() {
           <button onClick={handleToggleActiveLineTypeVisibility} disabled={!activeLineType}>
             {activeLineType?.visible ? 'Hide Type' : 'Show Type'}
           </button>
+          <button onClick={() => setShowLineTypePalette(true)}>Palette</button>
         </div>
 
         <div className={`group layer-controls ${showLayerOptions ? '' : 'mobile-hidden'}`}>
@@ -1525,6 +1679,7 @@ function App() {
                   setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
                   setShapes([])
                   setFoldLines([])
+                  setSelectedShapeIds([])
                   setLayerColorOverrides({})
                   clearDraft()
                   setStatus('Document cleared and reset to Layer 1')
@@ -1563,12 +1718,13 @@ function App() {
               {visibleShapes.map((shape) => {
                 const lineType = lineTypesById[shape.lineTypeId]
                 const lineTypeRole = lineType?.role ?? 'cut'
+                const isSelected = selectedShapeIdSet.has(shape.id)
                 const layerStroke =
                   lineTypeRole === 'stitch'
                     ? stitchStrokeColor
                     : lineTypeRole === 'fold'
                       ? foldStrokeColor
-                      : displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
+                      : lineType?.color ?? displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
                 const strokeDasharray = lineTypeStrokeDasharray(lineType?.style ?? 'solid')
                 if (shape.type === 'line') {
                   return (
@@ -1578,8 +1734,9 @@ function App() {
                       y1={shape.start.y}
                       x2={shape.end.x}
                       y2={shape.end.y}
-                      className="shape-line"
+                      className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
                       style={{ stroke: layerStroke, strokeDasharray }}
+                      onPointerDown={(event) => handleShapePointerDown(event, shape.id)}
                     />
                   )
                 }
@@ -1589,8 +1746,9 @@ function App() {
                     <path
                       key={shape.id}
                       d={arcPath(shape.start, shape.mid, shape.end)}
-                      className="shape-line"
+                      className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
                       style={{ stroke: layerStroke, strokeDasharray }}
+                      onPointerDown={(event) => handleShapePointerDown(event, shape.id)}
                     />
                   )
                 }
@@ -1601,8 +1759,9 @@ function App() {
                     d={`M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(
                       shape.control.y,
                     )} ${round(shape.end.x)} ${round(shape.end.y)}`}
-                    className="shape-line"
+                    className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
                     style={{ stroke: layerStroke, strokeDasharray }}
+                    onPointerDown={(event) => handleShapePointerDown(event, shape.id)}
                   />
                 )
               })}
@@ -1723,6 +1882,36 @@ function App() {
           </aside>
         )}
       </main>
+
+      <LineTypePalette
+        open={showLineTypePalette}
+        lineTypes={lineTypes}
+        activeLineType={activeLineType}
+        shapeCountsByLineType={shapeCountsByLineType}
+        selectedShapeCount={selectedShapeCount}
+        onClose={() => setShowLineTypePalette(false)}
+        onSetActiveLineTypeId={setActiveLineTypeId}
+        onToggleLineTypeVisibility={(lineTypeId) =>
+          setLineTypes((previous) =>
+            previous.map((lineType) =>
+              lineType.id === lineTypeId
+                ? {
+                    ...lineType,
+                    visible: !lineType.visible,
+                  }
+                : lineType,
+            ),
+          )
+        }
+        onShowAllTypes={handleShowAllLineTypes}
+        onIsolateActiveType={handleIsolateActiveLineType}
+        onUpdateActiveLineTypeRole={handleUpdateActiveLineTypeRole}
+        onUpdateActiveLineTypeStyle={handleUpdateActiveLineTypeStyle}
+        onUpdateActiveLineTypeColor={handleUpdateActiveLineTypeColor}
+        onSelectShapesByActiveType={handleSelectShapesByActiveLineType}
+        onAssignSelectedToActiveType={handleAssignSelectedToActiveLineType}
+        onClearSelection={handleClearShapeSelection}
+      />
 
       {showLayerColorModal && (
         <div

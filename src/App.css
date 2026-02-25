@@ -307,6 +307,10 @@ button:disabled {
   vector-effect: non-scaling-stroke;
 }
 
+.shape-selected {
+  stroke-width: 3.25;
+}
+
 .fold-line {
   stroke: var(--fold-line-color);
   stroke-width: 1.8;
@@ -551,6 +555,74 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.line-type-modal {
+  width: min(620px, 100%);
+  max-height: min(80vh, 820px);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-modal);
+  overflow: auto;
+}
+
+.line-type-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.line-type-modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--app-text);
+}
+
+.line-type-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.line-type-modal-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.line-type-chip {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+.line-type-chip-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--swatch-border);
+}
+
+.line-type-chip-label {
+  font-size: 12px;
+  color: var(--app-text);
+}
+
+.line-type-chip-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.line-type-edit-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .three-preview-shell {
   display: grid;
   grid-template-rows: auto minmax(220px, 1fr) auto;
@@ -787,5 +859,10 @@ button:disabled {
   .layer-color-item button {
     grid-column: 2;
     justify-self: start;
+  }
+
+  .line-type-modal-list,
+  .line-type-edit-grid {
+    grid-template-columns: 1fr;
   }
 }
