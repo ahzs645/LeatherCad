@@ -29,6 +29,8 @@ const MOBILE_MEDIA_QUERY = '(max-width: 1100px)'
 const DEFAULT_FRONT_LAYER_COLOR = '#60a5fa'
 const DEFAULT_BACK_LAYER_COLOR = '#f97316'
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
+const STITCH_COLOR_DARK = '#f59e0b'
+const STITCH_COLOR_LIGHT = '#b45309'
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
 type MobileOptionsTab = 'view' | 'layers' | 'file'
@@ -89,6 +91,11 @@ function interpolateHexColor(startHex: string, endHex: string, ratio: number) {
   return `#${channelToHex(red)}${channelToHex(green)}${channelToHex(blue)}`
 }
 
+function looksLikeStitch(shape: Shape, layerName: string) {
+  const fingerprint = `${shape.id} ${layerName}`.toLowerCase()
+  return fingerprint.includes('stitch') || fingerprint.includes('seam') || fingerprint.includes('thread')
+}
+
 function downloadFile(filename: string, content: string, mimeType: string) {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -137,6 +144,7 @@ function parseLayer(value: unknown): Layer | null {
     name?: unknown
     visible?: unknown
     locked?: unknown
+    stackLevel?: unknown
   }
 
   if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
@@ -148,6 +156,10 @@ function parseLayer(value: unknown): Layer | null {
     name: typeof candidate.name === 'string' && candidate.name.length > 0 ? candidate.name : 'Layer',
     visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
     locked: typeof candidate.locked === 'boolean' ? candidate.locked : false,
+    stackLevel:
+      typeof candidate.stackLevel === 'number' && Number.isFinite(candidate.stackLevel)
+        ? Math.max(0, Math.round(candidate.stackLevel))
+        : undefined,
   }
 }
 
@@ -166,6 +178,7 @@ function App() {
       name: 'Layer 1',
       visible: true,
       locked: false,
+      stackLevel: 0,
     },
   ])
   const [activeLayerId, setActiveLayerId] = useState<string>(initialLayerIdRef.current)
@@ -210,6 +223,29 @@ function App() {
 
     return colorMap
   }, [layers, frontLayerColor, backLayerColor, layerColorOverrides])
+  const layerStackLevels = useMemo(() => {
+    const stackMap: Record<string, number> = {}
+    for (const [index, layer] of layers.entries()) {
+      stackMap[layer.id] =
+        typeof layer.stackLevel === 'number' && Number.isFinite(layer.stackLevel)
+          ? Math.max(0, Math.round(layer.stackLevel))
+          : index
+    }
+    return stackMap
+  }, [layers])
+  const stackLegendEntries = useMemo(() => {
+    const grouped = new Map<number, string[]>()
+    for (const layer of layers) {
+      const stackLevel = layerStackLevels[layer.id] ?? 0
+      const names = grouped.get(stackLevel) ?? []
+      names.push(layer.name)
+      grouped.set(stackLevel, names)
+    }
+
+    return Array.from(grouped.entries())
+      .map(([stackLevel, layerNames]) => ({ stackLevel, layerNames }))
+      .sort((left, right) => left.stackLevel - right.stackLevel)
+  }, [layers, layerStackLevels])
   const activeLayerColor = activeLayer ? layerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR : DEFAULT_FRONT_LAYER_COLOR
 
   const gridLines = useMemo(() => {
@@ -733,6 +769,7 @@ function App() {
                 name: 'Layer 1',
                 visible: true,
                 locked: false,
+                stackLevel: 0,
               },
             ]
 
@@ -843,6 +880,15 @@ function App() {
         name: newLayerName(previous.length),
         visible: true,
         locked: false,
+        stackLevel:
+          previous.reduce(
+            (maximum, layer, index) =>
+              Math.max(
+                maximum,
+                typeof layer.stackLevel === 'number' && Number.isFinite(layer.stackLevel) ? layer.stackLevel : index,
+              ),
+            -1,
+          ) + 1,
       },
     ])
     setActiveLayerId(nextLayerId)
@@ -1066,6 +1112,7 @@ function App() {
         name: 'Layer 1',
         visible: true,
         locked: false,
+        stackLevel: 0,
       },
     ])
     setActiveLayerId(baseLayerId)
@@ -1102,6 +1149,7 @@ function App() {
   const showMeta = !isMobileLayout || showMobileMenu
   const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
   const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
+  const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
 
   return (
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
@@ -1231,6 +1279,7 @@ function App() {
             {layers.map((layer, index) => (
               <option key={layer.id} value={layer.id}>
                 {index + 1}. {layer.name}
+                {` [z${layerStackLevels[layer.id] ?? index}]`}
                 {layer.visible ? '' : ' (hidden)'}
                 {layer.locked ? ' (locked)' : ''}
               </option>
@@ -1319,6 +1368,7 @@ function App() {
                       name: 'Layer 1',
                       visible: true,
                       locked: false,
+                      stackLevel: 0,
                     },
                   ])
                   setActiveLayerId(baseLayerId)
@@ -1359,7 +1409,10 @@ function App() {
               {gridLines}
 
               {visibleShapes.map((shape) => {
-                const layerStroke = layerColorsById[shape.layerId] ?? fallbackLayerStroke
+                const layerName = layers.find((layer) => layer.id === shape.layerId)?.name ?? ''
+                const layerStroke = looksLikeStitch(shape, layerName)
+                  ? stitchStrokeColor
+                  : layerColorsById[shape.layerId] ?? fallbackLayerStroke
                 if (shape.type === 'line') {
                   return (
                     <line
@@ -1413,21 +1466,42 @@ function App() {
           </svg>
 
           {showLayerLegend && (
-            <div className="layer-legend" aria-label="Layer order legend">
-              <div className="layer-legend-header">
-                <span>Layer Legend</span>
-                <span>Front -&gt; Back</span>
+            <div className="legend-stack">
+              <div className="layer-legend legend-panel" aria-label="Layer order legend">
+                <div className="layer-legend-header">
+                  <span>Layer Legend</span>
+                  <span>Front -&gt; Back</span>
+                </div>
+                <div className="layer-legend-items">
+                  {layers.map((layer, index) => (
+                    <div key={layer.id} className="layer-legend-item">
+                      <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }} />
+                      <span className="layer-legend-label">
+                        {index + 1}. {layer.name}
+                        {layer.visible ? '' : ' (hidden)'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="layer-legend-key">
+                  <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
+                  <span>Stitch lines</span>
+                </div>
               </div>
-              <div className="layer-legend-items">
-                {layers.map((layer, index) => (
-                  <div key={layer.id} className="layer-legend-item">
-                    <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }} />
-                    <span className="layer-legend-label">
-                      {index + 1}. {layer.name}
-                      {layer.visible ? '' : ' (hidden)'}
-                    </span>
-                  </div>
-                ))}
+
+              <div className="stack-legend legend-panel" aria-label="Stack height legend">
+                <div className="layer-legend-header">
+                  <span>Stack Legend</span>
+                  <span>Height</span>
+                </div>
+                <div className="stack-legend-items">
+                  {stackLegendEntries.map((entry) => (
+                    <div key={`stack-${entry.stackLevel}`} className="stack-legend-item">
+                      <span className="stack-level-chip">{`z${entry.stackLevel}`}</span>
+                      <span className="stack-level-label">{entry.layerNames.join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

@@ -336,10 +336,16 @@ button:disabled {
   display: none;
 }
 
-.layer-legend {
+.legend-stack {
   position: absolute;
   right: 12px;
   bottom: 12px;
+  display: grid;
+  gap: 8px;
+  width: min(310px, 52vw);
+}
+
+.legend-panel {
   width: min(270px, 45vw);
   max-height: min(52%, 280px);
   display: grid;
@@ -350,6 +356,11 @@ button:disabled {
   background: var(--surface-legend);
   backdrop-filter: blur(4px);
   overflow: auto;
+}
+
+.layer-legend,
+.stack-legend {
+  width: 100%;
 }
 
 .layer-legend-header {
@@ -382,6 +393,45 @@ button:disabled {
 }
 
 .layer-legend-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-legend-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-subtle);
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+}
+
+.stack-legend-items {
+  display: grid;
+  gap: 6px;
+}
+
+.stack-legend-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.stack-level-chip {
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: var(--surface-input);
+}
+
+.stack-level-label {
+  font-size: 12px;
+  color: var(--app-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -630,11 +680,14 @@ button:disabled {
     display: none;
   }
 
-  .layer-legend {
-    width: min(250px, 68vw);
+  .legend-stack {
+    width: min(270px, 72vw);
     right: 8px;
     bottom: 8px;
-    max-height: 48%;
+  }
+
+  .legend-panel {
+    max-height: 40%;
     padding: 8px;
   }
 }

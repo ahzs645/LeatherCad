@@ -578,6 +578,17 @@ export class ThreeBridge {
     this.activeFoldAxis = this.foldAxisFromLine(foldStart, foldEnd)
 
     const layerOrder = this.layers.map((layer) => layer.id)
+    const layerStackLevels = new Map<string, number>()
+    let maxStackLevel = 0
+    for (const [index, layer] of this.layers.entries()) {
+      const stackLevel =
+        typeof layer.stackLevel === 'number' && Number.isFinite(layer.stackLevel)
+          ? Math.max(0, Math.round(layer.stackLevel))
+          : index
+      layerStackLevels.set(layer.id, stackLevel)
+      maxStackLevel = Math.max(maxStackLevel, stackLevel)
+    }
+
     const layerSlices: Array<{ layerId: string; shapes: Shape[] }> = []
 
     for (const layerId of layerOrder) {
@@ -589,17 +600,23 @@ export class ThreeBridge {
 
     const orphanShapes = this.shapes.filter((shape) => !layerOrder.includes(shape.layerId))
     if (orphanShapes.length > 0) {
+      layerStackLevels.set('__orphan__', maxStackLevel + 1)
+      maxStackLevel += 1
       layerSlices.push({ layerId: '__orphan__', shapes: orphanShapes })
     }
 
     if (layerSlices.length === 0 && this.shapes.length > 0) {
+      layerStackLevels.set('__all__', maxStackLevel + 1)
+      maxStackLevel += 1
       layerSlices.push({ layerId: '__all__', shapes: this.shapes })
     }
 
     if (layerSlices.length === 0) {
+      layerStackLevels.set('__empty__', 0)
       layerSlices.push({ layerId: '__empty__', shapes: [] })
     }
 
+    let maxYOffset = 0
     for (const [index, layerSlice] of layerSlices.entries()) {
       const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
       const layerRectangle = [
@@ -617,7 +634,9 @@ export class ThreeBridge {
         negativePolygon = layerRectangle.map((point) => point.clone())
       }
 
-      const yOffset = index * LAYER_STACK_STEP
+      const stackLevel = layerStackLevels.get(layerSlice.layerId) ?? index
+      const yOffset = stackLevel * LAYER_STACK_STEP
+      maxYOffset = Math.max(maxYOffset, yOffset)
 
       if (negativePolygon.length >= 3) {
         const staticPanel = this.createPanelMesh(negativePolygon, this.leftMaterial, layerProjectedBounds, null, yOffset)
@@ -644,7 +663,7 @@ export class ThreeBridge {
       }
     }
 
-    const guideYOffset = Math.max(layerSlices.length - 1, 0) * LAYER_STACK_STEP + 0.006
+    const guideYOffset = maxYOffset + 0.006
     for (const foldLine of this.foldLines) {
       const projectedStart = this.projectPoint(foldLine.start)
       const projectedEnd = this.projectPoint(foldLine.end)

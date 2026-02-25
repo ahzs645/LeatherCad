@@ -38,6 +38,7 @@ export type Layer = {
   name: string
   visible: boolean
   locked: boolean
+  stackLevel?: number
 }
 
 export type FoldLine = {

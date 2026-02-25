@@ -6,12 +6,13 @@ type PresetDefinition = {
   doc: DocFile
 }
 
-function makeLayer(id: string, name: string): Layer {
+function makeLayer(id: string, name: string, stackLevel = 0): Layer {
   return {
     id,
     name,
     visible: true,
     locked: false,
+    stackLevel,
   }
 }
 
@@ -93,9 +94,9 @@ function buildDoc(
   }
 }
 
-const walletShellLayer = makeLayer('wallet-shell', 'Outer Shell')
-const walletLeftPocketLayer = makeLayer('wallet-left-pocket', 'Left Pocket')
-const walletRightPocketLayer = makeLayer('wallet-right-pocket', 'Right Pocket')
+const walletShellLayer = makeLayer('wallet-shell', 'Outer Shell', 0)
+const walletLeftPocketLayer = makeLayer('wallet-left-pocket', 'Left Pocket', 1)
+const walletRightPocketLayer = makeLayer('wallet-right-pocket', 'Right Pocket', 1)
 
 const walletLayers: Layer[] = [walletShellLayer, walletLeftPocketLayer, walletRightPocketLayer]
 
@@ -132,8 +133,8 @@ const walletFolds: FoldLine[] = [
   },
 ]
 
-const sleeveBackLayer = makeLayer('sleeve-back', 'Sleeve Back')
-const sleeveFrontLayer = makeLayer('sleeve-front', 'Sleeve Front Pocket')
+const sleeveBackLayer = makeLayer('sleeve-back', 'Sleeve Back', 0)
+const sleeveFrontLayer = makeLayer('sleeve-front', 'Sleeve Front Pocket', 1)
 
 const cardSleeveLayers: Layer[] = [sleeveBackLayer, sleeveFrontLayer]
 
@@ -161,9 +162,9 @@ const cardSleeveFolds: FoldLine[] = [
   },
 ]
 
-const triCenterLayer = makeLayer('tri-center', 'Center Body')
-const triLeftFlapLayer = makeLayer('tri-left-flap', 'Left Flap')
-const triRightFlapLayer = makeLayer('tri-right-flap', 'Right Flap')
+const triCenterLayer = makeLayer('tri-center', 'Center Body', 0)
+const triLeftFlapLayer = makeLayer('tri-left-flap', 'Left Flap', 1)
+const triRightFlapLayer = makeLayer('tri-right-flap', 'Right Flap', 1)
 
 const triFoldLayers: Layer[] = [triCenterLayer, triLeftFlapLayer, triRightFlapLayer]
 
