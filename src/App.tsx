@@ -115,7 +115,8 @@ function App() {
   const [isPanning, setIsPanning] = useState(false)
   const [showThreePreview, setShowThreePreview] = useState(true)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
-  const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('split')
+  const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
 
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -252,9 +253,14 @@ function App() {
   useEffect(() => {
     const media = window.matchMedia(MOBILE_MEDIA_QUERY)
     const sync = () => {
-      setIsMobileLayout(media.matches)
-      if (!media.matches) {
+      if (media.matches) {
+        setIsMobileLayout(true)
+        setMobileViewMode('editor')
+        setShowMobileMenu(false)
+      } else {
+        setIsMobileLayout(false)
         setMobileViewMode('split')
+        setShowMobileMenu(true)
       }
     }
 
@@ -631,7 +637,8 @@ function App() {
     setFoldLines(sample.foldLines)
     setShowThreePreview(true)
     if (isMobileLayout) {
-      setMobileViewMode('split')
+      setMobileViewMode('editor')
+      setShowMobileMenu(false)
     }
     clearDraft()
     setStatus(
@@ -780,13 +787,17 @@ function App() {
   }
 
   const workspaceClassName = `workspace ${isMobileLayout ? `mobile-${mobileViewMode}` : 'desktop'}`
+  const topbarClassName = `topbar ${isMobileLayout ? 'topbar-mobile' : ''} ${
+    isMobileLayout && !showMobileMenu ? 'topbar-compact' : ''
+  }`
   const hideCanvasPane = isMobileLayout && showThreePreview && mobileViewMode === 'preview'
   const hidePreviewPane = isMobileLayout && (mobileViewMode === 'editor' || !showThreePreview)
+  const hideMobileOnlyControls = isMobileLayout && !showMobileMenu
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="group">
+      <header className={topbarClassName}>
+        <div className="group tool-group">
           <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
             Pan
           </button>
@@ -802,9 +813,14 @@ function App() {
           <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
             Fold
           </button>
+          {isMobileLayout && (
+            <button className="mobile-menu-toggle" onClick={() => setShowMobileMenu((previous) => !previous)}>
+              {showMobileMenu ? 'Close Menu' : 'Menu'}
+            </button>
+          )}
         </div>
 
-        <div className="group layer-controls">
+        <div className={`group layer-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <span className="layer-label">Layer</span>
           <select
             className="layer-select"
@@ -843,7 +859,7 @@ function App() {
           </button>
         </div>
 
-        <div className="group">
+        <div className={`group file-controls ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <button onClick={handleSaveJson}>Save JSON</button>
           <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
           <button onClick={handleLoadSample}>Load Sample</button>
@@ -897,7 +913,7 @@ function App() {
           </button>
         </div>
 
-        <div className="group meta">
+        <div className={`group meta ${hideMobileOnlyControls ? 'mobile-hidden' : ''}`}>
           <span>{Math.round(viewport.scale * 100)}% zoom</span>
           <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
           <span>{layers.length} layers</span>
@@ -968,8 +984,10 @@ function App() {
         {showThreePreview && (
           <aside className={`preview-pane ${hidePreviewPane ? 'panel-hidden' : ''}`}>
             <ThreePreviewPanel
+              key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
               shapes={visibleShapes}
               foldLines={foldLines}
+              isMobileLayout={isMobileLayout}
               onUpdateFoldLine={(foldLineId, angleDeg) =>
                 setFoldLines((previous) =>
                   previous.map((foldLine) =>
