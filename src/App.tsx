@@ -35,6 +35,7 @@ const STITCH_COLOR_LIGHT = '#b45309'
 type MobileViewMode = 'editor' | 'preview' | 'split'
 type MobileOptionsTab = 'view' | 'layers' | 'file'
 type ThemeMode = 'dark' | 'light'
+type LegendMode = 'layer' | 'stack'
 type MobileLayerAction =
   | 'add'
   | 'rename'
@@ -195,6 +196,7 @@ function App() {
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
+  const [legendMode, setLegendMode] = useState<LegendMode>('layer')
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
   const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
   const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
@@ -1467,41 +1469,62 @@ function App() {
 
           {showLayerLegend && (
             <div className="legend-stack">
-              <div className="layer-legend legend-panel" aria-label="Layer order legend">
+              <div
+                className="legend-panel legend-single"
+                aria-label={legendMode === 'layer' ? 'Layer order legend' : 'Stack height legend'}
+              >
                 <div className="layer-legend-header">
-                  <span>Layer Legend</span>
-                  <span>Front -&gt; Back</span>
+                  <span>{legendMode === 'layer' ? 'Layer Legend' : 'Stack Legend'}</span>
+                  <span>{legendMode === 'layer' ? 'Front -&gt; Back' : 'Height'}</span>
                 </div>
-                <div className="layer-legend-items">
-                  {layers.map((layer, index) => (
-                    <div key={layer.id} className="layer-legend-item">
-                      <span className="layer-legend-swatch" style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }} />
-                      <span className="layer-legend-label">
-                        {index + 1}. {layer.name}
-                        {layer.visible ? '' : ' (hidden)'}
-                      </span>
-                    </div>
-                  ))}
+                <div className="legend-mode-tabs" role="tablist" aria-label="Legend mode">
+                  <button
+                    className={legendMode === 'layer' ? 'active' : ''}
+                    onClick={() => setLegendMode('layer')}
+                    aria-pressed={legendMode === 'layer'}
+                  >
+                    Layer
+                  </button>
+                  <button
+                    className={legendMode === 'stack' ? 'active' : ''}
+                    onClick={() => setLegendMode('stack')}
+                    aria-pressed={legendMode === 'stack'}
+                  >
+                    Stack
+                  </button>
                 </div>
-                <div className="layer-legend-key">
-                  <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
-                  <span>Stitch lines</span>
-                </div>
-              </div>
 
-              <div className="stack-legend legend-panel" aria-label="Stack height legend">
-                <div className="layer-legend-header">
-                  <span>Stack Legend</span>
-                  <span>Height</span>
-                </div>
-                <div className="stack-legend-items">
-                  {stackLegendEntries.map((entry) => (
-                    <div key={`stack-${entry.stackLevel}`} className="stack-legend-item">
-                      <span className="stack-level-chip">{`z${entry.stackLevel}`}</span>
-                      <span className="stack-level-label">{entry.layerNames.join(', ')}</span>
+                {legendMode === 'layer' ? (
+                  <>
+                    <div className="layer-legend-items">
+                      {layers.map((layer, index) => (
+                        <div key={layer.id} className="layer-legend-item">
+                          <span
+                            className="layer-legend-swatch"
+                            style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }}
+                          />
+                          <span className="layer-legend-label">
+                            {index + 1}. {layer.name}
+                            {layer.visible ? '' : ' (hidden)'}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    <div className="layer-legend-key">
+                      <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
+                      <span>Stitch lines</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="stack-legend-items">
+                    {stackLegendEntries.map((entry) => (
+                      <div key={`stack-${entry.stackLevel}`} className="stack-legend-item">
+                        <span className="stack-level-chip">{`z${entry.stackLevel}`}</span>
+                        <span className="stack-level-label">{entry.layerNames.join(', ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -358,8 +358,7 @@ button:disabled {
   overflow: auto;
 }
 
-.layer-legend,
-.stack-legend {
+.legend-single {
   width: 100%;
 }
 
@@ -369,6 +368,18 @@ button:disabled {
   gap: 8px;
   font-size: 11px;
   color: var(--text-muted-strong);
+}
+
+.legend-mode-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.legend-mode-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 11px;
+  padding: 5px 8px;
 }
 
 .layer-legend-items {
