@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FoldLine, Layer, LineType, Shape, TextureSource } from '../cad-types'
+import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad-types'
 import { ThreeBridge } from '../three-bridge'
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]
+  stitchHoles: StitchHole[]
   foldLines: FoldLine[]
   layers: Layer[]
   lineTypes: LineType[]
@@ -22,6 +23,7 @@ const DEFAULT_TEXTURE_FORM: TextureSource = {
 
 export function ThreePreviewPanel({
   shapes,
+  stitchHoles,
   foldLines,
   layers,
   lineTypes,
@@ -96,8 +98,8 @@ export function ThreePreviewPanel({
       return
     }
 
-    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines, lineTypes)
-  }, [layers, shapesIn3dView, foldLines, lineTypes])
+    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines, lineTypes, stitchHoles)
+  }, [layers, shapesIn3dView, foldLines, lineTypes, stitchHoles])
 
   useEffect(() => {
     bridgeRef.current?.setTheme(themeMode)
@@ -109,6 +111,7 @@ export function ThreePreviewPanel({
         <div>
           <h2>3D Preview Bridge</h2>
           <p>2D shapes: {shapesIn3dView.length} | fold lines: {foldLines.length}</p>
+          <p>Stitch holes: {stitchHoles.length}</p>
           <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
         </div>
         {isMobileLayout && (

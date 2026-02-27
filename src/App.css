@@ -27,6 +27,8 @@
   --axis-line-color: #475569;
   --shape-line-color: #e2e8f0;
   --fold-line-color: #ef4444;
+  --stitch-hole-fill: #f59e0b;
+  --stitch-hole-stroke: #1f2937;
   --shape-preview-color: #38bdf8;
   --fold-preview-color: #fb7185;
   --overlay-bg: rgba(2, 6, 23, 0.72);
@@ -63,6 +65,8 @@
   --axis-line-color: #a7bad6;
   --shape-line-color: #0f172a;
   --fold-line-color: #dc2626;
+  --stitch-hole-fill: #b45309;
+  --stitch-hole-stroke: #ffffff;
   --shape-preview-color: #2563eb;
   --fold-preview-color: #db2777;
   --overlay-bg: rgba(15, 23, 42, 0.24);
@@ -112,6 +116,32 @@
 
 .line-type-controls {
   flex-wrap: wrap;
+}
+
+.stitch-controls {
+  flex-wrap: wrap;
+}
+
+.stitch-pitch-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--text-muted-strong);
+  font-size: 12px;
+}
+
+.stitch-pitch-inline input {
+  width: 64px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-button);
+  color: var(--app-text);
+  padding: 4px 6px;
+  font-size: 12px;
 }
 
 .preset-controls,
@@ -317,6 +347,45 @@ button:disabled {
   fill: none;
   vector-effect: non-scaling-stroke;
   stroke-dasharray: 7 5;
+}
+
+.stitch-hole-dot {
+  fill: var(--stitch-hole-fill);
+  stroke: var(--stitch-hole-stroke);
+  stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.stitch-hole-dot-selected {
+  stroke: #38bdf8;
+  stroke-width: 1.6;
+}
+
+.stitch-hole-slit {
+  stroke: var(--stitch-hole-fill);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.stitch-hole-slit-selected {
+  stroke: #38bdf8;
+  stroke-width: 2.2;
+}
+
+.stitch-hole-sequence-label {
+  fill: var(--stitch-hole-stroke);
+  stroke: rgba(15, 23, 42, 0.6);
+  stroke-width: 0.4;
+  paint-order: stroke;
+  font-size: 3.6px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
 }
 
 .shape-preview {
@@ -567,6 +636,18 @@ button:disabled {
   overflow: auto;
 }
 
+.export-options-modal {
+  width: min(560px, 100%);
+  max-height: min(80vh, 820px);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-modal);
+  overflow: auto;
+}
+
 .line-type-modal-header {
   display: flex;
   align-items: center;
@@ -620,6 +701,12 @@ button:disabled {
 .line-type-edit-grid {
   display: grid;
   gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.export-role-grid {
+  display: grid;
+  gap: 8px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -862,7 +949,8 @@ button:disabled {
   }
 
   .line-type-modal-list,
-  .line-type-edit-grid {
+  .line-type-edit-grid,
+  .export-role-grid {
     grid-template-columns: 1fr;
   }
 }

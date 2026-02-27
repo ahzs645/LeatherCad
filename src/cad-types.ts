@@ -1,4 +1,4 @@
-export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold'
+export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold' | 'stitch-hole'
 
 export type Point = {
   x: number
@@ -72,6 +72,17 @@ export type FoldLine = {
   maxAngleDeg: number
 }
 
+export type StitchHoleType = 'round' | 'slit'
+
+export type StitchHole = {
+  id: string
+  shapeId: string
+  point: Point
+  angleDeg: number
+  holeType: StitchHoleType
+  sequence: number
+}
+
 export type DocFile = {
   version: 1
   units: 'mm'
@@ -81,6 +92,7 @@ export type DocFile = {
   activeLineTypeId: string
   objects: Shape[]
   foldLines: FoldLine[]
+  stitchHoles?: StitchHole[]
 }
 
 export type Viewport = {

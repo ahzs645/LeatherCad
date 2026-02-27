@@ -116,3 +116,32 @@ Recommended scope:
 - Export can exclude hidden line types.
 - Stitch tools operate only on line types marked as stitch role.
 
+## Progress update (2026-02-27)
+- `ST-01` baseline started and integrated:
+  - Added `stitchHoles` document model and JSON persistence.
+  - Added `Stitch Hole` drawing tool that snaps placement to nearest stitch-role path.
+  - Added stitch hole rendering overlay in 2D (`round` and `slit` hole types).
+  - Added stitch-hole controls for count/delete-on-selected and clear-all.
+  - Added modular helpers in `src/stitch-hole-ops.ts` and modular UI in `src/components/StitchHolePanel.tsx`.
+- `ST-02` baseline integrated:
+  - Added fixed-pitch auto placement for selected stitch paths.
+  - Added stitch-hole sequence index persistence and normalization.
+  - Added path-based resequence and reverse-order actions.
+  - Added optional sequence labels in 2D view.
+- Stitch visualization expansion:
+  - Added 3D stitch-hole points and thread-path rendering in the Three.js bridge.
+- `EX-01` baseline integrated:
+  - Added SVG import (line/polyline/polygon/rect/circle/ellipse/path sampled to line segments).
+  - Added DXF export (`AC1009`/R12-style `LINE` entities from visible shapes).
+- `ST-03` stitch-order tooling integrated:
+  - Added variable-pitch auto placement (`from` -> `to` pitch) on selected stitch-role paths.
+  - Added stitch-hole selection in Move mode + `Select Next` cycle action.
+  - Added order-fix actions from selected hole (`Fix From Selected`, `Fix Reverse`) to align with `actFixStitchingOrder*`.
+  - Added selected-hole highlight in 2D for explicit order-start targeting.
+- `EX-02` export option parity integrated:
+  - Added line-type-aware export filtering by role (`cut/stitch/fold/guide/mark`) and visibility.
+  - Added dashed/dotted-to-solid export toggle.
+  - Added DXF option surface: `Flip Y`, `R12/R14` version selector.
+  - Added DXF linetype table output (`CONTINUOUS`, `DASHED`, `DOTTED`) with per-shape line-type style mapping.
+- Next implementation target:
+  - `EX-03` SVG/DXF option-depth parity: export selected-only, template/text toggles, and dot-radius/options alignment to recovered `TfrmSVGExportOptions` controls.

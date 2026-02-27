@@ -1,0 +1,1261 @@
+{
+  "generated_at_utc": "2026-02-27T02:29:55+00:00",
+  "source_files": {
+    "form_details": "/home/workspace/workspace/leather-making/extracted-rsrc/rsrc_form_details.txt",
+    "action_ticket_map": "/home/workspace/workspace/leather-making/source_app_action_ticket_map.csv"
+  },
+  "forms": [
+    {
+      "form_name": "TfrmChangeStitchingHoleType",
+      "resource_file": "6____rsrc_N6RCDATA27tfrmchangestitchingholetypeE.bin",
+      "action_count": 0,
+      "control_count": 35,
+      "kind_counts": {
+        "button": 9,
+        "checkbox": 2,
+        "label": 8,
+        "number": 6,
+        "other": 3,
+        "select": 1,
+        "switch": 1,
+        "tab": 3,
+        "text": 2
+      },
+      "domain_counts": {
+        "general": 27,
+        "options": 2,
+        "stitching": 6
+      },
+      "controls": [
+        {
+          "id": "btnCreateNewGroup",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnCreateNewGroupClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnDeletePrickingIronGroup",
+          "kind": "button",
+          "domain": "stitching"
+        },
+        {
+          "id": "btnDeletePrickingIronGroupClick",
+          "kind": "button",
+          "domain": "stitching"
+        },
+        {
+          "id": "btnDown",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnPTB_ApplyChange",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnPTB_ApplyChangeClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnUp",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnUpClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "chkPTB_Invert",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "chkShow5mm",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "cmbStitchingHoleType",
+          "kind": "select",
+          "domain": "stitching"
+        },
+        {
+          "id": "edNumOfBlades",
+          "kind": "text",
+          "domain": "general"
+        },
+        {
+          "id": "edPrickingIronName",
+          "kind": "text",
+          "domain": "stitching"
+        },
+        {
+          "id": "lbPrickingIronGroups",
+          "kind": "other",
+          "domain": "stitching"
+        },
+        {
+          "id": "lbPrickingIronGroupsChange",
+          "kind": "other",
+          "domain": "stitching"
+        },
+        {
+          "id": "lblPTB_Height",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblPTB_Kind",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblPTB_Name",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblPTB_NumBlades",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblPTB_Pitch",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblPTB_Rotation",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblPTB_Title",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblPTB_Width",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "minusbutton",
+          "kind": "other",
+          "domain": "general"
+        },
+        {
+          "id": "nbAngle",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbHeight",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbPitch",
+          "kind": "number",
+          "domain": "options"
+        },
+        {
+          "id": "nbWidth",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbWidthChange",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbWidthKeyDown",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "switchstyle",
+          "kind": "switch",
+          "domain": "general"
+        },
+        {
+          "id": "tabcontrolstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabdotstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabitemstyle",
+          "kind": "tab",
+          "domain": "general"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmEditPallet",
+      "resource_file": "8____rsrc_N6RCDATA14tfrmeditpalletE.bin",
+      "action_count": 0,
+      "control_count": 26,
+      "kind_counts": {
+        "checkbox": 2,
+        "label": 4,
+        "number": 6,
+        "other": 1,
+        "radio": 5,
+        "select": 2,
+        "switch": 1,
+        "tab": 3,
+        "text": 2
+      },
+      "domain_counts": {
+        "general": 15,
+        "line-types": 9,
+        "print": 2
+      },
+      "controls": [
+        {
+          "id": "chkIgnoreInPrinting",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "chkIgnoreInPrintingChange",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "cmbLineTypeNum",
+          "kind": "select",
+          "domain": "line-types"
+        },
+        {
+          "id": "cmbLineTypeNumChange",
+          "kind": "select",
+          "domain": "line-types"
+        },
+        {
+          "id": "edColor",
+          "kind": "text",
+          "domain": "line-types"
+        },
+        {
+          "id": "edColorChange",
+          "kind": "text",
+          "domain": "line-types"
+        },
+        {
+          "id": "lblEP_Color",
+          "kind": "label",
+          "domain": "line-types"
+        },
+        {
+          "id": "lblEP_LineType",
+          "kind": "label",
+          "domain": "line-types"
+        },
+        {
+          "id": "lblEP_Pattern",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblEP_Thickness",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "minusbutton",
+          "kind": "other",
+          "domain": "general"
+        },
+        {
+          "id": "nbPaletteB",
+          "kind": "number",
+          "domain": "line-types"
+        },
+        {
+          "id": "nbPaletteG",
+          "kind": "number",
+          "domain": "line-types"
+        },
+        {
+          "id": "nbPaletteR",
+          "kind": "number",
+          "domain": "line-types"
+        },
+        {
+          "id": "nbThickness",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbThicknessChangeTracking",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbThicknessKeyDown",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "rbDash",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "rbDashDotDot",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "rbDot",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "rbSolid",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "rbSolidChange",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "switchstyle",
+          "kind": "switch",
+          "domain": "general"
+        },
+        {
+          "id": "tabcontrolstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabdotstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabitemstyle",
+          "kind": "tab",
+          "domain": "general"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmEditPallet_Macintosh",
+      "resource_file": "9____rsrc_N6RCDATA24tfrmeditpallet_macintoshE.bin",
+      "action_count": 0,
+      "control_count": 0,
+      "kind_counts": {},
+      "domain_counts": {},
+      "controls": []
+    },
+    {
+      "form_name": "TfrmOptions",
+      "resource_file": "17____rsrc_N6RCDATA11tfrmoptionsE.bin",
+      "action_count": 0,
+      "control_count": 36,
+      "kind_counts": {
+        "checkbox": 5,
+        "group": 7,
+        "label": 8,
+        "number": 9,
+        "other": 1,
+        "radio": 2,
+        "switch": 1,
+        "tab": 3
+      },
+      "domain_counts": {
+        "general": 9,
+        "options": 17,
+        "print": 6,
+        "stitching": 4
+      },
+      "controls": [
+        {
+          "id": "chkForceFitLastPrick",
+          "kind": "checkbox",
+          "domain": "stitching"
+        },
+        {
+          "id": "chkIncrementalSelection",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "chkMentoriWithoutCtrl",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "chkOP_ReverseZoomDirection",
+          "kind": "checkbox",
+          "domain": "options"
+        },
+        {
+          "id": "chkUseAutoSave",
+          "kind": "checkbox",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_AutoPitchParameters",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_AutoSave",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_BoxStitchHelper",
+          "kind": "group",
+          "domain": "stitching"
+        },
+        {
+          "id": "gbOP_DefaultPitchMode",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_EditOptions",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_PrintCalibration",
+          "kind": "group",
+          "domain": "print"
+        },
+        {
+          "id": "gbOP_ZoomAndScroll",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "lblBoxStitchSearchDistance",
+          "kind": "label",
+          "domain": "stitching"
+        },
+        {
+          "id": "lblOP_ActualScaleLengthX",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblOP_ActualScaleLengthY",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblOP_AutoPitchGapAllowance",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblOP_AutoPitchPrecision",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblOP_AutoPitchSteps",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblOP_DefaultPitchMode",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblOP_PrintCalibrationNote",
+          "kind": "label",
+          "domain": "print"
+        },
+        {
+          "id": "minusbutton",
+          "kind": "other",
+          "domain": "general"
+        },
+        {
+          "id": "nbBoxStitchDistance",
+          "kind": "number",
+          "domain": "stitching"
+        },
+        {
+          "id": "nbOP_AutoPitchGapAllowance",
+          "kind": "number",
+          "domain": "options"
+        },
+        {
+          "id": "nbOP_AutoPitchPrecision",
+          "kind": "number",
+          "domain": "options"
+        },
+        {
+          "id": "nbOP_AutoPitchPrecisionKeyDown",
+          "kind": "number",
+          "domain": "options"
+        },
+        {
+          "id": "nbOP_AutoPitchSteps",
+          "kind": "number",
+          "domain": "options"
+        },
+        {
+          "id": "nbPrintCalibrationX",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintCalibrationXClick",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintCalibrationY",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintCalibrationYClick",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "rbAutoPitchAuto",
+          "kind": "radio",
+          "domain": "options"
+        },
+        {
+          "id": "rbAutoPitchFixed",
+          "kind": "radio",
+          "domain": "options"
+        },
+        {
+          "id": "switchstyle",
+          "kind": "switch",
+          "domain": "general"
+        },
+        {
+          "id": "tabcontrolstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabdotstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabitemstyle",
+          "kind": "tab",
+          "domain": "general"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmOptions_Macintosh",
+      "resource_file": "18____rsrc_N6RCDATA21tfrmoptions_macintoshE.bin",
+      "action_count": 0,
+      "control_count": 15,
+      "kind_counts": {
+        "group": 4,
+        "label": 6,
+        "number": 3,
+        "radio": 2
+      },
+      "domain_counts": {
+        "general": 2,
+        "options": 7,
+        "print": 3,
+        "stitching": 3
+      },
+      "controls": [
+        {
+          "id": "gbOP_AutoPitchParameters",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_BoxStitchHelper",
+          "kind": "group",
+          "domain": "stitching"
+        },
+        {
+          "id": "gbOP_DefaultPitchMode",
+          "kind": "group",
+          "domain": "options"
+        },
+        {
+          "id": "gbOP_PrintCalibration",
+          "kind": "group",
+          "domain": "print"
+        },
+        {
+          "id": "lblBoxStitchSearchDistance",
+          "kind": "label",
+          "domain": "stitching"
+        },
+        {
+          "id": "lblOP_ActualScaleLengthX",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblOP_ActualScaleLengthY",
+          "kind": "label",
+          "domain": "general"
+        },
+        {
+          "id": "lblOP_AutoPitchGapAllowance",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblOP_AutoPitchPrecision",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "lblOP_DefaultPitchMode",
+          "kind": "label",
+          "domain": "options"
+        },
+        {
+          "id": "nbBoxStitchDistance",
+          "kind": "number",
+          "domain": "stitching"
+        },
+        {
+          "id": "nbPrintCalibrationX",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintCalibrationY",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "rbAutoPitchAuto",
+          "kind": "radio",
+          "domain": "options"
+        },
+        {
+          "id": "rbAutoPitchFixed",
+          "kind": "radio",
+          "domain": "options"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmPreview",
+      "resource_file": "11____rsrc_N6RCDATA11tfrmpreviewE.bin",
+      "action_count": 0,
+      "control_count": 27,
+      "kind_counts": {
+        "button": 8,
+        "checkbox": 8,
+        "label": 5,
+        "number": 6
+      },
+      "domain_counts": {
+        "general": 7,
+        "line-types": 1,
+        "print": 18,
+        "stitching": 1
+      },
+      "controls": [
+        {
+          "id": "btnAddPage",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnAddPageClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnClosePrintPreview",
+          "kind": "button",
+          "domain": "print"
+        },
+        {
+          "id": "btnExecutePrint",
+          "kind": "button",
+          "domain": "print"
+        },
+        {
+          "id": "btnPageSetup",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnPageSetupClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnRemovePage",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnRemovePageClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "chkPreview_RulerInside",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "chkPrintInColor",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "chkPrintIntoMergin",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "chkPrintSelectedShapesOnly",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "chkPrintStitchingHoleAsDot",
+          "kind": "checkbox",
+          "domain": "stitching"
+        },
+        {
+          "id": "chkShowNotForPrintLines",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "chkShowNotForPrintLinesChange",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "chkTilePrint",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "lblActiveDPI",
+          "kind": "label",
+          "domain": "print"
+        },
+        {
+          "id": "lblDPI",
+          "kind": "label",
+          "domain": "print"
+        },
+        {
+          "id": "lblNumTilesX",
+          "kind": "label",
+          "domain": "print"
+        },
+        {
+          "id": "lblPPV_LineThickness",
+          "kind": "label",
+          "domain": "line-types"
+        },
+        {
+          "id": "lblTilesOverlap",
+          "kind": "label",
+          "domain": "print"
+        },
+        {
+          "id": "nbPreview_TileX",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPreview_TileXChange",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintLineThickFactor",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintLineThickFactorChange",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintLineThickFactorKeyDown",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbTileOverlapLen",
+          "kind": "number",
+          "domain": "print"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmPreview_Macintosh",
+      "resource_file": "12____rsrc_N6RCDATA21tfrmpreview_macintoshE.bin",
+      "action_count": 0,
+      "control_count": 10,
+      "kind_counts": {
+        "button": 3,
+        "checkbox": 3,
+        "label": 1,
+        "number": 3
+      },
+      "domain_counts": {
+        "general": 2,
+        "line-types": 1,
+        "print": 6,
+        "stitching": 1
+      },
+      "controls": [
+        {
+          "id": "btnClosePrintPreview",
+          "kind": "button",
+          "domain": "print"
+        },
+        {
+          "id": "btnExecutePrint",
+          "kind": "button",
+          "domain": "print"
+        },
+        {
+          "id": "btnPageSetup",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "chkPreview_RulerInside",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "chkPrintStitchingHoleAsDot",
+          "kind": "checkbox",
+          "domain": "stitching"
+        },
+        {
+          "id": "chkShowNotForPrintLines",
+          "kind": "checkbox",
+          "domain": "print"
+        },
+        {
+          "id": "lblPPV_LineThickness",
+          "kind": "label",
+          "domain": "line-types"
+        },
+        {
+          "id": "nbPreview_TileX",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbPrintLineThickFactor",
+          "kind": "number",
+          "domain": "print"
+        },
+        {
+          "id": "nbTileOverlapLen",
+          "kind": "number",
+          "domain": "print"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmRepository",
+      "resource_file": "13____rsrc_N6RCDATA14tfrmrepositoryE.bin",
+      "action_count": 0,
+      "control_count": 18,
+      "kind_counts": {
+        "button": 4,
+        "other": 1,
+        "switch": 1,
+        "tab": 3,
+        "tree": 9
+      },
+      "domain_counts": {
+        "general": 7,
+        "repository": 11
+      },
+      "controls": [
+        {
+          "id": "btnClose",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnCloseClick",
+          "kind": "button",
+          "domain": "general"
+        },
+        {
+          "id": "btnSortTemplate",
+          "kind": "button",
+          "domain": "repository"
+        },
+        {
+          "id": "btnSortTemplateClick",
+          "kind": "button",
+          "domain": "repository"
+        },
+        {
+          "id": "minusbutton",
+          "kind": "other",
+          "domain": "general"
+        },
+        {
+          "id": "switchstyle",
+          "kind": "switch",
+          "domain": "general"
+        },
+        {
+          "id": "tabcontrolstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabdotstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabitemstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tvRepository",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryChange",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryClick",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryDblClick",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryDragChange",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryDragOver",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryKeyDown",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryMouseDown",
+          "kind": "tree",
+          "domain": "repository"
+        },
+        {
+          "id": "tvRepositoryMouseMove",
+          "kind": "tree",
+          "domain": "repository"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmRepository_Macintosh",
+      "resource_file": "14____rsrc_N6RCDATA24tfrmrepository_macintoshE.bin",
+      "action_count": 0,
+      "control_count": 1,
+      "kind_counts": {
+        "tree": 1
+      },
+      "domain_counts": {
+        "repository": 1
+      },
+      "controls": [
+        {
+          "id": "tvRepository",
+          "kind": "tree",
+          "domain": "repository"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmSVGExportOptions",
+      "resource_file": "21____rsrc_N6RCDATA20tfrmsvgexportoptionsE.bin",
+      "action_count": 0,
+      "control_count": 23,
+      "kind_counts": {
+        "checkbox": 5,
+        "group": 2,
+        "label": 3,
+        "number": 3,
+        "other": 1,
+        "radio": 5,
+        "switch": 1,
+        "tab": 3
+      },
+      "domain_counts": {
+        "export": 15,
+        "general": 7,
+        "stitching": 1
+      },
+      "controls": [
+        {
+          "id": "chkDXFExportFlipY",
+          "kind": "checkbox",
+          "domain": "export"
+        },
+        {
+          "id": "chkSVGOPT_DoNotOutputStrokeDash",
+          "kind": "checkbox",
+          "domain": "export"
+        },
+        {
+          "id": "chkSVGOPT_ExportOnlySelected",
+          "kind": "checkbox",
+          "domain": "export"
+        },
+        {
+          "id": "chkSVG_Out_Template",
+          "kind": "checkbox",
+          "domain": "export"
+        },
+        {
+          "id": "chkSVG_Out_Text",
+          "kind": "checkbox",
+          "domain": "export"
+        },
+        {
+          "id": "gbSVG_Options",
+          "kind": "group",
+          "domain": "export"
+        },
+        {
+          "id": "gbSVG_StitchingHole",
+          "kind": "group",
+          "domain": "stitching"
+        },
+        {
+          "id": "lblSVG_BladeAsLine",
+          "kind": "label",
+          "domain": "export"
+        },
+        {
+          "id": "lblSVG_Diameter",
+          "kind": "label",
+          "domain": "export"
+        },
+        {
+          "id": "lblSVG_HoleShape",
+          "kind": "label",
+          "domain": "export"
+        },
+        {
+          "id": "minusbutton",
+          "kind": "other",
+          "domain": "general"
+        },
+        {
+          "id": "nbSVGDotRadius",
+          "kind": "number",
+          "domain": "export"
+        },
+        {
+          "id": "nbSVGDotRadiusClick",
+          "kind": "number",
+          "domain": "export"
+        },
+        {
+          "id": "nbSVGDotRadiusKeyDown",
+          "kind": "number",
+          "domain": "export"
+        },
+        {
+          "id": "rbDxfR12",
+          "kind": "radio",
+          "domain": "export"
+        },
+        {
+          "id": "rbDxfR14",
+          "kind": "radio",
+          "domain": "export"
+        },
+        {
+          "id": "rbDxfR14Change",
+          "kind": "radio",
+          "domain": "export"
+        },
+        {
+          "id": "rbHole_AsDot",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "rbHole_AsIs",
+          "kind": "radio",
+          "domain": "general"
+        },
+        {
+          "id": "switchstyle",
+          "kind": "switch",
+          "domain": "general"
+        },
+        {
+          "id": "tabcontrolstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabdotstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabitemstyle",
+          "kind": "tab",
+          "domain": "general"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmSVGExportOptions_Macintosh",
+      "resource_file": "22____rsrc_N6RCDATA30tfrmsvgexportoptions_macintoshE.bin",
+      "action_count": 0,
+      "control_count": 2,
+      "kind_counts": {
+        "group": 2
+      },
+      "domain_counts": {
+        "export": 1,
+        "stitching": 1
+      },
+      "controls": [
+        {
+          "id": "gbSVG_Options",
+          "kind": "group",
+          "domain": "export"
+        },
+        {
+          "id": "gbSVG_StitchingHole",
+          "kind": "group",
+          "domain": "stitching"
+        }
+      ]
+    },
+    {
+      "form_name": "TfrmStitchingHoleSettings",
+      "resource_file": "5____rsrc_N6RCDATA25tfrmstitchingholesettingsE.bin",
+      "action_count": 0,
+      "control_count": 11,
+      "kind_counts": {
+        "checkbox": 1,
+        "number": 3,
+        "other": 1,
+        "select": 2,
+        "switch": 1,
+        "tab": 3
+      },
+      "domain_counts": {
+        "general": 9,
+        "stitching": 2
+      },
+      "controls": [
+        {
+          "id": "chkInverted",
+          "kind": "checkbox",
+          "domain": "general"
+        },
+        {
+          "id": "cmbStitchingHoleType",
+          "kind": "select",
+          "domain": "stitching"
+        },
+        {
+          "id": "cmbStitchingHoleTypeChange",
+          "kind": "select",
+          "domain": "stitching"
+        },
+        {
+          "id": "minusbutton",
+          "kind": "other",
+          "domain": "general"
+        },
+        {
+          "id": "nbAngle",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbHeight",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "nbWidth",
+          "kind": "number",
+          "domain": "general"
+        },
+        {
+          "id": "switchstyle",
+          "kind": "switch",
+          "domain": "general"
+        },
+        {
+          "id": "tabcontrolstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabdotstyle",
+          "kind": "tab",
+          "domain": "general"
+        },
+        {
+          "id": "tabitemstyle",
+          "kind": "tab",
+          "domain": "general"
+        }
+      ]
+    }
+  ]
+}

@@ -14,11 +14,23 @@ import {
   isPointLike,
   isShapeLike,
   round,
-  shapeToSvg,
   uid,
 } from './cad-geometry'
-import type { DocFile, FoldLine, Layer, LineType, Point, Shape, Tool, Viewport } from './cad-types'
+import type {
+  DocFile,
+  FoldLine,
+  Layer,
+  LineType,
+  LineTypeRole,
+  Point,
+  Shape,
+  StitchHole,
+  StitchHoleType,
+  Tool,
+  Viewport,
+} from './cad-types'
 import { LineTypePalette } from './components/LineTypePalette'
+import { StitchHolePanel } from './components/StitchHolePanel'
 import { ThreePreviewPanel } from './components/ThreePreviewPanel'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
@@ -30,6 +42,21 @@ import {
   resolveShapeLineTypeId,
 } from './line-types'
 import { applyLineTypeToShapeIds, countShapesByLineType } from './line-type-ops'
+import {
+  countStitchHolesByShape,
+  createStitchHole,
+  deleteStitchHolesForShapes,
+  fixStitchHoleOrderFromHole,
+  findNearestStitchAnchor,
+  generateFixedPitchStitchHoles,
+  generateVariablePitchStitchHoles,
+  normalizeStitchHoleSequences,
+  parseStitchHole,
+  resequenceStitchHolesOnShape,
+  selectNextStitchHole,
+} from './stitch-hole-ops'
+import { importSvgAsShapes } from './io-svg'
+import { buildDxfFromShapes } from './io-dxf'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './sample-doc'
 
 const GRID_STEP = 100
@@ -49,6 +76,8 @@ type MobileViewMode = 'editor' | 'preview' | 'split'
 type MobileOptionsTab = 'view' | 'layers' | 'file'
 type ThemeMode = 'dark' | 'light'
 type LegendMode = 'layer' | 'stack'
+type DxfVersion = 'r12' | 'r14'
+type ExportRoleFilters = Record<LineTypeRole, boolean>
 type MobileLayerAction =
   | 'add'
   | 'rename'
@@ -58,7 +87,24 @@ type MobileLayerAction =
   | 'move-down'
   | 'delete'
   | 'colors'
-type MobileFileAction = 'save-json' | 'load-json' | 'load-preset' | 'export-svg' | 'toggle-3d' | 'clear'
+type MobileFileAction =
+  | 'save-json'
+  | 'load-json'
+  | 'import-svg'
+  | 'load-preset'
+  | 'export-svg'
+  | 'export-dxf'
+  | 'export-options'
+  | 'toggle-3d'
+  | 'clear'
+
+const DEFAULT_EXPORT_ROLE_FILTERS: ExportRoleFilters = {
+  cut: true,
+  stitch: true,
+  fold: true,
+  guide: true,
+  mark: true,
+}
 
 const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'pan', label: 'Move' },
@@ -66,6 +112,7 @@ const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'arc', label: 'Arc' },
   { value: 'bezier', label: 'Bezier' },
   { value: 'fold', label: 'Fold' },
+  { value: 'stitch-hole', label: 'Stitch Hole' },
 ]
 
 const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
@@ -180,9 +227,15 @@ function App() {
   const initialLayerIdRef = useRef(uid())
   const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
   const [activeLineTypeId, setActiveLineTypeId] = useState(DEFAULT_ACTIVE_LINE_TYPE_ID)
+  const [stitchHoleType, setStitchHoleType] = useState<StitchHoleType>('round')
+  const [stitchPitchMm, setStitchPitchMm] = useState(4)
+  const [stitchVariablePitchStartMm, setStitchVariablePitchStartMm] = useState(3)
+  const [stitchVariablePitchEndMm, setStitchVariablePitchEndMm] = useState(5)
+  const [showStitchSequenceLabels, setShowStitchSequenceLabels] = useState(false)
   const [tool, setTool] = useState<Tool>('pan')
   const [shapes, setShapes] = useState<Shape[]>([])
   const [foldLines, setFoldLines] = useState<FoldLine[]>([])
+  const [stitchHoles, setStitchHoles] = useState<StitchHole[]>([])
   const [layers, setLayers] = useState<Layer[]>(() => [
     {
       id: initialLayerIdRef.current,
@@ -206,7 +259,14 @@ function App() {
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
   const [showLineTypePalette, setShowLineTypePalette] = useState(false)
+  const [showExportOptionsModal, setShowExportOptionsModal] = useState(false)
+  const [exportOnlyVisibleLineTypes, setExportOnlyVisibleLineTypes] = useState(true)
+  const [exportRoleFilters, setExportRoleFilters] = useState<ExportRoleFilters>({ ...DEFAULT_EXPORT_ROLE_FILTERS })
+  const [exportForceSolidStrokes, setExportForceSolidStrokes] = useState(false)
+  const [dxfFlipY, setDxfFlipY] = useState(false)
+  const [dxfVersion, setDxfVersion] = useState<DxfVersion>('r12')
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([])
+  const [selectedStitchHoleId, setSelectedStitchHoleId] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
   const [legendMode, setLegendMode] = useState<LegendMode>('layer')
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
@@ -217,6 +277,7 @@ function App() {
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const svgInputRef = useRef<HTMLInputElement | null>(null)
   const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
     null,
   )
@@ -230,14 +291,52 @@ function App() {
     () => Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType])),
     [lineTypes],
   )
+  const shapesById = useMemo(
+    () => Object.fromEntries(shapes.map((shape) => [shape.id, shape])),
+    [shapes],
+  )
   const selectedShapeIdSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds])
   const shapeCountsByLineType = useMemo(() => countShapesByLineType(shapes), [shapes])
+  const stitchHoleCountsByShape = useMemo(() => countStitchHolesByShape(stitchHoles), [stitchHoles])
   const selectedShapeCount = selectedShapeIds.length
+  const selectedStitchHoleCount = useMemo(
+    () => selectedShapeIds.reduce((sum, shapeId) => sum + (stitchHoleCountsByShape[shapeId] ?? 0), 0),
+    [selectedShapeIds, stitchHoleCountsByShape],
+  )
+  const selectedStitchHole = useMemo(
+    () => stitchHoles.find((stitchHole) => stitchHole.id === selectedStitchHoleId) ?? null,
+    [stitchHoles, selectedStitchHoleId],
+  )
   const visibleShapes = useMemo(() => {
     const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
     const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
     return shapes.filter((shape) => visibleLayerIds.has(shape.layerId) && visibleLineTypeIds.has(shape.lineTypeId))
   }, [layers, lineTypes, shapes])
+  const visibleShapeIdSet = useMemo(() => new Set(visibleShapes.map((shape) => shape.id)), [visibleShapes])
+  const visibleStitchHoles = useMemo(
+    () =>
+      stitchHoles.filter((stitchHole) => {
+        const shape = shapesById[stitchHole.shapeId]
+        if (!shape || !visibleShapeIdSet.has(shape.id)) {
+          return false
+        }
+        const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
+        return lineTypeRole === 'stitch'
+      }),
+    [stitchHoles, shapesById, visibleShapeIdSet, lineTypesById],
+  )
+  const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
+  const lineTypeStylesById = useMemo(
+    () =>
+      Object.fromEntries(
+        lineTypes.map((lineType) => [lineType.id, lineType.style] as const),
+      ),
+    [lineTypes],
+  )
+  const activeExportRoleCount = useMemo(
+    () => Object.values(exportRoleFilters).filter((value) => value).length,
+    [exportRoleFilters],
+  )
   const layerColorsById = useMemo(() => {
     const colorMap: Record<string, string> = {}
     const denominator = Math.max(layers.length - 1, 1)
@@ -566,6 +665,26 @@ function App() {
   }, [shapes])
 
   useEffect(() => {
+    setStitchHoles((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
+      const next = previous.filter((stitchHole) => shapeIdSet.has(stitchHole.shapeId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [shapes])
+
+  useEffect(() => {
+    setSelectedStitchHoleId((previous) => {
+      if (!previous) {
+        return previous
+      }
+      return stitchHoles.some((stitchHole) => stitchHole.id === previous) ? previous : null
+    })
+  }, [stitchHoles])
+
+  useEffect(() => {
     setLayerColorOverrides((previous) => {
       const layerIdSet = new Set(layers.map((layer) => layer.id))
       let changed = false
@@ -659,6 +778,46 @@ function App() {
       ])
       clearDraft()
       setStatus('Line created')
+      return
+    }
+
+    if (tool === 'stitch-hole') {
+      const nearestStitchAnchor = findNearestStitchAnchor(point, visibleShapes, lineTypesById, 16 / viewport.scale)
+      if (!nearestStitchAnchor) {
+        setStatus('No stitch path near pointer. Tap near a visible stitch line.')
+        return
+      }
+
+      const targetShape = shapesById[nearestStitchAnchor.shapeId]
+      if (!targetShape) {
+        setStatus('Could not resolve stitch path')
+        return
+      }
+
+      const targetLayer = layers.find((layer) => layer.id === targetShape.layerId)
+      if (targetLayer?.locked) {
+        setStatus('Target layer is locked. Unlock it before placing stitch holes.')
+        return
+      }
+
+      let createdHoleId: string | null = null
+      setStitchHoles((previous) => {
+        const nextSequence =
+          previous
+            .filter((stitchHole) => stitchHole.shapeId === nearestStitchAnchor.shapeId)
+            .reduce((maximum, stitchHole) => Math.max(maximum, stitchHole.sequence), -1) + 1
+        const createdHole = {
+          ...createStitchHole(nearestStitchAnchor, stitchHoleType),
+          sequence: nextSequence,
+        }
+        createdHoleId = createdHole.id
+        return [
+          ...previous,
+          createdHole,
+        ]
+      })
+      setSelectedStitchHoleId(createdHoleId)
+      setStatus(`Stitch hole placed (${stitchHoleType})`)
       return
     }
 
@@ -774,6 +933,26 @@ function App() {
     })
   }
 
+  const handleStitchHolePointerDown = (event: ReactPointerEvent<SVGElement>, stitchHoleId: string) => {
+    if (tool !== 'pan') {
+      return
+    }
+
+    if (event.pointerType !== 'touch' && event.button !== 0) {
+      return
+    }
+
+    const stitchHole = stitchHoles.find((entry) => entry.id === stitchHoleId)
+    if (!stitchHole) {
+      return
+    }
+
+    event.stopPropagation()
+    const nextId = selectedStitchHoleId === stitchHoleId ? null : stitchHoleId
+    setSelectedStitchHoleId(nextId)
+    setStatus(nextId ? `Stitch hole ${stitchHole.sequence + 1} selected` : 'Stitch-hole selection cleared')
+  }
+
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const panState = panRef.current
     if (isPanning && panState) {
@@ -838,20 +1017,79 @@ function App() {
     zoomAtScreenPoint(screenX, screenY, zoomFactor)
   }
 
+  const getExportableShapes = () =>
+    shapes.filter((shape) => {
+      if (!visibleLayerIdSet.has(shape.layerId)) {
+        return false
+      }
+      const lineType = lineTypesById[shape.lineTypeId]
+      const role = lineType?.role ?? 'cut'
+      const isVisible = lineType?.visible ?? true
+      if (exportOnlyVisibleLineTypes && !isVisible) {
+        return false
+      }
+      return exportRoleFilters[role]
+    })
+
+  const shapeToExportSvg = (shape: Shape) => {
+    const lineType = lineTypesById[shape.lineTypeId]
+    const stroke = lineType?.color ?? '#0f172a'
+    const strokeDasharray = exportForceSolidStrokes ? undefined : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
+    const dashAttribute = strokeDasharray ? ` stroke-dasharray="${strokeDasharray}"` : ''
+
+    if (shape.type === 'line') {
+      return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
+    }
+
+    if (shape.type === 'arc') {
+      return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
+    }
+
+    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
+  }
+
   const handleExportSvg = () => {
-    const bounds = getBounds(visibleShapes)
-    const objectMarkup = visibleShapes.map(shapeToSvg).join('\n  ')
-    const foldMarkup = foldLines
-      .map(
-        (foldLine) =>
-          `<line x1="${round(foldLine.start.x)}" y1="${round(foldLine.start.y)}" x2="${round(foldLine.end.x)}" y2="${round(foldLine.end.y)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 4" fill="none" data-type="fold-line"/>`,
-      )
-      .join('\n  ')
+    const exportShapes = getExportableShapes()
+    if (exportShapes.length === 0) {
+      setStatus('No shapes matched the current export filters')
+      return
+    }
+
+    const bounds = getBounds(exportShapes)
+    const objectMarkup = exportShapes.map(shapeToExportSvg).join('\n  ')
+    const includeFoldLines = exportRoleFilters.fold
+    const foldMarkup = includeFoldLines
+      ? foldLines
+          .map(
+            (foldLine) =>
+              `<line x1="${round(foldLine.start.x)}" y1="${round(foldLine.start.y)}" x2="${round(foldLine.end.x)}" y2="${round(foldLine.end.y)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 4" fill="none" data-type="fold-line"/>`,
+          )
+          .join('\n  ')
+      : ''
 
     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${foldMarkup}\n</svg>`
 
     downloadFile('leathercraft-export.svg', svg, 'image/svg+xml;charset=utf-8')
-    setStatus(`Exported SVG (${visibleShapes.length} visible shapes, ${foldLines.length} folds)`)
+    setStatus(`Exported SVG (${exportShapes.length} shapes, ${includeFoldLines ? foldLines.length : 0} folds)`)
+  }
+
+  const handleExportDxf = () => {
+    const exportShapes = getExportableShapes()
+    if (exportShapes.length === 0) {
+      setStatus('No shapes matched the current export filters')
+      return
+    }
+
+    const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
+      flipY: dxfFlipY,
+      version: dxfVersion,
+      forceSolidLineStyle: exportForceSolidStrokes,
+      lineTypeStyles: lineTypeStylesById,
+    })
+    downloadFile('leathercraft-export.dxf', content, 'application/dxf')
+    setStatus(
+      `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, flipY ${dxfFlipY ? 'on' : 'off'})`,
+    )
   }
 
   const handleSaveJson = () => {
@@ -864,6 +1102,7 @@ function App() {
       activeLineTypeId,
       objects: shapes,
       foldLines,
+      stitchHoles,
     }
 
     downloadFile('leathercraft-doc.json', JSON.stringify(doc, null, 2), 'application/json;charset=utf-8')
@@ -883,6 +1122,7 @@ function App() {
       const parsed = JSON.parse(raw) as {
         objects?: unknown[]
         foldLines?: unknown[]
+        stitchHoles?: unknown[]
         layers?: unknown[]
         activeLayerId?: unknown
         lineTypes?: unknown[]
@@ -981,19 +1221,70 @@ function App() {
         }
       }
 
+      const validShapeIds = new Set(nextShapes.map((shape) => shape.id))
+      const nextStitchHoles: StitchHole[] = []
+      if (Array.isArray(parsed.stitchHoles)) {
+        for (const stitchHoleCandidate of parsed.stitchHoles) {
+          const stitchHole = parseStitchHole(stitchHoleCandidate)
+          if (stitchHole && validShapeIds.has(stitchHole.shapeId)) {
+            nextStitchHoles.push(stitchHole)
+          }
+        }
+      }
+      const normalizedStitchHoles = normalizeStitchHoleSequences(nextStitchHoles)
+
       setLayers(nextLayers)
       setActiveLayerId(nextActiveLayerId)
       setLineTypes(nextLineTypes)
       setActiveLineTypeId(nextActiveLineTypeId)
       setShapes(nextShapes)
       setFoldLines(nextFoldLines)
+      setStitchHoles(normalizedStitchHoles)
       setSelectedShapeIds([])
+      setSelectedStitchHoleId(null)
       setLayerColorOverrides({})
       clearDraft()
-      setStatus(`Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${nextLayers.length} layers)`)
+      setStatus(
+        `Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${normalizedStitchHoles.length} holes, ${nextLayers.length} layers)`,
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
       setStatus(`Load failed: ${message}`)
+    }
+  }
+
+  const handleImportSvg = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    if (!activeLayer) {
+      setStatus('No active layer to import into')
+      return
+    }
+
+    try {
+      const rawSvg = await file.text()
+      const imported = importSvgAsShapes(rawSvg, {
+        layerId: activeLayer.id,
+        lineTypeId: activeLineTypeId,
+      })
+      if (imported.shapes.length === 0) {
+        setStatus('SVG import produced no drawable shapes')
+        return
+      }
+      setShapes((previous) => [...previous, ...imported.shapes])
+      setSelectedShapeIds(imported.shapes.map((shape) => shape.id))
+      if (imported.warnings.length > 0) {
+        setStatus(`Imported SVG (${imported.shapes.length} shapes) with ${imported.warnings.length} warning(s)`)
+      } else {
+        setStatus(`Imported SVG (${imported.shapes.length} shapes)`)
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      setStatus(`SVG import failed: ${message}`)
     }
   }
 
@@ -1016,7 +1307,9 @@ function App() {
     setActiveLineTypeId(resolveActiveLineTypeId(presetLineTypes, sample.activeLineTypeId))
     setShapes(sample.objects)
     setFoldLines(sample.foldLines)
+    setStitchHoles(normalizeStitchHoleSequences(sample.stitchHoles ?? []))
     setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
     setLayerColorOverrides({})
     setTool('pan')
     setShowThreePreview(true)
@@ -1319,6 +1612,207 @@ function App() {
     setStatus('Layer color continuum reset')
   }
 
+  const handleCountStitchHolesOnSelectedShapes = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first to count stitch holes')
+      return
+    }
+    setStatus(`Selected shapes contain ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'}`)
+  }
+
+  const handleDeleteStitchHolesOnSelectedShapes = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first to delete stitch holes')
+      return
+    }
+
+    if (selectedStitchHoleCount === 0) {
+      setStatus('Selected shapes do not contain stitch holes')
+      return
+    }
+
+    setStitchHoles((previous) => normalizeStitchHoleSequences(deleteStitchHolesForShapes(previous, selectedShapeIdSet)))
+    setStatus(`Deleted ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'} on selected shapes`)
+  }
+
+  const handleClearAllStitchHoles = () => {
+    if (stitchHoles.length === 0) {
+      setStatus('No stitch holes to clear')
+      return
+    }
+    setStitchHoles([])
+    setSelectedStitchHoleId(null)
+    setStatus('Cleared all stitch holes')
+  }
+
+  const getSelectedStitchShapes = () =>
+    shapes.filter((shape) => {
+      if (!selectedShapeIdSet.has(shape.id)) {
+        return false
+      }
+      const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
+      return lineTypeRole === 'stitch'
+    })
+
+  const handleAutoPlaceFixedPitchStitchHoles = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more stitch paths first')
+      return
+    }
+
+    const selectedStitchShapes = getSelectedStitchShapes()
+
+    if (selectedStitchShapes.length === 0) {
+      setStatus('Selected shapes are not stitch-role paths')
+      return
+    }
+
+    const safePitch = clamp(stitchPitchMm, 0.2, 100)
+    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
+    const generatedHoles = selectedStitchShapes.flatMap((shape) =>
+      generateFixedPitchStitchHoles(shape, safePitch, stitchHoleType, 0),
+    )
+
+    setStitchHoles((previous) => {
+      const retained = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
+      return normalizeStitchHoleSequences([...retained, ...generatedHoles])
+    })
+    setSelectedStitchHoleId(generatedHoles[0]?.id ?? null)
+
+    setStatus(
+      `Auto placed ${generatedHoles.length} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} at ${safePitch.toFixed(1)}mm pitch`,
+    )
+  }
+
+  const handleAutoPlaceVariablePitchStitchHoles = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more stitch paths first')
+      return
+    }
+
+    const selectedStitchShapes = getSelectedStitchShapes()
+    if (selectedStitchShapes.length === 0) {
+      setStatus('Selected shapes are not stitch-role paths')
+      return
+    }
+
+    const safeStartPitch = clamp(stitchVariablePitchStartMm, 0.2, 100)
+    const safeEndPitch = clamp(stitchVariablePitchEndMm, 0.2, 100)
+    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
+    const generatedHoles = selectedStitchShapes.flatMap((shape) =>
+      generateVariablePitchStitchHoles(shape, safeStartPitch, safeEndPitch, stitchHoleType, 0),
+    )
+
+    setStitchHoles((previous) => {
+      const retained = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
+      return normalizeStitchHoleSequences([...retained, ...generatedHoles])
+    })
+    setSelectedStitchHoleId(generatedHoles[0]?.id ?? null)
+
+    setStatus(
+      `Auto placed ${generatedHoles.length} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} using ${safeStartPitch.toFixed(1)} to ${safeEndPitch.toFixed(1)}mm pitch`,
+    )
+  }
+
+  const handleResequenceSelectedStitchHoles = (reverse = false) => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more stitch paths first')
+      return
+    }
+
+    const selectedShapes = shapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+    if (selectedShapes.length === 0) {
+      setStatus('No selected shapes to re-sequence')
+      return
+    }
+
+    setStitchHoles((previous) => {
+      const byShape = new Map<string, StitchHole[]>()
+      for (const hole of previous) {
+        const entries = byShape.get(hole.shapeId) ?? []
+        entries.push(hole)
+        byShape.set(hole.shapeId, entries)
+      }
+
+      const preserved: StitchHole[] = []
+      for (const hole of previous) {
+        if (!selectedShapeIdSet.has(hole.shapeId)) {
+          preserved.push(hole)
+        }
+      }
+
+      const resequenced: StitchHole[] = []
+      for (const shape of selectedShapes) {
+        const holes = byShape.get(shape.id) ?? []
+        if (holes.length === 0) {
+          continue
+        }
+        resequenced.push(...resequenceStitchHolesOnShape(holes, shape, reverse))
+      }
+      return normalizeStitchHoleSequences([...preserved, ...resequenced])
+    })
+
+    setStatus(reverse ? 'Reversed stitch-hole order on selected paths' : 'Re-sequenced stitch holes on selected paths')
+  }
+
+  const handleSelectNextStitchHole = () => {
+    const preferredShapeId =
+      selectedStitchHole?.shapeId ??
+      shapes.find((shape) => selectedShapeIdSet.has(shape.id) && (stitchHoleCountsByShape[shape.id] ?? 0) > 0)?.id ??
+      stitchHoles[0]?.shapeId ??
+      null
+
+    if (!preferredShapeId) {
+      setStatus('No stitch holes available to select')
+      return
+    }
+
+    const holesOnShape = stitchHoles.filter((stitchHole) => stitchHole.shapeId === preferredShapeId)
+    const currentHoleId = selectedStitchHole?.shapeId === preferredShapeId ? selectedStitchHole.id : null
+    const nextHole = selectNextStitchHole(holesOnShape, currentHoleId)
+    if (!nextHole) {
+      setStatus('No stitch holes available to select')
+      return
+    }
+
+    setSelectedStitchHoleId(nextHole.id)
+    setStatus(`Selected stitch hole ${nextHole.sequence + 1} of ${holesOnShape.length}`)
+  }
+
+  const handleFixStitchHoleOrderFromSelected = (reverse = false) => {
+    if (!selectedStitchHole) {
+      setStatus('Select a stitch hole first (Move tool)')
+      return
+    }
+
+    const targetShape = shapesById[selectedStitchHole.shapeId]
+    if (!targetShape) {
+      setStatus('Selected stitch hole has no valid path')
+      return
+    }
+
+    const targetLayer = layers.find((layer) => layer.id === targetShape.layerId)
+    if (targetLayer?.locked) {
+      setStatus('Target layer is locked. Unlock it before editing stitch order.')
+      return
+    }
+
+    const lineTypeRole = lineTypesById[targetShape.lineTypeId]?.role ?? 'cut'
+    if (lineTypeRole !== 'stitch') {
+      setStatus('Selected stitch hole is not on a stitch-role path')
+      return
+    }
+
+    setStitchHoles((previous) => {
+      const onShape = previous.filter((stitchHole) => stitchHole.shapeId === targetShape.id)
+      const retained = previous.filter((stitchHole) => stitchHole.shapeId !== targetShape.id)
+      const fixedOrder = fixStitchHoleOrderFromHole(onShape, targetShape, selectedStitchHole.id, reverse)
+      return normalizeStitchHoleSequences([...retained, ...fixedOrder])
+    })
+
+    setStatus(reverse ? 'Fixed stitch order in reverse from selected hole' : 'Fixed stitch order from selected hole')
+  }
+
   const handleRunMobileLayerAction = () => {
     if (mobileLayerAction === 'add') {
       handleAddLayer()
@@ -1369,6 +1863,11 @@ function App() {
       return
     }
 
+    if (mobileFileAction === 'import-svg') {
+      svgInputRef.current?.click()
+      return
+    }
+
     if (mobileFileAction === 'load-preset') {
       handleLoadPreset()
       return
@@ -1376,6 +1875,16 @@ function App() {
 
     if (mobileFileAction === 'export-svg') {
       handleExportSvg()
+      return
+    }
+
+    if (mobileFileAction === 'export-dxf') {
+      handleExportDxf()
+      return
+    }
+
+    if (mobileFileAction === 'export-options') {
+      setShowExportOptionsModal(true)
       return
     }
 
@@ -1400,7 +1909,9 @@ function App() {
     setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
     setShapes([])
     setFoldLines([])
+    setStitchHoles([])
     setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
     setLayerColorOverrides({})
     clearDraft()
     setStatus('Document cleared and reset to Layer 1')
@@ -1490,6 +2001,9 @@ function App() {
               <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
                 Fold
               </button>
+              <button className={tool === 'stitch-hole' ? 'active' : ''} onClick={() => setActiveTool('stitch-hole')}>
+                Stitch Hole
+              </button>
             </>
           )}
           {isMobileLayout && (
@@ -1568,6 +2082,35 @@ function App() {
           <button onClick={() => setShowLineTypePalette(true)}>Palette</button>
         </div>
 
+        {showViewOptions && (
+          <StitchHolePanel
+            holeType={stitchHoleType}
+            onChangeHoleType={setStitchHoleType}
+            pitchMm={stitchPitchMm}
+            onChangePitchMm={(nextPitch) => setStitchPitchMm(clamp(nextPitch || 0, 0.2, 100))}
+            variablePitchStartMm={stitchVariablePitchStartMm}
+            variablePitchEndMm={stitchVariablePitchEndMm}
+            onChangeVariablePitchStartMm={(nextPitch) => setStitchVariablePitchStartMm(clamp(nextPitch || 0, 0.2, 100))}
+            onChangeVariablePitchEndMm={(nextPitch) => setStitchVariablePitchEndMm(clamp(nextPitch || 0, 0.2, 100))}
+            onAutoPlaceFixedPitch={handleAutoPlaceFixedPitchStitchHoles}
+            onAutoPlaceVariablePitch={handleAutoPlaceVariablePitchStitchHoles}
+            onResequenceSelected={() => handleResequenceSelectedStitchHoles(false)}
+            onReverseSelected={() => handleResequenceSelectedStitchHoles(true)}
+            onSelectNextHole={handleSelectNextStitchHole}
+            onFixOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(false)}
+            onFixReverseOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(true)}
+            showSequenceLabels={showStitchSequenceLabels}
+            onToggleSequenceLabels={() => setShowStitchSequenceLabels((previous) => !previous)}
+            onCountSelected={handleCountStitchHolesOnSelectedShapes}
+            onDeleteOnSelected={handleDeleteStitchHolesOnSelectedShapes}
+            onClearAll={handleClearAllStitchHoles}
+            selectedShapeCount={selectedShapeCount}
+            selectedHoleCount={selectedStitchHoleCount}
+            totalHoleCount={stitchHoles.length}
+            hasSelectedHole={selectedStitchHole !== null}
+          />
+        )}
+
         <div className={`group layer-controls ${showLayerOptions ? '' : 'mobile-hidden'}`}>
           <span className="layer-label">Layer</span>
           <select
@@ -1645,8 +2188,11 @@ function App() {
               >
                 <option value="save-json">Save JSON</option>
                 <option value="load-json">Load JSON</option>
+                <option value="import-svg">Import SVG</option>
                 <option value="load-preset">Load Preset</option>
                 <option value="export-svg">Export SVG</option>
+                <option value="export-dxf">Export DXF</option>
+                <option value="export-options">Export Options</option>
                 <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
                 <option value="clear">Clear Document</option>
               </select>
@@ -1656,8 +2202,11 @@ function App() {
             <>
               <button onClick={handleSaveJson}>Save JSON</button>
               <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
+              <button onClick={() => svgInputRef.current?.click()}>Import SVG</button>
               <button onClick={() => handleLoadPreset()}>Load Preset</button>
               <button onClick={handleExportSvg}>Export SVG</button>
+              <button onClick={handleExportDxf}>Export DXF</button>
+              <button onClick={() => setShowExportOptionsModal(true)}>Export Options</button>
               <button onClick={() => setShowThreePreview((previous) => !previous)}>
                 {showThreePreview ? 'Hide 3D' : 'Show 3D'}
               </button>
@@ -1679,7 +2228,9 @@ function App() {
                   setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
                   setShapes([])
                   setFoldLines([])
+                  setStitchHoles([])
                   setSelectedShapeIds([])
+                  setSelectedStitchHoleId(null)
                   setLayerColorOverrides({})
                   clearDraft()
                   setStatus('Document cleared and reset to Layer 1')
@@ -1697,6 +2248,7 @@ function App() {
           <span>{layers.length} layers</span>
           <span>{lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types</span>
           <span>{foldLines.length} bends</span>
+          <span>{stitchHoles.length} stitch holes</span>
         </div>
       </header>
 
@@ -1763,6 +2315,47 @@ function App() {
                     style={{ stroke: layerStroke, strokeDasharray }}
                     onPointerDown={(event) => handleShapePointerDown(event, shape.id)}
                   />
+                )
+              })}
+
+              {visibleStitchHoles.map((stitchHole) => {
+                const isSelected = stitchHole.id === selectedStitchHoleId
+                if (stitchHole.holeType === 'slit') {
+                  const radians = (stitchHole.angleDeg * Math.PI) / 180
+                  const dx = Math.cos(radians) * 3
+                  const dy = Math.sin(radians) * 3
+                  return (
+                    <line
+                      key={stitchHole.id}
+                      x1={stitchHole.point.x - dx}
+                      y1={stitchHole.point.y - dy}
+                      x2={stitchHole.point.x + dx}
+                      y2={stitchHole.point.y + dy}
+                      className={isSelected ? 'stitch-hole-slit stitch-hole-slit-selected' : 'stitch-hole-slit'}
+                      onPointerDown={(event) => handleStitchHolePointerDown(event, stitchHole.id)}
+                    />
+                  )
+                }
+
+                return (
+                  <g key={stitchHole.id}>
+                    <circle
+                      cx={stitchHole.point.x}
+                      cy={stitchHole.point.y}
+                      r={2.2}
+                      className={isSelected ? 'stitch-hole-dot stitch-hole-dot-selected' : 'stitch-hole-dot'}
+                      onPointerDown={(event) => handleStitchHolePointerDown(event, stitchHole.id)}
+                    />
+                    {showStitchSequenceLabels && (
+                      <text
+                        x={stitchHole.point.x + 3.2}
+                        y={stitchHole.point.y - 3.2}
+                        className="stitch-hole-sequence-label"
+                      >
+                        {stitchHole.sequence + 1}
+                      </text>
+                    )}
+                  </g>
                 )
               })}
 
@@ -1861,6 +2454,7 @@ function App() {
             <ThreePreviewPanel
               key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
               shapes={visibleShapes}
+              stitchHoles={visibleStitchHoles}
               foldLines={foldLines}
               layers={layers}
               lineTypes={lineTypes}
@@ -1994,10 +2588,105 @@ function App() {
         </div>
       )}
 
+      {showExportOptionsModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowExportOptionsModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowExportOptionsModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="layer-color-modal-header">
+              <h2>Export Options</h2>
+              <button onClick={() => setShowExportOptionsModal(false)}>Done</button>
+            </div>
+
+            <p className="hint">Applies to both SVG and DXF exports.</p>
+
+            <div className="control-block">
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={exportOnlyVisibleLineTypes}
+                  onChange={(event) => setExportOnlyVisibleLineTypes(event.target.checked)}
+                />
+                <span>Export only visible line types</span>
+              </label>
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={exportForceSolidStrokes}
+                  onChange={(event) => setExportForceSolidStrokes(event.target.checked)}
+                />
+                <span>Convert dashed/dotted to solid on export</span>
+              </label>
+            </div>
+
+            <div className="control-block">
+              <h3>Line Type Roles ({activeExportRoleCount} enabled)</h3>
+              <div className="export-role-grid">
+                {(['cut', 'stitch', 'fold', 'guide', 'mark'] as const).map((role) => (
+                  <label key={role} className="layer-toggle-item">
+                    <input
+                      type="checkbox"
+                      checked={exportRoleFilters[role]}
+                      onChange={(event) =>
+                        setExportRoleFilters((previous) => ({
+                          ...previous,
+                          [role]: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>{role[0].toUpperCase() + role.slice(1)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="control-block">
+              <h3>DXF</h3>
+              <label className="field-row">
+                <span>Version</span>
+                <select
+                  className="action-select"
+                  value={dxfVersion}
+                  onChange={(event) => setDxfVersion(event.target.value as DxfVersion)}
+                >
+                  <option value="r12">R12 (AC1009)</option>
+                  <option value="r14">R14 (AC1014)</option>
+                </select>
+              </label>
+              <label className="layer-toggle-item">
+                <input type="checkbox" checked={dxfFlipY} onChange={(event) => setDxfFlipY(event.target.checked)} />
+                <span>Flip Y axis on DXF export</span>
+              </label>
+            </div>
+
+            <div className="line-type-modal-actions">
+              <button
+                onClick={() => {
+                  setExportOnlyVisibleLineTypes(true)
+                  setExportRoleFilters({ ...DEFAULT_EXPORT_ROLE_FILTERS })
+                  setExportForceSolidStrokes(false)
+                  setDxfFlipY(false)
+                  setDxfVersion('r12')
+                }}
+              >
+                Reset Export Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="statusbar">
         <span>Tool: {toolLabel(tool)}</span>
         <span>{status}</span>
-        <span>Tip: wheel/zoom buttons for zoom, Move tool to pan, Fold tool assigns bend lines for 3D.</span>
+        <span>Tip: wheel/zoom buttons for zoom, Move tool to pan, Fold tool assigns bend lines, Stitch Hole tool drops holes on stitch paths.</span>
         <span>Mobile: use 2D / 3D / Split buttons to focus workspace.</span>
       </footer>
 
@@ -2007,6 +2696,13 @@ function App() {
         accept="application/json"
         className="hidden-input"
         onChange={handleLoadJson}
+      />
+      <input
+        ref={svgInputRef}
+        type="file"
+        accept=".svg,image/svg+xml"
+        className="hidden-input"
+        onChange={handleImportSvg}
       />
     </div>
   )

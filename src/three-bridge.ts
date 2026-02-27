@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { sampleShapePoints } from './cad-geometry'
-import type { FoldLine, Layer, LineType, Shape, TextureSource } from './cad-types'
+import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from './cad-types'
 
 type ModelTransform = {
   scale: number
@@ -26,6 +26,7 @@ const EPSILON = 1e-6
 const CUT_LINE_COLOR = '#38bdf8'
 const STITCH_LINE_COLOR = '#f97316'
 const FOLD_LINE_COLOR = '#fb7185'
+const STITCH_THREAD_COLOR = '#fb923c'
 const LAYER_STACK_STEP = 0.012
 
 function disposeObjectGraph(root: THREE.Object3D, preservedMaterials: Set<THREE.Material>) {
@@ -217,6 +218,7 @@ export class ThreeBridge {
   private lineTypes: LineType[] = []
   private shapes: Shape[] = []
   private foldLines: FoldLine[] = []
+  private stitchHoles: StitchHole[] = []
   private activeFoldAxis = new THREE.Vector3(0, 0, 1)
   private activeFoldAngleDeg = 0
 
@@ -345,6 +347,23 @@ export class ThreeBridge {
       new THREE.LineBasicMaterial({ color: segment.color }),
     )
     group.add(line)
+  }
+
+  private addStitchPoint(group: THREE.Group, point: THREE.Vector2, color: string, pivot: THREE.Vector2 | null, yOffset: number) {
+    const offsetX = pivot?.x ?? 0
+    const offsetY = pivot?.y ?? 0
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(point.x - offsetX, yOffset + 0.007, point.y - offsetY),
+    ])
+    const points = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        color,
+        size: 0.025,
+        sizeAttenuation: true,
+      }),
+    )
+    group.add(points)
   }
 
   private createPanelMesh(
@@ -675,6 +694,58 @@ export class ThreeBridge {
       for (const segment of positiveSegments) {
         this.addSegmentLine(this.foldingSideGroup, segment, foldMid, yOffset)
       }
+
+      const layerShapeIds = new Set(layerSlice.shapes.map((shape) => shape.id))
+      const layerStitchHoles = this.stitchHoles.filter((stitchHole) => layerShapeIds.has(stitchHole.shapeId))
+      const stitchHolesByShape = new Map<string, StitchHole[]>()
+      for (const stitchHole of layerStitchHoles) {
+        const entries = stitchHolesByShape.get(stitchHole.shapeId) ?? []
+        entries.push(stitchHole)
+        stitchHolesByShape.set(stitchHole.shapeId, entries)
+      }
+
+      for (const stitchHolesOnShape of stitchHolesByShape.values()) {
+        const ordered = stitchHolesOnShape
+          .slice()
+          .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
+
+        const projectedPoints = ordered.map((stitchHole) => this.projectPoint(stitchHole.point))
+        for (const projectedPoint of projectedPoints) {
+          if (sideOfLine(projectedPoint, foldStart, foldEnd) > -EPSILON) {
+            this.addStitchPoint(this.foldingSideGroup, projectedPoint, STITCH_THREAD_COLOR, foldMid, yOffset)
+          } else {
+            this.addStitchPoint(this.staticSideGroup, projectedPoint, STITCH_THREAD_COLOR, null, yOffset)
+          }
+        }
+
+        for (let index = 1; index < projectedPoints.length; index += 1) {
+          const split = this.splitSegmentByFold(projectedPoints[index - 1], projectedPoints[index], foldStart, foldEnd)
+          for (const segment of split.negative) {
+            this.addSegmentLine(
+              this.staticSideGroup,
+              {
+                start: segment.start,
+                end: segment.end,
+                color: STITCH_THREAD_COLOR,
+              },
+              null,
+              yOffset + 0.0015,
+            )
+          }
+          for (const segment of split.positive) {
+            this.addSegmentLine(
+              this.foldingSideGroup,
+              {
+                start: segment.start,
+                end: segment.end,
+                color: STITCH_THREAD_COLOR,
+              },
+              foldMid,
+              yOffset + 0.0015,
+            )
+          }
+        }
+      }
     }
 
     const guideYOffset = maxYOffset + 0.006
@@ -728,11 +799,18 @@ export class ThreeBridge {
     }
   }
 
-  setDocument(layers: Layer[], shapes: Shape[], foldLines: FoldLine[], lineTypes: LineType[] = []) {
+  setDocument(
+    layers: Layer[],
+    shapes: Shape[],
+    foldLines: FoldLine[],
+    lineTypes: LineType[] = [],
+    stitchHoles: StitchHole[] = [],
+  ) {
     this.layers = [...layers]
     this.lineTypes = [...lineTypes]
     this.shapes = [...shapes]
     this.foldLines = [...foldLines]
+    this.stitchHoles = [...stitchHoles]
     if (this.foldLines.length > 0) {
       this.activeFoldAngleDeg = this.foldLines[0].angleDeg
     }
@@ -746,6 +824,11 @@ export class ThreeBridge {
 
   setShapes(shapes: Shape[]) {
     this.shapes = [...shapes]
+    this.rebuildModel()
+  }
+
+  setStitchHoles(stitchHoles: StitchHole[]) {
+    this.stitchHoles = [...stitchHoles]
     this.rebuildModel()
   }
 
