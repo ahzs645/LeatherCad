@@ -22,6 +22,8 @@ type EditorTopbarProps = {
   selectedShapeCount: number
   selectedStitchHoleCount: number
   showThreePreview: boolean
+  onOpenPrecisionModal: () => void
+  onOpenProjectMemoModal: () => void
   onOpenHelpModal: () => void
   showToolSection: boolean
   tool: Tool
@@ -156,6 +158,21 @@ const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string }> = [
   { mode: 'system', label: 'System mode' },
 ]
 
+const DESKTOP_TOOL_ITEMS: Array<{ value: Tool; label: string; iconSrc: string }> = [
+  { value: 'pan', label: 'Move', iconSrc: '/icons/leathercad/pan.svg' },
+  { value: 'line', label: 'Line', iconSrc: '/icons/jsketcher/line.png' },
+  { value: 'polyline', label: 'Polyline', iconSrc: '/icons/jsketcher/mline.png' },
+  { value: 'rectangle', label: 'Rect', iconSrc: '/icons/leathercad/rectangle.svg' },
+  { value: 'circle', label: 'Circle', iconSrc: '/icons/jsketcher/circle.png' },
+  { value: 'ellipse', label: 'Ellipse', iconSrc: '/icons/leathercad/ellipse.svg' },
+  { value: 'arc', label: 'Arc', iconSrc: '/icons/jsketcher/arc.png' },
+  { value: 'bezier', label: 'Bezier', iconSrc: '/icons/leathercad/bezier.svg' },
+  { value: 'fold', label: 'Fold', iconSrc: '/icons/leathercad/fold.svg' },
+  { value: 'stitch-hole', label: 'Stitch', iconSrc: '/icons/jsketcher/dot.png' },
+  { value: 'hardware', label: 'Hardware', iconSrc: '/icons/leathercad/hardware.svg' },
+  { value: 'text', label: 'Text', iconSrc: '/icons/leathercad/text.svg' },
+]
+
 function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
   if (mode === 'light') {
     return (
@@ -198,6 +215,8 @@ export function EditorTopbar({
   selectedShapeCount,
   selectedStitchHoleCount,
   showThreePreview,
+  onOpenPrecisionModal,
+  onOpenProjectMemoModal,
   onOpenHelpModal,
   showToolSection,
   tool,
@@ -356,6 +375,8 @@ export function EditorTopbar({
             <span>{selectedShapeCount} selected</span>
             <span>{selectedStitchHoleCount} selected holes</span>
             <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</button>
+            <button onClick={onOpenPrecisionModal}>Precision</button>
+            <button onClick={onOpenProjectMemoModal}>Project Memo</button>
             <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
             {renderThemeModeToggle('desktop-theme-toggle')}
             <button
@@ -408,47 +429,28 @@ export function EditorTopbar({
                 </div>
               </>
             ) : (
-              <>
-                <button className={tool === 'pan' ? 'active' : ''} onClick={() => onSetActiveTool('pan')}>
-                  Move
-                </button>
-                <button className={tool === 'line' ? 'active' : ''} onClick={() => onSetActiveTool('line')}>
-                  Line
-                </button>
-                <button className={tool === 'polyline' ? 'active' : ''} onClick={() => onSetActiveTool('polyline')}>
-                  Polyline
-                </button>
-                <button className={tool === 'rectangle' ? 'active' : ''} onClick={() => onSetActiveTool('rectangle')}>
-                  Rect
-                </button>
-                <button className={tool === 'circle' ? 'active' : ''} onClick={() => onSetActiveTool('circle')}>
-                  Circle
-                </button>
-                <button className={tool === 'ellipse' ? 'active' : ''} onClick={() => onSetActiveTool('ellipse')}>
-                  Ellipse
-                </button>
-                <button className={tool === 'arc' ? 'active' : ''} onClick={() => onSetActiveTool('arc')}>
-                  Arc
-                </button>
-                <button className={tool === 'bezier' ? 'active' : ''} onClick={() => onSetActiveTool('bezier')}>
-                  Bezier
-                </button>
-                <button className={tool === 'fold' ? 'active' : ''} onClick={() => onSetActiveTool('fold')}>
-                  Fold
-                </button>
-                <button className={tool === 'stitch-hole' ? 'active' : ''} onClick={() => onSetActiveTool('stitch-hole')}>
-                  Stitch Hole
-                </button>
-                <button className={tool === 'hardware' ? 'active' : ''} onClick={() => onSetActiveTool('hardware')}>
-                  Hardware
-                </button>
-                <button className={tool === 'text' ? 'active' : ''} onClick={() => onSetActiveTool('text')}>
-                  Text
-                </button>
-              </>
+              <div className="tool-icon-grid">
+                {DESKTOP_TOOL_ITEMS.map((toolItem) => (
+                  <button
+                    key={toolItem.value}
+                    type="button"
+                    className={tool === toolItem.value ? 'tool-icon-button active' : 'tool-icon-button'}
+                    onClick={() => onSetActiveTool(toolItem.value)}
+                    title={toolItem.label}
+                    aria-label={toolItem.label}
+                    data-tooltip={toolItem.label}
+                  >
+                    <span className="tool-icon-badge" aria-hidden="true">
+                      <img src={toolItem.iconSrc} alt="" />
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
             {isMobileLayout && (
               <>
+                <button onClick={onOpenPrecisionModal}>Precision</button>
+                <button onClick={onOpenProjectMemoModal}>Project Memo</button>
                 <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
                 <button
                   type="button"

@@ -31,6 +31,7 @@ import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
 import { ContextualActionsPanel } from './components/ContextualActionsPanel'
 import { PrecisionCommandPanel } from './components/PrecisionCommandPanel'
+import { ProjectMemoModal } from './components/ProjectMemoModal'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
@@ -164,6 +165,8 @@ export function EditorApp() {
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [mobileOptionsTab, setMobileOptionsTab] = useState<MobileOptionsTab>('view')
+  const [showPrecisionModal, setShowPrecisionModal] = useState(false)
+  const [showProjectMemoModal, setShowProjectMemoModal] = useState(false)
   const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
@@ -1267,6 +1270,8 @@ export function EditorApp() {
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
+    onOpenPrecisionModal: () => setShowPrecisionModal(true),
+    onOpenProjectMemoModal: () => setShowProjectMemoModal(true),
     setShowHelpModal,
     showToolSection,
     tool,
@@ -1698,20 +1703,19 @@ export function EditorApp() {
         onApplyTextDefaults={handleApplyTextDefaultsToSelection}
       />
 
-      <PrecisionCommandPanel toolHint={toolHint} onRunCommand={runPrecisionCommand} />
+      <PrecisionCommandPanel
+        open={showPrecisionModal}
+        onClose={() => setShowPrecisionModal(false)}
+        toolHint={toolHint}
+        onRunCommand={runPrecisionCommand}
+      />
 
-      <section className="project-memo-panel">
-        <label className="project-memo-label" htmlFor="project-memo-input">
-          Project Memo
-        </label>
-        <textarea
-          id="project-memo-input"
-          className="project-memo-input"
-          value={projectMemo}
-          onChange={(event) => setProjectMemo(event.target.value.slice(0, 8000))}
-          placeholder="Global project notes for this pattern..."
-        />
-      </section>
+      <ProjectMemoModal
+        open={showProjectMemoModal}
+        onClose={() => setShowProjectMemoModal(false)}
+        value={projectMemo}
+        onChange={(nextValue) => setProjectMemo(nextValue.slice(0, 8000))}
+      />
 
       <EditorStatusBar {...statusBarProps} />
 

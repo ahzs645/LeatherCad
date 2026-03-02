@@ -20,6 +20,8 @@ type UseEditorTopbarPropsParams = {
   selectedShapeCount: number
   selectedStitchHoleCount: number
   showThreePreview: boolean
+  onOpenPrecisionModal: () => void
+  onOpenProjectMemoModal: () => void
   setShowHelpModal: Dispatch<SetStateAction<boolean>>
   showToolSection: boolean
   tool: Tool
@@ -147,6 +149,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
+    onOpenPrecisionModal,
+    onOpenProjectMemoModal,
     setShowHelpModal,
     showToolSection,
     tool,
@@ -273,6 +277,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
+    onOpenPrecisionModal,
+    onOpenProjectMemoModal,
     onOpenHelpModal: () => setShowHelpModal(true),
     showToolSection,
     tool,
