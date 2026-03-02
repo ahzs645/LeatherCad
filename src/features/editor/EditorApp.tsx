@@ -29,19 +29,12 @@ import type {
   Tool,
   Viewport,
 } from './cad/cad-types'
-import { ExportOptionsModal } from './components/ExportOptionsModal'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
 import { EditorHiddenInputs } from './components/EditorHiddenInputs'
+import { EditorModalStack } from './components/EditorModalStack'
 import { EditorPreviewPane } from './components/EditorPreviewPane'
 import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
-import { HelpModal } from './components/HelpModal'
-import { LayerColorModal } from './components/LayerColorModal'
-import { LineTypePalette } from './components/LineTypePalette'
-import { PatternToolsModal } from './components/PatternToolsModal'
-import { PrintPreviewModal } from './components/PrintPreviewModal'
-import { TemplateRepositoryModal } from './components/TemplateRepositoryModal'
-import { TracingModal } from './components/TracingModal'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   createDefaultLineTypes,
@@ -1400,188 +1393,184 @@ export function EditorApp() {
         />
       </main>
 
-      <LineTypePalette
-        open={showLineTypePalette}
-        lineTypes={lineTypes}
-        activeLineType={activeLineType}
-        shapeCountsByLineType={shapeCountsByLineType}
-        selectedShapeCount={selectedShapeCount}
-        onClose={() => setShowLineTypePalette(false)}
-        onSetActiveLineTypeId={setActiveLineTypeId}
-        onToggleLineTypeVisibility={(lineTypeId) =>
-          setLineTypes((previous) =>
-            previous.map((lineType) =>
-              lineType.id === lineTypeId
-                ? {
-                    ...lineType,
-                    visible: !lineType.visible,
-                  }
-                : lineType,
+      <EditorModalStack
+        lineTypePaletteProps={{
+          open: showLineTypePalette,
+          lineTypes,
+          activeLineType,
+          shapeCountsByLineType,
+          selectedShapeCount,
+          onClose: () => setShowLineTypePalette(false),
+          onSetActiveLineTypeId: setActiveLineTypeId,
+          onToggleLineTypeVisibility: (lineTypeId) =>
+            setLineTypes((previous) =>
+              previous.map((lineType) =>
+                lineType.id === lineTypeId
+                  ? {
+                      ...lineType,
+                      visible: !lineType.visible,
+                    }
+                  : lineType,
+              ),
             ),
-          )
-        }
-        onShowAllTypes={handleShowAllLineTypes}
-        onIsolateActiveType={handleIsolateActiveLineType}
-        onUpdateActiveLineTypeRole={handleUpdateActiveLineTypeRole}
-        onUpdateActiveLineTypeStyle={handleUpdateActiveLineTypeStyle}
-        onUpdateActiveLineTypeColor={handleUpdateActiveLineTypeColor}
-        onSelectShapesByActiveType={handleSelectShapesByActiveLineType}
-        onAssignSelectedToActiveType={handleAssignSelectedToActiveLineType}
-        onClearSelection={handleClearShapeSelection}
-      />
-
-      <HelpModal open={showHelpModal} onClose={() => setShowHelpModal(false)} />
-
-      <LayerColorModal
-        open={showLayerColorModal}
-        onClose={() => setShowLayerColorModal(false)}
-        layers={layers}
-        layerColorsById={layerColorsById}
-        layerColorOverrides={layerColorOverrides}
-        frontLayerColor={frontLayerColor}
-        backLayerColor={backLayerColor}
-        onFrontLayerColorChange={(color) => setFrontLayerColor(normalizeHexColor(color, DEFAULT_FRONT_LAYER_COLOR))}
-        onBackLayerColorChange={(color) => setBackLayerColor(normalizeHexColor(color, DEFAULT_BACK_LAYER_COLOR))}
-        onSetLayerColorOverride={handleSetLayerColorOverride}
-        onClearLayerColorOverride={handleClearLayerColorOverride}
-        onResetLayerColors={handleResetLayerColors}
-      />
-
-      <ExportOptionsModal
-        open={showExportOptionsModal}
-        onClose={() => setShowExportOptionsModal(false)}
-        activeExportRoleCount={activeExportRoleCount}
-        exportOnlySelectedShapes={exportOnlySelectedShapes}
-        exportOnlyVisibleLineTypes={exportOnlyVisibleLineTypes}
-        exportForceSolidStrokes={exportForceSolidStrokes}
-        exportRoleFilters={exportRoleFilters}
-        dxfVersion={dxfVersion}
-        dxfFlipY={dxfFlipY}
-        onExportOnlySelectedShapesChange={setExportOnlySelectedShapes}
-        onExportOnlyVisibleLineTypesChange={setExportOnlyVisibleLineTypes}
-        onExportForceSolidStrokesChange={setExportForceSolidStrokes}
-        onExportRoleFilterChange={(role, enabled) =>
-          setExportRoleFilters((previous) => ({
-            ...previous,
-            [role]: enabled,
-          }))
-        }
-        onDxfVersionChange={setDxfVersion}
-        onDxfFlipYChange={setDxfFlipY}
-        onResetDefaults={handleResetExportOptions}
-      />
-
-      <TemplateRepositoryModal
-        open={showTemplateRepositoryModal}
-        onClose={() => setShowTemplateRepositoryModal(false)}
-        templateRepository={templateRepository}
-        selectedTemplateEntryId={selectedTemplateEntryId}
-        selectedTemplateEntry={selectedTemplateEntry}
-        onSelectTemplateEntry={setSelectedTemplateEntryId}
-        onSaveTemplate={handleSaveTemplateToRepository}
-        onExportRepository={handleExportTemplateRepository}
-        onImportRepository={() => templateImportInputRef.current?.click()}
-        onLoadAsDocument={handleLoadTemplateAsDocument}
-        onInsertIntoDocument={handleInsertTemplateIntoDocument}
-        onDeleteTemplate={handleDeleteTemplateFromRepository}
-      />
-
-      <PatternToolsModal
-        open={showPatternToolsModal}
-        onClose={() => setShowPatternToolsModal(false)}
-        snapSettings={snapSettings}
-        onSetSnapSettings={setSnapSettings}
-        selectedShapeCount={selectedShapeCount}
-        onAlignSelection={handleAlignSelection}
-        onAlignSelectionToGrid={handleAlignSelectionToGrid}
-        activeLayer={activeLayer}
-        activeLayerId={activeLayerId}
-        sketchGroups={sketchGroups}
-        activeSketchGroup={activeSketchGroup}
-        onSetActiveSketchGroupId={setActiveSketchGroupId}
-        onCreateSketchGroupFromSelection={handleCreateSketchGroupFromSelection}
-        onDuplicateActiveSketchGroup={handleDuplicateActiveSketchGroup}
-        onRenameActiveSketchGroup={handleRenameActiveSketchGroup}
-        onToggleActiveSketchGroupVisibility={handleToggleActiveSketchGroupVisibility}
-        onToggleActiveSketchGroupLock={handleToggleActiveSketchGroupLock}
-        onClearActiveSketchGroup={handleClearActiveSketchGroup}
-        onDeleteActiveSketchGroup={handleDeleteActiveSketchGroup}
-        onSetActiveLayerAnnotation={handleSetActiveLayerAnnotation}
-        onSetActiveSketchAnnotation={handleSetActiveSketchAnnotation}
-        showAnnotations={showAnnotations}
-        onSetShowAnnotations={setShowAnnotations}
-        constraintEdge={constraintEdge}
-        onSetConstraintEdge={setConstraintEdge}
-        constraintOffsetMm={constraintOffsetMm}
-        onSetConstraintOffsetMm={setConstraintOffsetMm}
-        constraintAxis={constraintAxis}
-        onSetConstraintAxis={setConstraintAxis}
-        onAddEdgeConstraintFromSelection={handleAddEdgeConstraintFromSelection}
-        onAddAlignConstraintsFromSelection={handleAddAlignConstraintsFromSelection}
-        onApplyConstraints={handleApplyConstraints}
-        constraints={constraints}
-        onToggleConstraintEnabled={handleToggleConstraintEnabled}
-        onDeleteConstraint={handleDeleteConstraint}
-        seamAllowanceInputMm={seamAllowanceInputMm}
-        onSetSeamAllowanceInputMm={setSeamAllowanceInputMm}
-        onApplySeamAllowanceToSelection={handleApplySeamAllowanceToSelection}
-        onClearSeamAllowanceOnSelection={handleClearSeamAllowanceOnSelection}
-        onClearAllSeamAllowances={handleClearAllSeamAllowances}
-        seamAllowanceCount={seamAllowances.length}
-        hardwarePreset={hardwarePreset}
-        onSetHardwarePreset={setHardwarePreset}
-        customHardwareDiameterMm={customHardwareDiameterMm}
-        onSetCustomHardwareDiameterMm={setCustomHardwareDiameterMm}
-        customHardwareSpacingMm={customHardwareSpacingMm}
-        onSetCustomHardwareSpacingMm={setCustomHardwareSpacingMm}
-        onSetActiveTool={setActiveTool}
-        selectedHardwareMarker={selectedHardwareMarker}
-        onUpdateSelectedHardwareMarker={handleUpdateSelectedHardwareMarker}
-        onDeleteSelectedHardwareMarker={handleDeleteSelectedHardwareMarker}
-      />
-
-      <TracingModal
-        open={showTracingModal}
-        onClose={() => setShowTracingModal(false)}
-        tracingOverlays={tracingOverlays}
-        activeTracingOverlay={activeTracingOverlay}
-        onImportTracing={() => tracingInputRef.current?.click()}
-        onDeleteActiveTracing={() => {
-          if (activeTracingOverlay) {
-            handleDeleteTracingOverlay(activeTracingOverlay.id)
-          }
+          onShowAllTypes: handleShowAllLineTypes,
+          onIsolateActiveType: handleIsolateActiveLineType,
+          onUpdateActiveLineTypeRole: handleUpdateActiveLineTypeRole,
+          onUpdateActiveLineTypeStyle: handleUpdateActiveLineTypeStyle,
+          onUpdateActiveLineTypeColor: handleUpdateActiveLineTypeColor,
+          onSelectShapesByActiveType: handleSelectShapesByActiveLineType,
+          onAssignSelectedToActiveType: handleAssignSelectedToActiveLineType,
+          onClearSelection: handleClearShapeSelection,
         }}
-        onSetActiveTracingOverlayId={setActiveTracingOverlayId}
-        onUpdateTracingOverlay={handleUpdateTracingOverlay}
-      />
-
-      <PrintPreviewModal
-        open={showPrintPreviewModal}
-        onClose={() => setShowPrintPreviewModal(false)}
-        printPaper={printPaper}
-        onSetPrintPaper={setPrintPaper}
-        printScalePercent={printScalePercent}
-        onSetPrintScalePercent={setPrintScalePercent}
-        printTileX={printTileX}
-        onSetPrintTileX={setPrintTileX}
-        printTileY={printTileY}
-        onSetPrintTileY={setPrintTileY}
-        printOverlapMm={printOverlapMm}
-        onSetPrintOverlapMm={setPrintOverlapMm}
-        printMarginMm={printMarginMm}
-        onSetPrintMarginMm={setPrintMarginMm}
-        printSelectedOnly={printSelectedOnly}
-        onSetPrintSelectedOnly={setPrintSelectedOnly}
-        printRulerInside={printRulerInside}
-        onSetPrintRulerInside={setPrintRulerInside}
-        printInColor={printInColor}
-        onSetPrintInColor={setPrintInColor}
-        printStitchAsDots={printStitchAsDots}
-        onSetPrintStitchAsDots={setPrintStitchAsDots}
-        printPlan={printPlan}
-        showPrintAreas={showPrintAreas}
-        onTogglePrintAreas={() => setShowPrintAreas((previous) => !previous)}
-        onFitView={handleFitView}
+        helpModalProps={{
+          open: showHelpModal,
+          onClose: () => setShowHelpModal(false),
+        }}
+        layerColorModalProps={{
+          open: showLayerColorModal,
+          onClose: () => setShowLayerColorModal(false),
+          layers,
+          layerColorsById,
+          layerColorOverrides,
+          frontLayerColor,
+          backLayerColor,
+          onFrontLayerColorChange: (color) => setFrontLayerColor(normalizeHexColor(color, DEFAULT_FRONT_LAYER_COLOR)),
+          onBackLayerColorChange: (color) => setBackLayerColor(normalizeHexColor(color, DEFAULT_BACK_LAYER_COLOR)),
+          onSetLayerColorOverride: handleSetLayerColorOverride,
+          onClearLayerColorOverride: handleClearLayerColorOverride,
+          onResetLayerColors: handleResetLayerColors,
+        }}
+        exportOptionsModalProps={{
+          open: showExportOptionsModal,
+          onClose: () => setShowExportOptionsModal(false),
+          activeExportRoleCount,
+          exportOnlySelectedShapes,
+          exportOnlyVisibleLineTypes,
+          exportForceSolidStrokes,
+          exportRoleFilters,
+          dxfVersion,
+          dxfFlipY,
+          onExportOnlySelectedShapesChange: setExportOnlySelectedShapes,
+          onExportOnlyVisibleLineTypesChange: setExportOnlyVisibleLineTypes,
+          onExportForceSolidStrokesChange: setExportForceSolidStrokes,
+          onExportRoleFilterChange: (role, enabled) =>
+            setExportRoleFilters((previous) => ({
+              ...previous,
+              [role]: enabled,
+            })),
+          onDxfVersionChange: setDxfVersion,
+          onDxfFlipYChange: setDxfFlipY,
+          onResetDefaults: handleResetExportOptions,
+        }}
+        templateRepositoryModalProps={{
+          open: showTemplateRepositoryModal,
+          onClose: () => setShowTemplateRepositoryModal(false),
+          templateRepository,
+          selectedTemplateEntryId,
+          selectedTemplateEntry,
+          onSelectTemplateEntry: setSelectedTemplateEntryId,
+          onSaveTemplate: handleSaveTemplateToRepository,
+          onExportRepository: handleExportTemplateRepository,
+          onImportRepository: () => templateImportInputRef.current?.click(),
+          onLoadAsDocument: handleLoadTemplateAsDocument,
+          onInsertIntoDocument: handleInsertTemplateIntoDocument,
+          onDeleteTemplate: handleDeleteTemplateFromRepository,
+        }}
+        patternToolsModalProps={{
+          open: showPatternToolsModal,
+          onClose: () => setShowPatternToolsModal(false),
+          snapSettings,
+          onSetSnapSettings: setSnapSettings,
+          selectedShapeCount,
+          onAlignSelection: handleAlignSelection,
+          onAlignSelectionToGrid: handleAlignSelectionToGrid,
+          activeLayer,
+          activeLayerId,
+          sketchGroups,
+          activeSketchGroup,
+          onSetActiveSketchGroupId: setActiveSketchGroupId,
+          onCreateSketchGroupFromSelection: handleCreateSketchGroupFromSelection,
+          onDuplicateActiveSketchGroup: handleDuplicateActiveSketchGroup,
+          onRenameActiveSketchGroup: handleRenameActiveSketchGroup,
+          onToggleActiveSketchGroupVisibility: handleToggleActiveSketchGroupVisibility,
+          onToggleActiveSketchGroupLock: handleToggleActiveSketchGroupLock,
+          onClearActiveSketchGroup: handleClearActiveSketchGroup,
+          onDeleteActiveSketchGroup: handleDeleteActiveSketchGroup,
+          onSetActiveLayerAnnotation: handleSetActiveLayerAnnotation,
+          onSetActiveSketchAnnotation: handleSetActiveSketchAnnotation,
+          showAnnotations,
+          onSetShowAnnotations: setShowAnnotations,
+          constraintEdge,
+          onSetConstraintEdge: setConstraintEdge,
+          constraintOffsetMm,
+          onSetConstraintOffsetMm: setConstraintOffsetMm,
+          constraintAxis,
+          onSetConstraintAxis: setConstraintAxis,
+          onAddEdgeConstraintFromSelection: handleAddEdgeConstraintFromSelection,
+          onAddAlignConstraintsFromSelection: handleAddAlignConstraintsFromSelection,
+          onApplyConstraints: handleApplyConstraints,
+          constraints,
+          onToggleConstraintEnabled: handleToggleConstraintEnabled,
+          onDeleteConstraint: handleDeleteConstraint,
+          seamAllowanceInputMm,
+          onSetSeamAllowanceInputMm: setSeamAllowanceInputMm,
+          onApplySeamAllowanceToSelection: handleApplySeamAllowanceToSelection,
+          onClearSeamAllowanceOnSelection: handleClearSeamAllowanceOnSelection,
+          onClearAllSeamAllowances: handleClearAllSeamAllowances,
+          seamAllowanceCount: seamAllowances.length,
+          hardwarePreset,
+          onSetHardwarePreset: setHardwarePreset,
+          customHardwareDiameterMm,
+          onSetCustomHardwareDiameterMm: setCustomHardwareDiameterMm,
+          customHardwareSpacingMm,
+          onSetCustomHardwareSpacingMm: setCustomHardwareSpacingMm,
+          onSetActiveTool: setActiveTool,
+          selectedHardwareMarker,
+          onUpdateSelectedHardwareMarker: handleUpdateSelectedHardwareMarker,
+          onDeleteSelectedHardwareMarker: handleDeleteSelectedHardwareMarker,
+        }}
+        tracingModalProps={{
+          open: showTracingModal,
+          onClose: () => setShowTracingModal(false),
+          tracingOverlays,
+          activeTracingOverlay,
+          onImportTracing: () => tracingInputRef.current?.click(),
+          onDeleteActiveTracing: () => {
+            if (activeTracingOverlay) {
+              handleDeleteTracingOverlay(activeTracingOverlay.id)
+            }
+          },
+          onSetActiveTracingOverlayId: setActiveTracingOverlayId,
+          onUpdateTracingOverlay: handleUpdateTracingOverlay,
+        }}
+        printPreviewModalProps={{
+          open: showPrintPreviewModal,
+          onClose: () => setShowPrintPreviewModal(false),
+          printPaper,
+          onSetPrintPaper: setPrintPaper,
+          printScalePercent,
+          onSetPrintScalePercent: setPrintScalePercent,
+          printTileX,
+          onSetPrintTileX: setPrintTileX,
+          printTileY,
+          onSetPrintTileY: setPrintTileY,
+          printOverlapMm,
+          onSetPrintOverlapMm: setPrintOverlapMm,
+          printMarginMm,
+          onSetPrintMarginMm: setPrintMarginMm,
+          printSelectedOnly,
+          onSetPrintSelectedOnly: setPrintSelectedOnly,
+          printRulerInside,
+          onSetPrintRulerInside: setPrintRulerInside,
+          printInColor,
+          onSetPrintInColor: setPrintInColor,
+          printStitchAsDots,
+          onSetPrintStitchAsDots: setPrintStitchAsDots,
+          printPlan,
+          showPrintAreas,
+          onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),
+          onFitView: handleFitView,
+        }}
       />
 
       <EditorStatusBar
