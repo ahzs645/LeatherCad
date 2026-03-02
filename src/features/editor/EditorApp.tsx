@@ -11,12 +11,10 @@ import {
   clamp,
   distance,
   getBounds,
-  isShapeLike,
   round,
   uid,
 } from './cad/cad-geometry'
 import type {
-  AlignConstraint,
   ConstraintAxis,
   ConstraintEdge,
   DocFile,
@@ -45,13 +43,10 @@ import {
   createDefaultLineTypes,
   lineTypeStrokeDasharray,
   normalizeLineTypes,
-  parseLineType,
   resolveActiveLineTypeId,
-  resolveShapeLineTypeId,
 } from './cad/line-types'
-import { applyLineTypeToShapeIds, countShapesByLineType } from './ops/line-type-ops'
+import { applyLineTypeToShapeIds } from './ops/line-type-ops'
 import {
-  countStitchHolesByShape,
   createStitchHole,
   deleteStitchHolesForShapes,
   fixStitchHoleOrderFromHole,
@@ -59,7 +54,6 @@ import {
   generateFixedPitchStitchHoles,
   generateVariablePitchStitchHoles,
   normalizeStitchHoleSequences,
-  parseStitchHole,
   resequenceStitchHolesOnShape,
   selectNextStitchHole,
 } from './ops/stitch-hole-ops'
@@ -68,7 +62,7 @@ import { buildDxfFromShapes } from './io/io-dxf'
 import { buildPdfFromShapes } from './io/io-pdf'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './data/sample-doc'
 import { applyRedo, applyUndo, deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
-import { buildPrintPlan, type PrintPaper } from './preview/print-preview'
+import type { PrintPaper } from './preview/print-preview'
 import {
   createTemplateFromDoc,
   insertTemplateDocIntoCurrent,
@@ -89,9 +83,6 @@ import {
   alignSelectedShapes,
   alignSelectedShapesToGrid,
   applyParametricConstraints,
-  buildSeamAllowancePath,
-  computeBoundsFromShapes,
-  getShapeAnchorPoint,
   snapPointToContext,
   translateShape,
 } from './ops/pattern-ops'
@@ -112,8 +103,6 @@ import {
   DEFAULT_SEAM_ALLOWANCE_MM,
   DEFAULT_SNAP_SETTINGS,
   DESKTOP_RIBBON_TABS,
-  FOLD_COLOR_DARK,
-  FOLD_COLOR_LIGHT,
   GRID_EXTENT,
   GRID_STEP,
   HARDWARE_PRESETS,
@@ -122,24 +111,14 @@ import {
   MIN_ZOOM,
   MOBILE_MEDIA_QUERY,
   MOBILE_OPTIONS_TABS,
-  STITCH_COLOR_DARK,
-  STITCH_COLOR_LIGHT,
   SUB_SKETCH_COPY_OFFSET_MM,
   TOOL_OPTIONS,
 } from './editor-constants'
 import {
-  parseConstraint,
-  parseFoldLine,
-  parseHardwareMarker,
-  parseLayer,
-  parseSeamAllowance,
-  parseSketchGroup,
   parseSnapSettings,
-  parseTracingOverlay,
   sanitizeFoldLine,
 } from './editor-parsers'
 import type {
-  AnnotationLabel,
   DesktopRibbonTab,
   DxfVersion,
   EditorSnapshot,
@@ -149,19 +128,18 @@ import type {
   MobileLayerAction,
   MobileOptionsTab,
   MobileViewMode,
-  SeamGuide,
   ThemeMode,
 } from './editor-types'
 import {
-  buildDocSnapshotSignature,
   createDefaultLayer,
   downloadFile,
-  interpolateHexColor,
   newLayerName,
   newSketchGroupName,
   normalizeHexColor,
   toolLabel,
 } from './editor-utils'
+import { useEditorDerivedState } from './hooks/useEditorDerivedState'
+import { parseImportedJsonDocument } from './editor-json-import'
 
 export function EditorApp() {
   const initialLayerIdRef = useRef(uid())
@@ -267,326 +245,82 @@ export function EditorApp() {
   const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
     null,
   )
-
-  const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? layers[0] ?? null, [layers, activeLayerId])
-  const sketchGroupsById = useMemo(
-    () => Object.fromEntries(sketchGroups.map((group) => [group.id, group])),
-    [sketchGroups],
-  )
-  const activeSketchGroup = useMemo(
-    () => (activeSketchGroupId ? sketchGroups.find((group) => group.id === activeSketchGroupId) ?? null : null),
-    [sketchGroups, activeSketchGroupId],
-  )
-  const activeLineType = useMemo(
-    () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
-    [lineTypes, activeLineTypeId],
-  )
-  const lineTypesById = useMemo(
-    () => Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType])),
-    [lineTypes],
-  )
-  const shapesById = useMemo(
-    () => Object.fromEntries(shapes.map((shape) => [shape.id, shape])),
-    [shapes],
-  )
-  const selectedShapeIdSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds])
-  const shapeCountsByLineType = useMemo(() => countShapesByLineType(shapes), [shapes])
-  const stitchHoleCountsByShape = useMemo(() => countStitchHolesByShape(stitchHoles), [stitchHoles])
-  const selectedShapeCount = selectedShapeIds.length
-  const selectedStitchHoleCount = useMemo(
-    () => selectedShapeIds.reduce((sum, shapeId) => sum + (stitchHoleCountsByShape[shapeId] ?? 0), 0),
-    [selectedShapeIds, stitchHoleCountsByShape],
-  )
-  const selectedStitchHole = useMemo(
-    () => stitchHoles.find((stitchHole) => stitchHole.id === selectedStitchHoleId) ?? null,
-    [stitchHoles, selectedStitchHoleId],
-  )
-  const selectedHardwareMarker = useMemo(
-    () => hardwareMarkers.find((marker) => marker.id === selectedHardwareMarkerId) ?? null,
-    [hardwareMarkers, selectedHardwareMarkerId],
-  )
-  const activeTracingOverlay = useMemo(
-    () => tracingOverlays.find((overlay) => overlay.id === activeTracingOverlayId) ?? null,
-    [tracingOverlays, activeTracingOverlayId],
-  )
-  const selectedTemplateEntry = useMemo(
-    () => templateRepository.find((entry) => entry.id === selectedTemplateEntryId) ?? null,
-    [templateRepository, selectedTemplateEntryId],
-  )
-  const canUndo = historyState.past.length > 0
-  const canRedo = historyState.future.length > 0
-  const visibleShapes = useMemo(() => {
-    const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
-    const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
-    return shapes.filter((shape) => {
-      if (!visibleLayerIds.has(shape.layerId) || !visibleLineTypeIds.has(shape.lineTypeId)) {
-        return false
-      }
-      if (!shape.groupId) {
-        return true
-      }
-      const group = sketchGroupsById[shape.groupId]
-      return group ? group.visible : true
-    })
-  }, [layers, lineTypes, shapes, sketchGroupsById])
-  const visibleShapeIdSet = useMemo(() => new Set(visibleShapes.map((shape) => shape.id)), [visibleShapes])
-  const visibleStitchHoles = useMemo(
-    () =>
-      stitchHoles.filter((stitchHole) => {
-        const shape = shapesById[stitchHole.shapeId]
-        if (!shape || !visibleShapeIdSet.has(shape.id)) {
-          return false
-        }
-        const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
-        return lineTypeRole === 'stitch'
-      }),
-    [stitchHoles, shapesById, visibleShapeIdSet, lineTypesById],
-  )
-  const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
-  const visibleHardwareMarkers = useMemo(
-    () =>
-      hardwareMarkers.filter((marker) => {
-        if (!marker.visible || !visibleLayerIdSet.has(marker.layerId)) {
-          return false
-        }
-        if (!marker.groupId) {
-          return true
-        }
-        const group = sketchGroupsById[marker.groupId]
-        return group ? group.visible : true
-      }),
-    [hardwareMarkers, visibleLayerIdSet, sketchGroupsById],
-  )
-  const seamGuides = useMemo<SeamGuide[]>(
-    () =>
-      seamAllowances
-        .map((entry) => {
-          const shape = shapesById[entry.shapeId]
-          if (!shape || !visibleShapeIdSet.has(shape.id)) {
-            return null
-          }
-          const d = buildSeamAllowancePath(shape, entry.offsetMm)
-          if (!d) {
-            return null
-          }
-          return {
-            id: entry.id,
-            shapeId: shape.id,
-            d,
-            labelPoint: getShapeAnchorPoint(shape, 'center'),
-            offsetMm: entry.offsetMm,
-          }
-        })
-        .filter((entry): entry is SeamGuide => entry !== null),
-    [seamAllowances, shapesById, visibleShapeIdSet],
-  )
-  const annotationLabels = useMemo<AnnotationLabel[]>(() => {
-    if (!showAnnotations) {
-      return []
-    }
-
-    const labels: AnnotationLabel[] = []
-    for (const layer of layers) {
-      if (!layer.visible || !layer.annotation || layer.annotation.trim().length === 0) {
-        continue
-      }
-      const onLayer = visibleShapes.filter((shape) => shape.layerId === layer.id)
-      const bounds = computeBoundsFromShapes(onLayer)
-      if (!bounds) {
-        continue
-      }
-      labels.push({
-        id: `layer-${layer.id}`,
-        text: layer.annotation.trim(),
-        point: { x: bounds.minX + 6, y: bounds.minY - 8 },
-      })
-    }
-
-    for (const group of sketchGroups) {
-      if (!group.visible || !group.annotation || group.annotation.trim().length === 0) {
-        continue
-      }
-      const onGroup = visibleShapes.filter((shape) => shape.groupId === group.id)
-      const bounds = computeBoundsFromShapes(onGroup)
-      if (!bounds) {
-        continue
-      }
-      labels.push({
-        id: `group-${group.id}`,
-        text: group.annotation.trim(),
-        point: { x: bounds.minX + 6, y: bounds.minY - 8 },
-      })
-    }
-
-    for (const marker of visibleHardwareMarkers) {
-      if (!marker.notes || marker.notes.trim().length === 0) {
-        continue
-      }
-      labels.push({
-        id: `hardware-${marker.id}`,
-        text: marker.notes.trim(),
-        point: { x: marker.point.x + 7, y: marker.point.y - 7 },
-      })
-    }
-
-    return labels
-  }, [showAnnotations, layers, sketchGroups, visibleShapes, visibleHardwareMarkers])
-  const lineTypeStylesById = useMemo(
-    () =>
-      Object.fromEntries(
-        lineTypes.map((lineType) => [lineType.id, lineType.style] as const),
-      ),
-    [lineTypes],
-  )
-  const printableShapes = useMemo(() => {
-    if (!printSelectedOnly) {
-      return visibleShapes
-    }
-    return visibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-  }, [printSelectedOnly, visibleShapes, selectedShapeIdSet])
-  const printPlan = useMemo(
-    () =>
-      buildPrintPlan(printableShapes, {
-        paper: printPaper,
-        marginMm: printMarginMm,
-        overlapMm: printOverlapMm,
-        tileX: printTileX,
-        tileY: printTileY,
-        scalePercent: printScalePercent,
-      }),
-    [printableShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
-  )
-  const activeExportRoleCount = useMemo(
-    () => Object.values(exportRoleFilters).filter((value) => value).length,
-    [exportRoleFilters],
-  )
-  const layerColorsById = useMemo(() => {
-    const colorMap: Record<string, string> = {}
-    const denominator = Math.max(layers.length - 1, 1)
-
-    for (const [index, layer] of layers.entries()) {
-      const continuumColor = interpolateHexColor(frontLayerColor, backLayerColor, index / denominator)
-      colorMap[layer.id] = layerColorOverrides[layer.id] ?? continuumColor
-    }
-
-    return colorMap
-  }, [layers, frontLayerColor, backLayerColor, layerColorOverrides])
-  const layerStackLevels = useMemo(() => {
-    const stackMap: Record<string, number> = {}
-    for (const [index, layer] of layers.entries()) {
-      stackMap[layer.id] =
-        typeof layer.stackLevel === 'number' && Number.isFinite(layer.stackLevel)
-          ? Math.max(0, Math.round(layer.stackLevel))
-          : index
-    }
-    return stackMap
-  }, [layers])
-  const stackColorsByLevel = useMemo(() => {
-    const uniqueStackLevels = Array.from(new Set(layers.map((layer) => layerStackLevels[layer.id] ?? 0))).sort(
-      (left, right) => left - right,
-    )
-    const denominator = Math.max(uniqueStackLevels.length - 1, 1)
-    const colorMap: Record<number, string> = {}
-
-    uniqueStackLevels.forEach((stackLevel, index) => {
-      colorMap[stackLevel] = interpolateHexColor(frontLayerColor, backLayerColor, index / denominator)
-    })
-
-    return colorMap
-  }, [layers, layerStackLevels, frontLayerColor, backLayerColor])
-  const stackColorsByLayerId = useMemo(() => {
-    const colorMap: Record<string, string> = {}
-    for (const [index, layer] of layers.entries()) {
-      const stackLevel = layerStackLevels[layer.id] ?? index
-      colorMap[layer.id] = stackColorsByLevel[stackLevel] ?? DEFAULT_FRONT_LAYER_COLOR
-    }
-    return colorMap
-  }, [layers, layerStackLevels, stackColorsByLevel])
-  const stackLegendEntries = useMemo(() => {
-    const grouped = new Map<number, { layerNames: string[]; layerColors: string[] }>()
-    for (const layer of layers) {
-      const stackLevel = layerStackLevels[layer.id] ?? 0
-      const entry = grouped.get(stackLevel) ?? { layerNames: [], layerColors: [] }
-      entry.layerNames.push(layer.name)
-      entry.layerColors.push(layerColorsById[layer.id] ?? stackColorsByLevel[stackLevel] ?? DEFAULT_FRONT_LAYER_COLOR)
-      grouped.set(stackLevel, entry)
-    }
-
-    return Array.from(grouped.entries())
-      .map(([stackLevel, entry]) => {
-        const uniqueColors = Array.from(new Set(entry.layerColors))
-        return {
-          stackLevel,
-          layerNames: entry.layerNames,
-          swatchBackground:
-            uniqueColors.length > 1
-              ? `linear-gradient(90deg, ${uniqueColors.join(', ')})`
-              : uniqueColors[0] ?? DEFAULT_FRONT_LAYER_COLOR,
-        }
-      })
-      .sort((left, right) => left.stackLevel - right.stackLevel)
-  }, [layers, layerStackLevels, layerColorsById, stackColorsByLevel])
-  const displayLayerColorsById = legendMode === 'stack' ? stackColorsByLayerId : layerColorsById
-  const activeLayerColor = activeLayer
-    ? displayLayerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR
-    : DEFAULT_FRONT_LAYER_COLOR
-  const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
-  const cutStrokeColor = lineTypes.find((lineType) => lineType.role === 'cut')?.color ?? fallbackLayerStroke
-  const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
-  const foldStrokeColor = themeMode === 'light' ? FOLD_COLOR_LIGHT : FOLD_COLOR_DARK
-  const activeLineTypeStrokeColor =
-    activeLineType?.role === 'stitch'
-      ? stitchStrokeColor
-      : activeLineType?.role === 'fold'
-        ? foldStrokeColor
-        : activeLineType?.color ?? activeLayerColor
-  const activeLineTypeDasharray = lineTypeStrokeDasharray(activeLineType?.style ?? 'solid')
-  const currentSnapshot = useMemo<EditorSnapshot>(
-    () => ({
-      layers: deepClone(layers),
-      activeLayerId,
-      sketchGroups: deepClone(sketchGroups),
-      activeSketchGroupId,
-      lineTypes: deepClone(lineTypes),
-      activeLineTypeId,
-      shapes: deepClone(shapes),
-      foldLines: deepClone(foldLines),
-      stitchHoles: deepClone(stitchHoles),
-      constraints: deepClone(constraints),
-      seamAllowances: deepClone(seamAllowances),
-      hardwareMarkers: deepClone(hardwareMarkers),
-      snapSettings: deepClone(snapSettings),
-      showAnnotations,
-      tracingOverlays: deepClone(tracingOverlays),
-      layerColorOverrides: deepClone(layerColorOverrides),
-      frontLayerColor,
-      backLayerColor,
-    }),
-    [
-      layers,
-      activeLayerId,
-      sketchGroups,
-      activeSketchGroupId,
-      lineTypes,
-      activeLineTypeId,
-      shapes,
-      foldLines,
-      stitchHoles,
-      constraints,
-      seamAllowances,
-      hardwareMarkers,
-      snapSettings,
-      showAnnotations,
-      tracingOverlays,
-      layerColorOverrides,
-      frontLayerColor,
-      backLayerColor,
-    ],
-  )
-  const currentSnapshotSignature = useMemo(
-    () => buildDocSnapshotSignature(currentSnapshot),
-    [currentSnapshot],
-  )
+  const {
+    activeLayer,
+    sketchGroupsById,
+    activeSketchGroup,
+    activeLineType,
+    lineTypesById,
+    shapesById,
+    selectedShapeIdSet,
+    shapeCountsByLineType,
+    stitchHoleCountsByShape,
+    selectedShapeCount,
+    selectedStitchHoleCount,
+    selectedStitchHole,
+    selectedHardwareMarker,
+    activeTracingOverlay,
+    selectedTemplateEntry,
+    canUndo,
+    canRedo,
+    visibleShapes,
+    visibleStitchHoles,
+    visibleLayerIdSet,
+    visibleHardwareMarkers,
+    seamGuides,
+    annotationLabels,
+    lineTypeStylesById,
+    printPlan,
+    activeExportRoleCount,
+    layerColorsById,
+    layerStackLevels,
+    stackLegendEntries,
+    displayLayerColorsById,
+    fallbackLayerStroke,
+    cutStrokeColor,
+    stitchStrokeColor,
+    foldStrokeColor,
+    activeLineTypeStrokeColor,
+    activeLineTypeDasharray,
+    currentSnapshot,
+    currentSnapshotSignature,
+  } = useEditorDerivedState({
+    layers,
+    activeLayerId,
+    sketchGroups,
+    activeSketchGroupId,
+    lineTypes,
+    activeLineTypeId,
+    shapes,
+    foldLines,
+    stitchHoles,
+    constraints,
+    seamAllowances,
+    hardwareMarkers,
+    snapSettings,
+    showAnnotations,
+    tracingOverlays,
+    activeTracingOverlayId,
+    selectedShapeIds,
+    selectedStitchHoleId,
+    selectedHardwareMarkerId,
+    templateRepository,
+    selectedTemplateEntryId,
+    historyState,
+    printSelectedOnly,
+    printPaper,
+    printMarginMm,
+    printOverlapMm,
+    printTileX,
+    printTileY,
+    printScalePercent,
+    exportRoleFilters,
+    frontLayerColor,
+    backLayerColor,
+    layerColorOverrides,
+    legendMode,
+    themeMode,
+  })
 
   const applyEditorSnapshot = (snapshot: EditorSnapshot) => {
     setLayers(snapshot.layers)
@@ -2083,242 +1817,10 @@ export function EditorApp() {
 
     try {
       const raw = await file.text()
-      const parsed = JSON.parse(raw) as {
-        objects?: unknown[]
-        foldLines?: unknown[]
-        stitchHoles?: unknown[]
-        constraints?: unknown[]
-        seamAllowances?: unknown[]
-        hardwareMarkers?: unknown[]
-        sketchGroups?: unknown[]
-        activeSketchGroupId?: unknown
-        snapSettings?: unknown
-        showAnnotations?: unknown
-        tracingOverlays?: unknown[]
-        layers?: unknown[]
-        activeLayerId?: unknown
-        lineTypes?: unknown[]
-        activeLineTypeId?: unknown
-      }
-
-      if (!Array.isArray(parsed.objects)) {
-        throw new Error('Missing objects array')
-      }
-
-      const parsedLayers =
-        Array.isArray(parsed.layers)
-          ? parsed.layers.map(parseLayer).filter((layer): layer is Layer => layer !== null)
-          : []
-
-      const nextLayers =
-        parsedLayers.length > 0
-          ? parsedLayers
-          : [
-              {
-                id: uid(),
-                name: 'Layer 1',
-                visible: true,
-                locked: false,
-                stackLevel: 0,
-              },
-            ]
-
-      const nextActiveLayerId =
-        typeof parsed.activeLayerId === 'string' && nextLayers.some((layer) => layer.id === parsed.activeLayerId)
-          ? parsed.activeLayerId
-          : nextLayers[0].id
-      const nextLayerIdSet = new Set(nextLayers.map((layer) => layer.id))
-      const nextSketchGroups = Array.isArray(parsed.sketchGroups)
-        ? parsed.sketchGroups
-            .map(parseSketchGroup)
-            .filter((group): group is SketchGroup => group !== null && nextLayerIdSet.has(group.layerId))
-        : []
-      const nextSketchGroupIdSet = new Set(nextSketchGroups.map((group) => group.id))
-      const nextSketchGroupById = Object.fromEntries(nextSketchGroups.map((group) => [group.id, group]))
-      const nextActiveSketchGroupId =
-        typeof parsed.activeSketchGroupId === 'string' && nextSketchGroupIdSet.has(parsed.activeSketchGroupId)
-          ? parsed.activeSketchGroupId
-          : null
-
-      const parsedLineTypes = Array.isArray(parsed.lineTypes)
-        ? parsed.lineTypes.map((candidate, index) => parseLineType(candidate, index)).filter((lineType): lineType is LineType => lineType !== null)
-        : []
-      const nextLineTypes = normalizeLineTypes(parsedLineTypes)
-      const nextActiveLineTypeId = resolveActiveLineTypeId(nextLineTypes, parsed.activeLineTypeId)
-
-      const nextShapes: Shape[] = []
-      const shapeIdMap = new Map<string, string>()
-      for (const candidate of parsed.objects) {
-        if (!isShapeLike(candidate)) {
-          throw new Error('Invalid shape in objects array')
-        }
-
-        const rawLayerId =
-          typeof (candidate as { layerId?: unknown }).layerId === 'string'
-            ? (candidate as { layerId: string }).layerId
-            : nextActiveLayerId
-        const layerId = nextLayers.some((layer) => layer.id === rawLayerId) ? rawLayerId : nextActiveLayerId
-        const lineTypeId = resolveShapeLineTypeId(
-          nextLineTypes,
-          (candidate as { lineTypeId?: unknown }).lineTypeId,
-          nextActiveLineTypeId,
-        )
-        const rawGroupId =
-          typeof (candidate as { groupId?: unknown }).groupId === 'string'
-            ? (candidate as { groupId: string }).groupId
-            : null
-        const groupId =
-          rawGroupId && nextSketchGroupIdSet.has(rawGroupId) && nextSketchGroupById[rawGroupId]?.layerId === layerId
-            ? rawGroupId
-            : undefined
-
-        const sourceShapeId =
-          typeof (candidate as { id?: unknown }).id === 'string' && (candidate as { id: string }).id.length > 0
-            ? (candidate as { id: string }).id
-            : uid()
-        const nextShapeId = uid()
-        shapeIdMap.set(sourceShapeId, nextShapeId)
-
-        if (candidate.type === 'line') {
-          nextShapes.push({
-            id: nextShapeId,
-            type: 'line',
-            layerId,
-            lineTypeId,
-            groupId,
-            start: candidate.start,
-            end: candidate.end,
-          })
-        } else if (candidate.type === 'arc') {
-          nextShapes.push({
-            id: nextShapeId,
-            type: 'arc',
-            layerId,
-            lineTypeId,
-            groupId,
-            start: candidate.start,
-            mid: candidate.mid,
-            end: candidate.end,
-          })
-        } else {
-          nextShapes.push({
-            id: nextShapeId,
-            type: 'bezier',
-            layerId,
-            lineTypeId,
-            groupId,
-            start: candidate.start,
-            control: candidate.control,
-            end: candidate.end,
-          })
-        }
-      }
-
-      const nextFoldLines: FoldLine[] = []
-      if (Array.isArray(parsed.foldLines)) {
-        for (const foldCandidate of parsed.foldLines) {
-          const foldLine = parseFoldLine(foldCandidate)
-          if (foldLine) {
-            nextFoldLines.push(foldLine)
-          }
-        }
-      }
-
-      const nextStitchHoles: StitchHole[] = []
-      if (Array.isArray(parsed.stitchHoles)) {
-        for (const stitchHoleCandidate of parsed.stitchHoles) {
-          const stitchHole = parseStitchHole(stitchHoleCandidate)
-          const mappedShapeId = stitchHole ? shapeIdMap.get(stitchHole.shapeId) : null
-          if (stitchHole && mappedShapeId) {
-            nextStitchHoles.push({
-              ...stitchHole,
-              shapeId: mappedShapeId,
-            })
-          }
-        }
-      }
-      const normalizedStitchHoles = normalizeStitchHoleSequences(nextStitchHoles)
-      const nextShapeIdSet = new Set(nextShapes.map((shape) => shape.id))
-      const nextConstraints = Array.isArray(parsed.constraints)
-        ? parsed.constraints
-            .map(parseConstraint)
-            .filter((constraint): constraint is ParametricConstraint => constraint !== null)
-            .map((constraint) => {
-              if (constraint.type === 'edge-offset') {
-                return {
-                  ...constraint,
-                  shapeId: shapeIdMap.get(constraint.shapeId) ?? '',
-                }
-              }
-              return {
-                ...constraint,
-                shapeId: shapeIdMap.get(constraint.shapeId) ?? '',
-                referenceShapeId: shapeIdMap.get(constraint.referenceShapeId) ?? '',
-              } as AlignConstraint
-            })
-            .filter((constraint) => {
-              if (!nextShapeIdSet.has(constraint.shapeId)) {
-                return false
-              }
-              if (constraint.type === 'edge-offset') {
-                return nextLayerIdSet.has(constraint.referenceLayerId)
-              }
-              return nextShapeIdSet.has(constraint.referenceShapeId)
-            })
-        : []
-      const nextSeamAllowances = Array.isArray(parsed.seamAllowances)
-        ? parsed.seamAllowances
-            .map(parseSeamAllowance)
-            .filter((entry): entry is SeamAllowance => entry !== null)
-            .map((entry) => ({
-              ...entry,
-              shapeId: shapeIdMap.get(entry.shapeId) ?? '',
-            }))
-            .filter((entry) => nextShapeIdSet.has(entry.shapeId))
-        : []
-      const nextHardwareMarkers = Array.isArray(parsed.hardwareMarkers)
-        ? parsed.hardwareMarkers
-            .map(parseHardwareMarker)
-            .filter((marker): marker is HardwareMarker => marker !== null)
-            .filter((marker) => {
-              if (!nextLayerIdSet.has(marker.layerId)) {
-                return false
-              }
-              if (!marker.groupId) {
-                return true
-              }
-              return nextSketchGroupIdSet.has(marker.groupId)
-            })
-        : []
-      const nextSnapSettings = parseSnapSettings(parsed.snapSettings) ?? DEFAULT_SNAP_SETTINGS
-      const nextShowAnnotations = typeof parsed.showAnnotations === 'boolean' ? parsed.showAnnotations : true
-      const nextTracingOverlays = Array.isArray(parsed.tracingOverlays)
-        ? parsed.tracingOverlays
-            .map(parseTracingOverlay)
-            .filter((overlay): overlay is TracingOverlay => overlay !== null)
-        : []
-
+      const imported = parseImportedJsonDocument(raw)
       applyLoadedDocument(
-        {
-          version: 1,
-          units: 'mm',
-          layers: nextLayers,
-          activeLayerId: nextActiveLayerId,
-          sketchGroups: nextSketchGroups,
-          activeSketchGroupId: nextActiveSketchGroupId,
-          lineTypes: nextLineTypes,
-          activeLineTypeId: nextActiveLineTypeId,
-          objects: nextShapes,
-          foldLines: nextFoldLines,
-          stitchHoles: normalizedStitchHoles,
-          constraints: nextConstraints,
-          seamAllowances: nextSeamAllowances,
-          hardwareMarkers: nextHardwareMarkers,
-          snapSettings: nextSnapSettings,
-          showAnnotations: nextShowAnnotations,
-          tracingOverlays: nextTracingOverlays,
-        },
-        `Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${normalizedStitchHoles.length} holes, ${nextLayers.length} layers, ${nextHardwareMarkers.length} hardware markers)`,
+        imported.doc,
+        `Loaded JSON (${imported.summary.shapeCount} shapes, ${imported.summary.foldCount} folds, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers, ${imported.summary.hardwareMarkerCount} hardware markers)`,
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
