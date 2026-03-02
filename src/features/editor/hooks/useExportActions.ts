@@ -68,6 +68,20 @@ export function useExportActions(params: UseExportActionsParams) {
       return exportRoleFilters[role]
     })
 
+  const escapeXml = (value: string) =>
+    value.replace(/[<>&"]/g, (char) => {
+      if (char === '<') {
+        return '&lt;'
+      }
+      if (char === '>') {
+        return '&gt;'
+      }
+      if (char === '&') {
+        return '&amp;'
+      }
+      return '&quot;'
+    })
+
   const shapeToExportSvg = (shape: Shape) => {
     const lineType = lineTypesById[shape.lineTypeId]
     const stroke = lineType?.color ?? '#0f172a'
@@ -201,8 +215,19 @@ export function useExportActions(params: UseExportActionsParams) {
           return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="#000000" stroke-width="0.1" fill="none" />`
         }
         const textShape = normalizeTextShape(shape)
-        const escapedText = textShape.text.replace(/[<>&]/g, (char) => (char === '<' ? '&lt;' : char === '>' ? '&gt;' : '&amp;'))
-        return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" font-size="${Math.max(4, round(textShape.fontSizeMm))}" fill="none" stroke="#000000" stroke-width="0.1" font-family="${textShape.fontFamily.replace(/"/g, '&quot;')}">${escapedText}</text>`
+        const fontSize = Math.max(4, round(textShape.fontSizeMm))
+        const fontFamily = escapeXml(textShape.fontFamily)
+        if (textShape.transform === 'none') {
+          const angle = round(textBaselineAngleDeg(textShape))
+          return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" font-size="${fontSize}" fill="none" stroke="#000000" stroke-width="0.1" font-family="${fontFamily}" transform="rotate(${angle} ${round(textShape.start.x)} ${round(textShape.start.y)})">${escapeXml(textShape.text)}</text>`
+        }
+
+        return buildTextGlyphPlacements(textShape)
+          .map(
+            (glyph) =>
+              `<text x="${round(glyph.x)}" y="${round(glyph.y)}" text-anchor="middle" dominant-baseline="middle" font-size="${fontSize}" fill="none" stroke="#000000" stroke-width="0.1" font-family="${fontFamily}" transform="rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})">${escapeXml(glyph.char)}</text>`,
+          )
+          .join('')
       })
       .join('\n  ')
 

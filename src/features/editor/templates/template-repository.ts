@@ -69,6 +69,17 @@ export function loadTemplateRepository(): TemplateRepositoryEntry[] {
   }
 }
 
+export function hasTemplateRepositoryStorage() {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  try {
+    return window.localStorage.getItem(TEMPLATE_REPOSITORY_STORAGE_KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 export function saveTemplateRepository(entries: TemplateRepositoryEntry[]) {
   if (typeof window === 'undefined') {
     return

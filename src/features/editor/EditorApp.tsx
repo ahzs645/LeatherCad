@@ -36,9 +36,11 @@ import {
 import { DEFAULT_PRESET_ID } from './data/sample-doc'
 import { type HistoryState } from './ops/history-ops'
 import {
+  hasTemplateRepositoryStorage,
   loadTemplateRepository,
   type TemplateRepositoryEntry,
 } from './templates/template-repository'
+import { createBuiltinTemplateRepository } from './templates/template-builtins'
 import {
   loadCatalogRepository,
   saveCatalogRepository,
@@ -241,7 +243,13 @@ export function EditorApp() {
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
   const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
   const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
-  const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => loadTemplateRepository())
+  const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => {
+    const saved = loadTemplateRepository()
+    if (saved.length > 0 || hasTemplateRepositoryStorage()) {
+      return saved
+    }
+    return createBuiltinTemplateRepository()
+  })
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
   const [catalogRepository, setCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadCatalogRepository())
   const [selectedCatalogShopId, setSelectedCatalogShopId] = useState<string | null>(null)
