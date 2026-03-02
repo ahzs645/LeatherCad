@@ -56,7 +56,6 @@ type UseCanvasInteractionsParams = {
   tool: Tool
   draftPoints: Point[]
   viewport: Viewport
-  isPanning: boolean
   activeLayerId: string
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
@@ -77,7 +76,6 @@ type UseCanvasInteractionsParams = {
   selectedHardwareMarkerId: string | null
   setStatus: Dispatch<SetStateAction<string>>
   setViewport: Dispatch<SetStateAction<Viewport>>
-  setIsPanning: Dispatch<SetStateAction<boolean>>
   setDraftPoints: Dispatch<SetStateAction<Point[]>>
   setCursorPoint: Dispatch<SetStateAction<Point | null>>
   setShapes: Dispatch<SetStateAction<Shape[]>>
@@ -99,7 +97,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     tool,
     draftPoints,
     viewport,
-    isPanning,
     activeLayerId,
     activeLineTypeId,
     activeSketchGroup,
@@ -120,7 +117,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     selectedHardwareMarkerId,
     setStatus,
     setViewport,
-    setIsPanning,
     setDraftPoints,
     setCursorPoint,
     setShapes,
@@ -220,7 +216,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       originY: viewport.y,
       pointerId,
     }
-    setIsPanning(true)
   }
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -529,7 +524,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const panState = panRef.current
-    if (isPanning && panState) {
+    if (panState) {
       if (event.pointerType === 'touch' && event.pointerId !== panState.pointerId) {
         return
       }
@@ -556,7 +551,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const panState = panRef.current
-    if (!isPanning || !panState) {
+    if (!panState) {
       return
     }
 
@@ -564,7 +559,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       return
     }
 
-    setIsPanning(false)
     panRef.current = null
     if (event.pointerType !== 'touch') {
       try {

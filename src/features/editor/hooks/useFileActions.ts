@@ -10,6 +10,7 @@ type UseFileActionsParams = {
   buildCurrentDocFile: () => DocFile
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
   selectedPresetId: string
+  setSelectedPresetId: Dispatch<SetStateAction<string>>
   isMobileLayout: boolean
   activeLayer: Layer | null
   activeLineTypeId: string
@@ -27,6 +28,7 @@ export function useFileActions(params: UseFileActionsParams) {
     buildCurrentDocFile,
     applyLoadedDocument,
     selectedPresetId,
+    setSelectedPresetId,
     isMobileLayout,
     activeLayer,
     activeLineTypeId,
@@ -108,10 +110,19 @@ export function useFileActions(params: UseFileActionsParams) {
   }
 
   const handleLoadPreset = (presetId = selectedPresetId || DEFAULT_PRESET_ID) => {
-    const preset = PRESET_DOCS.find((entry) => entry.id === presetId)
+    const requestedPresetId = presetId || selectedPresetId || DEFAULT_PRESET_ID
+    const preset =
+      PRESET_DOCS.find((entry) => entry.id === requestedPresetId) ??
+      PRESET_DOCS.find((entry) => entry.id === selectedPresetId) ??
+      PRESET_DOCS.find((entry) => entry.id === DEFAULT_PRESET_ID) ??
+      PRESET_DOCS[0]
     if (!preset) {
-      setStatus('Preset not found')
+      setStatus('No presets available')
       return
+    }
+
+    if (preset.id !== selectedPresetId) {
+      setSelectedPresetId(preset.id)
     }
 
     const sample =
@@ -119,7 +130,11 @@ export function useFileActions(params: UseFileActionsParams) {
         ? structuredClone(preset.doc)
         : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
 
-    applyLoadedDocument(sample, `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`)
+    const loadedMessage =
+      preset.id === requestedPresetId
+        ? `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
+        : `Requested preset was unavailable. Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
+    applyLoadedDocument(sample, loadedMessage)
     setShowThreePreview(true)
     if (isMobileLayout) {
       setMobileViewMode('editor')

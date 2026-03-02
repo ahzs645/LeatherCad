@@ -165,6 +165,22 @@
   color: var(--text-subtle);
 }
 
+.desktop-preview-width-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--surface-input);
+  color: var(--text-muted-strong);
+}
+
+.desktop-preview-width-control input {
+  width: 110px;
+  accent-color: var(--accent-border);
+}
+
 .desktop-ribbon-panel {
   padding: 10px 14px 10px;
   align-items: stretch;

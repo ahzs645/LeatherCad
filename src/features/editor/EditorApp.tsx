@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import '../../app/styles/App.css'
 import {
   uid,
@@ -121,8 +121,8 @@ export function EditorApp() {
   const [draftPoints, setDraftPoints] = useState<Point[]>([])
   const [cursorPoint, setCursorPoint] = useState<Point | null>(null)
   const [status, setStatus] = useState('Ready')
-  const [isPanning, setIsPanning] = useState(false)
   const [showThreePreview, setShowThreePreview] = useState(true)
+  const [desktopPreviewWidthPercent, setDesktopPreviewWidthPercent] = useState(32)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -550,7 +550,6 @@ export function EditorApp() {
     tool,
     draftPoints,
     viewport,
-    isPanning,
     activeLayerId,
     activeLineTypeId,
     activeSketchGroup,
@@ -571,7 +570,6 @@ export function EditorApp() {
     selectedHardwareMarkerId,
     setStatus,
     setViewport,
-    setIsPanning,
     setDraftPoints,
     setCursorPoint,
     setShapes,
@@ -607,6 +605,7 @@ export function EditorApp() {
     buildCurrentDocFile,
     applyLoadedDocument,
     selectedPresetId,
+    setSelectedPresetId,
     isMobileLayout,
     activeLayer,
     activeLineTypeId,
@@ -833,6 +832,17 @@ export function EditorApp() {
     mobileOptionsTab,
     desktopRibbonTab,
   })
+  const effectiveDesktopPreviewWidthPercent = Math.min(Math.max(desktopPreviewWidthPercent, 22), 48)
+  const workspaceStyle: CSSProperties | undefined = isMobileLayout
+    ? undefined
+    : showThreePreview
+      ? {
+          gridTemplateColumns: `minmax(0, 1fr) minmax(300px, ${effectiveDesktopPreviewWidthPercent}%)`,
+        }
+      : {
+          gridTemplateColumns: 'minmax(0, 1fr)',
+        }
+
   const topbarProps = useEditorTopbarProps({
     topbarClassName,
     isMobileLayout,
@@ -841,6 +851,7 @@ export function EditorApp() {
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
+    desktopPreviewWidthPercent: effectiveDesktopPreviewWidthPercent,
     setShowHelpModal,
     showToolSection,
     tool,
@@ -938,6 +949,7 @@ export function EditorApp() {
     setShowPrintPreviewModal,
     showPrintAreas,
     setShowPrintAreas,
+    setDesktopPreviewWidthPercent,
     setShowThreePreview,
     resetDocument,
   })
@@ -1120,7 +1132,7 @@ export function EditorApp() {
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
       <EditorTopbar {...topbarProps} />
 
-      <main className={workspaceClassName}>
+      <main className={workspaceClassName} style={workspaceStyle}>
         <EditorCanvasPane
           hideCanvasPane={hideCanvasPane}
           svgRef={svgRef}

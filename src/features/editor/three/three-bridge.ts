@@ -763,11 +763,6 @@ export class ThreeBridge {
       layerSlices.push({ layerId: '__all__', shapes: this.shapes })
     }
 
-    if (layerSlices.length === 0) {
-      layerStackLevels.set('__empty__', 0)
-      layerSlices.push({ layerId: '__empty__', shapes: [] })
-    }
-
     let maxYOffset = 0
     for (const [index, layerSlice] of layerSlices.entries()) {
       const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
