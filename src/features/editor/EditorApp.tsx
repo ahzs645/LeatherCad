@@ -1,11 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type {
-  ReactElement,
-} from 'react'
+import { useRef, useState } from 'react'
 import '../../app/styles/App.css'
 import {
-  arcPath,
-  round,
   uid,
 } from './cad/cad-geometry'
 import type {
@@ -38,18 +33,12 @@ import { EditorTopbar } from './components/EditorTopbar'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   createDefaultLineTypes,
-  normalizeLineTypes,
-  resolveActiveLineTypeId,
 } from './cad/line-types'
-import {
-  normalizeStitchHoleSequences,
-} from './ops/stitch-hole-ops'
 import { DEFAULT_PRESET_ID } from './data/sample-doc'
-import { deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
+import { type HistoryState } from './ops/history-ops'
 import type { PrintPaper } from './preview/print-preview'
 import {
   loadTemplateRepository,
-  saveTemplateRepository,
   type TemplateRepositoryEntry,
 } from './templates/template-repository'
 import type { ClipboardPayload } from './ops/shape-selection-ops'
@@ -60,12 +49,8 @@ import {
   DEFAULT_FRONT_LAYER_COLOR,
   DEFAULT_SEAM_ALLOWANCE_MM,
   DEFAULT_SNAP_SETTINGS,
-  GRID_EXTENT,
-  GRID_STEP,
-  HISTORY_LIMIT,
 } from './editor-constants'
 import {
-  parseSnapSettings,
   sanitizeFoldLine,
 } from './editor-parsers'
 import type {
@@ -81,7 +66,6 @@ import type {
   ThemeMode,
 } from './editor-types'
 import {
-  createDefaultLayer,
   normalizeHexColor,
   toolLabel,
 } from './editor-utils'
@@ -99,9 +83,13 @@ import { useResponsiveLayout } from './hooks/useResponsiveLayout'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
+import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
+import { useDraftPreviewElement, useGridLines } from './hooks/useDraftCanvasElements'
 import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
+import { useLoadedDocumentActions } from './hooks/useLoadedDocumentActions'
 import { useSketchGroupActions } from './hooks/useSketchGroupActions'
 import { useHistoryActions } from './hooks/useHistoryActions'
+import { useEditorStateActions } from './hooks/useEditorStateActions'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useThemeActions } from './hooks/useThemeActions'
 
@@ -286,267 +274,79 @@ export function EditorApp() {
     themeMode,
   })
 
-  const applyEditorSnapshot = (snapshot: EditorSnapshot) => {
-    setLayers(snapshot.layers)
-    setActiveLayerId(snapshot.activeLayerId)
-    setSketchGroups(snapshot.sketchGroups)
-    setActiveSketchGroupId(snapshot.activeSketchGroupId)
-    setLineTypes(snapshot.lineTypes)
-    setActiveLineTypeId(snapshot.activeLineTypeId)
-    setShapes(snapshot.shapes)
-    setFoldLines(snapshot.foldLines)
-    setStitchHoles(snapshot.stitchHoles)
-    setConstraints(snapshot.constraints)
-    setSeamAllowances(snapshot.seamAllowances)
-    setHardwareMarkers(snapshot.hardwareMarkers)
-    setSnapSettings(snapshot.snapSettings)
-    setShowAnnotations(snapshot.showAnnotations)
-    setTracingOverlays(snapshot.tracingOverlays)
-    setLayerColorOverrides(snapshot.layerColorOverrides)
-    setFrontLayerColor(snapshot.frontLayerColor)
-    setBackLayerColor(snapshot.backLayerColor)
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setSelectedHardwareMarkerId(null)
-  }
-
-  const gridLines = useMemo(() => {
-    const lines: ReactElement[] = []
-    for (let i = -GRID_EXTENT; i <= GRID_EXTENT; i += GRID_STEP) {
-      lines.push(
-        <line key={`v-${i}`} x1={i} y1={-GRID_EXTENT} x2={i} y2={GRID_EXTENT} className="grid-line" />,
-        <line key={`h-${i}`} x1={-GRID_EXTENT} y1={i} x2={GRID_EXTENT} y2={i} className="grid-line" />,
-      )
-    }
-    lines.push(
-      <line key="axis-y" x1={0} y1={-GRID_EXTENT} x2={0} y2={GRID_EXTENT} className="axis-line" />,
-      <line key="axis-x" x1={-GRID_EXTENT} y1={0} x2={GRID_EXTENT} y2={0} className="axis-line" />,
-    )
-    return lines
-  }, [])
-
-  const previewElement = useMemo(() => {
-    if (!cursorPoint || draftPoints.length === 0) {
-      return null
-    }
-
-    if (tool === 'line' || tool === 'fold') {
-      return (
-          <line
-            x1={draftPoints[0].x}
-            y1={draftPoints[0].y}
-            x2={cursorPoint.x}
-            y2={cursorPoint.y}
-            className={tool === 'fold' ? 'fold-preview' : 'shape-preview'}
-            style={tool === 'fold' ? undefined : { stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
-          />
-        )
-    }
-
-    if (tool === 'arc') {
-      if (draftPoints.length === 1) {
-        return (
-          <line
-            x1={draftPoints[0].x}
-            y1={draftPoints[0].y}
-            x2={cursorPoint.x}
-            y2={cursorPoint.y}
-            className="shape-preview"
-            style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
-          />
-        )
-      }
-
-      return (
-        <path
-          d={arcPath(draftPoints[0], draftPoints[1], cursorPoint)}
-          className="shape-preview"
-          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
-        />
-      )
-    }
-
-    if (tool === 'bezier') {
-      if (draftPoints.length === 1) {
-        return (
-          <line
-            x1={draftPoints[0].x}
-            y1={draftPoints[0].y}
-            x2={cursorPoint.x}
-            y2={cursorPoint.y}
-            className="shape-preview"
-            style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
-          />
-        )
-      }
-
-      return (
-        <path
-          d={`M ${round(draftPoints[0].x)} ${round(draftPoints[0].y)} Q ${round(draftPoints[1].x)} ${round(
-            draftPoints[1].y,
-          )} ${round(cursorPoint.x)} ${round(cursorPoint.y)}`}
-          className="shape-preview"
-          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
-        />
-      )
-    }
-
-    return null
-  }, [cursorPoint, draftPoints, tool, activeLineTypeStrokeColor, activeLineTypeDasharray])
-
   const clearDraft = () => {
     setDraftPoints([])
     setCursorPoint(null)
   }
+  const {
+    applyEditorSnapshot,
+    ensureActiveLayerWritable,
+    ensureActiveLineTypeWritable,
+    resetDocument,
+  } = useEditorStateActions({
+    activeLayer,
+    activeSketchGroup,
+    activeLineType,
+    clearDraft,
+    setLayers,
+    setActiveLayerId,
+    setSketchGroups,
+    setActiveSketchGroupId,
+    setLineTypes,
+    setActiveLineTypeId,
+    setShapes,
+    setFoldLines,
+    setStitchHoles,
+    setConstraints,
+    setSeamAllowances,
+    setHardwareMarkers,
+    setSnapSettings,
+    setShowAnnotations,
+    setTracingOverlays,
+    setLayerColorOverrides,
+    setFrontLayerColor,
+    setBackLayerColor,
+    setSelectedShapeIds,
+    setSelectedStitchHoleId,
+    setSelectedHardwareMarkerId,
+    setShowPrintAreas,
+    setStatus,
+  })
 
-  const ensureActiveLayerWritable = () => {
-    if (!activeLayer) {
-      setStatus('No active layer available')
-      return false
-    }
+  const { applyLoadedDocument } = useLoadedDocumentActions({
+    clearDraft,
+    setLayers,
+    setActiveLayerId,
+    setSketchGroups,
+    setActiveSketchGroupId,
+    setLineTypes,
+    setActiveLineTypeId,
+    setShapes,
+    setFoldLines,
+    setStitchHoles,
+    setConstraints,
+    setSeamAllowances,
+    setHardwareMarkers,
+    setSnapSettings,
+    setShowAnnotations,
+    setTracingOverlays,
+    setSelectedShapeIds,
+    setSelectedStitchHoleId,
+    setSelectedHardwareMarkerId,
+    setLayerColorOverrides,
+    setTool,
+    setShowPrintAreas,
+    setStatus,
+  })
 
-    if (!activeLayer.visible) {
-      setStatus('Active layer is hidden. Show it before drawing.')
-      return false
-    }
-
-    if (activeLayer.locked) {
-      setStatus('Active layer is locked. Unlock it before drawing.')
-      return false
-    }
-
-    if (activeSketchGroup) {
-      if (!activeSketchGroup.visible) {
-        setStatus('Active sub-sketch is hidden. Show it before drawing.')
-        return false
-      }
-      if (activeSketchGroup.locked) {
-        setStatus('Active sub-sketch is locked. Unlock it before drawing.')
-        return false
-      }
-      if (activeSketchGroup.layerId !== activeLayer.id) {
-        setStatus('Active sub-sketch belongs to another layer. Switch layer or clear active sub-sketch.')
-        return false
-      }
-    }
-
-    return true
-  }
-
-  const ensureActiveLineTypeWritable = () => {
-    if (!activeLineType) {
-      setStatus('No active line type available')
-      return false
-    }
-
-    if (!activeLineType.visible) {
-      setStatus('Active line type is hidden. Show it before drawing.')
-      return false
-    }
-
-    return true
-  }
-
-  const resetDocument = (statusMessage = 'Document cleared and reset to Layer 1') => {
-    const baseLayerId = uid()
-    const defaultLineTypes = createDefaultLineTypes()
-    setLayers([createDefaultLayer(baseLayerId)])
-    setActiveLayerId(baseLayerId)
-    setSketchGroups([])
-    setActiveSketchGroupId(null)
-    setLineTypes(defaultLineTypes)
-    setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
-    setShapes([])
-    setFoldLines([])
-    setStitchHoles([])
-    setConstraints([])
-    setSeamAllowances([])
-    setHardwareMarkers([])
-    setSnapSettings(DEFAULT_SNAP_SETTINGS)
-    setShowAnnotations(true)
-    setTracingOverlays([])
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setSelectedHardwareMarkerId(null)
-    setLayerColorOverrides({})
-    setShowPrintAreas(false)
-    clearDraft()
-    setStatus(statusMessage)
-  }
-
-  const applyLoadedDocument = (doc: DocFile, statusMessage: string) => {
-    const normalizedLayers = doc.layers.length > 0 ? doc.layers : [createDefaultLayer(uid())]
-    const normalizedActiveLayerId = normalizedLayers.some((layer) => layer.id === doc.activeLayerId)
-      ? doc.activeLayerId
-      : normalizedLayers[0].id
-    const layerIdSet = new Set(normalizedLayers.map((layer) => layer.id))
-    const normalizedSketchGroups = (doc.sketchGroups ?? []).filter((group) => layerIdSet.has(group.layerId))
-    const sketchGroupIdSet = new Set(normalizedSketchGroups.map((group) => group.id))
-    const normalizedShapes = doc.objects.map((shape) => {
-      if (!shape.groupId || !sketchGroupIdSet.has(shape.groupId)) {
-        return {
-          ...shape,
-          groupId: undefined,
-        }
-      }
-
-      const group = normalizedSketchGroups.find((entry) => entry.id === shape.groupId)
-      if (!group || group.layerId !== shape.layerId) {
-        return {
-          ...shape,
-          groupId: undefined,
-        }
-      }
-
-      return shape
-    })
-    const shapeIdSet = new Set(normalizedShapes.map((shape) => shape.id))
-    const normalizedConstraints = (doc.constraints ?? []).filter((constraint) => {
-      if (!shapeIdSet.has(constraint.shapeId)) {
-        return false
-      }
-      if (constraint.type === 'edge-offset') {
-        return layerIdSet.has(constraint.referenceLayerId)
-      }
-      return shapeIdSet.has(constraint.referenceShapeId)
-    })
-    const normalizedSeamAllowances = (doc.seamAllowances ?? []).filter((entry) => shapeIdSet.has(entry.shapeId))
-    const normalizedHardwareMarkers = (doc.hardwareMarkers ?? []).filter((marker) => {
-      if (!layerIdSet.has(marker.layerId)) {
-        return false
-      }
-      if (!marker.groupId) {
-        return true
-      }
-      return sketchGroupIdSet.has(marker.groupId)
-    })
-    const normalizedActiveSketchGroupId =
-      doc.activeSketchGroupId && sketchGroupIdSet.has(doc.activeSketchGroupId) ? doc.activeSketchGroupId : null
-    const nextLineTypes = normalizeLineTypes(doc.lineTypes ?? [])
-    setLayers(normalizedLayers)
-    setActiveLayerId(normalizedActiveLayerId)
-    setSketchGroups(normalizedSketchGroups)
-    setActiveSketchGroupId(normalizedActiveSketchGroupId)
-    setLineTypes(nextLineTypes)
-    setActiveLineTypeId(resolveActiveLineTypeId(nextLineTypes, doc.activeLineTypeId))
-    setShapes(normalizedShapes)
-    setFoldLines(doc.foldLines)
-    setStitchHoles(normalizeStitchHoleSequences(doc.stitchHoles ?? []))
-    setConstraints(normalizedConstraints)
-    setSeamAllowances(normalizedSeamAllowances)
-    setHardwareMarkers(normalizedHardwareMarkers)
-    setSnapSettings(parseSnapSettings(doc.snapSettings) ?? DEFAULT_SNAP_SETTINGS)
-    setShowAnnotations(typeof doc.showAnnotations === 'boolean' ? doc.showAnnotations : true)
-    setTracingOverlays(doc.tracingOverlays ?? [])
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setSelectedHardwareMarkerId(null)
-    setLayerColorOverrides({})
-    setTool('pan')
-    setShowPrintAreas(false)
-    clearDraft()
-    setStatus(statusMessage)
-  }
+  const gridLines = useGridLines()
+  const previewElement = useDraftPreviewElement({
+    cursorPoint,
+    draftPoints,
+    tool,
+    activeLineTypeStrokeColor,
+    activeLineTypeDasharray,
+  })
 
   const { handleUndo, handleRedo } = useHistoryActions({
     historyState,
@@ -657,227 +457,40 @@ export function EditorApp() {
     setTool,
   })
 
-  useEffect(() => {
-    if (layers.length === 0) {
-      return
-    }
-    if (!layers.some((layer) => layer.id === activeLayerId)) {
-      setActiveLayerId(layers[0].id)
-    }
-  }, [layers, activeLayerId])
-
-  useEffect(() => {
-    setActiveSketchGroupId((previous) => {
-      if (!previous) {
-        return previous
-      }
-      const match = sketchGroups.find((group) => group.id === previous)
-      if (!match) {
-        return null
-      }
-      return match.layerId === activeLayerId ? previous : null
-    })
-  }, [sketchGroups, activeLayerId])
-
-  useEffect(() => {
-    if (lineTypes.length === 0) {
-      setLineTypes(createDefaultLineTypes())
-      return
-    }
-    if (!lineTypes.some((lineType) => lineType.id === activeLineTypeId)) {
-      setActiveLineTypeId(lineTypes[0].id)
-    }
-  }, [lineTypes, activeLineTypeId])
-
-  useEffect(() => {
-    setSelectedShapeIds((previous) => {
-      if (previous.length === 0) {
-        return previous
-      }
-      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
-      const next = previous.filter((shapeId) => shapeIdSet.has(shapeId))
-      return next.length === previous.length ? previous : next
-    })
-  }, [shapes])
-
-  useEffect(() => {
-    setSeamAllowances((previous) => {
-      if (previous.length === 0) {
-        return previous
-      }
-      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
-      const next = previous.filter((entry) => shapeIdSet.has(entry.shapeId))
-      return next.length === previous.length ? previous : next
-    })
-  }, [shapes])
-
-  useEffect(() => {
-    setConstraints((previous) => {
-      if (previous.length === 0) {
-        return previous
-      }
-      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
-      const layerIdSet = new Set(layers.map((layer) => layer.id))
-      const next = previous.filter((entry) => {
-        if (!shapeIdSet.has(entry.shapeId)) {
-          return false
-        }
-        if (entry.type === 'edge-offset') {
-          return layerIdSet.has(entry.referenceLayerId)
-        }
-        return shapeIdSet.has(entry.referenceShapeId)
-      })
-      return next.length === previous.length ? previous : next
-    })
-  }, [shapes, layers])
-
-  useEffect(() => {
-    setStitchHoles((previous) => {
-      if (previous.length === 0) {
-        return previous
-      }
-      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
-      const next = previous.filter((stitchHole) => shapeIdSet.has(stitchHole.shapeId))
-      return next.length === previous.length ? previous : next
-    })
-  }, [shapes])
-
-  useEffect(() => {
-    setSelectedStitchHoleId((previous) => {
-      if (!previous) {
-        return previous
-      }
-      return stitchHoles.some((stitchHole) => stitchHole.id === previous) ? previous : null
-    })
-  }, [stitchHoles])
-
-  useEffect(() => {
-    setSelectedHardwareMarkerId((previous) => {
-      if (!previous) {
-        return previous
-      }
-      return hardwareMarkers.some((marker) => marker.id === previous) ? previous : null
-    })
-  }, [hardwareMarkers])
-
-  useEffect(() => {
-    setSketchGroups((previous) => {
-      if (previous.length === 0) {
-        return previous
-      }
-      const layerIdSet = new Set(layers.map((layer) => layer.id))
-      const next = previous.filter((group) => layerIdSet.has(group.layerId))
-      return next.length === previous.length ? previous : next
-    })
-  }, [layers])
-
-  useEffect(() => {
-    setHardwareMarkers((previous) => {
-      if (previous.length === 0) {
-        return previous
-      }
-      const layerIdSet = new Set(layers.map((layer) => layer.id))
-      const groupIdSet = new Set(sketchGroups.map((group) => group.id))
-      const next = previous.filter((marker) => {
-        if (!layerIdSet.has(marker.layerId)) {
-          return false
-        }
-        if (!marker.groupId) {
-          return true
-        }
-        return groupIdSet.has(marker.groupId)
-      })
-      return next.length === previous.length ? previous : next
-    })
-  }, [layers, sketchGroups])
-
-  useEffect(() => {
-    setLayerColorOverrides((previous) => {
-      const layerIdSet = new Set(layers.map((layer) => layer.id))
-      let changed = false
-      const next: Record<string, string> = {}
-
-      for (const [layerId, color] of Object.entries(previous)) {
-        if (layerIdSet.has(layerId)) {
-          next[layerId] = color
-        } else {
-          changed = true
-        }
-      }
-
-      return changed ? next : previous
-    })
-  }, [layers])
-
-  useEffect(() => {
-    setActiveTracingOverlayId((previous) => {
-      if (!previous) {
-        return tracingOverlays[0]?.id ?? null
-      }
-      return tracingOverlays.some((overlay) => overlay.id === previous) ? previous : tracingOverlays[0]?.id ?? null
-    })
-  }, [tracingOverlays])
-
-  useEffect(() => {
-    setSelectedTemplateEntryId((previous) => {
-      if (!previous) {
-        return templateRepository[0]?.id ?? null
-      }
-      return templateRepository.some((entry) => entry.id === previous) ? previous : templateRepository[0]?.id ?? null
-    })
-  }, [templateRepository])
-
-  useEffect(() => {
-    saveTemplateRepository(templateRepository)
-  }, [templateRepository])
-
-  useEffect(() => {
-    const objectUrls = new Set(
-      tracingOverlays
-        .filter((overlay) => overlay.isObjectUrl)
-        .map((overlay) => overlay.sourceUrl),
-    )
-
-    tracingObjectUrlsRef.current.forEach((url) => {
-      if (!objectUrls.has(url)) {
-        URL.revokeObjectURL(url)
-      }
-    })
-    tracingObjectUrlsRef.current = objectUrls
-  }, [tracingOverlays])
-
-  useEffect(
-    () => () => {
-      tracingObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
-      tracingObjectUrlsRef.current.clear()
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (applyingHistoryRef.current) {
-      applyingHistoryRef.current = false
-      lastSnapshotRef.current = deepClone(currentSnapshot)
-      lastSnapshotSignatureRef.current = currentSnapshotSignature
-      return
-    }
-
-    if (!lastSnapshotSignatureRef.current || !lastSnapshotRef.current) {
-      lastSnapshotRef.current = deepClone(currentSnapshot)
-      lastSnapshotSignatureRef.current = currentSnapshotSignature
-      return
-    }
-
-    if (lastSnapshotSignatureRef.current === currentSnapshotSignature) {
-      return
-    }
-
-    setHistoryState((previousHistory) =>
-      pushHistorySnapshot(previousHistory, lastSnapshotRef.current as EditorSnapshot, HISTORY_LIMIT),
-    )
-    lastSnapshotRef.current = deepClone(currentSnapshot)
-    lastSnapshotSignatureRef.current = currentSnapshotSignature
-  }, [currentSnapshot, currentSnapshotSignature])
+  useEditorConsistencyEffects({
+    layers,
+    activeLayerId,
+    setActiveLayerId,
+    sketchGroups,
+    setSketchGroups,
+    setActiveSketchGroupId,
+    lineTypes,
+    activeLineTypeId,
+    setLineTypes,
+    setActiveLineTypeId,
+    shapes,
+    setSelectedShapeIds,
+    setSeamAllowances,
+    setConstraints,
+    setStitchHoles,
+    stitchHoles,
+    setSelectedStitchHoleId,
+    hardwareMarkers,
+    setSelectedHardwareMarkerId,
+    setHardwareMarkers,
+    setLayerColorOverrides,
+    tracingOverlays,
+    setActiveTracingOverlayId,
+    tracingObjectUrlsRef,
+    templateRepository,
+    setSelectedTemplateEntryId,
+    applyingHistoryRef,
+    lastSnapshotRef,
+    lastSnapshotSignatureRef,
+    currentSnapshot,
+    currentSnapshotSignature,
+    setHistoryState,
+  })
 
   useKeyboardShortcuts({
     clearDraft,
