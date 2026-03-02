@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
-  ChangeEvent,
-  PointerEvent as ReactPointerEvent,
   ReactElement,
-  WheelEvent as ReactWheelEvent,
 } from 'react'
 import '../../app/styles/App.css'
 import {
   arcPath,
   clamp,
-  distance,
-  getBounds,
   round,
   uid,
 } from './cad/cad-geometry'
@@ -47,20 +42,14 @@ import {
 } from './cad/line-types'
 import { applyLineTypeToShapeIds } from './ops/line-type-ops'
 import {
-  createStitchHole,
-  findNearestStitchAnchor,
   normalizeStitchHoleSequences,
 } from './ops/stitch-hole-ops'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './data/sample-doc'
 import { applyRedo, applyUndo, deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
 import type { PrintPaper } from './preview/print-preview'
 import {
-  createTemplateFromDoc,
-  insertTemplateDocIntoCurrent,
   loadTemplateRepository,
-  parseTemplateRepositoryImport,
   saveTemplateRepository,
-  serializeTemplateRepository,
   type TemplateRepositoryEntry,
 } from './templates/template-repository'
 import {
@@ -71,17 +60,8 @@ import {
   type ClipboardPayload,
 } from './ops/shape-selection-ops'
 import {
-  snapPointToContext,
   translateShape,
 } from './ops/pattern-ops'
-import {
-  DEFAULT_FOLD_CLEARANCE_MM,
-  DEFAULT_FOLD_DIRECTION,
-  DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
-  DEFAULT_FOLD_RADIUS_MM,
-  DEFAULT_FOLD_STIFFNESS,
-  DEFAULT_FOLD_THICKNESS_MM,
-} from './ops/fold-line-ops'
 
 import {
   CLIPBOARD_PASTE_OFFSET,
@@ -93,11 +73,7 @@ import {
   DESKTOP_RIBBON_TABS,
   GRID_EXTENT,
   GRID_STEP,
-  HARDWARE_PRESETS,
   HISTORY_LIMIT,
-  MAX_ZOOM,
-  MIN_ZOOM,
-  MOBILE_MEDIA_QUERY,
   MOBILE_OPTIONS_TABS,
   SUB_SKETCH_COPY_OFFSET_MM,
   TOOL_OPTIONS,
@@ -120,7 +96,6 @@ import type {
 } from './editor-types'
 import {
   createDefaultLayer,
-  downloadFile,
   newSketchGroupName,
   normalizeHexColor,
   toolLabel,
@@ -131,6 +106,12 @@ import { useLayerActions } from './hooks/useLayerActions'
 import { useConstraintActions } from './hooks/useConstraintActions'
 import { useStitchActions } from './hooks/useStitchActions'
 import { useFileActions } from './hooks/useFileActions'
+import { useTemplateActions } from './hooks/useTemplateActions'
+import { useTracingActions } from './hooks/useTracingActions'
+import { useMobileActions } from './hooks/useMobileActions'
+import { useCanvasInteractions } from './hooks/useCanvasInteractions'
+import { useResponsiveLayout } from './hooks/useResponsiveLayout'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 
 export function EditorApp() {
   const initialLayerIdRef = useRef(uid())
@@ -420,94 +401,6 @@ export function EditorApp() {
 
     return null
   }, [cursorPoint, draftPoints, tool, activeLineTypeStrokeColor, activeLineTypeDasharray])
-
-  const toWorldPoint = (clientX: number, clientY: number): Point | null => {
-    const svg = svgRef.current
-    if (!svg) {
-      return null
-    }
-
-    const rect = svg.getBoundingClientRect()
-    return {
-      x: (clientX - rect.left - viewport.x) / viewport.scale,
-      y: (clientY - rect.top - viewport.y) / viewport.scale,
-    }
-  }
-
-  const getSnappedPoint = (point: Point) =>
-    snapPointToContext(point, snapSettings, {
-      shapes: visibleShapes,
-      foldLines,
-      hardwareMarkers: visibleHardwareMarkers,
-      viewportScale: viewport.scale,
-    })
-
-  const zoomAtScreenPoint = (screenX: number, screenY: number, zoomFactor: number) => {
-    setViewport((previous) => {
-      const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
-      const worldX = (screenX - previous.x) / previous.scale
-      const worldY = (screenY - previous.y) / previous.scale
-      return {
-        x: screenX - worldX * nextScale,
-        y: screenY - worldY * nextScale,
-        scale: nextScale,
-      }
-    })
-  }
-
-  const handleZoomStep = (zoomFactor: number) => {
-    const svg = svgRef.current
-    if (!svg) {
-      return
-    }
-
-    const rect = svg.getBoundingClientRect()
-    zoomAtScreenPoint(rect.width / 2, rect.height / 2, zoomFactor)
-  }
-
-  const handleResetView = () => {
-    setViewport({ x: 560, y: 360, scale: 1 })
-    setStatus('View reset')
-  }
-
-  const handleFitView = () => {
-    const svg = svgRef.current
-    if (!svg) {
-      return
-    }
-
-    if (visibleShapes.length === 0) {
-      handleResetView()
-      return
-    }
-
-    const rect = svg.getBoundingClientRect()
-    const bounds = getBounds(visibleShapes)
-    const margin = 40
-    const fitScale = clamp(
-      Math.min((rect.width - margin * 2) / bounds.width, (rect.height - margin * 2) / bounds.height),
-      MIN_ZOOM,
-      MAX_ZOOM,
-    )
-
-    setViewport({
-      scale: fitScale,
-      x: rect.width / 2 - (bounds.minX + bounds.width / 2) * fitScale,
-      y: rect.height / 2 - (bounds.minY + bounds.height / 2) * fitScale,
-    })
-    setStatus('View fit to visible shapes')
-  }
-
-  const beginPan = (clientX: number, clientY: number, pointerId: number) => {
-    panRef.current = {
-      startX: clientX,
-      startY: clientY,
-      originX: viewport.x,
-      originY: viewport.y,
-      pointerId,
-    }
-    setIsPanning(true)
-  }
 
   const clearDraft = () => {
     setDraftPoints([])
@@ -845,192 +738,56 @@ export function EditorApp() {
     showAnnotations,
     tracingOverlays,
   })
+  const {
+    handleSaveTemplateToRepository,
+    handleDeleteTemplateFromRepository,
+    handleLoadTemplateAsDocument,
+    handleInsertTemplateIntoDocument,
+    handleExportTemplateRepository,
+    handleImportTemplateRepositoryFile,
+  } = useTemplateActions({
+    templateRepository,
+    selectedTemplateEntry,
+    selectedTemplateEntryId,
+    buildCurrentDocFile,
+    applyLoadedDocument,
+    layers,
+    lineTypes,
+    shapes,
+    foldLines,
+    stitchHoles,
+    clearDraft,
+    setTemplateRepository,
+    setSelectedTemplateEntryId,
+    setLayers,
+    setLineTypes,
+    setActiveLineTypeId,
+    setShapes,
+    setFoldLines,
+    setStitchHoles,
+    setSelectedShapeIds,
+    setActiveLayerId,
+    setStatus,
+  })
 
-  const handleSaveTemplateToRepository = () => {
-    const defaultName = `Template ${templateRepository.length + 1}`
-    const inputName = window.prompt('Template name', defaultName)?.trim()
-    if (!inputName) {
-      return
-    }
-    const entry = createTemplateFromDoc(inputName, buildCurrentDocFile())
-    setTemplateRepository((previous) => [entry, ...previous])
-    setSelectedTemplateEntryId(entry.id)
-    setStatus(`Saved template "${entry.name}"`)
-  }
+  const {
+    handleUpdateTracingOverlay,
+    handleDeleteTracingOverlay,
+    handleImportTracing,
+  } = useTracingActions({
+    setTracingOverlays,
+    setActiveTracingOverlayId,
+    setShowTracingModal,
+    setStatus,
+  })
 
-  const handleDeleteTemplateFromRepository = (entryId: string) => {
-    setTemplateRepository((previous) => previous.filter((entry) => entry.id !== entryId))
-    if (selectedTemplateEntryId === entryId) {
-      setSelectedTemplateEntryId(null)
-    }
-    setStatus('Template deleted')
-  }
-
-  const handleLoadTemplateAsDocument = () => {
-    if (!selectedTemplateEntry) {
-      setStatus('Select a template first')
-      return
-    }
-    applyLoadedDocument(selectedTemplateEntry.doc, `Loaded template: ${selectedTemplateEntry.name}`)
-  }
-
-  const handleInsertTemplateIntoDocument = () => {
-    if (!selectedTemplateEntry) {
-      setStatus('Select a template first')
-      return
-    }
-    const inserted = insertTemplateDocIntoCurrent(
-      selectedTemplateEntry.doc,
-      layers,
-      lineTypes,
-      shapes,
-      foldLines,
-      stitchHoles,
-    )
-    setLayers(inserted.layers)
-    setLineTypes(inserted.lineTypes)
-    setActiveLineTypeId(inserted.activeLineTypeId)
-    setShapes(inserted.shapes)
-    setFoldLines(inserted.foldLines)
-    setStitchHoles(normalizeStitchHoleSequences(inserted.stitchHoles))
-    setSelectedShapeIds(inserted.insertedShapeIds)
-    if (inserted.insertedLayerIds.length > 0) {
-      setActiveLayerId(inserted.insertedLayerIds[0])
-    }
-    clearDraft()
-    setStatus(`Inserted template: ${selectedTemplateEntry.name}`)
-  }
-
-  const handleExportTemplateRepository = () => {
-    if (templateRepository.length === 0) {
-      setStatus('Template repository is empty')
-      return
-    }
-    const payload = serializeTemplateRepository(templateRepository)
-    downloadFile('leathercraft-template-repository.json', payload, 'application/json;charset=utf-8')
-    setStatus(`Exported ${templateRepository.length} template${templateRepository.length === 1 ? '' : 's'}`)
-  }
-
-  const handleImportTemplateRepositoryFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) {
-      return
-    }
-    try {
-      const raw = await file.text()
-      const importedEntries = parseTemplateRepositoryImport(raw)
-      setTemplateRepository((previous) => {
-        const existingById = new Map(previous.map((entry) => [entry.id, entry]))
-        importedEntries.forEach((entry) => existingById.set(entry.id, entry))
-        return Array.from(existingById.values()).sort((left, right) =>
-          left.updatedAt > right.updatedAt ? -1 : 1,
-        )
-      })
-      setStatus(`Imported ${importedEntries.length} template${importedEntries.length === 1 ? '' : 's'}`)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`Template import failed: ${message}`)
-    }
-  }
-
-  const handleUpdateTracingOverlay = (overlayId: string, patch: Partial<TracingOverlay>) => {
-    setTracingOverlays((previous) =>
-      previous.map((overlay) =>
-        overlay.id === overlayId
-          ? {
-              ...overlay,
-              ...patch,
-            }
-          : overlay,
-      ),
-    )
-  }
-
-  const handleDeleteTracingOverlay = (overlayId: string) => {
-    setTracingOverlays((previous) => previous.filter((overlay) => overlay.id !== overlayId))
-    setStatus('Tracing overlay removed')
-  }
-
-  const handleImportTracing = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) {
-      return
-    }
-
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-    const isImage = file.type.startsWith('image/')
-    if (!isPdf && !isImage) {
-      setStatus('Tracing import supports image files and PDFs only')
-      return
-    }
-
-    const sourceUrl = URL.createObjectURL(file)
-    const overlayId = uid()
-    const nextOverlay: TracingOverlay = {
-      id: overlayId,
-      name: file.name,
-      kind: isPdf ? 'pdf' : 'image',
-      sourceUrl,
-      visible: true,
-      locked: true,
-      opacity: isPdf ? 0.6 : 0.75,
-      scale: 1,
-      rotationDeg: 0,
-      offsetX: 0,
-      offsetY: 0,
-      width: 800,
-      height: 800,
-      isObjectUrl: true,
-    }
-
-    if (isImage) {
-      try {
-        const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-          const image = new Image()
-          image.onload = () => {
-            resolve({
-              width: image.naturalWidth || 800,
-              height: image.naturalHeight || 800,
-            })
-          }
-          image.onerror = () => reject(new Error('Could not read image'))
-          image.src = sourceUrl
-        })
-        nextOverlay.width = size.width
-        nextOverlay.height = size.height
-      } catch {
-        // Keep fallback dimensions for failed metadata reads.
-      }
-    }
-
-    setTracingOverlays((previous) => [nextOverlay, ...previous])
-    setActiveTracingOverlayId(overlayId)
-    setShowTracingModal(true)
-    setStatus(isPdf ? 'PDF tracing imported (vector preview box)' : 'Tracing image imported')
-  }
-
-  useEffect(() => {
-    const media = window.matchMedia(MOBILE_MEDIA_QUERY)
-    const sync = () => {
-      if (media.matches) {
-        setIsMobileLayout(true)
-        setMobileViewMode('editor')
-        setShowMobileMenu(false)
-        setMobileOptionsTab('view')
-        setTool('pan')
-      } else {
-        setIsMobileLayout(false)
-        setMobileViewMode('split')
-        setShowMobileMenu(true)
-      }
-    }
-
-    sync()
-    media.addEventListener('change', sync)
-    return () => media.removeEventListener('change', sync)
-  }, [])
+  useResponsiveLayout({
+    setIsMobileLayout,
+    setMobileViewMode,
+    setShowMobileMenu,
+    setMobileOptionsTab,
+    setTool,
+  })
 
   useEffect(() => {
     if (layers.length === 0) {
@@ -1254,442 +1011,70 @@ export function EditorApp() {
     lastSnapshotSignatureRef.current = currentSnapshotSignature
   }, [currentSnapshot, currentSnapshotSignature])
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        clearDraft()
-        setStatus('Draft cancelled')
-        return
-      }
-
-      const isMeta = event.ctrlKey || event.metaKey
-      if (!isMeta) {
-        if (event.key === 'Delete' || event.key === 'Backspace') {
-          const target = event.target as HTMLElement | null
-          if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA')) {
-            event.preventDefault()
-            handleDeleteSelection()
-          }
-        }
-        return
-      }
-
-      const key = event.key.toLowerCase()
-      if (key === 'z' && event.shiftKey) {
-        event.preventDefault()
-        handleRedo()
-        return
-      }
-      if (key === 'z') {
-        event.preventDefault()
-        handleUndo()
-        return
-      }
-      if (key === 'y') {
-        event.preventDefault()
-        handleRedo()
-        return
-      }
-      if (key === 'c') {
-        event.preventDefault()
-        handleCopySelection()
-        return
-      }
-      if (key === 'x') {
-        event.preventDefault()
-        handleCutSelection()
-        return
-      }
-      if (key === 'v') {
-        event.preventDefault()
-        handlePasteClipboard()
-        return
-      }
-      if (key === 'd') {
-        event.preventDefault()
-        handleDuplicateSelection()
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [
+  useKeyboardShortcuts({
+    clearDraft,
+    setStatus,
+    handleDeleteSelection,
     handleUndo,
     handleRedo,
     handleCopySelection,
     handleCutSelection,
     handlePasteClipboard,
     handleDuplicateSelection,
-    handleDeleteSelection,
-  ])
+  })
 
-  const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (event.pointerType !== 'touch' && event.button !== 0 && !(event.button === 1 || event.button === 2)) {
-      return
-    }
-
-    if (event.pointerType === 'touch' && panRef.current && panRef.current.pointerId !== event.pointerId) {
-      return
-    }
-
-    if (tool === 'pan' || event.button === 1 || event.button === 2) {
-      event.preventDefault()
-      beginPan(event.clientX, event.clientY, event.pointerId)
-      if (event.pointerType !== 'touch') {
-        try {
-          event.currentTarget.setPointerCapture(event.pointerId)
-        } catch {
-          // Touch browsers can throw here; pan still works without capture.
-        }
-      }
-      return
-    }
-
-    if (event.pointerType !== 'touch' && event.button !== 0) {
-      return
-    }
-
-    const rawPoint = toWorldPoint(event.clientX, event.clientY)
-    if (!rawPoint) {
-      return
-    }
-    const snappedPoint = getSnappedPoint(rawPoint)
-    const point = snappedPoint.point
-
-    setCursorPoint(point)
-
-    if (tool === 'line') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      if (draftPoints.length === 0) {
-        setDraftPoints([point])
-        setStatus('Line: pick end point')
-        return
-      }
-
-      const start = draftPoints[0]
-      if (distance(start, point) < 0.001) {
-        setStatus('Line ignored: start and end overlap')
-        clearDraft()
-        return
-      }
-
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'line',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start,
-          end: point,
-        },
-      ])
-      clearDraft()
-      setStatus('Line created')
-      return
-    }
-
-    if (tool === 'stitch-hole') {
-      const nearestStitchAnchor = findNearestStitchAnchor(point, visibleShapes, lineTypesById, 16 / viewport.scale)
-      if (!nearestStitchAnchor) {
-        setStatus('No stitch path near pointer. Tap near a visible stitch line.')
-        return
-      }
-
-      const targetShape = shapesById[nearestStitchAnchor.shapeId]
-      if (!targetShape) {
-        setStatus('Could not resolve stitch path')
-        return
-      }
-
-      const targetLayer = layers.find((layer) => layer.id === targetShape.layerId)
-      if (targetLayer?.locked) {
-        setStatus('Target layer is locked. Unlock it before placing stitch holes.')
-        return
-      }
-
-      let createdHoleId: string | null = null
-      setStitchHoles((previous) => {
-        const nextSequence =
-          previous
-            .filter((stitchHole) => stitchHole.shapeId === nearestStitchAnchor.shapeId)
-            .reduce((maximum, stitchHole) => Math.max(maximum, stitchHole.sequence), -1) + 1
-        const createdHole = {
-          ...createStitchHole(nearestStitchAnchor, stitchHoleType),
-          sequence: nextSequence,
-        }
-        createdHoleId = createdHole.id
-        return [
-          ...previous,
-          createdHole,
-        ]
-      })
-      setSelectedStitchHoleId(createdHoleId)
-      setStatus(`Stitch hole placed (${stitchHoleType})`)
-      return
-    }
-
-    if (tool === 'hardware') {
-      if (!ensureActiveLayerWritable()) {
-        return
-      }
-
-      const preset = hardwarePreset === 'custom' ? null : HARDWARE_PRESETS[hardwarePreset]
-      const marker: HardwareMarker = {
-        id: uid(),
-        layerId: activeLayerId,
-        groupId: activeSketchGroup?.id,
-        point,
-        kind: hardwarePreset,
-        label: hardwarePreset === 'custom' ? 'Hardware' : preset?.label ?? 'Hardware',
-        holeDiameterMm:
-          hardwarePreset === 'custom'
-            ? clamp(customHardwareDiameterMm || 4, 0.1, 120)
-            : (preset?.holeDiameterMm ?? 4),
-        spacingMm:
-          hardwarePreset === 'custom'
-            ? clamp(customHardwareSpacingMm || 0, 0, 300)
-            : (preset?.spacingMm ?? 0),
-        notes: '',
-        visible: true,
-      }
-      setHardwareMarkers((previous) => [...previous, marker])
-      setSelectedHardwareMarkerId(marker.id)
-      setStatus(`Placed hardware marker (${marker.kind})`)
-      return
-    }
-
-    if (tool === 'fold') {
-      if (draftPoints.length === 0) {
-        setDraftPoints([point])
-        setStatus('Fold line: pick end point')
-        return
-      }
-
-      const start = draftPoints[0]
-      if (distance(start, point) < 0.001) {
-        setStatus('Fold line ignored: start and end overlap')
-        clearDraft()
-        return
-      }
-
-      setFoldLines((previous) => [
-        ...previous,
-        sanitizeFoldLine({
-          id: uid(),
-          name: `Fold ${previous.length + 1}`,
-          start,
-          end: point,
-          angleDeg: 0,
-          maxAngleDeg: 180,
-          direction: DEFAULT_FOLD_DIRECTION,
-          radiusMm: DEFAULT_FOLD_RADIUS_MM,
-          thicknessMm: DEFAULT_FOLD_THICKNESS_MM,
-          neutralAxisRatio: DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
-          stiffness: DEFAULT_FOLD_STIFFNESS,
-          clearanceMm: DEFAULT_FOLD_CLEARANCE_MM,
-        }),
-      ])
-      clearDraft()
-      setStatus('Fold line assigned')
-      return
-    }
-
-    if (tool === 'arc') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      if (draftPoints.length < 2) {
-        setDraftPoints((previous) => [...previous, point])
-        setStatus(draftPoints.length === 0 ? 'Arc: pick midpoint' : 'Arc: pick end point')
-        return
-      }
-
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'arc',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start: draftPoints[0],
-          mid: draftPoints[1],
-          end: point,
-        },
-      ])
-      clearDraft()
-      setStatus('Arc created')
-      return
-    }
-
-    if (tool === 'bezier') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      if (draftPoints.length < 2) {
-        setDraftPoints((previous) => [...previous, point])
-        setStatus(draftPoints.length === 0 ? 'Bezier: pick control point' : 'Bezier: pick end point')
-        return
-      }
-
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'bezier',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start: draftPoints[0],
-          control: draftPoints[1],
-          end: point,
-        },
-      ])
-      clearDraft()
-      setStatus('Bezier created')
-    }
-  }
-
-  const handleShapePointerDown = (event: ReactPointerEvent<SVGElement>, shapeId: string) => {
-    if (tool !== 'pan') {
-      return
-    }
-
-    if (event.pointerType !== 'touch' && event.button !== 0) {
-      return
-    }
-
-    event.stopPropagation()
-    setSelectedHardwareMarkerId(null)
-
-    setSelectedShapeIds((previous) => {
-      const isAlreadySelected = previous.includes(shapeId)
-      let next: string[]
-
-      if (event.shiftKey) {
-        next = isAlreadySelected ? previous.filter((entry) => entry !== shapeId) : [...previous, shapeId]
-      } else {
-        next = isAlreadySelected && previous.length === 1 ? [] : [shapeId]
-      }
-
-      setStatus(next.length === 0 ? 'Shape selection cleared' : `${next.length} shape${next.length === 1 ? '' : 's'} selected`)
-      return next
-    })
-  }
-
-  const handleStitchHolePointerDown = (event: ReactPointerEvent<SVGElement>, stitchHoleId: string) => {
-    if (tool !== 'pan') {
-      return
-    }
-
-    if (event.pointerType !== 'touch' && event.button !== 0) {
-      return
-    }
-
-    const stitchHole = stitchHoles.find((entry) => entry.id === stitchHoleId)
-    if (!stitchHole) {
-      return
-    }
-
-    event.stopPropagation()
-    setSelectedShapeIds([])
-    const nextId = selectedStitchHoleId === stitchHoleId ? null : stitchHoleId
-    setSelectedStitchHoleId(nextId)
-    setStatus(nextId ? `Stitch hole ${stitchHole.sequence + 1} selected` : 'Stitch-hole selection cleared')
-  }
-
-  const handleHardwarePointerDown = (event: ReactPointerEvent<SVGGElement>, markerId: string) => {
-    if (tool !== 'pan') {
-      return
-    }
-
-    if (event.pointerType !== 'touch' && event.button !== 0) {
-      return
-    }
-
-    const marker = hardwareMarkers.find((entry) => entry.id === markerId)
-    if (!marker) {
-      return
-    }
-
-    event.stopPropagation()
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    const nextId = selectedHardwareMarkerId === markerId ? null : markerId
-    setSelectedHardwareMarkerId(nextId)
-    setStatus(nextId ? `Hardware marker selected: ${marker.label}` : 'Hardware marker selection cleared')
-  }
-
-  const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const panState = panRef.current
-    if (isPanning && panState) {
-      if (event.pointerType === 'touch' && event.pointerId !== panState.pointerId) {
-        return
-      }
-
-      const deltaX = event.clientX - panState.startX
-      const deltaY = event.clientY - panState.startY
-      setViewport((previous) => ({
-        ...previous,
-        x: panState.originX + deltaX,
-        y: panState.originY + deltaY,
-      }))
-      return
-    }
-
-    if (draftPoints.length === 0 && tool !== 'hardware') {
-      return
-    }
-
-    const point = toWorldPoint(event.clientX, event.clientY)
-    if (point) {
-      setCursorPoint(getSnappedPoint(point).point)
-    }
-  }
-
-  const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
-    const panState = panRef.current
-    if (!isPanning || !panState) {
-      return
-    }
-
-    if (event.pointerType === 'touch' && event.pointerId !== panState.pointerId) {
-      return
-    }
-
-    setIsPanning(false)
-    panRef.current = null
-    if (event.pointerType !== 'touch') {
-      try {
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId)
-        }
-      } catch {
-        // Safe no-op for browsers that fail pointer capture checks.
-      }
-    }
-  }
-
-  const handleWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
-    event.preventDefault()
-    const svg = svgRef.current
-    if (!svg) {
-      return
-    }
-
-    const rect = svg.getBoundingClientRect()
-    const screenX = event.clientX - rect.left
-    const screenY = event.clientY - rect.top
-    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9
-    zoomAtScreenPoint(screenX, screenY, zoomFactor)
-  }
+  const {
+    handleZoomStep,
+    handleResetView,
+    handleFitView,
+    handlePointerDown,
+    handleShapePointerDown,
+    handleStitchHolePointerDown,
+    handleHardwarePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handleWheel,
+  } = useCanvasInteractions({
+    svgRef,
+    panRef,
+    tool,
+    draftPoints,
+    viewport,
+    isPanning,
+    activeLayerId,
+    activeLineTypeId,
+    activeSketchGroup,
+    snapSettings,
+    foldLines,
+    visibleShapes,
+    visibleHardwareMarkers,
+    lineTypesById,
+    shapesById,
+    layers,
+    hardwarePreset,
+    customHardwareDiameterMm,
+    customHardwareSpacingMm,
+    stitchHoleType,
+    stitchHoles,
+    hardwareMarkers,
+    selectedStitchHoleId,
+    selectedHardwareMarkerId,
+    setStatus,
+    setViewport,
+    setIsPanning,
+    setDraftPoints,
+    setCursorPoint,
+    setShapes,
+    setStitchHoles,
+    setSelectedStitchHoleId,
+    setHardwareMarkers,
+    setSelectedHardwareMarkerId,
+    setFoldLines,
+    setSelectedShapeIds,
+    clearDraft,
+    ensureActiveLayerWritable,
+    ensureActiveLineTypeWritable,
+  })
   const { handleExportSvg, handleExportDxf, handleExportPdf } = useExportActions({
     shapes,
     foldLines,
@@ -2197,138 +1582,36 @@ export function EditorApp() {
     stitchHoleCountsByShape,
   })
 
-  const handleRunMobileLayerAction = () => {
-    if (mobileLayerAction === 'add') {
-      handleAddLayer()
-      return
-    }
-
-    if (mobileLayerAction === 'rename') {
-      handleRenameActiveLayer()
-      return
-    }
-
-    if (mobileLayerAction === 'toggle-visibility') {
-      handleToggleLayerVisibility()
-      return
-    }
-
-    if (mobileLayerAction === 'toggle-lock') {
-      handleToggleLayerLock()
-      return
-    }
-
-    if (mobileLayerAction === 'move-up') {
-      handleMoveLayer(-1)
-      return
-    }
-
-    if (mobileLayerAction === 'move-down') {
-      handleMoveLayer(1)
-      return
-    }
-
-    if (mobileLayerAction === 'delete') {
-      handleDeleteLayer()
-      return
-    }
-
-    setShowLayerColorModal(true)
-  }
-
-  const handleRunMobileFileAction = () => {
-    if (mobileFileAction === 'save-json') {
-      handleSaveJson()
-      return
-    }
-
-    if (mobileFileAction === 'load-json') {
-      fileInputRef.current?.click()
-      return
-    }
-
-    if (mobileFileAction === 'import-svg') {
-      svgInputRef.current?.click()
-      return
-    }
-
-    if (mobileFileAction === 'load-preset') {
-      handleLoadPreset()
-      return
-    }
-
-    if (mobileFileAction === 'export-svg') {
-      handleExportSvg()
-      return
-    }
-
-    if (mobileFileAction === 'export-pdf') {
-      handleExportPdf()
-      return
-    }
-
-    if (mobileFileAction === 'export-dxf') {
-      handleExportDxf()
-      return
-    }
-
-    if (mobileFileAction === 'export-options') {
-      setShowExportOptionsModal(true)
-      return
-    }
-
-    if (mobileFileAction === 'template-repository') {
-      setShowTemplateRepositoryModal(true)
-      return
-    }
-
-    if (mobileFileAction === 'pattern-tools') {
-      setShowPatternToolsModal(true)
-      return
-    }
-
-    if (mobileFileAction === 'import-tracing') {
-      tracingInputRef.current?.click()
-      return
-    }
-
-    if (mobileFileAction === 'print-preview') {
-      setShowPrintPreviewModal(true)
-      return
-    }
-
-    if (mobileFileAction === 'undo') {
-      handleUndo()
-      return
-    }
-
-    if (mobileFileAction === 'redo') {
-      handleRedo()
-      return
-    }
-
-    if (mobileFileAction === 'copy') {
-      handleCopySelection()
-      return
-    }
-
-    if (mobileFileAction === 'paste') {
-      handlePasteClipboard()
-      return
-    }
-
-    if (mobileFileAction === 'delete') {
-      handleDeleteSelection()
-      return
-    }
-
-    if (mobileFileAction === 'toggle-3d') {
-      setShowThreePreview((previous) => !previous)
-      return
-    }
-
-    resetDocument()
-  }
+  const { handleRunMobileLayerAction, handleRunMobileFileAction } = useMobileActions({
+    mobileLayerAction,
+    mobileFileAction,
+    fileInputRef,
+    svgInputRef,
+    tracingInputRef,
+    handleAddLayer,
+    handleRenameActiveLayer,
+    handleToggleLayerVisibility,
+    handleToggleLayerLock,
+    handleMoveLayer,
+    handleDeleteLayer,
+    handleSaveJson,
+    handleLoadPreset,
+    handleExportSvg,
+    handleExportPdf,
+    handleExportDxf,
+    handleUndo,
+    handleRedo,
+    handleCopySelection,
+    handlePasteClipboard,
+    handleDeleteSelection,
+    resetDocument,
+    setShowLayerColorModal,
+    setShowExportOptionsModal,
+    setShowTemplateRepositoryModal,
+    setShowPatternToolsModal,
+    setShowPrintPreviewModal,
+    setShowThreePreview,
+  })
 
   const handleToggleTheme = () => {
     setThemeMode((previous) => {
