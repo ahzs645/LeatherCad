@@ -74,8 +74,8 @@
 }
 
 .topbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
@@ -84,10 +84,125 @@
   backdrop-filter: blur(4px);
 }
 
+.topbar-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
 .group {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.topbar:not(.topbar-mobile) {
+  gap: 0;
+  padding: 0;
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.3), rgba(15, 23, 42, 0.92)),
+    var(--surface-top);
+}
+
+.desktop-ribbon-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.desktop-ribbon-brand {
+  min-width: 170px;
+  display: grid;
+  gap: 2px;
+}
+
+.desktop-ribbon-app {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-muted-strong);
+}
+
+.desktop-ribbon-mode {
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.desktop-ribbon-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.desktop-ribbon-tabs button {
+  border: 1px solid transparent;
+  border-bottom-width: 2px;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px 7px;
+}
+
+.desktop-ribbon-tabs button.active {
+  background: var(--surface-input);
+  border-color: var(--border-color);
+  border-bottom-color: var(--accent-border);
+  color: var(--text-muted-strong);
+}
+
+.desktop-ribbon-strip-meta {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.desktop-ribbon-panel {
+  padding: 10px 14px 10px;
+  align-items: stretch;
+}
+
+.topbar:not(.topbar-mobile) .ribbon-section {
+  position: relative;
+  min-height: 66px;
+  padding: 8px 10px 22px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-panel);
+}
+
+.topbar:not(.topbar-mobile) .ribbon-section::after {
+  content: attr(data-section);
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar:not(.topbar-mobile) .ribbon-stitch {
+  flex: 1 1 100%;
+  display: flex;
+  min-width: 0;
+}
+
+.topbar:not(.topbar-mobile) .ribbon-stitch .stitch-controls {
+  width: 100%;
 }
 
 .topbar-mobile .tool-group {
@@ -155,6 +270,13 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.topbar:not(.topbar-mobile) .edit-controls,
+.topbar:not(.topbar-mobile) .file-controls,
+.topbar:not(.topbar-mobile) .stitch-controls {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
 .edit-controls button {
   white-space: nowrap;
   flex: 0 0 auto;
@@ -190,9 +312,20 @@
 }
 
 .group.meta {
-  margin-left: auto;
   color: var(--text-meta);
   font-size: 13px;
+}
+
+.ribbon-meta {
+  padding: 0 14px 10px;
+  border-top: 1px solid var(--border-soft);
+  gap: 14px;
+}
+
+.topbar-mobile .ribbon-meta {
+  width: 100%;
+  padding: 0;
+  border-top: 0;
 }
 
 .mobile-menu-toggle {

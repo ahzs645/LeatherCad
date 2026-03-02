@@ -2678,340 +2678,381 @@ function App() {
   return (
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
       <header className={topbarClassName}>
-        <div className="group tool-group">
-          {isMobileLayout ? (
-            <>
-              <select
-                className="tool-select-mobile"
-                value={tool}
-                onChange={(event) => setActiveTool(event.target.value as Tool)}
-              >
-                {TOOL_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    Tool: {option.label}
-                  </option>
-                ))}
-              </select>
-              <div className="mobile-view-inline-tabs" role="tablist" aria-label="Mobile view mode">
+        {!isMobileLayout && (
+          <div className="desktop-ribbon-strip">
+            <div className="desktop-ribbon-brand">
+              <span className="desktop-ribbon-app">LeatherCAD</span>
+              <span className="desktop-ribbon-mode">Desktop Builder</span>
+            </div>
+            <nav className="desktop-ribbon-tabs" aria-label="Desktop ribbon tabs">
+              {DESKTOP_RIBBON_TABS.map((tab) => (
                 <button
-                  className={mobileViewMode === 'editor' ? 'active' : ''}
-                  onClick={() => setMobileViewMode('editor')}
-                  disabled={!isMobileLayout}
+                  key={tab.value}
+                  className={desktopRibbonTab === tab.value ? 'active' : ''}
+                  onClick={() => setDesktopRibbonTab(tab.value)}
                 >
-                  2D
+                  {tab.label}
                 </button>
-                <button
-                  className={mobileViewMode === 'preview' ? 'active' : ''}
-                  onClick={() => setMobileViewMode('preview')}
-                  disabled={!isMobileLayout || !showThreePreview}
-                >
-                  3D
-                </button>
-                <button
-                  className={mobileViewMode === 'split' ? 'active' : ''}
-                  onClick={() => setMobileViewMode('split')}
-                  disabled={!isMobileLayout || !showThreePreview}
-                >
-                  Split
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
-                Move
-              </button>
-              <button className={tool === 'line' ? 'active' : ''} onClick={() => setActiveTool('line')}>
-                Line
-              </button>
-              <button className={tool === 'arc' ? 'active' : ''} onClick={() => setActiveTool('arc')}>
-                Arc
-              </button>
-              <button className={tool === 'bezier' ? 'active' : ''} onClick={() => setActiveTool('bezier')}>
-                Bezier
-              </button>
-              <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
-                Fold
-              </button>
-              <button className={tool === 'stitch-hole' ? 'active' : ''} onClick={() => setActiveTool('stitch-hole')}>
-                Stitch Hole
-              </button>
-            </>
-          )}
-          {isMobileLayout && (
-            <button
-              className="mobile-menu-toggle"
-              onClick={() =>
-                setShowMobileMenu((previous) => {
-                  const next = !previous
-                  if (next) {
-                    setMobileOptionsTab('view')
-                  }
-                  return next
-                })
-              }
-            >
-              {showMobileMenu ? 'Close' : 'Options'}
-            </button>
-          )}
-        </div>
-
-        {isMobileLayout && showMobileMenu && (
-          <div className="group mobile-options-tabs">
-            {MOBILE_OPTIONS_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                className={mobileOptionsTab === tab.value ? 'active' : ''}
-                onClick={() => setMobileOptionsTab(tab.value)}
-              >
-                {tab.label}
-              </button>
-            ))}
+              ))}
+            </nav>
+            <div className="desktop-ribbon-strip-meta">
+              <span>{selectedShapeCount} selected</span>
+              <span>{selectedStitchHoleCount} selected holes</span>
+              <span>{showThreePreview ? '3D on' : '3D off'}</span>
+            </div>
           </div>
         )}
 
-        <div className={`group preset-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
-          <select
-            className="preset-select"
-            value={selectedPresetId}
-            onChange={(event) => setSelectedPresetId(event.target.value)}
-          >
-            {PRESET_DOCS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-          </select>
-          <button onClick={() => handleLoadPreset()}>Load Preset</button>
-          <button onClick={handleToggleTheme}>{themeMode === 'dark' ? 'White Mode' : 'Dark Mode'}</button>
-        </div>
-
-        <div className={`group zoom-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
-          <button onClick={() => handleZoomStep(0.85)}>-</button>
-          <button onClick={() => handleZoomStep(1.15)}>+</button>
-          <button onClick={handleFitView}>Fit</button>
-          <button onClick={handleResetView}>Reset</button>
-        </div>
-
-        <div className={`group edit-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
-          <button onClick={handleUndo} disabled={!canUndo}>
-            Undo
-          </button>
-          <button onClick={handleRedo} disabled={!canRedo}>
-            Redo
-          </button>
-          <button onClick={handleCopySelection} disabled={selectedShapeCount === 0}>
-            Copy
-          </button>
-          <button onClick={handleCutSelection} disabled={selectedShapeCount === 0}>
-            Cut
-          </button>
-          <button onClick={handlePasteClipboard} disabled={!clipboardPayload || clipboardPayload.shapes.length === 0}>
-            Paste
-          </button>
-          <button onClick={handleDuplicateSelection} disabled={selectedShapeCount === 0}>
-            Duplicate
-          </button>
-          <button onClick={handleDeleteSelection} disabled={selectedShapeCount === 0}>
-            Delete
-          </button>
-          <button onClick={handleMoveSelectionBackward} disabled={selectedShapeCount === 0}>
-            Send Back
-          </button>
-          <button onClick={handleMoveSelectionForward} disabled={selectedShapeCount === 0}>
-            Bring Forward
-          </button>
-          <button onClick={handleSendSelectionToBack} disabled={selectedShapeCount === 0}>
-            To Back
-          </button>
-          <button onClick={handleBringSelectionToFront} disabled={selectedShapeCount === 0}>
-            To Front
-          </button>
-        </div>
-
-        <div className={`group line-type-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
-          <span className="line-type-label">Line Type</span>
-          <select
-            className="line-type-select"
-            value={activeLineType?.id ?? ''}
-            onChange={(event) => setActiveLineTypeId(event.target.value)}
-          >
-            {lineTypes.map((lineType) => (
-              <option key={lineType.id} value={lineType.id}>
-                {lineType.name}
-                {` [${lineType.role}]`}
-                {lineType.visible ? '' : ' (hidden)'}
-              </option>
-            ))}
-          </select>
-          <button onClick={handleToggleActiveLineTypeVisibility} disabled={!activeLineType}>
-            {activeLineType?.visible ? 'Hide Type' : 'Show Type'}
-          </button>
-          <button onClick={() => setShowLineTypePalette(true)}>Palette</button>
-        </div>
-
-        {showViewOptions && (
-          <StitchHolePanel
-            holeType={stitchHoleType}
-            onChangeHoleType={setStitchHoleType}
-            pitchMm={stitchPitchMm}
-            onChangePitchMm={(nextPitch) => setStitchPitchMm(clamp(nextPitch || 0, 0.2, 100))}
-            variablePitchStartMm={stitchVariablePitchStartMm}
-            variablePitchEndMm={stitchVariablePitchEndMm}
-            onChangeVariablePitchStartMm={(nextPitch) => setStitchVariablePitchStartMm(clamp(nextPitch || 0, 0.2, 100))}
-            onChangeVariablePitchEndMm={(nextPitch) => setStitchVariablePitchEndMm(clamp(nextPitch || 0, 0.2, 100))}
-            onAutoPlaceFixedPitch={handleAutoPlaceFixedPitchStitchHoles}
-            onAutoPlaceVariablePitch={handleAutoPlaceVariablePitchStitchHoles}
-            onResequenceSelected={() => handleResequenceSelectedStitchHoles(false)}
-            onReverseSelected={() => handleResequenceSelectedStitchHoles(true)}
-            onSelectNextHole={handleSelectNextStitchHole}
-            onFixOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(false)}
-            onFixReverseOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(true)}
-            showSequenceLabels={showStitchSequenceLabels}
-            onToggleSequenceLabels={() => setShowStitchSequenceLabels((previous) => !previous)}
-            onCountSelected={handleCountStitchHolesOnSelectedShapes}
-            onDeleteOnSelected={handleDeleteStitchHolesOnSelectedShapes}
-            onClearAll={handleClearAllStitchHoles}
-            selectedShapeCount={selectedShapeCount}
-            selectedHoleCount={selectedStitchHoleCount}
-            totalHoleCount={stitchHoles.length}
-            hasSelectedHole={selectedStitchHole !== null}
-          />
-        )}
-
-        <div className={`group layer-controls ${showLayerOptions ? '' : 'mobile-hidden'}`}>
-          <span className="layer-label">Layer</span>
-          <select
-            className="layer-select"
-            value={activeLayer?.id ?? ''}
-            onChange={(event) => {
-              setActiveLayerId(event.target.value)
-              clearDraft()
-            }}
-          >
-            {layers.map((layer, index) => (
-              <option key={layer.id} value={layer.id}>
-                {index + 1}. {layer.name}
-                {` [z${layerStackLevels[layer.id] ?? index}]`}
-                {layer.visible ? '' : ' (hidden)'}
-                {layer.locked ? ' (locked)' : ''}
-              </option>
-            ))}
-          </select>
-          {isMobileLayout ? (
-            <div className="group mobile-action-row">
-              <select
-                className="action-select"
-                value={mobileLayerAction}
-                onChange={(event) => setMobileLayerAction(event.target.value as MobileLayerAction)}
-              >
-                <option value="add">Add Layer</option>
-                <option value="rename">Rename Layer</option>
-                <option value="toggle-visibility">{activeLayer?.visible ? 'Hide Layer' : 'Show Layer'}</option>
-                <option value="toggle-lock">{activeLayer?.locked ? 'Unlock Layer' : 'Lock Layer'}</option>
-                <option value="move-up">Move Layer Up</option>
-                <option value="move-down">Move Layer Down</option>
-                <option value="delete">Delete Layer</option>
-                <option value="colors">Layer Colors</option>
-              </select>
-              <button onClick={handleRunMobileLayerAction} disabled={layers.length === 0}>
-                Apply
-              </button>
+        <div className={`topbar-body ${isMobileLayout ? 'topbar-body-mobile' : 'desktop-ribbon-panel'}`}>
+          {showToolSection && (
+            <div className="group tool-group ribbon-section" data-section="Geometry">
+              {isMobileLayout ? (
+                <>
+                  <select
+                    className="tool-select-mobile"
+                    value={tool}
+                    onChange={(event) => setActiveTool(event.target.value as Tool)}
+                  >
+                    {TOOL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        Tool: {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="mobile-view-inline-tabs" role="tablist" aria-label="Mobile view mode">
+                    <button className={mobileViewMode === 'editor' ? 'active' : ''} onClick={() => setMobileViewMode('editor')}>
+                      2D
+                    </button>
+                    <button
+                      className={mobileViewMode === 'preview' ? 'active' : ''}
+                      onClick={() => setMobileViewMode('preview')}
+                      disabled={!showThreePreview}
+                    >
+                      3D
+                    </button>
+                    <button
+                      className={mobileViewMode === 'split' ? 'active' : ''}
+                      onClick={() => setMobileViewMode('split')}
+                      disabled={!showThreePreview}
+                    >
+                      Split
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
+                    Move
+                  </button>
+                  <button className={tool === 'line' ? 'active' : ''} onClick={() => setActiveTool('line')}>
+                    Line
+                  </button>
+                  <button className={tool === 'arc' ? 'active' : ''} onClick={() => setActiveTool('arc')}>
+                    Arc
+                  </button>
+                  <button className={tool === 'bezier' ? 'active' : ''} onClick={() => setActiveTool('bezier')}>
+                    Bezier
+                  </button>
+                  <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
+                    Fold
+                  </button>
+                  <button className={tool === 'stitch-hole' ? 'active' : ''} onClick={() => setActiveTool('stitch-hole')}>
+                    Stitch Hole
+                  </button>
+                </>
+              )}
+              {isMobileLayout && (
+                <button
+                  className="mobile-menu-toggle"
+                  onClick={() =>
+                    setShowMobileMenu((previous) => {
+                      const next = !previous
+                      if (next) {
+                        setMobileOptionsTab('view')
+                      }
+                      return next
+                    })
+                  }
+                >
+                  {showMobileMenu ? 'Close' : 'Options'}
+                </button>
+              )}
             </div>
-          ) : (
-            <>
-              <button onClick={handleAddLayer}>+ Layer</button>
-              <button onClick={handleRenameActiveLayer} disabled={!activeLayer}>
-                Rename
+          )}
+
+          {isMobileLayout && showMobileMenu && (
+            <div className="group mobile-options-tabs">
+              {MOBILE_OPTIONS_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  className={mobileOptionsTab === tab.value ? 'active' : ''}
+                  onClick={() => setMobileOptionsTab(tab.value)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showPresetSection && (
+            <div className="group preset-controls ribbon-section" data-section="Workspace">
+              <select
+                className="preset-select"
+                value={selectedPresetId}
+                onChange={(event) => setSelectedPresetId(event.target.value)}
+              >
+                {PRESET_DOCS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+              </select>
+              <button onClick={() => handleLoadPreset()}>Load Preset</button>
+              <button onClick={handleToggleTheme}>{themeMode === 'dark' ? 'White Mode' : 'Dark Mode'}</button>
+            </div>
+          )}
+
+          {showZoomSection && (
+            <div className="group zoom-controls ribbon-section" data-section="View">
+              <button onClick={() => handleZoomStep(0.85)}>-</button>
+              <button onClick={() => handleZoomStep(1.15)}>+</button>
+              <button onClick={handleFitView}>Fit</button>
+              <button onClick={handleResetView}>Reset</button>
+            </div>
+          )}
+
+          {showEditSection && (
+            <div className="group edit-controls ribbon-section" data-section="Edit">
+              <button onClick={handleUndo} disabled={!canUndo}>
+                Undo
               </button>
-              <button onClick={handleToggleLayerVisibility} disabled={!activeLayer}>
-                {activeLayer?.visible ? 'Hide' : 'Show'}
+              <button onClick={handleRedo} disabled={!canRedo}>
+                Redo
               </button>
-              <button onClick={handleToggleLayerLock} disabled={!activeLayer}>
-                {activeLayer?.locked ? 'Unlock' : 'Lock'}
+              <button onClick={handleCopySelection} disabled={selectedShapeCount === 0}>
+                Copy
               </button>
-              <button onClick={() => handleMoveLayer(-1)} disabled={!activeLayer || layers.length < 2}>
-                Up
+              <button onClick={handleCutSelection} disabled={selectedShapeCount === 0}>
+                Cut
               </button>
-              <button onClick={() => handleMoveLayer(1)} disabled={!activeLayer || layers.length < 2}>
-                Down
+              <button onClick={handlePasteClipboard} disabled={!clipboardPayload || clipboardPayload.shapes.length === 0}>
+                Paste
               </button>
-              <button onClick={handleDeleteLayer} disabled={!activeLayer || layers.length < 2}>
+              <button onClick={handleDuplicateSelection} disabled={selectedShapeCount === 0}>
+                Duplicate
+              </button>
+              <button onClick={handleDeleteSelection} disabled={selectedShapeCount === 0}>
                 Delete
               </button>
-              <button onClick={() => setShowLayerColorModal(true)} disabled={layers.length === 0}>
-                Colors
+              <button onClick={handleMoveSelectionBackward} disabled={selectedShapeCount === 0}>
+                Send Back
               </button>
-            </>
-          )}
-        </div>
-
-        <div className={`group file-controls ${showFileOptions ? '' : 'mobile-hidden'}`}>
-          {isMobileLayout ? (
-            <div className="group mobile-action-row">
-              <select
-                className="action-select"
-                value={mobileFileAction}
-                onChange={(event) => setMobileFileAction(event.target.value as MobileFileAction)}
-              >
-                <option value="save-json">Save JSON</option>
-                <option value="load-json">Load JSON</option>
-                <option value="import-svg">Import SVG</option>
-                <option value="load-preset">Load Preset</option>
-                <option value="export-svg">Export SVG</option>
-                <option value="export-dxf">Export DXF</option>
-                <option value="export-options">Export Options</option>
-                <option value="template-repository">Template Repository</option>
-                <option value="import-tracing">Import Tracing</option>
-                <option value="print-preview">Print Preview</option>
-                <option value="undo">Undo</option>
-                <option value="redo">Redo</option>
-                <option value="copy">Copy Selection</option>
-                <option value="paste">Paste</option>
-                <option value="delete">Delete Selection</option>
-                <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
-                <option value="clear">Clear Document</option>
-              </select>
-              <button onClick={handleRunMobileFileAction}>Apply</button>
+              <button onClick={handleMoveSelectionForward} disabled={selectedShapeCount === 0}>
+                Bring Forward
+              </button>
+              <button onClick={handleSendSelectionToBack} disabled={selectedShapeCount === 0}>
+                To Back
+              </button>
+              <button onClick={handleBringSelectionToFront} disabled={selectedShapeCount === 0}>
+                To Front
+              </button>
             </div>
-          ) : (
-            <>
-              <button onClick={handleSaveJson}>Save JSON</button>
-              <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
-              <button onClick={() => svgInputRef.current?.click()}>Import SVG</button>
-              <button onClick={() => handleLoadPreset()}>Load Preset</button>
-              <button onClick={handleExportSvg}>Export SVG</button>
-              <button onClick={handleExportDxf}>Export DXF</button>
-              <button onClick={() => setShowExportOptionsModal(true)}>Export Options</button>
-              <button onClick={() => setShowTemplateRepositoryModal(true)}>Templates</button>
-              <button onClick={() => tracingInputRef.current?.click()}>Tracing</button>
-              <button onClick={() => setShowTracingModal(true)} disabled={tracingOverlays.length === 0}>
-                Tracing Controls
+          )}
+
+          {showLineTypeSection && (
+            <div className="group line-type-controls ribbon-section" data-section="Line Types">
+              <span className="line-type-label">Line Type</span>
+              <select
+                className="line-type-select"
+                value={activeLineType?.id ?? ''}
+                onChange={(event) => setActiveLineTypeId(event.target.value)}
+              >
+                {lineTypes.map((lineType) => (
+                  <option key={lineType.id} value={lineType.id}>
+                    {lineType.name}
+                    {` [${lineType.role}]`}
+                    {lineType.visible ? '' : ' (hidden)'}
+                  </option>
+                ))}
+              </select>
+              <button onClick={handleToggleActiveLineTypeVisibility} disabled={!activeLineType}>
+                {activeLineType?.visible ? 'Hide Type' : 'Show Type'}
               </button>
-              <button onClick={() => setShowPrintPreviewModal(true)}>Print Preview</button>
-              <button onClick={() => setShowPrintAreas((previous) => !previous)}>
-                {showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}
-              </button>
-              <button onClick={() => setShowThreePreview((previous) => !previous)}>
-                {showThreePreview ? 'Hide 3D' : 'Show 3D'}
-              </button>
-              <button onClick={() => resetDocument()}>
-                Clear
-              </button>
-            </>
+              <button onClick={() => setShowLineTypePalette(true)}>Palette</button>
+            </div>
+          )}
+
+          {showStitchSection && (
+            <div className="ribbon-section ribbon-stitch" data-section="Stitching">
+              <StitchHolePanel
+                holeType={stitchHoleType}
+                onChangeHoleType={setStitchHoleType}
+                pitchMm={stitchPitchMm}
+                onChangePitchMm={(nextPitch) => setStitchPitchMm(clamp(nextPitch || 0, 0.2, 100))}
+                variablePitchStartMm={stitchVariablePitchStartMm}
+                variablePitchEndMm={stitchVariablePitchEndMm}
+                onChangeVariablePitchStartMm={(nextPitch) => setStitchVariablePitchStartMm(clamp(nextPitch || 0, 0.2, 100))}
+                onChangeVariablePitchEndMm={(nextPitch) => setStitchVariablePitchEndMm(clamp(nextPitch || 0, 0.2, 100))}
+                onAutoPlaceFixedPitch={handleAutoPlaceFixedPitchStitchHoles}
+                onAutoPlaceVariablePitch={handleAutoPlaceVariablePitchStitchHoles}
+                onResequenceSelected={() => handleResequenceSelectedStitchHoles(false)}
+                onReverseSelected={() => handleResequenceSelectedStitchHoles(true)}
+                onSelectNextHole={handleSelectNextStitchHole}
+                onFixOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(false)}
+                onFixReverseOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(true)}
+                showSequenceLabels={showStitchSequenceLabels}
+                onToggleSequenceLabels={() => setShowStitchSequenceLabels((previous) => !previous)}
+                onCountSelected={handleCountStitchHolesOnSelectedShapes}
+                onDeleteOnSelected={handleDeleteStitchHolesOnSelectedShapes}
+                onClearAll={handleClearAllStitchHoles}
+                selectedShapeCount={selectedShapeCount}
+                selectedHoleCount={selectedStitchHoleCount}
+                totalHoleCount={stitchHoles.length}
+                hasSelectedHole={selectedStitchHole !== null}
+              />
+            </div>
+          )}
+
+          {showLayerSection && (
+            <div className="group layer-controls ribbon-section" data-section="Layers">
+              <span className="layer-label">Layer</span>
+              <select
+                className="layer-select"
+                value={activeLayer?.id ?? ''}
+                onChange={(event) => {
+                  setActiveLayerId(event.target.value)
+                  clearDraft()
+                }}
+              >
+                {layers.map((layer, index) => (
+                  <option key={layer.id} value={layer.id}>
+                    {index + 1}. {layer.name}
+                    {` [z${layerStackLevels[layer.id] ?? index}]`}
+                    {layer.visible ? '' : ' (hidden)'}
+                    {layer.locked ? ' (locked)' : ''}
+                  </option>
+                ))}
+              </select>
+              {isMobileLayout ? (
+                <div className="group mobile-action-row">
+                  <select
+                    className="action-select"
+                    value={mobileLayerAction}
+                    onChange={(event) => setMobileLayerAction(event.target.value as MobileLayerAction)}
+                  >
+                    <option value="add">Add Layer</option>
+                    <option value="rename">Rename Layer</option>
+                    <option value="toggle-visibility">{activeLayer?.visible ? 'Hide Layer' : 'Show Layer'}</option>
+                    <option value="toggle-lock">{activeLayer?.locked ? 'Unlock Layer' : 'Lock Layer'}</option>
+                    <option value="move-up">Move Layer Up</option>
+                    <option value="move-down">Move Layer Down</option>
+                    <option value="delete">Delete Layer</option>
+                    <option value="colors">Layer Colors</option>
+                  </select>
+                  <button onClick={handleRunMobileLayerAction} disabled={layers.length === 0}>
+                    Apply
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button onClick={handleAddLayer}>+ Layer</button>
+                  <button onClick={handleRenameActiveLayer} disabled={!activeLayer}>
+                    Rename
+                  </button>
+                  <button onClick={handleToggleLayerVisibility} disabled={!activeLayer}>
+                    {activeLayer?.visible ? 'Hide' : 'Show'}
+                  </button>
+                  <button onClick={handleToggleLayerLock} disabled={!activeLayer}>
+                    {activeLayer?.locked ? 'Unlock' : 'Lock'}
+                  </button>
+                  <button onClick={() => handleMoveLayer(-1)} disabled={!activeLayer || layers.length < 2}>
+                    Up
+                  </button>
+                  <button onClick={() => handleMoveLayer(1)} disabled={!activeLayer || layers.length < 2}>
+                    Down
+                  </button>
+                  <button onClick={handleDeleteLayer} disabled={!activeLayer || layers.length < 2}>
+                    Delete
+                  </button>
+                  <button onClick={() => setShowLayerColorModal(true)} disabled={layers.length === 0}>
+                    Colors
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {showFileSection && (
+            <div className="group file-controls ribbon-section" data-section="Output">
+              {isMobileLayout ? (
+                <div className="group mobile-action-row">
+                  <select
+                    className="action-select"
+                    value={mobileFileAction}
+                    onChange={(event) => setMobileFileAction(event.target.value as MobileFileAction)}
+                  >
+                    <option value="save-json">Save JSON</option>
+                    <option value="load-json">Load JSON</option>
+                    <option value="import-svg">Import SVG</option>
+                    <option value="load-preset">Load Preset</option>
+                    <option value="export-svg">Export SVG</option>
+                    <option value="export-dxf">Export DXF</option>
+                    <option value="export-options">Export Options</option>
+                    <option value="template-repository">Template Repository</option>
+                    <option value="import-tracing">Import Tracing</option>
+                    <option value="print-preview">Print Preview</option>
+                    <option value="undo">Undo</option>
+                    <option value="redo">Redo</option>
+                    <option value="copy">Copy Selection</option>
+                    <option value="paste">Paste</option>
+                    <option value="delete">Delete Selection</option>
+                    <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
+                    <option value="clear">Clear Document</option>
+                  </select>
+                  <button onClick={handleRunMobileFileAction}>Apply</button>
+                </div>
+              ) : (
+                <>
+                  <button onClick={handleSaveJson}>Save JSON</button>
+                  <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
+                  <button onClick={() => svgInputRef.current?.click()}>Import SVG</button>
+                  <button onClick={() => handleLoadPreset()}>Load Preset</button>
+                  <button onClick={handleExportSvg}>Export SVG</button>
+                  <button onClick={handleExportDxf}>Export DXF</button>
+                  <button onClick={() => setShowExportOptionsModal(true)}>Export Options</button>
+                  <button onClick={() => setShowTemplateRepositoryModal(true)}>Templates</button>
+                  <button onClick={() => tracingInputRef.current?.click()}>Tracing</button>
+                  <button onClick={() => setShowTracingModal(true)} disabled={tracingOverlays.length === 0}>
+                    Tracing Controls
+                  </button>
+                  <button onClick={() => setShowPrintPreviewModal(true)}>Print Preview</button>
+                  <button onClick={() => setShowPrintAreas((previous) => !previous)}>
+                    {showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}
+                  </button>
+                  <button onClick={() => setShowThreePreview((previous) => !previous)}>
+                    {showThreePreview ? 'Hide 3D' : 'Show 3D'}
+                  </button>
+                  <button onClick={() => resetDocument()}>
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
 
-        <div className={`group meta ${showMeta ? '' : 'mobile-hidden'}`}>
-          <span>{Math.round(viewport.scale * 100)}% zoom</span>
-          <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
-          <span>{layers.length} layers</span>
-          <span>{lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types</span>
-          <span>{foldLines.length} bends</span>
-          <span>{stitchHoles.length} stitch holes</span>
-          <span>{tracingOverlays.length} traces</span>
-          <span>{templateRepository.length} templates</span>
-        </div>
+        {showMeta && (
+          <div className="group meta ribbon-meta">
+            <span>{Math.round(viewport.scale * 100)}% zoom</span>
+            <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
+            <span>{layers.length} layers</span>
+            <span>{lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types</span>
+            <span>{foldLines.length} bends</span>
+            <span>{stitchHoles.length} stitch holes</span>
+            <span>{tracingOverlays.length} traces</span>
+            <span>{templateRepository.length} templates</span>
+          </div>
+        )}
       </header>
 
       <main className={workspaceClassName}>
