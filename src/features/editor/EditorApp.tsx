@@ -5,7 +5,6 @@ import type {
 import '../../app/styles/App.css'
 import {
   arcPath,
-  clamp,
   round,
   uid,
 } from './cad/cad-geometry'
@@ -31,15 +30,18 @@ import type {
   Viewport,
 } from './cad/cad-types'
 import { ExportOptionsModal } from './components/ExportOptionsModal'
+import { EditorHiddenInputs } from './components/EditorHiddenInputs'
+import { EditorPreviewPane } from './components/EditorPreviewPane'
+import { EditorStatusBar } from './components/EditorStatusBar'
+import { EditorTopbar } from './components/EditorTopbar'
 import { HelpModal } from './components/HelpModal'
 import { LayerColorModal } from './components/LayerColorModal'
+import { LayerLegendPanel } from './components/LayerLegendPanel'
 import { LineTypePalette } from './components/LineTypePalette'
 import { PatternToolsModal } from './components/PatternToolsModal'
 import { PrintPreviewModal } from './components/PrintPreviewModal'
-import { StitchHolePanel } from './components/StitchHolePanel'
 import { TemplateRepositoryModal } from './components/TemplateRepositoryModal'
 import { TracingModal } from './components/TracingModal'
-import { ThreePreviewPanel } from './components/ThreePreviewPanel'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   createDefaultLineTypes,
@@ -50,7 +52,7 @@ import {
 import {
   normalizeStitchHoleSequences,
 } from './ops/stitch-hole-ops'
-import { DEFAULT_PRESET_ID, PRESET_DOCS } from './data/sample-doc'
+import { DEFAULT_PRESET_ID } from './data/sample-doc'
 import { deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
 import type { PrintPaper } from './preview/print-preview'
 import {
@@ -66,12 +68,9 @@ import {
   DEFAULT_FRONT_LAYER_COLOR,
   DEFAULT_SEAM_ALLOWANCE_MM,
   DEFAULT_SNAP_SETTINGS,
-  DESKTOP_RIBBON_TABS,
   GRID_EXTENT,
   GRID_STEP,
   HISTORY_LIMIT,
-  MOBILE_OPTIONS_TABS,
-  TOOL_OPTIONS,
 } from './editor-constants'
 import {
   parseSnapSettings,
@@ -1211,398 +1210,127 @@ export function EditorApp() {
 
   return (
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
-      <header className={topbarClassName}>
-        {!isMobileLayout && (
-          <div className="desktop-ribbon-strip">
-            <div className="desktop-ribbon-brand">
-              <span className="desktop-ribbon-app">LeatherCAD</span>
-              <span className="desktop-ribbon-mode">Desktop Builder</span>
-            </div>
-            <nav className="desktop-ribbon-tabs" aria-label="Desktop ribbon tabs">
-              {DESKTOP_RIBBON_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  className={desktopRibbonTab === tab.value ? 'active' : ''}
-                  onClick={() => setDesktopRibbonTab(tab.value)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-            <div className="desktop-ribbon-strip-meta">
-              <span>{selectedShapeCount} selected</span>
-              <span>{selectedStitchHoleCount} selected holes</span>
-              <span>{showThreePreview ? '3D on' : '3D off'}</span>
-              <button
-                type="button"
-                className="help-button"
-                onClick={() => setShowHelpModal(true)}
-                aria-label="Open help"
-                title="Help"
-              >
-                ?
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className={`topbar-body ${isMobileLayout ? 'topbar-body-mobile' : 'desktop-ribbon-panel'}`}>
-          {showToolSection && (
-            <div className="group tool-group ribbon-section" data-section="Geometry">
-              {isMobileLayout ? (
-                <>
-                  <select
-                    className="tool-select-mobile"
-                    value={tool}
-                    onChange={(event) => setActiveTool(event.target.value as Tool)}
-                  >
-                    {TOOL_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        Tool: {option.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="mobile-view-inline-tabs" role="tablist" aria-label="Mobile view mode">
-                    <button className={mobileViewMode === 'editor' ? 'active' : ''} onClick={() => setMobileViewMode('editor')}>
-                      2D
-                    </button>
-                    <button
-                      className={mobileViewMode === 'preview' ? 'active' : ''}
-                      onClick={() => setMobileViewMode('preview')}
-                      disabled={!showThreePreview}
-                    >
-                      3D
-                    </button>
-                    <button
-                      className={mobileViewMode === 'split' ? 'active' : ''}
-                      onClick={() => setMobileViewMode('split')}
-                      disabled={!showThreePreview}
-                    >
-                      Split
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <button className={tool === 'pan' ? 'active' : ''} onClick={() => setActiveTool('pan')}>
-                    Move
-                  </button>
-                  <button className={tool === 'line' ? 'active' : ''} onClick={() => setActiveTool('line')}>
-                    Line
-                  </button>
-                  <button className={tool === 'arc' ? 'active' : ''} onClick={() => setActiveTool('arc')}>
-                    Arc
-                  </button>
-                  <button className={tool === 'bezier' ? 'active' : ''} onClick={() => setActiveTool('bezier')}>
-                    Bezier
-                  </button>
-                  <button className={tool === 'fold' ? 'active' : ''} onClick={() => setActiveTool('fold')}>
-                    Fold
-                  </button>
-                  <button className={tool === 'stitch-hole' ? 'active' : ''} onClick={() => setActiveTool('stitch-hole')}>
-                    Stitch Hole
-                  </button>
-                  <button className={tool === 'hardware' ? 'active' : ''} onClick={() => setActiveTool('hardware')}>
-                    Hardware
-                  </button>
-                </>
-              )}
-              {isMobileLayout && (
-                <>
-                  <button
-                    type="button"
-                    className="help-button mobile-help-toggle"
-                    onClick={() => setShowHelpModal(true)}
-                    aria-label="Open help"
-                    title="Help"
-                  >
-                    ?
-                  </button>
-                  <button
-                    className="mobile-menu-toggle"
-                    onClick={() =>
-                      setShowMobileMenu((previous) => {
-                        const next = !previous
-                        if (next) {
-                          setMobileOptionsTab('view')
-                        }
-                        return next
-                      })
-                    }
-                  >
-                    {showMobileMenu ? 'Close' : 'Options'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {isMobileLayout && showMobileMenu && (
-            <div className="group mobile-options-tabs">
-              {MOBILE_OPTIONS_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  className={mobileOptionsTab === tab.value ? 'active' : ''}
-                  onClick={() => setMobileOptionsTab(tab.value)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {showPresetSection && (
-            <div className="group preset-controls ribbon-section" data-section="Workspace">
-              <select
-                className="preset-select"
-                value={selectedPresetId}
-                onChange={(event) => setSelectedPresetId(event.target.value)}
-              >
-                {PRESET_DOCS.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-              <button onClick={() => handleLoadPreset()}>Load Preset</button>
-              <button onClick={handleToggleTheme}>{themeMode === 'dark' ? 'White Mode' : 'Dark Mode'}</button>
-            </div>
-          )}
-
-          {showZoomSection && (
-            <div className="group zoom-controls ribbon-section" data-section="View">
-              <button onClick={() => handleZoomStep(0.85)}>-</button>
-              <button onClick={() => handleZoomStep(1.15)}>+</button>
-              <button onClick={handleFitView}>Fit</button>
-              <button onClick={handleResetView}>Reset</button>
-            </div>
-          )}
-
-          {showEditSection && (
-            <div className="group edit-controls ribbon-section" data-section="Edit">
-              <button onClick={handleUndo} disabled={!canUndo}>
-                Undo
-              </button>
-              <button onClick={handleRedo} disabled={!canRedo}>
-                Redo
-              </button>
-              <button onClick={handleCopySelection} disabled={selectedShapeCount === 0}>
-                Copy
-              </button>
-              <button onClick={handleCutSelection} disabled={selectedShapeCount === 0}>
-                Cut
-              </button>
-              <button onClick={handlePasteClipboard} disabled={!clipboardPayload || clipboardPayload.shapes.length === 0}>
-                Paste
-              </button>
-              <button onClick={handleDuplicateSelection} disabled={selectedShapeCount === 0}>
-                Duplicate
-              </button>
-              <button onClick={handleDeleteSelection} disabled={selectedShapeCount === 0}>
-                Delete
-              </button>
-              <button onClick={handleMoveSelectionBackward} disabled={selectedShapeCount === 0}>
-                Send Back
-              </button>
-              <button onClick={handleMoveSelectionForward} disabled={selectedShapeCount === 0}>
-                Bring Forward
-              </button>
-              <button onClick={handleSendSelectionToBack} disabled={selectedShapeCount === 0}>
-                To Back
-              </button>
-              <button onClick={handleBringSelectionToFront} disabled={selectedShapeCount === 0}>
-                To Front
-              </button>
-            </div>
-          )}
-
-          {showLineTypeSection && (
-            <div className="group line-type-controls ribbon-section" data-section="Line Types">
-              <span className="line-type-label">Line Type</span>
-              <select
-                className="line-type-select"
-                value={activeLineType?.id ?? ''}
-                onChange={(event) => setActiveLineTypeId(event.target.value)}
-              >
-                {lineTypes.map((lineType) => (
-                  <option key={lineType.id} value={lineType.id}>
-                    {lineType.name}
-                    {` [${lineType.role}]`}
-                    {lineType.visible ? '' : ' (hidden)'}
-                  </option>
-                ))}
-              </select>
-              <button onClick={handleToggleActiveLineTypeVisibility} disabled={!activeLineType}>
-                {activeLineType?.visible ? 'Hide Type' : 'Show Type'}
-              </button>
-              <button onClick={() => setShowLineTypePalette(true)}>Palette</button>
-            </div>
-          )}
-
-          {showStitchSection && (
-            <div className="ribbon-section ribbon-stitch" data-section="Stitching">
-              <StitchHolePanel
-                holeType={stitchHoleType}
-                onChangeHoleType={setStitchHoleType}
-                pitchMm={stitchPitchMm}
-                onChangePitchMm={(nextPitch) => setStitchPitchMm(clamp(nextPitch || 0, 0.2, 100))}
-                variablePitchStartMm={stitchVariablePitchStartMm}
-                variablePitchEndMm={stitchVariablePitchEndMm}
-                onChangeVariablePitchStartMm={(nextPitch) => setStitchVariablePitchStartMm(clamp(nextPitch || 0, 0.2, 100))}
-                onChangeVariablePitchEndMm={(nextPitch) => setStitchVariablePitchEndMm(clamp(nextPitch || 0, 0.2, 100))}
-                onAutoPlaceFixedPitch={handleAutoPlaceFixedPitchStitchHoles}
-                onAutoPlaceVariablePitch={handleAutoPlaceVariablePitchStitchHoles}
-                onResequenceSelected={() => handleResequenceSelectedStitchHoles(false)}
-                onReverseSelected={() => handleResequenceSelectedStitchHoles(true)}
-                onSelectNextHole={handleSelectNextStitchHole}
-                onFixOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(false)}
-                onFixReverseOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(true)}
-                showSequenceLabels={showStitchSequenceLabels}
-                onToggleSequenceLabels={() => setShowStitchSequenceLabels((previous) => !previous)}
-                onCountSelected={handleCountStitchHolesOnSelectedShapes}
-                onDeleteOnSelected={handleDeleteStitchHolesOnSelectedShapes}
-                onClearAll={handleClearAllStitchHoles}
-                selectedShapeCount={selectedShapeCount}
-                selectedHoleCount={selectedStitchHoleCount}
-                totalHoleCount={stitchHoles.length}
-                hasSelectedHole={selectedStitchHole !== null}
-              />
-            </div>
-          )}
-
-          {showLayerSection && (
-            <div className="group layer-controls ribbon-section" data-section="Layers">
-              <span className="layer-label">Layer</span>
-              <select
-                className="layer-select"
-                value={activeLayer?.id ?? ''}
-                onChange={(event) => {
-                  setActiveLayerId(event.target.value)
-                  clearDraft()
-                }}
-              >
-                {layers.map((layer, index) => (
-                  <option key={layer.id} value={layer.id}>
-                    {index + 1}. {layer.name}
-                    {` [z${layerStackLevels[layer.id] ?? index}]`}
-                    {layer.visible ? '' : ' (hidden)'}
-                    {layer.locked ? ' (locked)' : ''}
-                  </option>
-                ))}
-              </select>
-              {isMobileLayout ? (
-                <div className="group mobile-action-row">
-                  <select
-                    className="action-select"
-                    value={mobileLayerAction}
-                    onChange={(event) => setMobileLayerAction(event.target.value as MobileLayerAction)}
-                  >
-                    <option value="add">Add Layer</option>
-                    <option value="rename">Rename Layer</option>
-                    <option value="toggle-visibility">{activeLayer?.visible ? 'Hide Layer' : 'Show Layer'}</option>
-                    <option value="toggle-lock">{activeLayer?.locked ? 'Unlock Layer' : 'Lock Layer'}</option>
-                    <option value="move-up">Move Layer Up</option>
-                    <option value="move-down">Move Layer Down</option>
-                    <option value="delete">Delete Layer</option>
-                    <option value="colors">Layer Colors</option>
-                  </select>
-                  <button onClick={handleRunMobileLayerAction} disabled={layers.length === 0}>
-                    Apply
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <button onClick={handleAddLayer}>+ Layer</button>
-                  <button onClick={handleRenameActiveLayer} disabled={!activeLayer}>
-                    Rename
-                  </button>
-                  <button onClick={handleToggleLayerVisibility} disabled={!activeLayer}>
-                    {activeLayer?.visible ? 'Hide' : 'Show'}
-                  </button>
-                  <button onClick={handleToggleLayerLock} disabled={!activeLayer}>
-                    {activeLayer?.locked ? 'Unlock' : 'Lock'}
-                  </button>
-                  <button onClick={() => handleMoveLayer(-1)} disabled={!activeLayer || layers.length < 2}>
-                    Up
-                  </button>
-                  <button onClick={() => handleMoveLayer(1)} disabled={!activeLayer || layers.length < 2}>
-                    Down
-                  </button>
-                  <button onClick={handleDeleteLayer} disabled={!activeLayer || layers.length < 2}>
-                    Delete
-                  </button>
-                  <button onClick={() => setShowLayerColorModal(true)} disabled={layers.length === 0}>
-                    Colors
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {showFileSection && (
-            <div className="group file-controls ribbon-section" data-section="Output">
-              {isMobileLayout ? (
-                <div className="group mobile-action-row">
-                  <select
-                    className="action-select"
-                    value={mobileFileAction}
-                    onChange={(event) => setMobileFileAction(event.target.value as MobileFileAction)}
-                  >
-                    <option value="save-json">Save JSON</option>
-                    <option value="load-json">Load JSON</option>
-                    <option value="import-svg">Import SVG</option>
-                    <option value="load-preset">Load Preset</option>
-                    <option value="export-svg">Export SVG</option>
-                    <option value="export-pdf">Export PDF</option>
-                    <option value="export-dxf">Export DXF</option>
-                    <option value="export-options">Export Options</option>
-                    <option value="template-repository">Template Repository</option>
-                    <option value="pattern-tools">Pattern Tools</option>
-                    <option value="import-tracing">Import Tracing</option>
-                    <option value="print-preview">Print Preview</option>
-                    <option value="undo">Undo</option>
-                    <option value="redo">Redo</option>
-                    <option value="copy">Copy Selection</option>
-                    <option value="paste">Paste</option>
-                    <option value="delete">Delete Selection</option>
-                    <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
-                    <option value="clear">Clear Document</option>
-                  </select>
-                  <button onClick={handleRunMobileFileAction}>Apply</button>
-                </div>
-              ) : (
-                <>
-                  <button onClick={handleSaveJson}>Save JSON</button>
-                  <button onClick={() => fileInputRef.current?.click()}>Load JSON</button>
-                  <button onClick={() => svgInputRef.current?.click()}>Import SVG</button>
-                  <button onClick={() => handleLoadPreset()}>Load Preset</button>
-                  <button onClick={handleExportSvg}>Export SVG</button>
-                  <button onClick={handleExportPdf}>Export PDF</button>
-                  <button onClick={handleExportDxf}>Export DXF</button>
-                  <button onClick={() => setShowExportOptionsModal(true)}>Export Options</button>
-                  <button onClick={() => setShowPatternToolsModal(true)}>Pattern Tools</button>
-                  <button onClick={() => setShowTemplateRepositoryModal(true)}>Templates</button>
-                  <button onClick={() => tracingInputRef.current?.click()}>Tracing</button>
-                  <button onClick={() => setShowTracingModal(true)} disabled={tracingOverlays.length === 0}>
-                    Tracing Controls
-                  </button>
-                  <button onClick={() => setShowPrintPreviewModal(true)}>Print Preview</button>
-                  <button onClick={() => setShowPrintAreas((previous) => !previous)}>
-                    {showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}
-                  </button>
-                  <button onClick={() => setShowThreePreview((previous) => !previous)}>
-                    {showThreePreview ? 'Hide 3D' : 'Show 3D'}
-                  </button>
-                  <button onClick={() => resetDocument()}>
-                    Clear
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-      </header>
+      <EditorTopbar
+        topbarClassName={topbarClassName}
+        isMobileLayout={isMobileLayout}
+        desktopRibbonTab={desktopRibbonTab}
+        onDesktopRibbonTabChange={setDesktopRibbonTab}
+        selectedShapeCount={selectedShapeCount}
+        selectedStitchHoleCount={selectedStitchHoleCount}
+        showThreePreview={showThreePreview}
+        onOpenHelpModal={() => setShowHelpModal(true)}
+        showToolSection={showToolSection}
+        tool={tool}
+        onSetActiveTool={setActiveTool}
+        mobileViewMode={mobileViewMode}
+        onSetMobileViewMode={setMobileViewMode}
+        showMobileMenu={showMobileMenu}
+        onToggleMobileMenu={() =>
+          setShowMobileMenu((previous) => {
+            const next = !previous
+            if (next) {
+              setMobileOptionsTab('view')
+            }
+            return next
+          })
+        }
+        mobileOptionsTab={mobileOptionsTab}
+        onSetMobileOptionsTab={setMobileOptionsTab}
+        showPresetSection={showPresetSection}
+        selectedPresetId={selectedPresetId}
+        onSetSelectedPresetId={setSelectedPresetId}
+        onLoadPreset={handleLoadPreset}
+        onToggleTheme={handleToggleTheme}
+        themeMode={themeMode}
+        showZoomSection={showZoomSection}
+        onZoomOut={() => handleZoomStep(0.85)}
+        onZoomIn={() => handleZoomStep(1.15)}
+        onFitView={handleFitView}
+        onResetView={handleResetView}
+        showEditSection={showEditSection}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onCopySelection={handleCopySelection}
+        onCutSelection={handleCutSelection}
+        onPasteClipboard={handlePasteClipboard}
+        canPaste={Boolean(clipboardPayload && clipboardPayload.shapes.length > 0)}
+        onDuplicateSelection={handleDuplicateSelection}
+        onDeleteSelection={handleDeleteSelection}
+        onMoveSelectionBackward={handleMoveSelectionBackward}
+        onMoveSelectionForward={handleMoveSelectionForward}
+        onSendSelectionToBack={handleSendSelectionToBack}
+        onBringSelectionToFront={handleBringSelectionToFront}
+        showLineTypeSection={showLineTypeSection}
+        activeLineType={activeLineType}
+        lineTypes={lineTypes}
+        onSetActiveLineTypeId={setActiveLineTypeId}
+        onToggleActiveLineTypeVisibility={handleToggleActiveLineTypeVisibility}
+        onOpenLineTypePalette={() => setShowLineTypePalette(true)}
+        showStitchSection={showStitchSection}
+        stitchHoleType={stitchHoleType}
+        onSetStitchHoleType={setStitchHoleType}
+        stitchPitchMm={stitchPitchMm}
+        onSetStitchPitchMm={setStitchPitchMm}
+        stitchVariablePitchStartMm={stitchVariablePitchStartMm}
+        stitchVariablePitchEndMm={stitchVariablePitchEndMm}
+        onSetStitchVariablePitchStartMm={setStitchVariablePitchStartMm}
+        onSetStitchVariablePitchEndMm={setStitchVariablePitchEndMm}
+        onAutoPlaceFixedPitchStitchHoles={handleAutoPlaceFixedPitchStitchHoles}
+        onAutoPlaceVariablePitchStitchHoles={handleAutoPlaceVariablePitchStitchHoles}
+        onResequenceSelectedStitchHoles={() => handleResequenceSelectedStitchHoles(false)}
+        onReverseSelectedStitchHoles={() => handleResequenceSelectedStitchHoles(true)}
+        onSelectNextStitchHole={handleSelectNextStitchHole}
+        onFixStitchHoleOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(false)}
+        onFixReverseStitchHoleOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(true)}
+        showStitchSequenceLabels={showStitchSequenceLabels}
+        onToggleStitchSequenceLabels={() => setShowStitchSequenceLabels((previous) => !previous)}
+        onCountStitchHolesOnSelectedShapes={handleCountStitchHolesOnSelectedShapes}
+        onDeleteStitchHolesOnSelectedShapes={handleDeleteStitchHolesOnSelectedShapes}
+        onClearAllStitchHoles={handleClearAllStitchHoles}
+        selectedHoleCount={selectedStitchHoleCount}
+        stitchHoleCount={stitchHoles.length}
+        hasSelectedStitchHole={selectedStitchHole !== null}
+        showLayerSection={showLayerSection}
+        activeLayer={activeLayer}
+        layers={layers}
+        layerStackLevels={layerStackLevels}
+        onSetActiveLayerId={setActiveLayerId}
+        onClearDraft={clearDraft}
+        mobileLayerAction={mobileLayerAction}
+        onSetMobileLayerAction={setMobileLayerAction}
+        onRunMobileLayerAction={handleRunMobileLayerAction}
+        onAddLayer={handleAddLayer}
+        onRenameActiveLayer={handleRenameActiveLayer}
+        onToggleLayerVisibility={handleToggleLayerVisibility}
+        onToggleLayerLock={handleToggleLayerLock}
+        onMoveLayerUp={() => handleMoveLayer(-1)}
+        onMoveLayerDown={() => handleMoveLayer(1)}
+        onDeleteLayer={handleDeleteLayer}
+        onOpenLayerColorModal={() => setShowLayerColorModal(true)}
+        showFileSection={showFileSection}
+        mobileFileAction={mobileFileAction}
+        onSetMobileFileAction={setMobileFileAction}
+        onRunMobileFileAction={handleRunMobileFileAction}
+        onSaveJson={handleSaveJson}
+        onOpenLoadJson={() => fileInputRef.current?.click()}
+        onOpenImportSvg={() => svgInputRef.current?.click()}
+        onExportSvg={handleExportSvg}
+        onExportPdf={handleExportPdf}
+        onExportDxf={handleExportDxf}
+        onOpenExportOptionsModal={() => setShowExportOptionsModal(true)}
+        onOpenPatternToolsModal={() => setShowPatternToolsModal(true)}
+        onOpenTemplateRepositoryModal={() => setShowTemplateRepositoryModal(true)}
+        onOpenTracingImport={() => tracingInputRef.current?.click()}
+        onOpenTracingModal={() => setShowTracingModal(true)}
+        hasTracingOverlays={tracingOverlays.length > 0}
+        onOpenPrintPreviewModal={() => setShowPrintPreviewModal(true)}
+        showPrintAreas={showPrintAreas}
+        onTogglePrintAreas={() => setShowPrintAreas((previous) => !previous)}
+        onToggleThreePreview={() => setShowThreePreview((previous) => !previous)}
+        onResetDocument={resetDocument}
+      />
 
       <main className={workspaceClassName}>
         <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`}>
@@ -1827,111 +1555,44 @@ export function EditorApp() {
             </g>
           </svg>
 
-          {showLayerLegend && (
-            <div className="legend-stack">
-              <div
-                className="legend-panel legend-single"
-                aria-label={legendMode === 'layer' ? 'Layer order legend' : 'Stack height legend'}
-              >
-                <div className="layer-legend-header">
-                  <span>{legendMode === 'layer' ? 'Layer Legend' : 'Stack Legend'}</span>
-                  <span>{legendMode === 'layer' ? 'Front -> Back' : 'Height'}</span>
-                </div>
-                <div className="legend-mode-tabs" role="tablist" aria-label="Legend mode">
-                  <button
-                    className={legendMode === 'layer' ? 'active' : ''}
-                    onClick={() => setLegendMode('layer')}
-                    aria-pressed={legendMode === 'layer'}
-                  >
-                    Layer
-                  </button>
-                  <button
-                    className={legendMode === 'stack' ? 'active' : ''}
-                    onClick={() => setLegendMode('stack')}
-                    aria-pressed={legendMode === 'stack'}
-                  >
-                    Stack
-                  </button>
-                </div>
-
-                {legendMode === 'layer' ? (
-                  <>
-                    <div className="layer-legend-items">
-                      {layers.map((layer, index) => (
-                        <div key={layer.id} className="layer-legend-item">
-                          <span
-                            className="layer-legend-swatch"
-                            style={{ backgroundColor: layerColorsById[layer.id] ?? fallbackLayerStroke }}
-                          />
-                          <span className="layer-legend-label">
-                            {index + 1}. {layer.name}
-                            {layer.visible ? '' : ' (hidden)'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <div className="stack-legend-items">
-                    {stackLegendEntries.map((entry) => (
-                      <div key={`stack-${entry.stackLevel}`} className="stack-legend-item">
-                        <span className="layer-legend-swatch" style={{ background: entry.swatchBackground }} />
-                        <span className="stack-level-chip">{`z${entry.stackLevel}`}</span>
-                        <span className="stack-level-label">{entry.layerNames.join(', ')}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="legend-key-list">
-                  <div className="legend-key-item">
-                    <span className="layer-legend-swatch" style={{ backgroundColor: cutStrokeColor }} />
-                    <span>Cut lines</span>
-                  </div>
-                  <div className="legend-key-item">
-                    <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
-                    <span>Stitch lines</span>
-                  </div>
-                  <div className="legend-key-item">
-                    <span className="layer-legend-swatch" style={{ backgroundColor: foldStrokeColor }} />
-                    <span>Bend lines / areas</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          <LayerLegendPanel
+            show={showLayerLegend}
+            legendMode={legendMode}
+            onSetLegendMode={setLegendMode}
+            layers={layers}
+            layerColorsById={layerColorsById}
+            fallbackLayerStroke={fallbackLayerStroke}
+            stackLegendEntries={stackLegendEntries}
+            cutStrokeColor={cutStrokeColor}
+            stitchStrokeColor={stitchStrokeColor}
+            foldStrokeColor={foldStrokeColor}
+          />
         </section>
 
-        {showThreePreview && (
-          <aside
-            className={`preview-pane ${hidePreviewPane ? 'panel-hidden' : ''} ${
-              isMobileLayout && mobileViewMode === 'split' ? 'preview-pane-mobile-split' : ''
-            }`}
-          >
-            <ThreePreviewPanel
-              key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
-              shapes={visibleShapes}
-              stitchHoles={visibleStitchHoles}
-              foldLines={foldLines}
-              layers={layers}
-              lineTypes={lineTypes}
-              themeMode={themeMode}
-              isMobileLayout={isMobileLayout}
-              onUpdateFoldLine={(foldLineId, updates) =>
-                setFoldLines((previous) =>
-                  previous.map((foldLine) =>
-                    foldLine.id === foldLineId
-                      ? sanitizeFoldLine({
-                          ...foldLine,
-                          ...updates,
-                        })
-                      : foldLine,
-                  ),
-                )
-              }
-            />
-          </aside>
-        )}
+        <EditorPreviewPane
+          showThreePreview={showThreePreview}
+          hidePreviewPane={hidePreviewPane}
+          isMobileLayout={isMobileLayout}
+          mobileViewMode={mobileViewMode}
+          shapes={visibleShapes}
+          stitchHoles={visibleStitchHoles}
+          foldLines={foldLines}
+          layers={layers}
+          lineTypes={lineTypes}
+          themeMode={themeMode}
+          onUpdateFoldLine={(foldLineId, updates) =>
+            setFoldLines((previous) =>
+              previous.map((foldLine) =>
+                foldLine.id === foldLineId
+                  ? sanitizeFoldLine({
+                      ...foldLine,
+                      ...updates,
+                    })
+                  : foldLine,
+              ),
+            )
+          }
+        />
       </main>
 
       <LineTypePalette
@@ -2118,54 +1779,34 @@ export function EditorApp() {
         onFitView={handleFitView}
       />
 
-      <footer className="statusbar">
-        <span>Tool: {toolLabel(tool)}</span>
-        <span>{status}</span>
-        <span className="statusbar-meta">{Math.round(viewport.scale * 100)}% zoom</span>
-        <span className="statusbar-meta">
-          {visibleShapes.length}/{shapes.length} visible shapes
-        </span>
-        <span className="statusbar-meta">{layers.length} layers</span>
-        <span className="statusbar-meta">{sketchGroups.length} sub-sketches</span>
-        <span className="statusbar-meta">
-          {lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types
-        </span>
-        <span className="statusbar-meta">{foldLines.length} bends</span>
-        <span className="statusbar-meta">{stitchHoles.length} stitch holes</span>
-        <span className="statusbar-meta">{seamAllowances.length} seam offsets</span>
-        <span className="statusbar-meta">{constraints.length} constraints</span>
-        <span className="statusbar-meta">{hardwareMarkers.length} hardware markers</span>
-        <span className="statusbar-meta">{tracingOverlays.length} traces</span>
-        <span className="statusbar-meta">{templateRepository.length} templates</span>
-      </footer>
+      <EditorStatusBar
+        toolLabel={toolLabel(tool)}
+        status={status}
+        zoomPercent={Math.round(viewport.scale * 100)}
+        visibleShapeCount={visibleShapes.length}
+        shapeCount={shapes.length}
+        layerCount={layers.length}
+        sketchGroupCount={sketchGroups.length}
+        visibleLineTypeCount={lineTypes.filter((lineType) => lineType.visible).length}
+        lineTypeCount={lineTypes.length}
+        foldLineCount={foldLines.length}
+        stitchHoleCount={stitchHoles.length}
+        seamAllowanceCount={seamAllowances.length}
+        constraintCount={constraints.length}
+        hardwareMarkerCount={hardwareMarkers.length}
+        tracingOverlayCount={tracingOverlays.length}
+        templateCount={templateRepository.length}
+      />
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="application/json"
-        className="hidden-input"
-        onChange={handleLoadJson}
-      />
-      <input
-        ref={svgInputRef}
-        type="file"
-        accept=".svg,image/svg+xml"
-        className="hidden-input"
-        onChange={handleImportSvg}
-      />
-      <input
-        ref={tracingInputRef}
-        type="file"
-        accept="image/*,.pdf,application/pdf"
-        className="hidden-input"
-        onChange={handleImportTracing}
-      />
-      <input
-        ref={templateImportInputRef}
-        type="file"
-        accept="application/json"
-        className="hidden-input"
-        onChange={handleImportTemplateRepositoryFile}
+      <EditorHiddenInputs
+        fileInputRef={fileInputRef}
+        svgInputRef={svgInputRef}
+        tracingInputRef={tracingInputRef}
+        templateImportInputRef={templateImportInputRef}
+        onLoadJson={handleLoadJson}
+        onImportSvg={handleImportSvg}
+        onImportTracing={handleImportTracing}
+        onImportTemplateRepositoryFile={handleImportTemplateRepositoryFile}
       />
     </div>
   )
