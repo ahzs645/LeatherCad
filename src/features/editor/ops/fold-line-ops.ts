@@ -32,7 +32,7 @@ export function foldDirectionSign(direction: FoldDirection) {
 
 export function resolveFoldBehavior(foldLine: FoldLine | null | undefined): ResolvedFoldBehavior {
   const maxAngleDeg = clamp(foldLine?.maxAngleDeg ?? 180, 10, 180)
-  const targetAngleDeg = clamp(foldLine?.angleDeg ?? 0, 0, maxAngleDeg)
+  const targetAngleDeg = clamp(foldLine?.angleDeg ?? 0, -maxAngleDeg, maxAngleDeg)
   const direction = parseFoldDirection(foldLine?.direction) ?? DEFAULT_FOLD_DIRECTION
   const radiusMm = clamp(foldLine?.radiusMm ?? DEFAULT_FOLD_RADIUS_MM, 0, 30)
   const thicknessMm = clamp(foldLine?.thicknessMm ?? DEFAULT_FOLD_THICKNESS_MM, 0.2, 20)

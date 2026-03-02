@@ -30,6 +30,7 @@ import {
 } from './editor-parsers'
 import { DEFAULT_SNAP_SETTINGS } from './editor-constants'
 import { normalizeStitchHoleSequences, parseStitchHole } from './ops/stitch-hole-ops'
+import { sanitizeSketchGroupLinks } from './ops/sketch-link-ops'
 
 type ImportedJsonCandidate = {
   objects?: unknown[]
@@ -91,11 +92,13 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       : nextLayers[0].id
   const nextLayerIdSet = new Set(nextLayers.map((layer) => layer.id))
 
-  const nextSketchGroups = Array.isArray(parsed.sketchGroups)
-    ? parsed.sketchGroups
-        .map(parseSketchGroup)
-        .filter((group): group is SketchGroup => group !== null && nextLayerIdSet.has(group.layerId))
-    : []
+  const nextSketchGroups = sanitizeSketchGroupLinks(
+    Array.isArray(parsed.sketchGroups)
+      ? parsed.sketchGroups
+          .map(parseSketchGroup)
+          .filter((group): group is SketchGroup => group !== null && nextLayerIdSet.has(group.layerId))
+      : [],
+  )
 
   const nextSketchGroupIdSet = new Set(nextSketchGroups.map((group) => group.id))
   const nextSketchGroupById = Object.fromEntries(nextSketchGroups.map((group) => [group.id, group]))

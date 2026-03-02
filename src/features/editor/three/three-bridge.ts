@@ -30,6 +30,7 @@ const FOLD_LINE_COLOR = '#fb7185'
 const STITCH_THREAD_COLOR = '#fb923c'
 const LAYER_STACK_STEP = 0.012
 const COLLISION_SEARCH_STEP_DEG = 1
+const COLLISION_CHECK_CUTOFF_DEG = 90
 const MIN_OVERLAP_AREA_WORLD = 0.00002
 const MIN_OVERLAP_HEIGHT_WORLD = 0.00045
 
@@ -328,14 +329,19 @@ export class ThreeBridge {
   }
 
   private foldLiftWorldForAngle(angleDeg: number, behavior: ResolvedFoldBehavior) {
-    const radians = THREE.MathUtils.degToRad(angleDeg)
+    const signedAngleDeg = foldDirectionSign(behavior.direction) * angleDeg
+    if (Math.abs(signedAngleDeg) <= EPSILON) {
+      return 0
+    }
+
+    const radians = THREE.MathUtils.degToRad(Math.abs(signedAngleDeg))
     const thicknessWorld = behavior.thicknessMm * this.transform.scale
     const clearanceWorld = behavior.clearanceMm * this.transform.scale
     const radiusWorld = behavior.radiusMm * this.transform.scale
     const neutralAxisAdjustment = (behavior.neutralAxisRatio - 0.5) * thicknessWorld * Math.sin(radians)
     const hingeLift = (thicknessWorld + clearanceWorld) * Math.sin(radians / 2)
     const curvatureLift = radiusWorld * (1 - Math.cos(radians))
-    return (hingeLift + curvatureLift + neutralAxisAdjustment) * foldDirectionSign(behavior.direction)
+    return (hingeLift + curvatureLift + neutralAxisAdjustment) * Math.sign(signedAngleDeg)
   }
 
   private applyFoldTransform(angleDeg: number, behavior: ResolvedFoldBehavior) {
@@ -398,14 +404,22 @@ export class ThreeBridge {
   }
 
   private resolveSafeFoldAngle(targetAngleDeg: number, behavior: ResolvedFoldBehavior) {
-    const clampedTarget = THREE.MathUtils.clamp(targetAngleDeg, 0, behavior.maxAngleDeg)
-    if (clampedTarget <= EPSILON || this.staticPanels.length === 0 || this.foldingPanels.length === 0) {
+    const clampedTarget = THREE.MathUtils.clamp(targetAngleDeg, -behavior.maxAngleDeg, behavior.maxAngleDeg)
+    if (Math.abs(clampedTarget) <= EPSILON || this.staticPanels.length === 0 || this.foldingPanels.length === 0) {
       return clampedTarget
     }
 
-    for (let candidate = clampedTarget; candidate >= 0; candidate -= COLLISION_SEARCH_STEP_DEG) {
+    const direction = clampedTarget >= 0 ? 1 : -1
+    const targetMagnitude = Math.abs(clampedTarget)
+    const guardedMagnitude = Math.min(targetMagnitude, COLLISION_CHECK_CUTOFF_DEG)
+
+    for (let candidateMagnitude = guardedMagnitude; candidateMagnitude >= 0; candidateMagnitude -= COLLISION_SEARCH_STEP_DEG) {
+      const candidate = direction * candidateMagnitude
       this.applyFoldTransform(candidate, behavior)
       if (!this.hasPanelCollision(behavior)) {
+        if (targetMagnitude > COLLISION_CHECK_CUTOFF_DEG && candidateMagnitude >= guardedMagnitude - EPSILON) {
+          return clampedTarget
+        }
         return candidate
       }
     }
@@ -415,7 +429,7 @@ export class ThreeBridge {
 
   private updateFoldRotation() {
     const behavior = this.resolvePrimaryFoldBehavior()
-    const targetAngle = THREE.MathUtils.clamp(this.activeFoldAngleDeg, 0, behavior.maxAngleDeg)
+    const targetAngle = THREE.MathUtils.clamp(this.activeFoldAngleDeg, -behavior.maxAngleDeg, behavior.maxAngleDeg)
     const safeAngle = this.resolveSafeFoldAngle(targetAngle, behavior)
     this.applyFoldTransform(safeAngle, behavior)
   }
@@ -957,7 +971,7 @@ export class ThreeBridge {
 
   setFoldAngle(angleDeg: number) {
     const behavior = this.resolvePrimaryFoldBehavior()
-    this.activeFoldAngleDeg = THREE.MathUtils.clamp(angleDeg, 0, behavior.maxAngleDeg)
+    this.activeFoldAngleDeg = THREE.MathUtils.clamp(angleDeg, -behavior.maxAngleDeg, behavior.maxAngleDeg)
     this.updateFoldRotation()
   }
 

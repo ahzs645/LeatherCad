@@ -197,8 +197,9 @@ export function ThreePreviewPanel({
                     </span>
                     <input
                       type="range"
-                      min={0}
+                      min={-foldLine.maxAngleDeg}
                       max={foldLine.maxAngleDeg}
+                      step={1}
                       value={foldLine.angleDeg}
                       onChange={(event) => onUpdateFoldLine(foldLine.id, { angleDeg: Number(event.target.value) })}
                     />

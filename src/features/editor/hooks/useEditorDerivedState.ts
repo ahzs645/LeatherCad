@@ -27,8 +27,9 @@ import type {
   EditorSnapshot,
   ExportRoleFilters,
   LegendMode,
+  ResolvedThemeMode,
   SeamGuide,
-  ThemeMode,
+  SketchWorkspaceMode,
 } from '../editor-types'
 import {
   DEFAULT_FRONT_LAYER_COLOR,
@@ -40,6 +41,7 @@ import {
 import { buildDocSnapshotSignature, interpolateHexColor } from '../editor-utils'
 import type { HistoryState } from '../ops/history-ops'
 import { deepClone } from '../ops/history-ops'
+import { buildLinkedProjectionShapes } from '../ops/sketch-link-ops'
 
 type UseEditorDerivedStateParams = {
   layers: Layer[]
@@ -76,7 +78,8 @@ type UseEditorDerivedStateParams = {
   backLayerColor: string
   layerColorOverrides: Record<string, string>
   legendMode: LegendMode
-  themeMode: ThemeMode
+  sketchWorkspaceMode: SketchWorkspaceMode
+  themeMode: ResolvedThemeMode
 }
 
 export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
@@ -115,6 +118,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     backLayerColor,
     layerColorOverrides,
     legendMode,
+    sketchWorkspaceMode,
     themeMode,
   } = params
 
@@ -166,11 +170,15 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const canUndo = historyState.past.length > 0
   const canRedo = historyState.future.length > 0
 
+  const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
+  const visibleLineTypeIdSet = useMemo(
+    () => new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id)),
+    [lineTypes],
+  )
+
   const visibleShapes = useMemo(() => {
-    const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
-    const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
     return shapes.filter((shape) => {
-      if (!visibleLayerIds.has(shape.layerId) || !visibleLineTypeIds.has(shape.lineTypeId)) {
+      if (!visibleLayerIdSet.has(shape.layerId) || !visibleLineTypeIdSet.has(shape.lineTypeId)) {
         return false
       }
       if (!shape.groupId) {
@@ -179,9 +187,75 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       const group = sketchGroupsById[shape.groupId]
       return group ? group.visible : true
     })
-  }, [layers, lineTypes, shapes, sketchGroupsById])
+  }, [shapes, visibleLayerIdSet, visibleLineTypeIdSet, sketchGroupsById])
+
+  const linkedProjectionShapes = useMemo(
+    () => buildLinkedProjectionShapes(shapes, sketchGroups),
+    [shapes, sketchGroups],
+  )
+
+  const visibleLinkedProjectionShapes = useMemo(
+    () =>
+      linkedProjectionShapes.filter((shape) => {
+        if (!visibleLayerIdSet.has(shape.layerId) || !visibleLineTypeIdSet.has(shape.lineTypeId)) {
+          return false
+        }
+        if (!shape.groupId) {
+          return true
+        }
+        const group = sketchGroupsById[shape.groupId]
+        return group ? group.visible : false
+      }),
+    [linkedProjectionShapes, visibleLayerIdSet, visibleLineTypeIdSet, sketchGroupsById],
+  )
+
+  const assemblyShapes = useMemo(
+    () => [...visibleShapes, ...visibleLinkedProjectionShapes],
+    [visibleShapes, visibleLinkedProjectionShapes],
+  )
+
+  const workspaceEditableShapes = useMemo(() => {
+    if (sketchWorkspaceMode === 'assembly') {
+      return visibleShapes
+    }
+
+    if (!activeLayer) {
+      return []
+    }
+
+    if (activeSketchGroup) {
+      return visibleShapes.filter(
+        (shape) =>
+          shape.layerId === activeLayer.id &&
+          (shape.groupId === activeSketchGroup.id || shape.groupId === undefined),
+      )
+    }
+
+    return visibleShapes.filter((shape) => shape.layerId === activeLayer.id)
+  }, [sketchWorkspaceMode, visibleShapes, activeLayer, activeSketchGroup])
+
+  const workspaceLinkedShapes = useMemo(() => {
+    if (sketchWorkspaceMode === 'assembly') {
+      return visibleLinkedProjectionShapes
+    }
+
+    if (!activeSketchGroup) {
+      return []
+    }
+
+    return visibleLinkedProjectionShapes.filter((shape) => shape.groupId === activeSketchGroup.id)
+  }, [sketchWorkspaceMode, visibleLinkedProjectionShapes, activeSketchGroup])
+
+  const workspaceShapes = useMemo(
+    () => [...workspaceEditableShapes, ...workspaceLinkedShapes],
+    [workspaceEditableShapes, workspaceLinkedShapes],
+  )
 
   const visibleShapeIdSet = useMemo(() => new Set(visibleShapes.map((shape) => shape.id)), [visibleShapes])
+  const workspaceEditableShapeIdSet = useMemo(
+    () => new Set(workspaceEditableShapes.map((shape) => shape.id)),
+    [workspaceEditableShapes],
+  )
 
   const visibleStitchHoles = useMemo(
     () =>
@@ -195,8 +269,6 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       }),
     [stitchHoles, shapesById, visibleShapeIdSet, lineTypesById],
   )
-
-  const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
 
   const visibleHardwareMarkers = useMemo(
     () =>
@@ -212,6 +284,32 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       }),
     [hardwareMarkers, visibleLayerIdSet, sketchGroupsById],
   )
+
+  const workspaceStitchHoles = useMemo(
+    () =>
+      visibleStitchHoles.filter((stitchHole) => workspaceEditableShapeIdSet.has(stitchHole.shapeId)),
+    [visibleStitchHoles, workspaceEditableShapeIdSet],
+  )
+
+  const workspaceHardwareMarkers = useMemo(() => {
+    if (sketchWorkspaceMode === 'assembly') {
+      return visibleHardwareMarkers
+    }
+
+    if (!activeLayer) {
+      return []
+    }
+
+    if (activeSketchGroup) {
+      return visibleHardwareMarkers.filter(
+        (marker) =>
+          marker.layerId === activeLayer.id &&
+          (marker.groupId === activeSketchGroup.id || marker.groupId === undefined),
+      )
+    }
+
+    return visibleHardwareMarkers.filter((marker) => marker.layerId === activeLayer.id)
+  }, [sketchWorkspaceMode, visibleHardwareMarkers, activeLayer, activeSketchGroup])
 
   const seamGuides = useMemo<SeamGuide[]>(
     () =>
@@ -247,7 +345,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       if (!layer.visible || !layer.annotation || layer.annotation.trim().length === 0) {
         continue
       }
-      const onLayer = visibleShapes.filter((shape) => shape.layerId === layer.id)
+      const onLayer = workspaceShapes.filter((shape) => shape.layerId === layer.id)
       const bounds = computeBoundsFromShapes(onLayer)
       if (!bounds) {
         continue
@@ -263,7 +361,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       if (!group.visible || !group.annotation || group.annotation.trim().length === 0) {
         continue
       }
-      const onGroup = visibleShapes.filter((shape) => shape.groupId === group.id)
+      const onGroup = workspaceShapes.filter((shape) => shape.groupId === group.id)
       const bounds = computeBoundsFromShapes(onGroup)
       if (!bounds) {
         continue
@@ -275,7 +373,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       })
     }
 
-    for (const marker of visibleHardwareMarkers) {
+    for (const marker of workspaceHardwareMarkers) {
       if (!marker.notes || marker.notes.trim().length === 0) {
         continue
       }
@@ -287,7 +385,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     }
 
     return labels
-  }, [showAnnotations, layers, sketchGroups, visibleShapes, visibleHardwareMarkers])
+  }, [showAnnotations, layers, sketchGroups, workspaceShapes, workspaceHardwareMarkers])
 
   const lineTypeStylesById = useMemo(
     () =>
@@ -299,10 +397,10 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
 
   const printableShapes = useMemo(() => {
     if (!printSelectedOnly) {
-      return visibleShapes
+      return assemblyShapes
     }
-    return visibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-  }, [printSelectedOnly, visibleShapes, selectedShapeIdSet])
+    return assemblyShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+  }, [printSelectedOnly, assemblyShapes, selectedShapeIdSet])
 
   const printPlan = useMemo(
     () =>
@@ -476,11 +574,18 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     selectedTemplateEntry,
     canUndo,
     canRedo,
+    assemblyShapes,
     visibleShapes,
+    visibleLinkedProjectionShapes,
     visibleShapeIdSet,
     visibleStitchHoles,
     visibleLayerIdSet,
     visibleHardwareMarkers,
+    workspaceShapes,
+    workspaceEditableShapes,
+    workspaceLinkedShapes,
+    workspaceStitchHoles,
+    workspaceHardwareMarkers,
     seamGuides,
     annotationLabels,
     lineTypeStylesById,

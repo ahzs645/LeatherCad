@@ -9,9 +9,11 @@ import type {
   StitchHole,
 } from '../cad/cad-types'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
-import { translateShape } from '../ops/pattern-ops'
+import { computeBoundsFromShapes, translateShape } from '../ops/pattern-ops'
 import { SUB_SKETCH_COPY_OFFSET_MM } from '../editor-constants'
 import { newSketchGroupName } from '../editor-utils'
+
+type SketchLinkMode = NonNullable<SketchGroup['linkMode']>
 
 type UseSketchGroupActionsParams = {
   activeLayer: Layer | null
@@ -31,6 +33,17 @@ type UseSketchGroupActionsParams = {
   setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
   setLayers: Dispatch<SetStateAction<Layer[]>>
   setStatus: Dispatch<SetStateAction<string>>
+}
+
+function sanitizeSketchLinkMode(value: SketchGroup['linkMode']): SketchLinkMode {
+  if (value === 'mirror-x' || value === 'mirror-y' || value === 'copy') {
+    return value
+  }
+  return 'copy'
+}
+
+function sanitizeSketchLinkOffset(value: number | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
@@ -87,6 +100,65 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     )
     setActiveSketchGroupId(nextGroupId)
     setStatus(`Created sub-sketch "${nextGroup.name}"`)
+  }
+
+  const handleCreateLinkedSketchGroup = (mode: SketchLinkMode) => {
+    if (!activeSketchGroup) {
+      setStatus('Set an active sub-sketch to use as the base')
+      return
+    }
+
+    if (!activeLayer) {
+      setStatus('No active layer for linked sub-sketch creation')
+      return
+    }
+
+    const sourceShapes = shapes.filter((shape) => shape.groupId === activeSketchGroup.id)
+    if (sourceShapes.length === 0) {
+      setStatus('Active sub-sketch has no source shapes to link')
+      return
+    }
+
+    const sourceBounds = computeBoundsFromShapes(sourceShapes)
+    const targetLayerBounds = computeBoundsFromShapes(shapes.filter((shape) => shape.layerId === activeLayer.id))
+
+    let linkOffsetX = 0
+    let linkOffsetY = 0
+
+    if (mode === 'copy') {
+      linkOffsetX = SUB_SKETCH_COPY_OFFSET_MM
+      linkOffsetY = SUB_SKETCH_COPY_OFFSET_MM
+    } else if (sourceBounds) {
+      const sourceCenterX = (sourceBounds.minX + sourceBounds.maxX) / 2
+      const sourceCenterY = (sourceBounds.minY + sourceBounds.maxY) / 2
+      const targetCenterX = targetLayerBounds ? (targetLayerBounds.minX + targetLayerBounds.maxX) / 2 : 0
+      const targetCenterY = targetLayerBounds ? (targetLayerBounds.minY + targetLayerBounds.maxY) / 2 : 0
+
+      if (mode === 'mirror-x') {
+        linkOffsetX = (targetCenterX - sourceCenterX) * 2
+      }
+      if (mode === 'mirror-y') {
+        linkOffsetY = (targetCenterY - sourceCenterY) * 2
+      }
+    }
+
+    const modeLabel = mode === 'copy' ? 'Link' : mode === 'mirror-x' ? 'Mirror X' : 'Mirror Y'
+    const nextGroupId = uid()
+    const nextGroup: SketchGroup = {
+      id: nextGroupId,
+      name: `${activeSketchGroup.name} ${modeLabel}`,
+      layerId: activeLayer.id,
+      visible: true,
+      locked: false,
+      baseGroupId: activeSketchGroup.id,
+      linkMode: mode,
+      linkOffsetX,
+      linkOffsetY,
+    }
+
+    setSketchGroups((previous) => [...previous, nextGroup])
+    setActiveSketchGroupId(nextGroupId)
+    setStatus(`Created linked sub-sketch "${nextGroup.name}"`)
   }
 
   const handleRenameActiveSketchGroup = () => {
@@ -151,6 +223,80 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     setStatus(activeSketchGroup.locked ? 'Active sub-sketch unlocked' : 'Active sub-sketch locked')
   }
 
+  const handleSetActiveSketchLink = (patch: {
+    baseGroupId?: string | null
+    linkMode?: SketchGroup['linkMode']
+    linkOffsetX?: number
+    linkOffsetY?: number
+  }) => {
+    if (!activeSketchGroup) {
+      return
+    }
+
+    setSketchGroups((previous) =>
+      previous.map((group) => {
+        if (group.id !== activeSketchGroup.id) {
+          return group
+        }
+
+        const nextBaseGroupIdCandidate = patch.baseGroupId !== undefined ? patch.baseGroupId : group.baseGroupId
+        const nextBaseGroupId =
+          typeof nextBaseGroupIdCandidate === 'string' &&
+          nextBaseGroupIdCandidate.length > 0 &&
+          nextBaseGroupIdCandidate !== group.id
+            ? nextBaseGroupIdCandidate
+            : undefined
+
+        if (!nextBaseGroupId) {
+          return {
+            ...group,
+            baseGroupId: undefined,
+            linkMode: undefined,
+            linkOffsetX: undefined,
+            linkOffsetY: undefined,
+          }
+        }
+
+        const nextLinkMode = sanitizeSketchLinkMode(patch.linkMode ?? group.linkMode)
+        const nextOffsetX = sanitizeSketchLinkOffset(
+          patch.linkOffsetX !== undefined ? patch.linkOffsetX : group.linkOffsetX,
+        )
+        const nextOffsetY = sanitizeSketchLinkOffset(
+          patch.linkOffsetY !== undefined ? patch.linkOffsetY : group.linkOffsetY,
+        )
+
+        return {
+          ...group,
+          baseGroupId: nextBaseGroupId,
+          linkMode: nextLinkMode,
+          linkOffsetX: nextOffsetX,
+          linkOffsetY: nextOffsetY,
+        }
+      }),
+    )
+  }
+
+  const handleClearActiveSketchLink = () => {
+    if (!activeSketchGroup?.baseGroupId) {
+      return
+    }
+
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.id === activeSketchGroup.id
+          ? {
+              ...group,
+              baseGroupId: undefined,
+              linkMode: undefined,
+              linkOffsetX: undefined,
+              linkOffsetY: undefined,
+            }
+          : group,
+      ),
+    )
+    setStatus('Removed base-sketch link from active sub-sketch')
+  }
+
   const handleClearActiveSketchGroup = () => {
     setActiveSketchGroupId(null)
     setStatus('Active sub-sketch cleared')
@@ -163,7 +309,21 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     }
 
     const deleteGroupId = activeSketchGroup.id
-    setSketchGroups((previous) => previous.filter((group) => group.id !== deleteGroupId))
+    setSketchGroups((previous) =>
+      previous
+        .filter((group) => group.id !== deleteGroupId)
+        .map((group) =>
+          group.baseGroupId === deleteGroupId
+            ? {
+                ...group,
+                baseGroupId: undefined,
+                linkMode: undefined,
+                linkOffsetX: undefined,
+                linkOffsetY: undefined,
+              }
+            : group,
+        ),
+    )
     setShapes((previous) =>
       previous.map((shape) =>
         shape.groupId === deleteGroupId
@@ -281,9 +441,12 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
 
   return {
     handleCreateSketchGroupFromSelection,
+    handleCreateLinkedSketchGroup,
     handleRenameActiveSketchGroup,
     handleToggleActiveSketchGroupVisibility,
     handleToggleActiveSketchGroupLock,
+    handleSetActiveSketchLink,
+    handleClearActiveSketchLink,
     handleClearActiveSketchGroup,
     handleDeleteActiveSketchGroup,
     handleDuplicateActiveSketchGroup,

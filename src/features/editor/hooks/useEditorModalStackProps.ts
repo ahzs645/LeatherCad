@@ -89,10 +89,18 @@ type UseEditorModalStackPropsParams = {
   activeSketchGroup: SketchGroup | null
   setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
   handleCreateSketchGroupFromSelection: () => void
+  handleCreateLinkedSketchGroup: (mode: NonNullable<SketchGroup['linkMode']>) => void
   handleDuplicateActiveSketchGroup: () => void
   handleRenameActiveSketchGroup: () => void
   handleToggleActiveSketchGroupVisibility: () => void
   handleToggleActiveSketchGroupLock: () => void
+  handleSetActiveSketchLink: (patch: {
+    baseGroupId?: string | null
+    linkMode?: SketchGroup['linkMode']
+    linkOffsetX?: number
+    linkOffsetY?: number
+  }) => void
+  handleClearActiveSketchLink: () => void
   handleClearActiveSketchGroup: () => void
   handleDeleteActiveSketchGroup: () => void
   handleSetActiveLayerAnnotation: (annotation: string) => void
@@ -235,10 +243,13 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     activeSketchGroup,
     setActiveSketchGroupId,
     handleCreateSketchGroupFromSelection,
+    handleCreateLinkedSketchGroup,
     handleDuplicateActiveSketchGroup,
     handleRenameActiveSketchGroup,
     handleToggleActiveSketchGroupVisibility,
     handleToggleActiveSketchGroupLock,
+    handleSetActiveSketchLink,
+    handleClearActiveSketchLink,
     handleClearActiveSketchGroup,
     handleDeleteActiveSketchGroup,
     handleSetActiveLayerAnnotation,
@@ -406,10 +417,13 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       activeSketchGroup,
       onSetActiveSketchGroupId: setActiveSketchGroupId,
       onCreateSketchGroupFromSelection: handleCreateSketchGroupFromSelection,
+      onCreateLinkedSketchGroup: handleCreateLinkedSketchGroup,
       onDuplicateActiveSketchGroup: handleDuplicateActiveSketchGroup,
       onRenameActiveSketchGroup: handleRenameActiveSketchGroup,
       onToggleActiveSketchGroupVisibility: handleToggleActiveSketchGroupVisibility,
       onToggleActiveSketchGroupLock: handleToggleActiveSketchGroupLock,
+      onSetActiveSketchLink: handleSetActiveSketchLink,
+      onClearActiveSketchLink: handleClearActiveSketchLink,
       onClearActiveSketchGroup: handleClearActiveSketchGroup,
       onDeleteActiveSketchGroup: handleDeleteActiveSketchGroup,
       onSetActiveLayerAnnotation: handleSetActiveLayerAnnotation,

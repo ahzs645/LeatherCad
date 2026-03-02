@@ -1,5 +1,5 @@
 import type { FoldLine, Layer, LineType, Shape, StitchHole } from '../cad/cad-types'
-import type { ThemeMode } from '../editor-types'
+import type { ResolvedThemeMode } from '../editor-types'
 import { ThreePreviewPanel } from './ThreePreviewPanel'
 
 type EditorPreviewPaneProps = {
@@ -12,7 +12,7 @@ type EditorPreviewPaneProps = {
   foldLines: FoldLine[]
   layers: Layer[]
   lineTypes: LineType[]
-  themeMode: ThemeMode
+  themeMode: ResolvedThemeMode
   onUpdateFoldLine: (foldLineId: string, updates: Partial<FoldLine>) => void
 }
 

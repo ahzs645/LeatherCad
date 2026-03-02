@@ -75,7 +75,7 @@ export function sanitizeFoldLine(foldLine: FoldLine): FoldLine {
   const maxAngleDeg = Number.isFinite(foldLine.maxAngleDeg) ? clamp(foldLine.maxAngleDeg, 10, 180) : 180
   return {
     ...foldLine,
-    angleDeg: Number.isFinite(foldLine.angleDeg) ? clamp(foldLine.angleDeg, 0, maxAngleDeg) : 0,
+    angleDeg: Number.isFinite(foldLine.angleDeg) ? clamp(foldLine.angleDeg, -maxAngleDeg, maxAngleDeg) : 0,
     maxAngleDeg,
     direction: parseFoldDirection(foldLine.direction) ?? DEFAULT_FOLD_DIRECTION,
     radiusMm: Number.isFinite(foldLine.radiusMm) ? clamp(foldLine.radiusMm ?? DEFAULT_FOLD_RADIUS_MM, 0, 30) : DEFAULT_FOLD_RADIUS_MM,
@@ -137,6 +137,10 @@ export function parseSketchGroup(value: unknown): SketchGroup | null {
     visible?: unknown
     locked?: unknown
     annotation?: unknown
+    baseGroupId?: unknown
+    linkMode?: unknown
+    linkOffsetX?: unknown
+    linkOffsetY?: unknown
   }
 
   if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
@@ -146,6 +150,12 @@ export function parseSketchGroup(value: unknown): SketchGroup | null {
     return null
   }
 
+  const hasBaseGroup = typeof candidate.baseGroupId === 'string' && candidate.baseGroupId.length > 0
+  const linkMode =
+    candidate.linkMode === 'copy' || candidate.linkMode === 'mirror-x' || candidate.linkMode === 'mirror-y'
+      ? candidate.linkMode
+      : 'copy'
+
   return {
     id: candidate.id,
     name: typeof candidate.name === 'string' && candidate.name.trim().length > 0 ? candidate.name.trim() : 'Sub-Sketch',
@@ -153,6 +163,20 @@ export function parseSketchGroup(value: unknown): SketchGroup | null {
     visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
     locked: typeof candidate.locked === 'boolean' ? candidate.locked : false,
     annotation: typeof candidate.annotation === 'string' ? candidate.annotation : undefined,
+    baseGroupId: hasBaseGroup ? (candidate.baseGroupId as string) : undefined,
+    linkMode: hasBaseGroup ? linkMode : undefined,
+    linkOffsetX:
+      hasBaseGroup && typeof candidate.linkOffsetX === 'number' && Number.isFinite(candidate.linkOffsetX)
+        ? candidate.linkOffsetX
+        : hasBaseGroup
+          ? 0
+          : undefined,
+    linkOffsetY:
+      hasBaseGroup && typeof candidate.linkOffsetY === 'number' && Number.isFinite(candidate.linkOffsetY)
+        ? candidate.linkOffsetY
+        : hasBaseGroup
+          ? 0
+          : undefined,
   }
 }
 

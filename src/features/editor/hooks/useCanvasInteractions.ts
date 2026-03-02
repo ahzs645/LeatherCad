@@ -61,7 +61,9 @@ type UseCanvasInteractionsParams = {
   activeSketchGroup: SketchGroup | null
   snapSettings: SnapSettings
   foldLines: FoldLine[]
-  visibleShapes: Shape[]
+  displayShapes: Shape[]
+  snapShapes: Shape[]
+  stitchTargetShapes: Shape[]
   visibleHardwareMarkers: HardwareMarker[]
   lineTypesById: Record<string, LineType>
   shapesById: Record<string, Shape>
@@ -102,7 +104,9 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     activeSketchGroup,
     snapSettings,
     foldLines,
-    visibleShapes,
+    displayShapes,
+    snapShapes,
+    stitchTargetShapes,
     visibleHardwareMarkers,
     lineTypesById,
     shapesById,
@@ -146,7 +150,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
   const getSnappedPoint = (point: Point) =>
     snapPointToContext(point, snapSettings, {
-      shapes: visibleShapes,
+      shapes: snapShapes,
       foldLines,
       hardwareMarkers: visibleHardwareMarkers,
       viewportScale: viewport.scale,
@@ -186,13 +190,13 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       return
     }
 
-    if (visibleShapes.length === 0) {
+    if (displayShapes.length === 0) {
       handleResetView()
       return
     }
 
     const rect = svg.getBoundingClientRect()
-    const bounds = getBounds(visibleShapes)
+    const bounds = getBounds(displayShapes)
     const margin = 40
     const fitScale = clamp(
       Math.min((rect.width - margin * 2) / bounds.width, (rect.height - margin * 2) / bounds.height),
@@ -205,7 +209,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       x: rect.width / 2 - (bounds.minX + bounds.width / 2) * fitScale,
       y: rect.height / 2 - (bounds.minY + bounds.height / 2) * fitScale,
     })
-    setStatus('View fit to visible shapes')
+      setStatus('View fit to current sketch view')
   }
 
   const beginPan = (clientX: number, clientY: number, pointerId: number) => {
@@ -289,7 +293,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     }
 
     if (tool === 'stitch-hole') {
-      const nearestStitchAnchor = findNearestStitchAnchor(point, visibleShapes, lineTypesById, 16 / viewport.scale)
+      const nearestStitchAnchor = findNearestStitchAnchor(point, stitchTargetShapes, lineTypesById, 16 / viewport.scale)
       if (!nearestStitchAnchor) {
         setStatus('No stitch path near pointer. Tap near a visible stitch line.')
         return

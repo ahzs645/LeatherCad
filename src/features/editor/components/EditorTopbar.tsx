@@ -7,6 +7,7 @@ import type {
   MobileLayerAction,
   MobileOptionsTab,
   MobileViewMode,
+  SketchWorkspaceMode,
   ThemeMode,
 } from '../editor-types'
 import { StitchHolePanel } from './StitchHolePanel'
@@ -34,9 +35,11 @@ type EditorTopbarProps = {
   selectedPresetId: string
   onSetSelectedPresetId: (presetId: string) => void
   onLoadPreset: () => void
-  onToggleTheme: () => void
+  onSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode
   showZoomSection: boolean
+  sketchWorkspaceMode: SketchWorkspaceMode
+  onSetSketchWorkspaceMode: (mode: SketchWorkspaceMode) => void
   onZoomOut: () => void
   onZoomIn: () => void
   onFitView: () => void
@@ -126,6 +129,46 @@ type EditorTopbarProps = {
   onResetDocument: () => void
 }
 
+const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string }> = [
+  { mode: 'dark', label: 'Dark mode' },
+  { mode: 'light', label: 'Light mode' },
+  { mode: 'system', label: 'System mode' },
+]
+
+function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
+  if (mode === 'light') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-mode-icon">
+        <circle cx="12" cy="12" r="4" />
+        <line x1="12" y1="2.5" x2="12" y2="5" />
+        <line x1="12" y1="19" x2="12" y2="21.5" />
+        <line x1="2.5" y1="12" x2="5" y2="12" />
+        <line x1="19" y1="12" x2="21.5" y2="12" />
+        <line x1="5.2" y1="5.2" x2="6.9" y2="6.9" />
+        <line x1="17.1" y1="17.1" x2="18.8" y2="18.8" />
+        <line x1="5.2" y1="18.8" x2="6.9" y2="17.1" />
+        <line x1="17.1" y1="6.9" x2="18.8" y2="5.2" />
+      </svg>
+    )
+  }
+
+  if (mode === 'dark') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-mode-icon">
+        <path d="M21 13.4A8.4 8.4 0 1 1 10.6 3a7.1 7.1 0 1 0 10.4 10.4z" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-mode-icon">
+      <rect x="3.5" y="4.5" width="17" height="12" rx="1.8" />
+      <line x1="12" y1="16.5" x2="12" y2="20" />
+      <line x1="8.5" y1="20.5" x2="15.5" y2="20.5" />
+    </svg>
+  )
+}
+
 export function EditorTopbar({
   topbarClassName,
   isMobileLayout,
@@ -148,9 +191,11 @@ export function EditorTopbar({
   selectedPresetId,
   onSetSelectedPresetId,
   onLoadPreset,
-  onToggleTheme,
+  onSetThemeMode,
   themeMode,
   showZoomSection,
+  sketchWorkspaceMode,
+  onSetSketchWorkspaceMode,
   onZoomOut,
   onZoomIn,
   onFitView,
@@ -239,6 +284,23 @@ export function EditorTopbar({
   onToggleThreePreview,
   onResetDocument,
 }: EditorTopbarProps) {
+  const renderThemeModeToggle = (className?: string) => (
+    <div className={`theme-mode-toggle${className ? ` ${className}` : ''}`} role="group" aria-label="Theme mode">
+      {THEME_OPTIONS.map(({ mode, label }) => (
+        <button
+          key={mode}
+          type="button"
+          className={`theme-mode-button${themeMode === mode ? ' active' : ''}`}
+          onClick={() => onSetThemeMode(mode)}
+          aria-label={label}
+          title={label}
+        >
+          <ThemeModeIcon mode={mode} />
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <header className={topbarClassName}>
       {!isMobileLayout && (
@@ -262,6 +324,7 @@ export function EditorTopbar({
             <span>{selectedShapeCount} selected</span>
             <span>{selectedStitchHoleCount} selected holes</span>
             <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</button>
+            {renderThemeModeToggle('desktop-theme-toggle')}
             <button
               type="button"
               className="help-button"
@@ -383,12 +446,20 @@ export function EditorTopbar({
               ))}
             </select>
             <button onClick={onLoadPreset}>Load Preset</button>
-            <button onClick={onToggleTheme}>{themeMode === 'dark' ? 'White Mode' : 'Dark Mode'}</button>
+            {isMobileLayout && renderThemeModeToggle('mobile-theme-toggle')}
           </div>
         )}
 
         {showZoomSection && (
           <div className="group zoom-controls ribbon-section" data-section="View">
+            <div className="view-mode-toggle" role="tablist" aria-label="Workspace view mode">
+              <button className={sketchWorkspaceMode === 'assembly' ? 'active' : ''} onClick={() => onSetSketchWorkspaceMode('assembly')}>
+                Assembly
+              </button>
+              <button className={sketchWorkspaceMode === 'sketch' ? 'active' : ''} onClick={() => onSetSketchWorkspaceMode('sketch')}>
+                Sketch Focus
+              </button>
+            </div>
             <button onClick={onZoomOut}>-</button>
             <button onClick={onZoomIn}>+</button>
             <button onClick={onFitView}>Fit</button>

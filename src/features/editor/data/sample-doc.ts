@@ -160,7 +160,7 @@ const walletFolds: FoldLine[] = [
     end: { x: 0, y: 140 },
     angleDeg: 58,
     maxAngleDeg: 180,
-    direction: 'valley',
+    direction: 'mountain',
     radiusMm: 1.4,
     thicknessMm: 1.7,
     neutralAxisRatio: 0.5,

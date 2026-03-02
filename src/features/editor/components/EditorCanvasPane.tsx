@@ -11,7 +11,7 @@ import type {
   Viewport,
 } from '../cad/cad-types'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
-import type { AnnotationLabel, LegendMode, SeamGuide, ThemeMode } from '../editor-types'
+import type { AnnotationLabel, LegendMode, ResolvedThemeMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
 import type { PrintPlan } from '../preview/print-preview'
 import { LayerLegendPanel } from './LayerLegendPanel'
 
@@ -31,12 +31,14 @@ type EditorCanvasPaneProps = {
   viewport: Viewport
   gridLines: ReactElement[]
   tracingOverlays: TracingOverlay[]
-  themeMode: ThemeMode
+  themeMode: ResolvedThemeMode
   showPrintAreas: boolean
   printPlan: PrintPlan | null
   seamGuides: SeamGuide[]
   showAnnotations: boolean
   visibleShapes: Shape[]
+  linkedShapes: Shape[]
+  sketchWorkspaceMode: SketchWorkspaceMode
   lineTypesById: Record<string, LineType | undefined>
   selectedShapeIdSet: Set<string>
   stitchStrokeColor: string
@@ -79,6 +81,8 @@ export function EditorCanvasPane({
   seamGuides,
   showAnnotations,
   visibleShapes,
+  linkedShapes,
+  sketchWorkspaceMode,
   lineTypesById,
   selectedShapeIdSet,
   stitchStrokeColor,
@@ -183,6 +187,56 @@ export function EditorCanvasPane({
               )}
             </g>
           ))}
+
+          {linkedShapes.map((shape) => {
+            const lineType = lineTypesById[shape.lineTypeId]
+            const lineTypeRole = lineType?.role ?? 'cut'
+            const layerStroke =
+              lineTypeRole === 'stitch'
+                ? stitchStrokeColor
+                : lineTypeRole === 'fold'
+                  ? foldStrokeColor
+                  : lineType?.color ??
+                    (lineTypeRole === 'cut' ? cutStrokeColor : displayLayerColorsById[shape.layerId] ?? cutStrokeColor)
+            const strokeDasharray = sketchWorkspaceMode === 'sketch' ? '8 5' : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
+            const linkedClassName = sketchWorkspaceMode === 'sketch' ? 'shape-line shape-linked-reference' : 'shape-line shape-linked-assembly'
+
+            if (shape.type === 'line') {
+              return (
+                <line
+                  key={shape.id}
+                  x1={shape.start.x}
+                  y1={shape.start.y}
+                  x2={shape.end.x}
+                  y2={shape.end.y}
+                  className={linkedClassName}
+                  style={{ stroke: layerStroke, strokeDasharray }}
+                />
+              )
+            }
+
+            if (shape.type === 'arc') {
+              return (
+                <path
+                  key={shape.id}
+                  d={arcPath(shape.start, shape.mid, shape.end)}
+                  className={linkedClassName}
+                  style={{ stroke: layerStroke, strokeDasharray }}
+                />
+              )
+            }
+
+            return (
+              <path
+                key={shape.id}
+                d={`M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(
+                  shape.end.x,
+                )} ${round(shape.end.y)}`}
+                className={linkedClassName}
+                style={{ stroke: layerStroke, strokeDasharray }}
+              />
+            )
+          })}
 
           {visibleShapes.map((shape) => {
             const lineType = lineTypesById[shape.lineTypeId]

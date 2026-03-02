@@ -75,6 +75,10 @@ export type SketchGroup = {
   visible: boolean
   locked: boolean
   annotation?: string
+  baseGroupId?: string
+  linkMode?: 'copy' | 'mirror-x' | 'mirror-y'
+  linkOffsetX?: number
+  linkOffsetY?: number
 }
 
 export type FoldDirection = 'mountain' | 'valley'

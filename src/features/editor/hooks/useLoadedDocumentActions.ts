@@ -19,6 +19,7 @@ import { DEFAULT_SNAP_SETTINGS } from '../editor-constants'
 import { parseSnapSettings } from '../editor-parsers'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
+import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
 
 type UseLoadedDocumentActionsParams = {
   clearDraft: () => void
@@ -79,7 +80,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
       ? doc.activeLayerId
       : normalizedLayers[0].id
     const layerIdSet = new Set(normalizedLayers.map((layer) => layer.id))
-    const normalizedSketchGroups = (doc.sketchGroups ?? []).filter((group) => layerIdSet.has(group.layerId))
+    const normalizedSketchGroups = sanitizeSketchGroupLinks((doc.sketchGroups ?? []).filter((group) => layerIdSet.has(group.layerId)))
     const sketchGroupIdSet = new Set(normalizedSketchGroups.map((group) => group.id))
     const normalizedShapes = doc.objects.map((shape) => {
       if (!shape.groupId || !sketchGroupIdSet.has(shape.groupId)) {

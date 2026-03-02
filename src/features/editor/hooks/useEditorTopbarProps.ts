@@ -7,6 +7,7 @@ import type {
   MobileLayerAction,
   MobileOptionsTab,
   MobileViewMode,
+  SketchWorkspaceMode,
   ThemeMode,
 } from '../editor-types'
 
@@ -32,9 +33,11 @@ type UseEditorTopbarPropsParams = {
   selectedPresetId: string
   setSelectedPresetId: Dispatch<SetStateAction<string>>
   handleLoadPreset: () => void
-  handleToggleTheme: () => void
+  handleSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode
   showZoomSection: boolean
+  sketchWorkspaceMode: SketchWorkspaceMode
+  setSketchWorkspaceMode: Dispatch<SetStateAction<SketchWorkspaceMode>>
   handleZoomStep: (factor: number) => void
   handleFitView: () => void
   handleResetView: () => void
@@ -142,9 +145,11 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedPresetId,
     setSelectedPresetId,
     handleLoadPreset,
-    handleToggleTheme,
+    handleSetThemeMode,
     themeMode,
     showZoomSection,
+    sketchWorkspaceMode,
+    setSketchWorkspaceMode,
     handleZoomStep,
     handleFitView,
     handleResetView,
@@ -258,9 +263,11 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedPresetId,
     onSetSelectedPresetId: setSelectedPresetId,
     onLoadPreset: handleLoadPreset,
-    onToggleTheme: handleToggleTheme,
+    onSetThemeMode: handleSetThemeMode,
     themeMode,
     showZoomSection,
+    sketchWorkspaceMode,
+    onSetSketchWorkspaceMode: setSketchWorkspaceMode,
     onZoomOut: () => handleZoomStep(0.85),
     onZoomIn: () => handleZoomStep(1.15),
     onFitView: handleFitView,

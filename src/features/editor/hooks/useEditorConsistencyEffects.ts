@@ -15,6 +15,7 @@ import { deepClone, pushHistorySnapshot, type HistoryState } from '../ops/histor
 import { HISTORY_LIMIT } from '../editor-constants'
 import type { EditorSnapshot } from '../editor-types'
 import { saveTemplateRepository, type TemplateRepositoryEntry } from '../templates/template-repository'
+import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
 
 type UseEditorConsistencyEffectsParams = {
   layers: Layer[]
@@ -196,8 +197,13 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
         return previous
       }
       const layerIdSet = new Set(layers.map((layer) => layer.id))
-      const next = previous.filter((group) => layerIdSet.has(group.layerId))
-      return next.length === previous.length ? previous : next
+      const filtered = previous.filter((group) => layerIdSet.has(group.layerId))
+      const next = sanitizeSketchGroupLinks(filtered)
+      if (next.length !== previous.length) {
+        return next
+      }
+      const unchanged = next.every((group, index) => group === previous[index])
+      return unchanged ? previous : next
     })
   }, [layers, setSketchGroups])
 

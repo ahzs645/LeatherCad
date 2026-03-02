@@ -10,13 +10,17 @@ type UseThemeActionsParams = {
 export function useThemeActions(params: UseThemeActionsParams) {
   const { setThemeMode, setStatus } = params
 
-  const handleToggleTheme = useCallback(() => {
-    setThemeMode((previous) => {
-      const next = previous === 'dark' ? 'light' : 'dark'
-      setStatus(next === 'light' ? 'White mode enabled' : 'Dark mode enabled')
-      return next
-    })
-  }, [setThemeMode, setStatus])
+  const handleSetThemeMode = useCallback(
+    (nextMode: ThemeMode) => {
+      setThemeMode(nextMode)
+      if (nextMode === 'system') {
+        setStatus('System theme enabled')
+        return
+      }
+      setStatus(nextMode === 'light' ? 'White mode enabled' : 'Dark mode enabled')
+    },
+    [setThemeMode, setStatus],
+  )
 
-  return { handleToggleTheme }
+  return { handleSetThemeMode }
 }

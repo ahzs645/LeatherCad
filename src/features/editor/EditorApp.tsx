@@ -53,6 +53,8 @@ import type {
   MobileLayerAction,
   MobileOptionsTab,
   MobileViewMode,
+  ResolvedThemeMode,
+  SketchWorkspaceMode,
   ThemeMode,
 } from './editor-types'
 import {
@@ -92,8 +94,15 @@ const DESKTOP_PREVIEW_MIN_WIDTH_PX = 300
 const DESKTOP_CANVAS_MIN_WIDTH_PX = 420
 const DESKTOP_SPLITTER_WIDTH_PX = 12
 
+const getSystemThemeMode = (): ResolvedThemeMode => {
+  if (typeof window === 'undefined') {
+    return 'dark'
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 export function EditorApp() {
-  const initialLayerIdRef = useRef(uid())
+  const [initialLayerId] = useState(() => uid())
   const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
   const [activeLineTypeId, setActiveLineTypeId] = useState(DEFAULT_ACTIVE_LINE_TYPE_ID)
   const [stitchHoleType, setStitchHoleType] = useState<StitchHoleType>('round')
@@ -114,14 +123,14 @@ export function EditorApp() {
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [layers, setLayers] = useState<Layer[]>(() => [
     {
-      id: initialLayerIdRef.current,
+      id: initialLayerId,
       name: 'Layer 1',
       visible: true,
       locked: false,
       stackLevel: 0,
     },
   ])
-  const [activeLayerId, setActiveLayerId] = useState<string>(initialLayerIdRef.current)
+  const [activeLayerId, setActiveLayerId] = useState<string>(initialLayerId)
   const [draftPoints, setDraftPoints] = useState<Point[]>([])
   const [cursorPoint, setCursorPoint] = useState<Point | null>(null)
   const [status, setStatus] = useState('Ready')
@@ -204,8 +213,10 @@ export function EditorApp() {
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([])
   const [selectedStitchHoleId, setSelectedStitchHoleId] = useState<string | null>(null)
   const [selectedHardwareMarkerId, setSelectedHardwareMarkerId] = useState<string | null>(null)
-  const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system')
+  const [systemThemeMode, setSystemThemeMode] = useState<ResolvedThemeMode>(() => getSystemThemeMode())
   const [legendMode, setLegendMode] = useState<LegendMode>('layer')
+  const [sketchWorkspaceMode, setSketchWorkspaceMode] = useState<SketchWorkspaceMode>('assembly')
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
   const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
   const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
@@ -217,6 +228,23 @@ export function EditorApp() {
   const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
   const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
+  const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handlePreferenceChange = (event: MediaQueryListEvent) => {
+      setSystemThemeMode(event.matches ? 'dark' : 'light')
+    }
+
+    mediaQuery.addEventListener('change', handlePreferenceChange)
+    return () => {
+      mediaQuery.removeEventListener('change', handlePreferenceChange)
+    }
+  }, [])
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -250,10 +278,14 @@ export function EditorApp() {
     selectedTemplateEntry,
     canUndo,
     canRedo,
-    visibleShapes,
+    assemblyShapes,
     visibleStitchHoles,
     visibleLayerIdSet,
-    visibleHardwareMarkers,
+    workspaceShapes,
+    workspaceEditableShapes,
+    workspaceLinkedShapes,
+    workspaceStitchHoles,
+    workspaceHardwareMarkers,
     seamGuides,
     annotationLabels,
     lineTypeStylesById,
@@ -306,7 +338,8 @@ export function EditorApp() {
     backLayerColor,
     layerColorOverrides,
     legendMode,
-    themeMode,
+    sketchWorkspaceMode,
+    themeMode: resolvedThemeMode,
   })
 
   const clearDraft = () => {
@@ -561,8 +594,10 @@ export function EditorApp() {
     activeSketchGroup,
     snapSettings,
     foldLines,
-    visibleShapes,
-    visibleHardwareMarkers,
+    displayShapes: workspaceShapes,
+    snapShapes: workspaceShapes,
+    stitchTargetShapes: workspaceEditableShapes,
+    visibleHardwareMarkers: workspaceHardwareMarkers,
     lineTypesById,
     shapesById,
     layers,
@@ -590,7 +625,7 @@ export function EditorApp() {
     ensureActiveLineTypeWritable,
   })
   const { handleExportSvg, handleExportDxf, handleExportPdf } = useExportActions({
-    shapes,
+    shapes: assemblyShapes,
     foldLines,
     lineTypes,
     lineTypesById,
@@ -676,9 +711,12 @@ export function EditorApp() {
 
   const {
     handleCreateSketchGroupFromSelection,
+    handleCreateLinkedSketchGroup,
     handleRenameActiveSketchGroup,
     handleToggleActiveSketchGroupVisibility,
     handleToggleActiveSketchGroupLock,
+    handleSetActiveSketchLink,
+    handleClearActiveSketchLink,
     handleClearActiveSketchGroup,
     handleDeleteActiveSketchGroup,
     handleDuplicateActiveSketchGroup,
@@ -796,7 +834,7 @@ export function EditorApp() {
     setShowThreePreview,
   })
 
-  const { handleToggleTheme } = useThemeActions({
+  const { handleSetThemeMode } = useThemeActions({
     setThemeMode,
     setStatus,
   })
@@ -918,7 +956,7 @@ export function EditorApp() {
     mobileOptionsTab,
     desktopRibbonTab,
   })
-  const effectiveDesktopPreviewWidthPx = clampDesktopPreviewWidth(desktopPreviewWidthPx)
+  const effectiveDesktopPreviewWidthPx = desktopPreviewWidthPx
   const workspaceStyle: CSSProperties | undefined = isMobileLayout
     ? undefined
     : showThreePreview
@@ -951,9 +989,11 @@ export function EditorApp() {
     selectedPresetId,
     setSelectedPresetId,
     handleLoadPreset,
-    handleToggleTheme,
+    handleSetThemeMode,
     themeMode,
     showZoomSection,
+    sketchWorkspaceMode,
+    setSketchWorkspaceMode,
     handleZoomStep,
     handleFitView,
     handleResetView,
@@ -1108,10 +1148,13 @@ export function EditorApp() {
     activeSketchGroup,
     setActiveSketchGroupId,
     handleCreateSketchGroupFromSelection,
+    handleCreateLinkedSketchGroup,
     handleDuplicateActiveSketchGroup,
     handleRenameActiveSketchGroup,
     handleToggleActiveSketchGroupVisibility,
     handleToggleActiveSketchGroupLock,
+    handleSetActiveSketchLink,
+    handleClearActiveSketchLink,
     handleClearActiveSketchGroup,
     handleDeleteActiveSketchGroup,
     handleSetActiveLayerAnnotation,
@@ -1186,19 +1229,19 @@ export function EditorApp() {
     hidePreviewPane,
     isMobileLayout,
     mobileViewMode,
-    shapes: visibleShapes,
-    stitchHoles: visibleStitchHoles,
+    shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
+    stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
     foldLines,
     layers,
     lineTypes,
-    themeMode,
+    themeMode: resolvedThemeMode,
     setFoldLines,
   })
   const statusBarProps = useEditorStatusBarProps({
     toolLabel: toolLabel(tool),
     status,
     zoomPercent: Math.round(viewport.scale * 100),
-    visibleShapeCount: visibleShapes.length,
+    visibleShapeCount: workspaceShapes.length,
     shapeCount: shapes.length,
     layerCount: layers.length,
     sketchGroupCount: sketchGroups.length,
@@ -1213,7 +1256,7 @@ export function EditorApp() {
   })
 
   return (
-    <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
+    <div className={`app-shell ${resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
       <EditorTopbar {...topbarProps} />
 
       <main ref={workspaceRef} className={workspaceClassName} style={workspaceStyle}>
@@ -1227,12 +1270,14 @@ export function EditorApp() {
           viewport={viewport}
           gridLines={gridLines}
           tracingOverlays={tracingOverlays}
-          themeMode={themeMode}
+          themeMode={resolvedThemeMode}
           showPrintAreas={showPrintAreas}
           printPlan={printPlan}
           seamGuides={seamGuides}
           showAnnotations={showAnnotations}
-          visibleShapes={visibleShapes}
+          visibleShapes={workspaceEditableShapes}
+          linkedShapes={workspaceLinkedShapes}
+          sketchWorkspaceMode={sketchWorkspaceMode}
           lineTypesById={lineTypesById}
           selectedShapeIdSet={selectedShapeIdSet}
           stitchStrokeColor={stitchStrokeColor}
@@ -1240,11 +1285,11 @@ export function EditorApp() {
           cutStrokeColor={cutStrokeColor}
           displayLayerColorsById={displayLayerColorsById}
           onShapePointerDown={handleShapePointerDown}
-          visibleStitchHoles={visibleStitchHoles}
+          visibleStitchHoles={workspaceStitchHoles}
           selectedStitchHoleId={selectedStitchHoleId}
           showStitchSequenceLabels={showStitchSequenceLabels}
           onStitchHolePointerDown={handleStitchHolePointerDown}
-          visibleHardwareMarkers={visibleHardwareMarkers}
+          visibleHardwareMarkers={workspaceHardwareMarkers}
           selectedHardwareMarkerId={selectedHardwareMarkerId}
           onHardwarePointerDown={handleHardwarePointerDown}
           foldLines={foldLines}

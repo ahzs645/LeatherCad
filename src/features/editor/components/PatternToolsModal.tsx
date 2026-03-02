@@ -10,6 +10,8 @@ import type {
   SnapSettings,
 } from '../cad/cad-types'
 
+type SketchLinkMode = NonNullable<SketchGroup['linkMode']>
+
 type PatternToolsModalProps = {
   open: boolean
   onClose: () => void
@@ -24,10 +26,18 @@ type PatternToolsModalProps = {
   activeSketchGroup: SketchGroup | null
   onSetActiveSketchGroupId: (groupId: string | null) => void
   onCreateSketchGroupFromSelection: () => void
+  onCreateLinkedSketchGroup: (mode: SketchLinkMode) => void
   onDuplicateActiveSketchGroup: () => void
   onRenameActiveSketchGroup: () => void
   onToggleActiveSketchGroupVisibility: () => void
   onToggleActiveSketchGroupLock: () => void
+  onSetActiveSketchLink: (patch: {
+    baseGroupId?: string | null
+    linkMode?: SketchGroup['linkMode']
+    linkOffsetX?: number
+    linkOffsetY?: number
+  }) => void
+  onClearActiveSketchLink: () => void
   onClearActiveSketchGroup: () => void
   onDeleteActiveSketchGroup: () => void
   onSetActiveLayerAnnotation: (annotation: string) => void
@@ -78,10 +88,13 @@ export function PatternToolsModal({
   activeSketchGroup,
   onSetActiveSketchGroupId,
   onCreateSketchGroupFromSelection,
+  onCreateLinkedSketchGroup,
   onDuplicateActiveSketchGroup,
   onRenameActiveSketchGroup,
   onToggleActiveSketchGroupVisibility,
   onToggleActiveSketchGroupLock,
+  onSetActiveSketchLink,
+  onClearActiveSketchLink,
   onClearActiveSketchGroup,
   onDeleteActiveSketchGroup,
   onSetActiveLayerAnnotation,
@@ -120,6 +133,8 @@ export function PatternToolsModal({
   if (!open) {
     return null
   }
+
+  const hasActiveSketchLink = Boolean(activeSketchGroup?.baseGroupId)
 
   return (
     <div
@@ -275,6 +290,15 @@ export function PatternToolsModal({
             <button onClick={onCreateSketchGroupFromSelection} disabled={selectedShapeCount === 0}>
               Create from Selection
             </button>
+            <button onClick={() => onCreateLinkedSketchGroup('copy')} disabled={!activeSketchGroup}>
+              Linked Copy
+            </button>
+            <button onClick={() => onCreateLinkedSketchGroup('mirror-x')} disabled={!activeSketchGroup}>
+              Linked Mirror X
+            </button>
+            <button onClick={() => onCreateLinkedSketchGroup('mirror-y')} disabled={!activeSketchGroup}>
+              Linked Mirror Y
+            </button>
             <button onClick={onDuplicateActiveSketchGroup} disabled={!activeSketchGroup}>
               Place Copy
             </button>
@@ -294,6 +318,83 @@ export function PatternToolsModal({
               Delete Sub-Sketch
             </button>
           </div>
+          <div className="line-type-edit-grid">
+            <label className="field-row">
+              <span>Base sketch link</span>
+              <select
+                className="action-select"
+                value={activeSketchGroup?.baseGroupId ?? ''}
+                onChange={(event) =>
+                  onSetActiveSketchLink({
+                    baseGroupId: event.target.value || null,
+                  })
+                }
+                disabled={!activeSketchGroup}
+              >
+                <option value="">None (local only)</option>
+                {sketchGroups
+                  .filter((group) => !activeSketchGroup || group.id !== activeSketchGroup.id)
+                  .map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name} ({group.layerId === activeLayerId ? 'active layer' : 'other layer'})
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Link mode</span>
+              <select
+                className="action-select"
+                value={activeSketchGroup?.linkMode ?? 'copy'}
+                onChange={(event) =>
+                  onSetActiveSketchLink({
+                    linkMode: event.target.value as SketchGroup['linkMode'],
+                  })
+                }
+                disabled={!hasActiveSketchLink}
+              >
+                <option value="copy">Copy</option>
+                <option value="mirror-x">Mirror X</option>
+                <option value="mirror-y">Mirror Y</option>
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Link offset X (mm)</span>
+              <input
+                type="number"
+                step={1}
+                value={activeSketchGroup?.linkOffsetX ?? 0}
+                onChange={(event) =>
+                  onSetActiveSketchLink({
+                    linkOffsetX: Number(event.target.value) || 0,
+                  })
+                }
+                disabled={!hasActiveSketchLink}
+              />
+            </label>
+            <label className="field-row">
+              <span>Link offset Y (mm)</span>
+              <input
+                type="number"
+                step={1}
+                value={activeSketchGroup?.linkOffsetY ?? 0}
+                onChange={(event) =>
+                  onSetActiveSketchLink({
+                    linkOffsetY: Number(event.target.value) || 0,
+                  })
+                }
+                disabled={!hasActiveSketchLink}
+              />
+            </label>
+          </div>
+          <div className="button-row">
+            <button onClick={onClearActiveSketchLink} disabled={!hasActiveSketchLink}>
+              Unlink Base Sketch
+            </button>
+          </div>
+          <p className="hint">
+            Linked sketches stay connected to their base sketch and can still include extra local edits.
+          </p>
           <div className="line-type-edit-grid">
             <label className="field-row">
               <span>Layer annotation</span>
