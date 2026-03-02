@@ -1278,9 +1278,6 @@ export function EditorApp() {
     setShowDimensions,
     sketchWorkspaceMode,
     setSketchWorkspaceMode,
-    handleZoomStep,
-    handleFitView,
-    handleResetView,
     showEditSection,
     canUndo,
     canRedo,
@@ -1613,6 +1610,10 @@ export function EditorApp() {
           gridLines={gridLines}
           showCanvasRuler={showCanvasRuler}
           showDimensions={showDimensions}
+          onZoomOut={() => handleZoomStep(0.85)}
+          onZoomIn={() => handleZoomStep(1.15)}
+          onFitView={handleFitView}
+          onResetView={handleResetView}
           tracingOverlays={tracingOverlays}
           showPrintAreas={showPrintAreas}
           printPlan={printPlan}

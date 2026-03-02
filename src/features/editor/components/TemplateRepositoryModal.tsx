@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { getCatalogItemCount, type CatalogRepositoryShop } from '../templates/catalog-repository'
 
@@ -44,19 +44,6 @@ export function TemplateRepositoryModal({
   onDeleteCatalogShop,
 }: TemplateRepositoryModalProps) {
   const [activeTab, setActiveTab] = useState<TemplateRepositoryTab>('templates')
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    if (activeTab === 'templates' && templateRepository.length === 0 && catalogRepository.length > 0) {
-      setActiveTab('catalog')
-      return
-    }
-    if (activeTab === 'catalog' && catalogRepository.length === 0 && templateRepository.length > 0) {
-      setActiveTab('templates')
-    }
-  }, [open, activeTab, templateRepository.length, catalogRepository.length])
 
   if (!open) {
     return null

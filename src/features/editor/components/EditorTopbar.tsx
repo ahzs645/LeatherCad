@@ -47,10 +47,6 @@ type EditorTopbarProps = {
   onToggleDimensions: () => void
   sketchWorkspaceMode: SketchWorkspaceMode
   onSetSketchWorkspaceMode: (mode: SketchWorkspaceMode) => void
-  onZoomOut: () => void
-  onZoomIn: () => void
-  onFitView: () => void
-  onResetView: () => void
   showEditSection: boolean
   canUndo: boolean
   canRedo: boolean
@@ -227,10 +223,6 @@ export function EditorTopbar({
   onToggleDimensions,
   sketchWorkspaceMode,
   onSetSketchWorkspaceMode,
-  onZoomOut,
-  onZoomIn,
-  onFitView,
-  onResetView,
   showEditSection,
   canUndo,
   canRedo,
@@ -514,10 +506,6 @@ export function EditorTopbar({
             </label>
             <button onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
             <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
-            <button onClick={onZoomOut}>-</button>
-            <button onClick={onZoomIn}>+</button>
-            <button onClick={onFitView}>Fit</button>
-            <button onClick={onResetView}>Reset</button>
           </div>
         )}
 

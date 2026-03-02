@@ -36,6 +36,10 @@ type EditorCanvasPaneProps = {
   gridLines: ReactElement[]
   showCanvasRuler: boolean
   showDimensions: boolean
+  onZoomOut: () => void
+  onZoomIn: () => void
+  onFitView: () => void
+  onResetView: () => void
   tracingOverlays: TracingOverlay[]
   showPrintAreas: boolean
   printPlan: PrintPlan | null
@@ -83,6 +87,10 @@ export function EditorCanvasPane({
   gridLines,
   showCanvasRuler,
   showDimensions,
+  onZoomOut,
+  onZoomIn,
+  onFitView,
+  onResetView,
   tracingOverlays,
   showPrintAreas,
   printPlan,
@@ -527,6 +535,17 @@ export function EditorCanvasPane({
           {previewElement}
         </g>
       </svg>
+
+      <div className="canvas-view-controls" role="group" aria-label="2D view controls">
+        <button onClick={onZoomOut} aria-label="Zoom out">
+          -
+        </button>
+        <button onClick={onZoomIn} aria-label="Zoom in">
+          +
+        </button>
+        <button onClick={onFitView}>Fit</button>
+        <button onClick={onResetView}>Reset</button>
+      </div>
 
       <LayerLegendPanel
         show={showLayerLegend}

@@ -45,9 +45,6 @@ type UseEditorTopbarPropsParams = {
   setShowDimensions: Dispatch<SetStateAction<boolean>>
   sketchWorkspaceMode: SketchWorkspaceMode
   setSketchWorkspaceMode: Dispatch<SetStateAction<SketchWorkspaceMode>>
-  handleZoomStep: (factor: number) => void
-  handleFitView: () => void
-  handleResetView: () => void
   showEditSection: boolean
   canUndo: boolean
   canRedo: boolean
@@ -175,9 +172,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setShowDimensions,
     sketchWorkspaceMode,
     setSketchWorkspaceMode,
-    handleZoomStep,
-    handleFitView,
-    handleResetView,
     showEditSection,
     canUndo,
     canRedo,
@@ -311,10 +305,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onToggleDimensions: () => setShowDimensions((previous) => !previous),
     sketchWorkspaceMode,
     onSetSketchWorkspaceMode: setSketchWorkspaceMode,
-    onZoomOut: () => handleZoomStep(0.85),
-    onZoomIn: () => handleZoomStep(1.15),
-    onFitView: handleFitView,
-    onResetView: handleResetView,
     showEditSection,
     canUndo,
     canRedo,
