@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import '../../app/styles/App.css'
 import {
   uid,
@@ -88,6 +88,10 @@ import { useSelectionActions } from './hooks/useSelectionActions'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
 
+const DESKTOP_PREVIEW_MIN_WIDTH_PX = 300
+const DESKTOP_CANVAS_MIN_WIDTH_PX = 420
+const DESKTOP_SPLITTER_WIDTH_PX = 12
+
 export function EditorApp() {
   const initialLayerIdRef = useRef(uid())
   const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
@@ -122,7 +126,8 @@ export function EditorApp() {
   const [cursorPoint, setCursorPoint] = useState<Point | null>(null)
   const [status, setStatus] = useState('Ready')
   const [showThreePreview, setShowThreePreview] = useState(true)
-  const [desktopPreviewWidthPercent, setDesktopPreviewWidthPercent] = useState(32)
+  const [desktopPreviewWidthPx, setDesktopPreviewWidthPx] = useState(420)
+  const [isDesktopPreviewResizing, setIsDesktopPreviewResizing] = useState(false)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -218,6 +223,7 @@ export function EditorApp() {
   const svgInputRef = useRef<HTMLInputElement | null>(null)
   const tracingInputRef = useRef<HTMLInputElement | null>(null)
   const templateImportInputRef = useRef<HTMLInputElement | null>(null)
+  const workspaceRef = useRef<HTMLElement | null>(null)
   const lastSnapshotRef = useRef<EditorSnapshot | null>(null)
   const lastSnapshotSignatureRef = useRef<string | null>(null)
   const applyingHistoryRef = useRef(false)
@@ -810,6 +816,86 @@ export function EditorApp() {
     setStatus(`Tool selected: ${toolLabel(nextTool)}`)
   }
 
+  const clampDesktopPreviewWidth = useCallback((value: number) => {
+    const workspaceWidth = workspaceRef.current?.clientWidth ?? 0
+    if (workspaceWidth <= 0) {
+      return Math.max(value, DESKTOP_PREVIEW_MIN_WIDTH_PX)
+    }
+
+    const computedMax = workspaceWidth - DESKTOP_CANVAS_MIN_WIDTH_PX - DESKTOP_SPLITTER_WIDTH_PX
+    const maxPreviewWidth = Math.max(DESKTOP_PREVIEW_MIN_WIDTH_PX, computedMax)
+    return Math.min(Math.max(value, DESKTOP_PREVIEW_MIN_WIDTH_PX), maxPreviewWidth)
+  }, [])
+
+  const handleDesktopSplitterPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (isMobileLayout || !showThreePreview) {
+        return
+      }
+
+      event.preventDefault()
+      setIsDesktopPreviewResizing(true)
+      event.currentTarget.setPointerCapture(event.pointerId)
+
+      const updateFromPointer = (clientX: number) => {
+        const workspaceRect = workspaceRef.current?.getBoundingClientRect()
+        if (!workspaceRect) {
+          return
+        }
+
+        const nextWidth = workspaceRect.right - clientX - DESKTOP_SPLITTER_WIDTH_PX / 2
+        setDesktopPreviewWidthPx(clampDesktopPreviewWidth(nextWidth))
+      }
+
+      const handlePointerMove = (pointerEvent: PointerEvent) => {
+        updateFromPointer(pointerEvent.clientX)
+      }
+
+      const finishResize = () => {
+        window.removeEventListener('pointermove', handlePointerMove)
+        window.removeEventListener('pointerup', finishResize)
+        window.removeEventListener('pointercancel', finishResize)
+        setIsDesktopPreviewResizing(false)
+      }
+
+      window.addEventListener('pointermove', handlePointerMove)
+      window.addEventListener('pointerup', finishResize)
+      window.addEventListener('pointercancel', finishResize)
+      updateFromPointer(event.clientX)
+    },
+    [clampDesktopPreviewWidth, isMobileLayout, showThreePreview],
+  )
+
+  useEffect(() => {
+    if (isMobileLayout || !showThreePreview) {
+      return
+    }
+
+    const syncPreviewWidth = () => {
+      setDesktopPreviewWidthPx((current) => clampDesktopPreviewWidth(current))
+    }
+
+    syncPreviewWidth()
+    window.addEventListener('resize', syncPreviewWidth)
+    return () => window.removeEventListener('resize', syncPreviewWidth)
+  }, [clampDesktopPreviewWidth, isMobileLayout, showThreePreview])
+
+  useEffect(() => {
+    if (!isDesktopPreviewResizing) {
+      return
+    }
+
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    return () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+    }
+  }, [isDesktopPreviewResizing])
+
   const {
     workspaceClassName,
     topbarClassName,
@@ -832,12 +918,12 @@ export function EditorApp() {
     mobileOptionsTab,
     desktopRibbonTab,
   })
-  const effectiveDesktopPreviewWidthPercent = Math.min(Math.max(desktopPreviewWidthPercent, 22), 48)
+  const effectiveDesktopPreviewWidthPx = clampDesktopPreviewWidth(desktopPreviewWidthPx)
   const workspaceStyle: CSSProperties | undefined = isMobileLayout
     ? undefined
     : showThreePreview
       ? {
-          gridTemplateColumns: `minmax(0, 1fr) minmax(300px, ${effectiveDesktopPreviewWidthPercent}%)`,
+          gridTemplateColumns: `minmax(0, 1fr) ${DESKTOP_SPLITTER_WIDTH_PX}px ${effectiveDesktopPreviewWidthPx}px`,
         }
       : {
           gridTemplateColumns: 'minmax(0, 1fr)',
@@ -851,7 +937,6 @@ export function EditorApp() {
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
-    desktopPreviewWidthPercent: effectiveDesktopPreviewWidthPercent,
     setShowHelpModal,
     showToolSection,
     tool,
@@ -949,7 +1034,6 @@ export function EditorApp() {
     setShowPrintPreviewModal,
     showPrintAreas,
     setShowPrintAreas,
-    setDesktopPreviewWidthPercent,
     setShowThreePreview,
     resetDocument,
   })
@@ -1132,7 +1216,7 @@ export function EditorApp() {
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
       <EditorTopbar {...topbarProps} />
 
-      <main className={workspaceClassName} style={workspaceStyle}>
+      <main ref={workspaceRef} className={workspaceClassName} style={workspaceStyle}>
         <EditorCanvasPane
           hideCanvasPane={hideCanvasPane}
           svgRef={svgRef}
@@ -1174,6 +1258,16 @@ export function EditorApp() {
           fallbackLayerStroke={fallbackLayerStroke}
           stackLegendEntries={stackLegendEntries}
         />
+
+        {!isMobileLayout && showThreePreview && (
+          <div
+            className={`workspace-splitter ${isDesktopPreviewResizing ? 'active' : ''}`}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize 3D panel"
+            onPointerDown={handleDesktopSplitterPointerDown}
+          />
+        )}
 
         <EditorPreviewPane {...previewPaneProps} />
       </main>

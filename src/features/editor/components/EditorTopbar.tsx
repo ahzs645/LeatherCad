@@ -20,7 +20,6 @@ type EditorTopbarProps = {
   selectedShapeCount: number
   selectedStitchHoleCount: number
   showThreePreview: boolean
-  desktopPreviewWidthPercent: number
   onOpenHelpModal: () => void
   showToolSection: boolean
   tool: Tool
@@ -123,7 +122,6 @@ type EditorTopbarProps = {
   onOpenPrintPreviewModal: () => void
   showPrintAreas: boolean
   onTogglePrintAreas: () => void
-  onSetDesktopPreviewWidthPercent: (widthPercent: number) => void
   onToggleThreePreview: () => void
   onResetDocument: () => void
 }
@@ -136,7 +134,6 @@ export function EditorTopbar({
   selectedShapeCount,
   selectedStitchHoleCount,
   showThreePreview,
-  desktopPreviewWidthPercent,
   onOpenHelpModal,
   showToolSection,
   tool,
@@ -239,7 +236,6 @@ export function EditorTopbar({
   onOpenPrintPreviewModal,
   showPrintAreas,
   onTogglePrintAreas,
-  onSetDesktopPreviewWidthPercent,
   onToggleThreePreview,
   onResetDocument,
 }: EditorTopbarProps) {
@@ -266,20 +262,6 @@ export function EditorTopbar({
             <span>{selectedShapeCount} selected</span>
             <span>{selectedStitchHoleCount} selected holes</span>
             <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</button>
-            {showThreePreview && (
-              <label className="desktop-preview-width-control">
-                <span>3D Width</span>
-                <input
-                  type="range"
-                  min={22}
-                  max={48}
-                  step={1}
-                  value={desktopPreviewWidthPercent}
-                  onChange={(event) => onSetDesktopPreviewWidthPercent(Number(event.target.value))}
-                />
-                <span>{desktopPreviewWidthPercent}%</span>
-              </label>
-            )}
             <button
               type="button"
               className="help-button"

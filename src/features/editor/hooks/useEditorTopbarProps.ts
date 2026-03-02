@@ -18,7 +18,6 @@ type UseEditorTopbarPropsParams = {
   selectedShapeCount: number
   selectedStitchHoleCount: number
   showThreePreview: boolean
-  desktopPreviewWidthPercent: number
   setShowHelpModal: Dispatch<SetStateAction<boolean>>
   showToolSection: boolean
   tool: Tool
@@ -116,7 +115,6 @@ type UseEditorTopbarPropsParams = {
   setShowPrintPreviewModal: Dispatch<SetStateAction<boolean>>
   showPrintAreas: boolean
   setShowPrintAreas: Dispatch<SetStateAction<boolean>>
-  setDesktopPreviewWidthPercent: Dispatch<SetStateAction<number>>
   setShowThreePreview: Dispatch<SetStateAction<boolean>>
   resetDocument: () => void
 }
@@ -130,7 +128,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
-    desktopPreviewWidthPercent,
     setShowHelpModal,
     showToolSection,
     tool,
@@ -228,7 +225,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setShowPrintPreviewModal,
     showPrintAreas,
     setShowPrintAreas,
-    setDesktopPreviewWidthPercent,
     setShowThreePreview,
     resetDocument,
   } = params
@@ -241,7 +237,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
-    desktopPreviewWidthPercent,
     onOpenHelpModal: () => setShowHelpModal(true),
     showToolSection,
     tool,
@@ -351,7 +346,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onOpenPrintPreviewModal: () => setShowPrintPreviewModal(true),
     showPrintAreas,
     onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),
-    onSetDesktopPreviewWidthPercent: setDesktopPreviewWidthPercent,
     onToggleThreePreview: () => setShowThreePreview((previous) => !previous),
     onResetDocument: resetDocument,
   }
