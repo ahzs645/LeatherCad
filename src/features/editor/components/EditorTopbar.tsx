@@ -1,6 +1,6 @@
 import { clamp } from '../cad/cad-geometry'
 import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
-import { DESKTOP_RIBBON_TABS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
+import { DESKTOP_RIBBON_TABS, DESKTOP_TOOL_ICON_ITEMS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
 import type { DisplayUnit } from '../ops/unit-ops'
 import type {
   DesktopRibbonTab,
@@ -152,21 +152,6 @@ const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string }> = [
   { mode: 'dark', label: 'Dark mode' },
   { mode: 'light', label: 'Light mode' },
   { mode: 'system', label: 'System mode' },
-]
-
-const DESKTOP_TOOL_ITEMS: Array<{ value: Tool; label: string; iconSrc: string }> = [
-  { value: 'pan', label: 'Move', iconSrc: '/icons/leathercad/pan.svg' },
-  { value: 'line', label: 'Line', iconSrc: '/icons/jsketcher/line.png' },
-  { value: 'polyline', label: 'Polyline', iconSrc: '/icons/jsketcher/mline.png' },
-  { value: 'rectangle', label: 'Rect', iconSrc: '/icons/leathercad/rectangle.svg' },
-  { value: 'circle', label: 'Circle', iconSrc: '/icons/jsketcher/circle.png' },
-  { value: 'ellipse', label: 'Ellipse', iconSrc: '/icons/leathercad/ellipse.svg' },
-  { value: 'arc', label: 'Arc', iconSrc: '/icons/jsketcher/arc.png' },
-  { value: 'bezier', label: 'Bezier', iconSrc: '/icons/leathercad/bezier.svg' },
-  { value: 'fold', label: 'Fold', iconSrc: '/icons/leathercad/fold.svg' },
-  { value: 'stitch-hole', label: 'Stitch', iconSrc: '/icons/jsketcher/dot.png' },
-  { value: 'hardware', label: 'Hardware', iconSrc: '/icons/leathercad/hardware.svg' },
-  { value: 'text', label: 'Text', iconSrc: '/icons/leathercad/text.svg' },
 ]
 
 function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
@@ -423,7 +408,7 @@ export function EditorTopbar({
               </>
             ) : (
               <div className="tool-icon-grid">
-                {DESKTOP_TOOL_ITEMS.map((toolItem) => (
+                {DESKTOP_TOOL_ICON_ITEMS.map((toolItem) => (
                   <button
                     key={toolItem.value}
                     type="button"

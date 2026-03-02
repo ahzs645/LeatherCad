@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { getCatalogItemCount, type CatalogRepositoryItem, type CatalogRepositoryShop } from '../templates/catalog-repository'
+import { decodeCatalogZipBmpToObjectUrl } from '../templates/catalog-image-preview'
 import { PRESET_DOCS } from '../data/sample-doc'
 
 type TemplateRepositoryTab = 'templates' | 'catalog' | 'presets'
@@ -73,6 +74,10 @@ export function TemplateRepositoryModal({
 }: TemplateRepositoryModalProps) {
   const [activeTab, setActiveTab] = useState<TemplateRepositoryTab>('templates')
   const [selectedCatalogItemKey, setSelectedCatalogItemKey] = useState<string | null>(null)
+  const [catalogPreviewImageUrlsByKey, setCatalogPreviewImageUrlsByKey] = useState<Record<string, string>>({})
+  const [catalogPreviewImageErrorsByKey, setCatalogPreviewImageErrorsByKey] = useState<Record<string, string>>({})
+  const catalogPreviewImageObjectUrlsRef = useRef<Set<string>>(new Set())
+  const catalogPreviewImagePendingRef = useRef<Set<string>>(new Set())
   const selectedCatalogShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
   const selectedCatalogShopGroupCount =
     selectedCatalogShop === null
@@ -101,6 +106,71 @@ export function TemplateRepositoryModal({
     resolvedSelectedCatalogItemKey === null
       ? null
       : catalogPreviewItems.find((entry) => entry.key === resolvedSelectedCatalogItemKey) ?? null
+  const selectedCatalogPreviewImagePayload = selectedCatalogPreviewItem?.item.zipBmpBase64 ?? null
+
+  useEffect(() => {
+    const createdObjectUrls = catalogPreviewImageObjectUrlsRef.current
+    const pending = catalogPreviewImagePendingRef.current
+    return () => {
+      pending.clear()
+      createdObjectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl))
+      createdObjectUrls.clear()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selectedCatalogPreviewItem || !selectedCatalogPreviewImagePayload) {
+      return
+    }
+
+    if (catalogPreviewImageUrlsByKey[selectedCatalogPreviewItem.key] || catalogPreviewImagePendingRef.current.has(selectedCatalogPreviewItem.key)) {
+      return
+    }
+
+    catalogPreviewImagePendingRef.current.add(selectedCatalogPreviewItem.key)
+
+    void decodeCatalogZipBmpToObjectUrl(selectedCatalogPreviewImagePayload)
+      .then((objectUrl) => {
+        if (!catalogPreviewImagePendingRef.current.has(selectedCatalogPreviewItem.key)) {
+          URL.revokeObjectURL(objectUrl)
+          return
+        }
+        catalogPreviewImagePendingRef.current.delete(selectedCatalogPreviewItem.key)
+        catalogPreviewImageObjectUrlsRef.current.add(objectUrl)
+        setCatalogPreviewImageUrlsByKey((previous) => ({
+          ...previous,
+          [selectedCatalogPreviewItem.key]: objectUrl,
+        }))
+        setCatalogPreviewImageErrorsByKey((previous) => {
+          if (!(selectedCatalogPreviewItem.key in previous)) {
+            return previous
+          }
+          const next = { ...previous }
+          delete next[selectedCatalogPreviewItem.key]
+          return next
+        })
+      })
+      .catch((error) => {
+        if (!catalogPreviewImagePendingRef.current.has(selectedCatalogPreviewItem.key)) {
+          return
+        }
+        catalogPreviewImagePendingRef.current.delete(selectedCatalogPreviewItem.key)
+        setCatalogPreviewImageErrorsByKey((previous) => ({
+          ...previous,
+          [selectedCatalogPreviewItem.key]: error instanceof Error ? error.message : 'Failed to decode thumbnail image',
+        }))
+      })
+  }, [catalogPreviewImageUrlsByKey, selectedCatalogPreviewImagePayload, selectedCatalogPreviewItem])
+
+  const selectedCatalogPreviewImageUrl =
+    selectedCatalogPreviewItem === null ? null : catalogPreviewImageUrlsByKey[selectedCatalogPreviewItem.key] ?? null
+  const isCatalogPreviewImageLoading =
+    selectedCatalogPreviewItem !== null &&
+    Boolean(selectedCatalogPreviewItem.item.zipBmpBase64) &&
+    !selectedCatalogPreviewImageUrl &&
+    !catalogPreviewImageErrorsByKey[selectedCatalogPreviewItem.key]
+  const catalogPreviewImageError =
+    selectedCatalogPreviewItem === null ? null : catalogPreviewImageErrorsByKey[selectedCatalogPreviewItem.key] ?? null
 
   if (!open) {
     return null
@@ -280,6 +350,25 @@ export function TemplateRepositoryModal({
                         <>
                           <h4>{selectedCatalogPreviewItem.item.name}</h4>
                           <p className="catalog-preview-detail-subtitle">Group: {selectedCatalogPreviewItem.groupName}</p>
+                          {selectedCatalogPreviewItem.item.hasImage ? (
+                            <div className="catalog-preview-image-wrap">
+                              {selectedCatalogPreviewImageUrl ? (
+                                <img
+                                  className="catalog-preview-image"
+                                  src={selectedCatalogPreviewImageUrl}
+                                  alt={`${selectedCatalogPreviewItem.item.name} thumbnail`}
+                                />
+                              ) : selectedCatalogPreviewItem.item.zipBmpBase64 ? (
+                                <p className="hint">
+                                  {isCatalogPreviewImageLoading
+                                    ? 'Loading thumbnail…'
+                                    : catalogPreviewImageError || 'Thumbnail preview is unavailable for this item.'}
+                                </p>
+                              ) : (
+                                <p className="hint">Thumbnail payload is unavailable. Re-import the original `.ctlg` file to view it.</p>
+                              )}
+                            </div>
+                          ) : null}
                           <dl className="catalog-preview-detail-grid">
                             <dt>Category</dt>
                             <dd>{selectedCatalogPreviewItem.item.category || 'Uncategorized'}</dd>

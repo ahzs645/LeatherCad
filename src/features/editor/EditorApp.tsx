@@ -55,6 +55,7 @@ import {
 import type { ClipboardPayload } from './ops/shape-selection-ops'
 
 import {
+  DESKTOP_TOOL_ICON_ITEMS,
   DEFAULT_BACK_LAYER_COLOR,
   DEFAULT_EXPORT_ROLE_FILTERS,
   DEFAULT_FRONT_LAYER_COLOR,
@@ -1616,58 +1617,84 @@ export function EditorApp() {
       <EditorTopbar {...topbarProps} />
 
       <main ref={workspaceRef} className={workspaceClassName} style={workspaceStyle}>
-        <EditorCanvasPane
-          hideCanvasPane={hideCanvasPane}
-          svgRef={svgRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onWheel={handleWheel}
-          viewport={viewport}
-          displayUnit={displayUnit}
-          gridLines={gridLines}
-          showCanvasRuler={showCanvasRuler}
-          showDimensions={showDimensions}
-          onZoomOut={() => handleZoomStep(0.85)}
-          onZoomIn={() => handleZoomStep(1.15)}
-          onFitView={handleFitView}
-          onResetView={handleResetView}
-          tracingOverlays={tracingOverlays}
-          showPrintAreas={showPrintAreas}
-          printPlan={printPlan}
-          seamGuides={seamGuides}
-          showAnnotations={showAnnotations}
-          visibleShapes={workspaceEditableShapes}
-          linkedShapes={workspaceLinkedShapes}
-          sketchWorkspaceMode={sketchWorkspaceMode}
-          lineTypes={lineTypes}
-          lineTypesById={lineTypesById}
-          selectedShapeIdSet={selectedShapeIdSet}
-          stitchStrokeColor={stitchStrokeColor}
-          foldStrokeColor={foldStrokeColor}
-          cutStrokeColor={cutStrokeColor}
-          displayLayerColorsById={displayLayerColorsById}
-          onShapePointerDown={handleShapePointerDown}
-          onShapeHandlePointerDown={handleShapeHandlePointerDown}
-          showShapeHandles={tool === 'pan'}
-          visibleStitchHoles={workspaceStitchHoles}
-          selectedStitchHoleId={selectedStitchHoleId}
-          showStitchSequenceLabels={showStitchSequenceLabels}
-          onStitchHolePointerDown={handleStitchHolePointerDown}
-          visibleHardwareMarkers={workspaceHardwareMarkers}
-          selectedHardwareMarkerId={selectedHardwareMarkerId}
-          onHardwarePointerDown={handleHardwarePointerDown}
-          foldLines={foldLines}
-          annotationLabels={annotationLabels}
-          previewElement={previewElement}
-          showLayerLegend={showLayerLegend}
-          legendMode={legendMode}
-          onSetLegendMode={setLegendMode}
-          layers={layers}
-          layerColorsById={layerColorsById}
-          fallbackLayerStroke={fallbackLayerStroke}
-          stackLegendEntries={stackLegendEntries}
-        />
+        <div className="canvas-stage">
+          {!isMobileLayout && (
+            <aside className="canvas-tool-rail" aria-label="Geometry tools">
+              <div className="group tool-group ribbon-section canvas-tool-sidebar" data-section="Geometry">
+                <div className="tool-icon-grid">
+                  {DESKTOP_TOOL_ICON_ITEMS.map((toolItem) => (
+                    <button
+                      key={toolItem.value}
+                      type="button"
+                      className={tool === toolItem.value ? 'tool-icon-button active' : 'tool-icon-button'}
+                      onClick={() => setActiveTool(toolItem.value)}
+                      title={toolItem.label}
+                      aria-label={toolItem.label}
+                      data-tooltip={toolItem.label}
+                    >
+                      <span className="tool-icon-badge" aria-hidden="true">
+                        <img src={toolItem.iconSrc} alt="" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </aside>
+          )}
+
+          <EditorCanvasPane
+            hideCanvasPane={hideCanvasPane}
+            svgRef={svgRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onWheel={handleWheel}
+            viewport={viewport}
+            displayUnit={displayUnit}
+            gridLines={gridLines}
+            showCanvasRuler={showCanvasRuler}
+            showDimensions={showDimensions}
+            onZoomOut={() => handleZoomStep(0.85)}
+            onZoomIn={() => handleZoomStep(1.15)}
+            onFitView={handleFitView}
+            onResetView={handleResetView}
+            tracingOverlays={tracingOverlays}
+            showPrintAreas={showPrintAreas}
+            printPlan={printPlan}
+            seamGuides={seamGuides}
+            showAnnotations={showAnnotations}
+            visibleShapes={workspaceEditableShapes}
+            linkedShapes={workspaceLinkedShapes}
+            sketchWorkspaceMode={sketchWorkspaceMode}
+            lineTypes={lineTypes}
+            lineTypesById={lineTypesById}
+            selectedShapeIdSet={selectedShapeIdSet}
+            stitchStrokeColor={stitchStrokeColor}
+            foldStrokeColor={foldStrokeColor}
+            cutStrokeColor={cutStrokeColor}
+            displayLayerColorsById={displayLayerColorsById}
+            onShapePointerDown={handleShapePointerDown}
+            onShapeHandlePointerDown={handleShapeHandlePointerDown}
+            showShapeHandles={tool === 'pan'}
+            visibleStitchHoles={workspaceStitchHoles}
+            selectedStitchHoleId={selectedStitchHoleId}
+            showStitchSequenceLabels={showStitchSequenceLabels}
+            onStitchHolePointerDown={handleStitchHolePointerDown}
+            visibleHardwareMarkers={workspaceHardwareMarkers}
+            selectedHardwareMarkerId={selectedHardwareMarkerId}
+            onHardwarePointerDown={handleHardwarePointerDown}
+            foldLines={foldLines}
+            annotationLabels={annotationLabels}
+            previewElement={previewElement}
+            showLayerLegend={showLayerLegend}
+            legendMode={legendMode}
+            onSetLegendMode={setLegendMode}
+            layers={layers}
+            layerColorsById={layerColorsById}
+            fallbackLayerStroke={fallbackLayerStroke}
+            stackLegendEntries={stackLegendEntries}
+          />
+        </div>
 
         {!isMobileLayout && showThreePreview && (
           <div

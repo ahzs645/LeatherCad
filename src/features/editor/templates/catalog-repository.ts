@@ -14,6 +14,7 @@ export type CatalogRepositoryItem = {
   memo: string
   hasImage: boolean
   imageDpi: number | null
+  zipBmpBase64?: string
 }
 
 export type CatalogRepositoryGroup = {
@@ -81,6 +82,7 @@ function parseCatalogItem(candidate: unknown, parentId: string, index: number): 
   }
   const value = candidate as Record<string, unknown>
   const guid = asString(value.GUID).trim()
+  const zipBmpBase64 = typeof value.zipbmp === 'string' ? value.zipbmp.trim() : ''
   return {
     id: guid || buildFallbackId(`${parentId}-item`, index),
     name: asString(value.Name).trim() || `Item ${index + 1}`,
@@ -90,8 +92,9 @@ function parseCatalogItem(candidate: unknown, parentId: string, index: number): 
     unitStr: asString(value.UnitStr).trim(),
     url: asString(value.URL).trim(),
     memo: asString(value.Memo).trim().slice(0, 600),
-    hasImage: typeof value.zipbmp === 'string' && value.zipbmp.trim().length > 0,
+    hasImage: zipBmpBase64.length > 0,
     imageDpi: parseOptionalNumber(value.dpi),
+    zipBmpBase64: zipBmpBase64 || undefined,
   }
 }
 
@@ -177,7 +180,8 @@ function parseCatalogRepositoryShop(candidate: unknown): CatalogRepositoryShop |
           typeof maybeItem.url === 'string' &&
           typeof maybeItem.memo === 'string' &&
           typeof maybeItem.hasImage === 'boolean' &&
-          (typeof maybeItem.imageDpi === 'number' || maybeItem.imageDpi === null)
+          (typeof maybeItem.imageDpi === 'number' || maybeItem.imageDpi === null) &&
+          (typeof maybeItem.zipBmpBase64 === 'string' || maybeItem.zipBmpBase64 === undefined)
         )
       })
     })
@@ -316,7 +320,17 @@ export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
     return
   }
   try {
-    window.localStorage.setItem(CATALOG_REPOSITORY_STORAGE_KEY, JSON.stringify(shops))
+    const serializableShops: CatalogRepositoryShop[] = shops.map((shop) => ({
+      ...shop,
+      groups: shop.groups.map((group) => ({
+        ...group,
+        items: group.items.map((item) => ({
+          ...item,
+          zipBmpBase64: undefined,
+        })),
+      })),
+    }))
+    window.localStorage.setItem(CATALOG_REPOSITORY_STORAGE_KEY, JSON.stringify(serializableShops))
   } catch {
     // Catalog files can be large; keep runtime behavior resilient when storage quota is exceeded.
   }
