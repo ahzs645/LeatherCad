@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   ReactElement,
 } from 'react'
@@ -30,8 +30,15 @@ import type {
   Tool,
   Viewport,
 } from './cad/cad-types'
+import { ExportOptionsModal } from './components/ExportOptionsModal'
+import { HelpModal } from './components/HelpModal'
+import { LayerColorModal } from './components/LayerColorModal'
 import { LineTypePalette } from './components/LineTypePalette'
+import { PatternToolsModal } from './components/PatternToolsModal'
+import { PrintPreviewModal } from './components/PrintPreviewModal'
 import { StitchHolePanel } from './components/StitchHolePanel'
+import { TemplateRepositoryModal } from './components/TemplateRepositoryModal'
+import { TracingModal } from './components/TracingModal'
 import { ThreePreviewPanel } from './components/ThreePreviewPanel'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
@@ -40,31 +47,20 @@ import {
   normalizeLineTypes,
   resolveActiveLineTypeId,
 } from './cad/line-types'
-import { applyLineTypeToShapeIds } from './ops/line-type-ops'
 import {
   normalizeStitchHoleSequences,
 } from './ops/stitch-hole-ops'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './data/sample-doc'
-import { applyRedo, applyUndo, deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
+import { deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
 import type { PrintPaper } from './preview/print-preview'
 import {
   loadTemplateRepository,
   saveTemplateRepository,
   type TemplateRepositoryEntry,
 } from './templates/template-repository'
-import {
-  copySelectionToClipboard,
-  moveSelectionByOneStep,
-  moveSelectionToEdge,
-  pasteClipboardPayload,
-  type ClipboardPayload,
-} from './ops/shape-selection-ops'
-import {
-  translateShape,
-} from './ops/pattern-ops'
+import type { ClipboardPayload } from './ops/shape-selection-ops'
 
 import {
-  CLIPBOARD_PASTE_OFFSET,
   DEFAULT_BACK_LAYER_COLOR,
   DEFAULT_EXPORT_ROLE_FILTERS,
   DEFAULT_FRONT_LAYER_COLOR,
@@ -75,7 +71,6 @@ import {
   GRID_STEP,
   HISTORY_LIMIT,
   MOBILE_OPTIONS_TABS,
-  SUB_SKETCH_COPY_OFFSET_MM,
   TOOL_OPTIONS,
 } from './editor-constants'
 import {
@@ -96,7 +91,6 @@ import type {
 } from './editor-types'
 import {
   createDefaultLayer,
-  newSketchGroupName,
   normalizeHexColor,
   toolLabel,
 } from './editor-utils'
@@ -112,6 +106,13 @@ import { useMobileActions } from './hooks/useMobileActions'
 import { useCanvasInteractions } from './hooks/useCanvasInteractions'
 import { useResponsiveLayout } from './hooks/useResponsiveLayout'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useLineTypeActions } from './hooks/useLineTypeActions'
+import { useLayerColorActions } from './hooks/useLayerColorActions'
+import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
+import { useSketchGroupActions } from './hooks/useSketchGroupActions'
+import { useHistoryActions } from './hooks/useHistoryActions'
+import { useSelectionActions } from './hooks/useSelectionActions'
+import { useThemeActions } from './hooks/useThemeActions'
 
 export function EditorApp() {
   const initialLayerIdRef = useRef(uid())
@@ -556,168 +557,44 @@ export function EditorApp() {
     setStatus(statusMessage)
   }
 
-  const handleUndo = useCallback(() => {
-    const result = applyUndo(historyState, currentSnapshot)
-    if (!result.snapshot) {
-      setStatus('Nothing to undo')
-      return
-    }
-    applyingHistoryRef.current = true
-    setHistoryState(result.history)
-    applyEditorSnapshot(result.snapshot)
-    setStatus('Undo applied')
-  }, [historyState, currentSnapshot])
+  const { handleUndo, handleRedo } = useHistoryActions({
+    historyState,
+    currentSnapshot,
+    applyEditorSnapshot,
+    applyingHistoryRef,
+    setHistoryState,
+    setStatus,
+  })
 
-  const handleRedo = useCallback(() => {
-    const result = applyRedo(historyState, currentSnapshot)
-    if (!result.snapshot) {
-      setStatus('Nothing to redo')
-      return
-    }
-    applyingHistoryRef.current = true
-    setHistoryState(result.history)
-    applyEditorSnapshot(result.snapshot)
-    setStatus('Redo applied')
-  }, [historyState, currentSnapshot])
-
-  const handleCopySelection = useCallback(() => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to copy')
-      return
-    }
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
-    setClipboardPayload(payload)
-    setStatus(`Copied ${payload.shapes.length} shape${payload.shapes.length === 1 ? '' : 's'} to clipboard`)
-  }, [selectedShapeIdSet, shapes, stitchHoles])
-
-  const handleDeleteSelection = useCallback(() => {
-    if (selectedShapeIdSet.size === 0) {
-      if (selectedHardwareMarkerId) {
-        setHardwareMarkers((previous) => previous.filter((marker) => marker.id !== selectedHardwareMarkerId))
-        setSelectedHardwareMarkerId(null)
-        setStatus('Deleted selected hardware marker')
-        return
-      }
-      setStatus('No selected shapes to delete')
-      return
-    }
-    const deleteCount = selectedShapeIdSet.size
-    setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
-    setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
-    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
-    setConstraints((previous) =>
-      previous.filter((entry) => {
-        if (selectedShapeIdSet.has(entry.shapeId)) {
-          return false
-        }
-        return entry.type === 'edge-offset' ? true : !selectedShapeIdSet.has(entry.referenceShapeId)
-      }),
-    )
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setSelectedHardwareMarkerId(null)
-    setStatus(`Deleted ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
-  }, [selectedShapeIdSet, selectedHardwareMarkerId])
-
-  const handleCutSelection = useCallback(() => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to cut')
-      return
-    }
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
-    setClipboardPayload(payload)
-    const deleteCount = selectedShapeIdSet.size
-    setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
-    setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
-    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
-    setConstraints((previous) =>
-      previous.filter((entry) => {
-        if (selectedShapeIdSet.has(entry.shapeId)) {
-          return false
-        }
-        return entry.type === 'edge-offset' ? true : !selectedShapeIdSet.has(entry.referenceShapeId)
-      }),
-    )
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setSelectedHardwareMarkerId(null)
-    setStatus(`Cut ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
-  }, [selectedShapeIdSet, shapes, stitchHoles])
-
-  const handlePasteClipboard = useCallback(() => {
-    if (!clipboardPayload || clipboardPayload.shapes.length === 0) {
-      setStatus('Clipboard is empty')
-      return
-    }
-
-    pasteCountRef.current += 1
-    const offset = {
-      x: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
-      y: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
-    }
-    const pasted = pasteClipboardPayload(clipboardPayload, offset, activeLayer?.id ?? null)
-    setShapes((previous) => [...previous, ...pasted.shapes])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
-    setSelectedShapeIds(pasted.shapeIds)
-    setSelectedStitchHoleId(null)
-    setStatus(`Pasted ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'}`)
-  }, [clipboardPayload, activeLayer])
-
-  const handleDuplicateSelection = useCallback(() => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to duplicate')
-      return
-    }
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
-    setClipboardPayload(payload)
-    pasteCountRef.current += 1
-    const offset = {
-      x: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
-      y: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
-    }
-    const pasted = pasteClipboardPayload(payload, offset, activeLayer?.id ?? null)
-    setShapes((previous) => [...previous, ...pasted.shapes])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
-    setSelectedShapeIds(pasted.shapeIds)
-    setSelectedStitchHoleId(null)
-    setStatus(`Duplicated ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'}`)
-  }, [selectedShapeIdSet, shapes, stitchHoles, activeLayer])
-
-  const handleMoveSelectionForward = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to reorder')
-      return
-    }
-    setShapes((previous) => moveSelectionByOneStep(previous, selectedShapeIdSet, 'forward'))
-    setStatus('Moved selected shapes forward')
-  }
-
-  const handleMoveSelectionBackward = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to reorder')
-      return
-    }
-    setShapes((previous) => moveSelectionByOneStep(previous, selectedShapeIdSet, 'backward'))
-    setStatus('Moved selected shapes backward')
-  }
-
-  const handleBringSelectionToFront = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to reorder')
-      return
-    }
-    setShapes((previous) => moveSelectionToEdge(previous, selectedShapeIdSet, 'front'))
-    setStatus('Brought selected shapes to front')
-  }
-
-  const handleSendSelectionToBack = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to reorder')
-      return
-    }
-    setShapes((previous) => moveSelectionToEdge(previous, selectedShapeIdSet, 'back'))
-    setStatus('Sent selected shapes to back')
-  }
+  const {
+    handleCopySelection,
+    handleDeleteSelection,
+    handleCutSelection,
+    handlePasteClipboard,
+    handleDuplicateSelection,
+    handleMoveSelectionForward,
+    handleMoveSelectionBackward,
+    handleBringSelectionToFront,
+    handleSendSelectionToBack,
+  } = useSelectionActions({
+    selectedShapeIdSet,
+    selectedHardwareMarkerId,
+    shapes,
+    stitchHoles,
+    activeLayerId: activeLayer?.id ?? null,
+    clipboardPayload,
+    pasteCountRef,
+    setClipboardPayload,
+    setShapes,
+    setStitchHoles,
+    setSeamAllowances,
+    setConstraints,
+    setSelectedShapeIds,
+    setSelectedStitchHoleId,
+    setSelectedHardwareMarkerId,
+    setHardwareMarkers,
+    setStatus,
+  })
 
   const buildCurrentDocFile = (): DocFile => ({
     version: 1,
@@ -1127,376 +1004,67 @@ export function EditorApp() {
     setStatus,
   })
 
-  const handleToggleActiveLineTypeVisibility = () => {
-    if (!activeLineType) {
-      setStatus('No active line type to update')
-      return
-    }
+  const {
+    handleToggleActiveLineTypeVisibility,
+    handleShowAllLineTypes,
+    handleIsolateActiveLineType,
+    handleUpdateActiveLineTypeRole,
+    handleUpdateActiveLineTypeStyle,
+    handleUpdateActiveLineTypeColor,
+    handleSelectShapesByActiveLineType,
+    handleAssignSelectedToActiveLineType,
+    handleClearShapeSelection,
+  } = useLineTypeActions({
+    activeLineType,
+    shapes,
+    selectedShapeIdSet,
+    setLineTypes,
+    setShapes,
+    setSelectedShapeIds,
+    setStatus,
+  })
 
-    setLineTypes((previous) =>
-      previous.map((lineType) =>
-        lineType.id === activeLineType.id
-          ? {
-              ...lineType,
-              visible: !lineType.visible,
-            }
-          : lineType,
-      ),
-    )
+  const {
+    handleSetLayerColorOverride,
+    handleClearLayerColorOverride,
+    handleResetLayerColors,
+  } = useLayerColorActions({
+    layerColorsById,
+    setLayerColorOverrides,
+    setFrontLayerColor,
+    setBackLayerColor,
+    setStatus,
+  })
 
-    setStatus(activeLineType.visible ? `Line type hidden: ${activeLineType.name}` : `Line type shown: ${activeLineType.name}`)
-  }
-
-  const handleShowAllLineTypes = () => {
-    setLineTypes((previous) => previous.map((lineType) => ({ ...lineType, visible: true })))
-    setStatus('All line types shown')
-  }
-
-  const handleIsolateActiveLineType = () => {
-    if (!activeLineType) {
-      setStatus('No active line type to isolate')
-      return
-    }
-
-    setLineTypes((previous) =>
-      previous.map((lineType) => ({
-        ...lineType,
-        visible: lineType.id === activeLineType.id,
-      })),
-    )
-    setStatus(`Isolated line type: ${activeLineType.name}`)
-  }
-
-  const handleUpdateActiveLineTypeRole = (role: LineType['role']) => {
-    if (!activeLineType) {
-      return
-    }
-    setLineTypes((previous) =>
-      previous.map((lineType) =>
-        lineType.id === activeLineType.id
-          ? {
-              ...lineType,
-              role,
-            }
-          : lineType,
-      ),
-    )
-    setStatus(`Line type role set to ${role}`)
-  }
-
-  const handleUpdateActiveLineTypeStyle = (style: LineType['style']) => {
-    if (!activeLineType) {
-      return
-    }
-    setLineTypes((previous) =>
-      previous.map((lineType) =>
-        lineType.id === activeLineType.id
-          ? {
-              ...lineType,
-              style,
-            }
-          : lineType,
-      ),
-    )
-    setStatus(`Line type style set to ${style}`)
-  }
-
-  const handleUpdateActiveLineTypeColor = (color: string) => {
-    if (!activeLineType) {
-      return
-    }
-    const normalized = normalizeHexColor(color, activeLineType.color)
-    setLineTypes((previous) =>
-      previous.map((lineType) =>
-        lineType.id === activeLineType.id
-          ? {
-              ...lineType,
-              color: normalized,
-            }
-          : lineType,
-      ),
-    )
-  }
-
-  const handleSelectShapesByActiveLineType = () => {
-    if (!activeLineType) {
-      return
-    }
-
-    const nextSelected = shapes.filter((shape) => shape.lineTypeId === activeLineType.id).map((shape) => shape.id)
-    setSelectedShapeIds(nextSelected)
-    setStatus(`Selected ${nextSelected.length} shapes on ${activeLineType.name}`)
-  }
-
-  const handleAssignSelectedToActiveLineType = () => {
-    if (!activeLineType) {
-      return
-    }
-
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('No selected shapes to assign')
-      return
-    }
-
-    setShapes((previous) => applyLineTypeToShapeIds(previous, selectedShapeIdSet, activeLineType.id))
-    setStatus(`Assigned ${selectedShapeIdSet.size} selected shapes to ${activeLineType.name}`)
-  }
-
-  const handleClearShapeSelection = () => {
-    setSelectedShapeIds([])
-    setStatus('Shape selection cleared')
-  }
-
-  const handleSetLayerColorOverride = (layerId: string, nextColor: string) => {
-    const normalizedColor = normalizeHexColor(nextColor, layerColorsById[layerId] ?? DEFAULT_FRONT_LAYER_COLOR)
-    setLayerColorOverrides((previous) => ({
-      ...previous,
-      [layerId]: normalizedColor,
-    }))
-  }
-
-  const handleClearLayerColorOverride = (layerId: string) => {
-    setLayerColorOverrides((previous) => {
-      if (!(layerId in previous)) {
-        return previous
-      }
-      const next = { ...previous }
-      delete next[layerId]
-      return next
-    })
-  }
-
-  const handleResetLayerColors = () => {
-    setFrontLayerColor(DEFAULT_FRONT_LAYER_COLOR)
-    setBackLayerColor(DEFAULT_BACK_LAYER_COLOR)
-    setLayerColorOverrides({})
-    setStatus('Layer color continuum reset')
-  }
-
-  const handleCreateSketchGroupFromSelection = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes to create a sub-sketch')
-      return
-    }
-
-    if (!activeLayer) {
-      setStatus('No active layer for sub-sketch creation')
-      return
-    }
-
-    const nextGroupId = uid()
-    const nextGroup: SketchGroup = {
-      id: nextGroupId,
-      name: newSketchGroupName(sketchGroups.length),
-      layerId: activeLayer.id,
-      visible: true,
-      locked: false,
-    }
-
-    setSketchGroups((previous) => [...previous, nextGroup])
-    setShapes((previous) =>
-      previous.map((shape) =>
-        selectedShapeIdSet.has(shape.id)
-          ? {
-              ...shape,
-              groupId: nextGroupId,
-            }
-          : shape,
-      ),
-    )
-    setActiveSketchGroupId(nextGroupId)
-    setStatus(`Created sub-sketch "${nextGroup.name}"`)
-  }
-
-  const handleRenameActiveSketchGroup = () => {
-    if (!activeSketchGroup) {
-      setStatus('No active sub-sketch to rename')
-      return
-    }
-
-    const nextName = window.prompt('Sub-sketch name', activeSketchGroup.name)?.trim()
-    if (!nextName) {
-      return
-    }
-
-    setSketchGroups((previous) =>
-      previous.map((group) =>
-        group.id === activeSketchGroup.id
-          ? {
-              ...group,
-              name: nextName,
-            }
-          : group,
-      ),
-    )
-    setStatus(`Renamed sub-sketch to "${nextName}"`)
-  }
-
-  const handleToggleActiveSketchGroupVisibility = () => {
-    if (!activeSketchGroup) {
-      setStatus('No active sub-sketch to update')
-      return
-    }
-
-    setSketchGroups((previous) =>
-      previous.map((group) =>
-        group.id === activeSketchGroup.id
-          ? {
-              ...group,
-              visible: !group.visible,
-            }
-          : group,
-      ),
-    )
-    setStatus(activeSketchGroup.visible ? 'Active sub-sketch hidden' : 'Active sub-sketch shown')
-  }
-
-  const handleToggleActiveSketchGroupLock = () => {
-    if (!activeSketchGroup) {
-      setStatus('No active sub-sketch to update')
-      return
-    }
-
-    setSketchGroups((previous) =>
-      previous.map((group) =>
-        group.id === activeSketchGroup.id
-          ? {
-              ...group,
-              locked: !group.locked,
-            }
-          : group,
-      ),
-    )
-    setStatus(activeSketchGroup.locked ? 'Active sub-sketch unlocked' : 'Active sub-sketch locked')
-  }
-
-  const handleClearActiveSketchGroup = () => {
-    setActiveSketchGroupId(null)
-    setStatus('Active sub-sketch cleared')
-  }
-
-  const handleDeleteActiveSketchGroup = () => {
-    if (!activeSketchGroup) {
-      setStatus('No active sub-sketch to delete')
-      return
-    }
-
-    const deleteGroupId = activeSketchGroup.id
-    setSketchGroups((previous) => previous.filter((group) => group.id !== deleteGroupId))
-    setShapes((previous) =>
-      previous.map((shape) =>
-        shape.groupId === deleteGroupId
-          ? {
-              ...shape,
-              groupId: undefined,
-            }
-          : shape,
-      ),
-    )
-    setHardwareMarkers((previous) =>
-      previous.map((marker) =>
-        marker.groupId === deleteGroupId
-          ? {
-              ...marker,
-              groupId: undefined,
-            }
-          : marker,
-      ),
-    )
-    setActiveSketchGroupId(null)
-    setStatus('Deleted active sub-sketch')
-  }
-
-  const handleDuplicateActiveSketchGroup = () => {
-    if (!activeSketchGroup) {
-      setStatus('No active sub-sketch to place')
-      return
-    }
-
-    const sourceShapes = shapes.filter((shape) => shape.groupId === activeSketchGroup.id)
-    if (sourceShapes.length === 0) {
-      setStatus('Active sub-sketch has no shapes to place')
-      return
-    }
-
-    const shapeIdMap = new Map<string, string>()
-    const duplicatedShapes = sourceShapes.map((shape) => {
-      const nextId = uid()
-      shapeIdMap.set(shape.id, nextId)
-      return {
-        ...translateShape(shape, SUB_SKETCH_COPY_OFFSET_MM, SUB_SKETCH_COPY_OFFSET_MM),
-        id: nextId,
-      }
-    })
-    const duplicatedShapeIds = new Set(duplicatedShapes.map((shape) => shape.id))
-    const duplicatedHoles = stitchHoles
-      .filter((hole) => shapeIdMap.has(hole.shapeId))
-      .map((hole) => ({
-        ...hole,
-        id: uid(),
-        shapeId: shapeIdMap.get(hole.shapeId) ?? hole.shapeId,
-        point: {
-          x: hole.point.x + SUB_SKETCH_COPY_OFFSET_MM,
-          y: hole.point.y + SUB_SKETCH_COPY_OFFSET_MM,
-        },
-      }))
-    const duplicatedSeamAllowances = seamAllowances
-      .filter((entry) => shapeIdMap.has(entry.shapeId))
-      .map((entry) => ({
-        ...entry,
-        id: uid(),
-        shapeId: shapeIdMap.get(entry.shapeId) ?? entry.shapeId,
-      }))
-    const duplicatedHardware = hardwareMarkers
-      .filter((marker) => marker.groupId === activeSketchGroup.id)
-      .map((marker) => ({
-        ...marker,
-        id: uid(),
-        point: {
-          x: marker.point.x + SUB_SKETCH_COPY_OFFSET_MM,
-          y: marker.point.y + SUB_SKETCH_COPY_OFFSET_MM,
-        },
-      }))
-
-    setShapes((previous) => [...previous, ...duplicatedShapes])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...duplicatedHoles]))
-    setSeamAllowances((previous) => [...previous, ...duplicatedSeamAllowances])
-    setHardwareMarkers((previous) => [...previous, ...duplicatedHardware])
-    setSelectedShapeIds(Array.from(duplicatedShapeIds))
-    setStatus(`Placed ${duplicatedShapes.length} copied sub-sketch shape${duplicatedShapes.length === 1 ? '' : 's'}`)
-  }
-
-  const handleSetActiveLayerAnnotation = (value: string) => {
-    if (!activeLayer) {
-      return
-    }
-    setLayers((previous) =>
-      previous.map((layer) =>
-        layer.id === activeLayer.id
-          ? {
-              ...layer,
-              annotation: value,
-            }
-          : layer,
-      ),
-    )
-  }
-
-  const handleSetActiveSketchAnnotation = (value: string) => {
-    if (!activeSketchGroup) {
-      return
-    }
-    setSketchGroups((previous) =>
-      previous.map((group) =>
-        group.id === activeSketchGroup.id
-          ? {
-              ...group,
-              annotation: value,
-            }
-          : group,
-      ),
-    )
-  }
+  const {
+    handleCreateSketchGroupFromSelection,
+    handleRenameActiveSketchGroup,
+    handleToggleActiveSketchGroupVisibility,
+    handleToggleActiveSketchGroupLock,
+    handleClearActiveSketchGroup,
+    handleDeleteActiveSketchGroup,
+    handleDuplicateActiveSketchGroup,
+    handleSetActiveLayerAnnotation,
+    handleSetActiveSketchAnnotation,
+  } = useSketchGroupActions({
+    activeLayer,
+    activeSketchGroup,
+    selectedShapeIdSet,
+    sketchGroups,
+    shapes,
+    stitchHoles,
+    seamAllowances,
+    hardwareMarkers,
+    setSketchGroups,
+    setShapes,
+    setStitchHoles,
+    setSeamAllowances,
+    setHardwareMarkers,
+    setSelectedShapeIds,
+    setActiveSketchGroupId,
+    setLayers,
+    setStatus,
+  })
   const {
     handleAddEdgeConstraintFromSelection,
     handleAddAlignConstraintsFromSelection,
@@ -1525,35 +1093,12 @@ export function EditorApp() {
     setSeamAllowances,
     setStatus,
   })
-
-  const handleDeleteSelectedHardwareMarker = () => {
-    if (!selectedHardwareMarker) {
-      setStatus('No hardware marker selected')
-      return
-    }
-
-    const markerId = selectedHardwareMarker.id
-    setHardwareMarkers((previous) => previous.filter((marker) => marker.id !== markerId))
-    setSelectedHardwareMarkerId(null)
-    setStatus('Deleted hardware marker')
-  }
-
-  const handleUpdateSelectedHardwareMarker = (patch: Partial<HardwareMarker>) => {
-    if (!selectedHardwareMarker) {
-      return
-    }
-
-    setHardwareMarkers((previous) =>
-      previous.map((marker) =>
-        marker.id === selectedHardwareMarker.id
-          ? {
-              ...marker,
-              ...patch,
-            }
-          : marker,
-      ),
-    )
-  }
+  const { handleDeleteSelectedHardwareMarker, handleUpdateSelectedHardwareMarker } = useHardwareMarkerActions({
+    selectedHardwareMarker,
+    setHardwareMarkers,
+    setSelectedHardwareMarkerId,
+    setStatus,
+  })
   const {
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
@@ -1613,12 +1158,18 @@ export function EditorApp() {
     setShowThreePreview,
   })
 
-  const handleToggleTheme = () => {
-    setThemeMode((previous) => {
-      const next = previous === 'dark' ? 'light' : 'dark'
-      setStatus(next === 'light' ? 'White mode enabled' : 'Dark mode enabled')
-      return next
-    })
+  const { handleToggleTheme } = useThemeActions({
+    setThemeMode,
+    setStatus,
+  })
+
+  const handleResetExportOptions = () => {
+    setExportOnlySelectedShapes(false)
+    setExportOnlyVisibleLineTypes(true)
+    setExportRoleFilters({ ...DEFAULT_EXPORT_ROLE_FILTERS })
+    setExportForceSolidStrokes(false)
+    setDxfFlipY(false)
+    setDxfVersion('r12')
   }
 
   const setActiveTool = (nextTool: Tool) => {
@@ -2413,987 +1964,159 @@ export function EditorApp() {
         onClearSelection={handleClearShapeSelection}
       />
 
-      {showHelpModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowHelpModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowHelpModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div
-            className="help-modal"
-            onClick={(event) => event.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="help-modal-title"
-          >
-            <div className="line-type-modal-header">
-              <h2 id="help-modal-title">Help</h2>
-              <button onClick={() => setShowHelpModal(false)}>Close</button>
-            </div>
-            <ul className="help-list">
-              <li>Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo, Cmd/Ctrl+C/X/V clipboard, Delete removes selection.</li>
-              <li>Mobile: use 2D / 3D / Split buttons to focus workspace.</li>
-            </ul>
-          </div>
-        </div>
-      )}
+      <HelpModal open={showHelpModal} onClose={() => setShowHelpModal(false)} />
 
-      {showLayerColorModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowLayerColorModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowLayerColorModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div className="layer-color-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="layer-color-modal-header">
-              <h2>Layer Color Settings</h2>
-              <button onClick={() => setShowLayerColorModal(false)}>Done</button>
-            </div>
+      <LayerColorModal
+        open={showLayerColorModal}
+        onClose={() => setShowLayerColorModal(false)}
+        layers={layers}
+        layerColorsById={layerColorsById}
+        layerColorOverrides={layerColorOverrides}
+        frontLayerColor={frontLayerColor}
+        backLayerColor={backLayerColor}
+        onFrontLayerColorChange={(color) => setFrontLayerColor(normalizeHexColor(color, DEFAULT_FRONT_LAYER_COLOR))}
+        onBackLayerColorChange={(color) => setBackLayerColor(normalizeHexColor(color, DEFAULT_BACK_LAYER_COLOR))}
+        onSetLayerColorOverride={handleSetLayerColorOverride}
+        onClearLayerColorOverride={handleClearLayerColorOverride}
+        onResetLayerColors={handleResetLayerColors}
+      />
 
-            <p className="hint">Layer 1 is treated as front. Lower rows move toward back.</p>
+      <ExportOptionsModal
+        open={showExportOptionsModal}
+        onClose={() => setShowExportOptionsModal(false)}
+        activeExportRoleCount={activeExportRoleCount}
+        exportOnlySelectedShapes={exportOnlySelectedShapes}
+        exportOnlyVisibleLineTypes={exportOnlyVisibleLineTypes}
+        exportForceSolidStrokes={exportForceSolidStrokes}
+        exportRoleFilters={exportRoleFilters}
+        dxfVersion={dxfVersion}
+        dxfFlipY={dxfFlipY}
+        onExportOnlySelectedShapesChange={setExportOnlySelectedShapes}
+        onExportOnlyVisibleLineTypesChange={setExportOnlyVisibleLineTypes}
+        onExportForceSolidStrokesChange={setExportForceSolidStrokes}
+        onExportRoleFilterChange={(role, enabled) =>
+          setExportRoleFilters((previous) => ({
+            ...previous,
+            [role]: enabled,
+          }))
+        }
+        onDxfVersionChange={setDxfVersion}
+        onDxfFlipYChange={setDxfFlipY}
+        onResetDefaults={handleResetExportOptions}
+      />
 
-            <div className="layer-color-range">
-              <label className="field-row">
-                <span>Front color</span>
-                <input
-                  type="color"
-                  value={frontLayerColor}
-                  onChange={(event) =>
-                    setFrontLayerColor(normalizeHexColor(event.target.value, DEFAULT_FRONT_LAYER_COLOR))
-                  }
-                />
-              </label>
-              <label className="field-row">
-                <span>Back color</span>
-                <input
-                  type="color"
-                  value={backLayerColor}
-                  onChange={(event) =>
-                    setBackLayerColor(normalizeHexColor(event.target.value, DEFAULT_BACK_LAYER_COLOR))
-                  }
-                />
-              </label>
-            </div>
+      <TemplateRepositoryModal
+        open={showTemplateRepositoryModal}
+        onClose={() => setShowTemplateRepositoryModal(false)}
+        templateRepository={templateRepository}
+        selectedTemplateEntryId={selectedTemplateEntryId}
+        selectedTemplateEntry={selectedTemplateEntry}
+        onSelectTemplateEntry={setSelectedTemplateEntryId}
+        onSaveTemplate={handleSaveTemplateToRepository}
+        onExportRepository={handleExportTemplateRepository}
+        onImportRepository={() => templateImportInputRef.current?.click()}
+        onLoadAsDocument={handleLoadTemplateAsDocument}
+        onInsertIntoDocument={handleInsertTemplateIntoDocument}
+        onDeleteTemplate={handleDeleteTemplateFromRepository}
+      />
 
-            <div
-              className="layer-color-gradient-preview"
-              style={{
-                background: `linear-gradient(90deg, ${frontLayerColor}, ${backLayerColor})`,
-              }}
-            />
+      <PatternToolsModal
+        open={showPatternToolsModal}
+        onClose={() => setShowPatternToolsModal(false)}
+        snapSettings={snapSettings}
+        onSetSnapSettings={setSnapSettings}
+        selectedShapeCount={selectedShapeCount}
+        onAlignSelection={handleAlignSelection}
+        onAlignSelectionToGrid={handleAlignSelectionToGrid}
+        activeLayer={activeLayer}
+        activeLayerId={activeLayerId}
+        sketchGroups={sketchGroups}
+        activeSketchGroup={activeSketchGroup}
+        onSetActiveSketchGroupId={setActiveSketchGroupId}
+        onCreateSketchGroupFromSelection={handleCreateSketchGroupFromSelection}
+        onDuplicateActiveSketchGroup={handleDuplicateActiveSketchGroup}
+        onRenameActiveSketchGroup={handleRenameActiveSketchGroup}
+        onToggleActiveSketchGroupVisibility={handleToggleActiveSketchGroupVisibility}
+        onToggleActiveSketchGroupLock={handleToggleActiveSketchGroupLock}
+        onClearActiveSketchGroup={handleClearActiveSketchGroup}
+        onDeleteActiveSketchGroup={handleDeleteActiveSketchGroup}
+        onSetActiveLayerAnnotation={handleSetActiveLayerAnnotation}
+        onSetActiveSketchAnnotation={handleSetActiveSketchAnnotation}
+        showAnnotations={showAnnotations}
+        onSetShowAnnotations={setShowAnnotations}
+        constraintEdge={constraintEdge}
+        onSetConstraintEdge={setConstraintEdge}
+        constraintOffsetMm={constraintOffsetMm}
+        onSetConstraintOffsetMm={setConstraintOffsetMm}
+        constraintAxis={constraintAxis}
+        onSetConstraintAxis={setConstraintAxis}
+        onAddEdgeConstraintFromSelection={handleAddEdgeConstraintFromSelection}
+        onAddAlignConstraintsFromSelection={handleAddAlignConstraintsFromSelection}
+        onApplyConstraints={handleApplyConstraints}
+        constraints={constraints}
+        onToggleConstraintEnabled={handleToggleConstraintEnabled}
+        onDeleteConstraint={handleDeleteConstraint}
+        seamAllowanceInputMm={seamAllowanceInputMm}
+        onSetSeamAllowanceInputMm={setSeamAllowanceInputMm}
+        onApplySeamAllowanceToSelection={handleApplySeamAllowanceToSelection}
+        onClearSeamAllowanceOnSelection={handleClearSeamAllowanceOnSelection}
+        onClearAllSeamAllowances={handleClearAllSeamAllowances}
+        seamAllowanceCount={seamAllowances.length}
+        hardwarePreset={hardwarePreset}
+        onSetHardwarePreset={setHardwarePreset}
+        customHardwareDiameterMm={customHardwareDiameterMm}
+        onSetCustomHardwareDiameterMm={setCustomHardwareDiameterMm}
+        customHardwareSpacingMm={customHardwareSpacingMm}
+        onSetCustomHardwareSpacingMm={setCustomHardwareSpacingMm}
+        onSetActiveTool={setActiveTool}
+        selectedHardwareMarker={selectedHardwareMarker}
+        onUpdateSelectedHardwareMarker={handleUpdateSelectedHardwareMarker}
+        onDeleteSelectedHardwareMarker={handleDeleteSelectedHardwareMarker}
+      />
 
-            <div className="layer-color-list">
-              {layers.map((layer, index) => {
-                const color = layerColorsById[layer.id] ?? DEFAULT_FRONT_LAYER_COLOR
-                const hasOverride = layer.id in layerColorOverrides
-                return (
-                  <div key={layer.id} className="layer-color-item">
-                    <span className="layer-color-order">{index + 1}</span>
-                    <span className="layer-color-name">{layer.name}</span>
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(event) => handleSetLayerColorOverride(layer.id, event.target.value)}
-                    />
-                    <button
-                      onClick={() => handleClearLayerColorOverride(layer.id)}
-                      disabled={!hasOverride}
-                      title={hasOverride ? 'Remove custom color override' : 'Using continuum color'}
-                    >
-                      Auto
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+      <TracingModal
+        open={showTracingModal}
+        onClose={() => setShowTracingModal(false)}
+        tracingOverlays={tracingOverlays}
+        activeTracingOverlay={activeTracingOverlay}
+        onImportTracing={() => tracingInputRef.current?.click()}
+        onDeleteActiveTracing={() => {
+          if (activeTracingOverlay) {
+            handleDeleteTracingOverlay(activeTracingOverlay.id)
+          }
+        }}
+        onSetActiveTracingOverlayId={setActiveTracingOverlayId}
+        onUpdateTracingOverlay={handleUpdateTracingOverlay}
+      />
 
-            <div className="layer-color-modal-actions">
-              <button onClick={handleResetLayerColors}>Reset Colors</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showExportOptionsModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowExportOptionsModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowExportOptionsModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="layer-color-modal-header">
-              <h2>Export Options</h2>
-              <button onClick={() => setShowExportOptionsModal(false)}>Done</button>
-            </div>
-
-            <p className="hint">Applies to SVG, PDF, and DXF exports.</p>
-
-            <div className="control-block">
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={exportOnlySelectedShapes}
-                  onChange={(event) => setExportOnlySelectedShapes(event.target.checked)}
-                />
-                <span>Export only selected shapes</span>
-              </label>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={exportOnlyVisibleLineTypes}
-                  onChange={(event) => setExportOnlyVisibleLineTypes(event.target.checked)}
-                />
-                <span>Export only visible line types</span>
-              </label>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={exportForceSolidStrokes}
-                  onChange={(event) => setExportForceSolidStrokes(event.target.checked)}
-                />
-                <span>Convert dashed/dotted to solid on export</span>
-              </label>
-            </div>
-
-            <div className="control-block">
-              <h3>Line Type Roles ({activeExportRoleCount} enabled)</h3>
-              <div className="export-role-grid">
-                {(['cut', 'stitch', 'fold', 'guide', 'mark'] as const).map((role) => (
-                  <label key={role} className="layer-toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={exportRoleFilters[role]}
-                      onChange={(event) =>
-                        setExportRoleFilters((previous) => ({
-                          ...previous,
-                          [role]: event.target.checked,
-                        }))
-                      }
-                    />
-                    <span>{role[0].toUpperCase() + role.slice(1)}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="control-block">
-              <h3>DXF</h3>
-              <label className="field-row">
-                <span>Version</span>
-                <select
-                  className="action-select"
-                  value={dxfVersion}
-                  onChange={(event) => setDxfVersion(event.target.value as DxfVersion)}
-                >
-                  <option value="r12">R12 (AC1009)</option>
-                  <option value="r14">R14 (AC1014)</option>
-                </select>
-              </label>
-              <label className="layer-toggle-item">
-                <input type="checkbox" checked={dxfFlipY} onChange={(event) => setDxfFlipY(event.target.checked)} />
-                <span>Flip Y axis on DXF export</span>
-              </label>
-            </div>
-
-            <div className="line-type-modal-actions">
-              <button
-                onClick={() => {
-                  setExportOnlySelectedShapes(false)
-                  setExportOnlyVisibleLineTypes(true)
-                  setExportRoleFilters({ ...DEFAULT_EXPORT_ROLE_FILTERS })
-                  setExportForceSolidStrokes(false)
-                  setDxfFlipY(false)
-                  setDxfVersion('r12')
-                }}
-              >
-                Reset Export Defaults
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showTemplateRepositoryModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowTemplateRepositoryModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowTemplateRepositoryModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div className="line-type-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="line-type-modal-header">
-              <h2>Template Repository</h2>
-              <button onClick={() => setShowTemplateRepositoryModal(false)}>Done</button>
-            </div>
-            <p className="hint">Save reusable patterns, import/export catalogs, or insert template pieces into the current document.</p>
-            <div className="line-type-modal-actions">
-              <button onClick={handleSaveTemplateToRepository}>Save Current as Template</button>
-              <button onClick={handleExportTemplateRepository} disabled={templateRepository.length === 0}>
-                Export Repository
-              </button>
-              <button onClick={() => templateImportInputRef.current?.click()}>Import Repository</button>
-            </div>
-
-            <div className="template-list">
-              {templateRepository.length === 0 ? (
-                <p className="hint">No templates saved yet.</p>
-              ) : (
-                templateRepository.map((entry) => (
-                  <label key={entry.id} className="template-item">
-                    <input
-                      type="radio"
-                      name="template-entry"
-                      checked={selectedTemplateEntryId === entry.id}
-                      onChange={() => setSelectedTemplateEntryId(entry.id)}
-                    />
-                    <span className="template-item-name">{entry.name}</span>
-                    <span className="template-item-meta">
-                      {entry.doc.objects.length} shapes, {entry.doc.layers.length} layers
-                    </span>
-                  </label>
-                ))
-              )}
-            </div>
-
-            <div className="line-type-modal-actions">
-              <button onClick={handleLoadTemplateAsDocument} disabled={!selectedTemplateEntry}>
-                Load as Document
-              </button>
-              <button onClick={handleInsertTemplateIntoDocument} disabled={!selectedTemplateEntry}>
-                Insert into Current
-              </button>
-              <button
-                onClick={() => selectedTemplateEntry && handleDeleteTemplateFromRepository(selectedTemplateEntry.id)}
-                disabled={!selectedTemplateEntry}
-              >
-                Delete Template
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPatternToolsModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowPatternToolsModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowPatternToolsModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div className="line-type-modal pattern-tools-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="line-type-modal-header">
-              <h2>Pattern Tools</h2>
-              <button onClick={() => setShowPatternToolsModal(false)}>Done</button>
-            </div>
-            <p className="hint">
-              Manage sub-sketches, constraints, seam offsets, snapping, annotations, and hardware markers from one panel.
-            </p>
-
-            <div className="control-block">
-              <h3>Snap + Align</h3>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={snapSettings.enabled}
-                  onChange={(event) =>
-                    setSnapSettings((previous) => ({
-                      ...previous,
-                      enabled: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Enable snapping</span>
-              </label>
-              <div className="pattern-toggle-grid">
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={snapSettings.grid}
-                    onChange={(event) =>
-                      setSnapSettings((previous) => ({
-                        ...previous,
-                        grid: event.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Grid</span>
-                </label>
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={snapSettings.endpoints}
-                    onChange={(event) =>
-                      setSnapSettings((previous) => ({
-                        ...previous,
-                        endpoints: event.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Endpoints</span>
-                </label>
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={snapSettings.midpoints}
-                    onChange={(event) =>
-                      setSnapSettings((previous) => ({
-                        ...previous,
-                        midpoints: event.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Midpoints</span>
-                </label>
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={snapSettings.guides}
-                    onChange={(event) =>
-                      setSnapSettings((previous) => ({
-                        ...previous,
-                        guides: event.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Guides</span>
-                </label>
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={snapSettings.hardware}
-                    onChange={(event) =>
-                      setSnapSettings((previous) => ({
-                        ...previous,
-                        hardware: event.target.checked,
-                      }))
-                    }
-                  />
-                  <span>Hardware</span>
-                </label>
-              </div>
-              <label className="field-row">
-                <span>Grid snap step (mm)</span>
-                <input
-                  type="number"
-                  min={0.1}
-                  step={0.5}
-                  value={snapSettings.gridStep}
-                  onChange={(event) =>
-                    setSnapSettings((previous) => ({
-                      ...previous,
-                      gridStep: clamp(Number(event.target.value) || 0.1, 0.1, 1000),
-                    }))
-                  }
-                />
-              </label>
-              <div className="button-row">
-                <button onClick={() => handleAlignSelection('x')} disabled={selectedShapeCount < 2}>
-                  Align X
-                </button>
-                <button onClick={() => handleAlignSelection('y')} disabled={selectedShapeCount < 2}>
-                  Align Y
-                </button>
-                <button onClick={() => handleAlignSelection('both')} disabled={selectedShapeCount < 2}>
-                  Align XY
-                </button>
-                <button onClick={handleAlignSelectionToGrid} disabled={selectedShapeCount === 0}>
-                  Align to Grid
-                </button>
-              </div>
-            </div>
-
-            <div className="control-block">
-              <h3>Sub-Sketches + Annotations</h3>
-              <label className="field-row">
-                <span>Active sub-sketch</span>
-                <select
-                  className="action-select"
-                  value={activeSketchGroup?.id ?? ''}
-                  onChange={(event) => setActiveSketchGroupId(event.target.value || null)}
-                >
-                  <option value="">None</option>
-                  {sketchGroups
-                    .filter((group) => group.layerId === activeLayerId)
-                    .map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                        {group.visible ? '' : ' (hidden)'}
-                        {group.locked ? ' (locked)' : ''}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <div className="line-type-modal-actions">
-                <button onClick={handleCreateSketchGroupFromSelection} disabled={selectedShapeCount === 0}>
-                  Create from Selection
-                </button>
-                <button onClick={handleDuplicateActiveSketchGroup} disabled={!activeSketchGroup}>
-                  Place Copy
-                </button>
-                <button onClick={handleRenameActiveSketchGroup} disabled={!activeSketchGroup}>
-                  Rename
-                </button>
-                <button onClick={handleToggleActiveSketchGroupVisibility} disabled={!activeSketchGroup}>
-                  {activeSketchGroup?.visible ? 'Hide' : 'Show'}
-                </button>
-                <button onClick={handleToggleActiveSketchGroupLock} disabled={!activeSketchGroup}>
-                  {activeSketchGroup?.locked ? 'Unlock' : 'Lock'}
-                </button>
-                <button onClick={handleClearActiveSketchGroup} disabled={!activeSketchGroup}>
-                  Clear Active
-                </button>
-                <button onClick={handleDeleteActiveSketchGroup} disabled={!activeSketchGroup}>
-                  Delete Sub-Sketch
-                </button>
-              </div>
-              <div className="line-type-edit-grid">
-                <label className="field-row">
-                  <span>Layer annotation</span>
-                  <input
-                    value={activeLayer?.annotation ?? ''}
-                    placeholder="e.g. Main body"
-                    onChange={(event) => handleSetActiveLayerAnnotation(event.target.value)}
-                  />
-                </label>
-                <label className="field-row">
-                  <span>Sub-sketch annotation</span>
-                  <input
-                    value={activeSketchGroup?.annotation ?? ''}
-                    placeholder="e.g. Inner pocket"
-                    onChange={(event) => handleSetActiveSketchAnnotation(event.target.value)}
-                    disabled={!activeSketchGroup}
-                  />
-                </label>
-              </div>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={showAnnotations}
-                  onChange={(event) => setShowAnnotations(event.target.checked)}
-                />
-                <span>Show annotation labels on canvas</span>
-              </label>
-            </div>
-
-            <div className="control-block">
-              <h3>Parametric Constraints</h3>
-              <div className="line-type-edit-grid">
-                <label className="field-row">
-                  <span>Edge</span>
-                  <select
-                    className="action-select"
-                    value={constraintEdge}
-                    onChange={(event) => setConstraintEdge(event.target.value as ConstraintEdge)}
-                  >
-                    <option value="left">Left</option>
-                    <option value="right">Right</option>
-                    <option value="top">Top</option>
-                    <option value="bottom">Bottom</option>
-                  </select>
-                </label>
-                <label className="field-row">
-                  <span>Offset (mm)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={constraintOffsetMm}
-                    onChange={(event) => setConstraintOffsetMm(clamp(Number(event.target.value) || 0, 0, 999))}
-                  />
-                </label>
-                <label className="field-row">
-                  <span>Align axis</span>
-                  <select
-                    className="action-select"
-                    value={constraintAxis}
-                    onChange={(event) => setConstraintAxis(event.target.value as ConstraintAxis)}
-                  >
-                    <option value="x">X</option>
-                    <option value="y">Y</option>
-                    <option value="both">Both</option>
-                  </select>
-                </label>
-              </div>
-              <div className="line-type-modal-actions">
-                <button onClick={handleAddEdgeConstraintFromSelection} disabled={selectedShapeCount === 0}>
-                  Add Edge Offset
-                </button>
-                <button onClick={handleAddAlignConstraintsFromSelection} disabled={selectedShapeCount < 2}>
-                  Add Align Rules
-                </button>
-                <button onClick={handleApplyConstraints} disabled={constraints.length === 0}>
-                  Apply Constraints
-                </button>
-              </div>
-              {constraints.length === 0 ? (
-                <p className="hint">No constraints yet.</p>
-              ) : (
-                <div className="template-list pattern-constraint-list">
-                  {constraints.map((constraint) => (
-                    <div key={constraint.id} className="pattern-constraint-item">
-                      <label className="layer-toggle-item">
-                        <input
-                          type="checkbox"
-                          checked={constraint.enabled}
-                          onChange={() => handleToggleConstraintEnabled(constraint.id)}
-                        />
-                        <span>{constraint.name}</span>
-                      </label>
-                      <span className="template-item-meta">
-                        {constraint.type === 'edge-offset'
-                          ? `${constraint.edge} @ ${constraint.offsetMm.toFixed(1)}mm`
-                          : `Align ${constraint.axis}`}
-                      </span>
-                      <button onClick={() => handleDeleteConstraint(constraint.id)}>Delete</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="control-block">
-              <h3>Seam Offsets</h3>
-              <label className="field-row">
-                <span>Offset distance (mm)</span>
-                <input
-                  type="number"
-                  min={0.1}
-                  step={0.5}
-                  value={seamAllowanceInputMm}
-                  onChange={(event) => setSeamAllowanceInputMm(clamp(Number(event.target.value) || 0.1, 0.1, 150))}
-                />
-              </label>
-              <div className="line-type-modal-actions">
-                <button onClick={handleApplySeamAllowanceToSelection} disabled={selectedShapeCount === 0}>
-                  Apply to Selection
-                </button>
-                <button onClick={handleClearSeamAllowanceOnSelection} disabled={selectedShapeCount === 0}>
-                  Clear on Selection
-                </button>
-                <button onClick={handleClearAllSeamAllowances} disabled={seamAllowances.length === 0}>
-                  Clear All
-                </button>
-              </div>
-            </div>
-
-            <div className="control-block">
-              <h3>Hardware Markers</h3>
-              <div className="line-type-edit-grid">
-                <label className="field-row">
-                  <span>Preset</span>
-                  <select
-                    className="action-select"
-                    value={hardwarePreset}
-                    onChange={(event) => setHardwarePreset(event.target.value as HardwareKind)}
-                  >
-                    <option value="snap">Snap</option>
-                    <option value="rivet">Rivet</option>
-                    <option value="buckle">Buckle</option>
-                    <option value="custom">Custom</option>
-                  </select>
-                </label>
-                <label className="field-row">
-                  <span>Custom hole (mm)</span>
-                  <input
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={customHardwareDiameterMm}
-                    disabled={hardwarePreset !== 'custom'}
-                    onChange={(event) => setCustomHardwareDiameterMm(clamp(Number(event.target.value) || 0.1, 0.1, 120))}
-                  />
-                </label>
-                <label className="field-row">
-                  <span>Custom spacing (mm)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    value={customHardwareSpacingMm}
-                    disabled={hardwarePreset !== 'custom'}
-                    onChange={(event) => setCustomHardwareSpacingMm(clamp(Number(event.target.value) || 0, 0, 300))}
-                  />
-                </label>
-              </div>
-              <div className="line-type-modal-actions">
-                <button onClick={() => setActiveTool('hardware')}>Use Hardware Tool</button>
-                <button onClick={() => setActiveTool('pan')}>Back to Move Tool</button>
-              </div>
-              <p className="hint">
-                Pick the Hardware tool, then click on canvas to place markers with metadata for holes and spacing.
-              </p>
-
-              {selectedHardwareMarker ? (
-                <div className="line-type-edit-grid">
-                  <label className="field-row">
-                    <span>Label</span>
-                    <input
-                      value={selectedHardwareMarker.label}
-                      onChange={(event) => handleUpdateSelectedHardwareMarker({ label: event.target.value })}
-                    />
-                  </label>
-                  <label className="field-row">
-                    <span>Hole diameter (mm)</span>
-                    <input
-                      type="number"
-                      min={0.1}
-                      step={0.1}
-                      value={selectedHardwareMarker.holeDiameterMm}
-                      onChange={(event) =>
-                        handleUpdateSelectedHardwareMarker({
-                          holeDiameterMm: clamp(Number(event.target.value) || 0.1, 0.1, 120),
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="field-row">
-                    <span>Spacing (mm)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={selectedHardwareMarker.spacingMm}
-                      onChange={(event) =>
-                        handleUpdateSelectedHardwareMarker({
-                          spacingMm: clamp(Number(event.target.value) || 0, 0, 300),
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="field-row">
-                    <span>Notes</span>
-                    <input
-                      value={selectedHardwareMarker.notes ?? ''}
-                      placeholder="e.g. set with #9 snap"
-                      onChange={(event) => handleUpdateSelectedHardwareMarker({ notes: event.target.value })}
-                    />
-                  </label>
-                  <label className="layer-toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={selectedHardwareMarker.visible}
-                      onChange={(event) => handleUpdateSelectedHardwareMarker({ visible: event.target.checked })}
-                    />
-                    <span>Visible</span>
-                  </label>
-                  <div className="line-type-modal-actions">
-                    <button onClick={handleDeleteSelectedHardwareMarker}>Delete Marker</button>
-                  </div>
-                </div>
-              ) : (
-                <p className="hint">Select a hardware marker in Move tool to edit metadata.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showTracingModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowTracingModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowTracingModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="layer-color-modal-header">
-              <h2>Tracing Overlays</h2>
-              <button onClick={() => setShowTracingModal(false)}>Done</button>
-            </div>
-            <div className="line-type-modal-actions">
-              <button onClick={() => tracingInputRef.current?.click()}>Import Image/PDF</button>
-              <button
-                onClick={() => activeTracingOverlay && handleDeleteTracingOverlay(activeTracingOverlay.id)}
-                disabled={!activeTracingOverlay}
-              >
-                Delete Active
-              </button>
-            </div>
-
-            <label className="field-row">
-              <span>Active tracing</span>
-              <select
-                className="action-select"
-                value={activeTracingOverlay?.id ?? ''}
-                onChange={(event) => setActiveTracingOverlayId(event.target.value || null)}
-              >
-                {tracingOverlays.map((overlay) => (
-                  <option key={overlay.id} value={overlay.id}>
-                    {overlay.name} [{overlay.kind}]
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {activeTracingOverlay ? (
-              <div className="control-block">
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={activeTracingOverlay.visible}
-                    onChange={(event) =>
-                      handleUpdateTracingOverlay(activeTracingOverlay.id, { visible: event.target.checked })
-                    }
-                  />
-                  <span>Visible</span>
-                </label>
-                <label className="layer-toggle-item">
-                  <input
-                    type="checkbox"
-                    checked={activeTracingOverlay.locked}
-                    onChange={(event) =>
-                      handleUpdateTracingOverlay(activeTracingOverlay.id, { locked: event.target.checked })
-                    }
-                  />
-                  <span>Lock editing</span>
-                </label>
-                <label className="field-row">
-                  <span>Opacity</span>
-                  <input
-                    type="range"
-                    min={0.05}
-                    max={1}
-                    step={0.05}
-                    value={activeTracingOverlay.opacity}
-                    onChange={(event) =>
-                      handleUpdateTracingOverlay(activeTracingOverlay.id, {
-                        opacity: clamp(Number(event.target.value), 0.05, 1),
-                      })
-                    }
-                  />
-                </label>
-                <label className="field-row">
-                  <span>Scale</span>
-                  <input
-                    type="number"
-                    min={0.05}
-                    max={20}
-                    step={0.05}
-                    value={activeTracingOverlay.scale}
-                    onChange={(event) =>
-                      handleUpdateTracingOverlay(activeTracingOverlay.id, {
-                        scale: clamp(Number(event.target.value) || 1, 0.05, 20),
-                      })
-                    }
-                  />
-                </label>
-                <label className="field-row">
-                  <span>Rotation (deg)</span>
-                  <input
-                    type="number"
-                    step={1}
-                    value={activeTracingOverlay.rotationDeg}
-                    onChange={(event) =>
-                      handleUpdateTracingOverlay(activeTracingOverlay.id, {
-                        rotationDeg: Number(event.target.value) || 0,
-                      })
-                    }
-                  />
-                </label>
-                <div className="line-type-edit-grid">
-                  <label className="field-row">
-                    <span>Offset X</span>
-                    <input
-                      type="number"
-                      step={1}
-                      value={activeTracingOverlay.offsetX}
-                      disabled={activeTracingOverlay.locked}
-                      onChange={(event) =>
-                        handleUpdateTracingOverlay(activeTracingOverlay.id, {
-                          offsetX: Number(event.target.value) || 0,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="field-row">
-                    <span>Offset Y</span>
-                    <input
-                      type="number"
-                      step={1}
-                      value={activeTracingOverlay.offsetY}
-                      disabled={activeTracingOverlay.locked}
-                      onChange={(event) =>
-                        handleUpdateTracingOverlay(activeTracingOverlay.id, {
-                          offsetY: Number(event.target.value) || 0,
-                        })
-                      }
-                    />
-                  </label>
-                </div>
-              </div>
-            ) : (
-              <p className="hint">Import a tracing file to begin.</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {showPrintPreviewModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setShowPrintPreviewModal(false)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              setShowPrintPreviewModal(false)
-            }
-          }}
-          role="presentation"
-        >
-          <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="layer-color-modal-header">
-              <h2>Print Preview + Tiling</h2>
-              <button onClick={() => setShowPrintPreviewModal(false)}>Done</button>
-            </div>
-            <p className="hint">Matches source-style preview settings: tiling, overlap, calibration scale, selection-only, rulers, and color controls.</p>
-
-            <div className="line-type-edit-grid">
-              <label className="field-row">
-                <span>Paper</span>
-                <select
-                  className="action-select"
-                  value={printPaper}
-                  onChange={(event) => setPrintPaper(event.target.value as PrintPaper)}
-                >
-                  <option value="letter">Letter (216 x 279mm)</option>
-                  <option value="a4">A4 (210 x 297mm)</option>
-                </select>
-              </label>
-              <label className="field-row">
-                <span>Scale (%)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={400}
-                  value={printScalePercent}
-                  onChange={(event) => setPrintScalePercent(clamp(Number(event.target.value) || 100, 1, 400))}
-                />
-              </label>
-              <label className="field-row">
-                <span>Tile X</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={25}
-                  value={printTileX}
-                  onChange={(event) => setPrintTileX(clamp(Number(event.target.value) || 1, 1, 25))}
-                />
-              </label>
-              <label className="field-row">
-                <span>Tile Y</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={25}
-                  value={printTileY}
-                  onChange={(event) => setPrintTileY(clamp(Number(event.target.value) || 1, 1, 25))}
-                />
-              </label>
-              <label className="field-row">
-                <span>Overlap (mm)</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={30}
-                  step={0.5}
-                  value={printOverlapMm}
-                  onChange={(event) => setPrintOverlapMm(clamp(Number(event.target.value) || 0, 0, 30))}
-                />
-              </label>
-              <label className="field-row">
-                <span>Margin (mm)</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={30}
-                  step={0.5}
-                  value={printMarginMm}
-                  onChange={(event) => setPrintMarginMm(clamp(Number(event.target.value) || 0, 0, 30))}
-                />
-              </label>
-            </div>
-
-            <div className="control-block">
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={printSelectedOnly}
-                  onChange={(event) => setPrintSelectedOnly(event.target.checked)}
-                />
-                <span>Print selected shapes only</span>
-              </label>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={printRulerInside}
-                  onChange={(event) => setPrintRulerInside(event.target.checked)}
-                />
-                <span>Ruler inside page</span>
-              </label>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={printInColor}
-                  onChange={(event) => setPrintInColor(event.target.checked)}
-                />
-                <span>Print in color</span>
-              </label>
-              <label className="layer-toggle-item">
-                <input
-                  type="checkbox"
-                  checked={printStitchAsDots}
-                  onChange={(event) => setPrintStitchAsDots(event.target.checked)}
-                />
-                <span>Render stitch holes as dots</span>
-              </label>
-            </div>
-
-            {printPlan ? (
-              <div className="print-preview-summary">
-                <div>Source bounds: {printPlan.sourceBounds.width} x {printPlan.sourceBounds.height} mm</div>
-                <div>Coverage: {printPlan.contentWidthMm} x {printPlan.contentHeightMm} mm</div>
-                <div>Pages: {printPlan.tiles.length}</div>
-                <div>Color: {printInColor ? 'On' : 'Off'} | Ruler: {printRulerInside ? 'Inside' : 'Outside'}</div>
-              </div>
-            ) : (
-              <p className="hint">No shapes available for print preview with current filters.</p>
-            )}
-
-            <div className="line-type-modal-actions">
-              <button onClick={() => setShowPrintAreas((previous) => !previous)}>
-                {showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}
-              </button>
-              <button onClick={handleFitView}>Fit to Content</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PrintPreviewModal
+        open={showPrintPreviewModal}
+        onClose={() => setShowPrintPreviewModal(false)}
+        printPaper={printPaper}
+        onSetPrintPaper={setPrintPaper}
+        printScalePercent={printScalePercent}
+        onSetPrintScalePercent={setPrintScalePercent}
+        printTileX={printTileX}
+        onSetPrintTileX={setPrintTileX}
+        printTileY={printTileY}
+        onSetPrintTileY={setPrintTileY}
+        printOverlapMm={printOverlapMm}
+        onSetPrintOverlapMm={setPrintOverlapMm}
+        printMarginMm={printMarginMm}
+        onSetPrintMarginMm={setPrintMarginMm}
+        printSelectedOnly={printSelectedOnly}
+        onSetPrintSelectedOnly={setPrintSelectedOnly}
+        printRulerInside={printRulerInside}
+        onSetPrintRulerInside={setPrintRulerInside}
+        printInColor={printInColor}
+        onSetPrintInColor={setPrintInColor}
+        printStitchAsDots={printStitchAsDots}
+        onSetPrintStitchAsDots={setPrintStitchAsDots}
+        printPlan={printPlan}
+        showPrintAreas={showPrintAreas}
+        onTogglePrintAreas={() => setShowPrintAreas((previous) => !previous)}
+        onFitView={handleFitView}
+      />
 
       <footer className="statusbar">
         <span>Tool: {toolLabel(tool)}</span>
