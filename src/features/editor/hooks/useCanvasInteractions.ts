@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type {
   Dispatch,
   PointerEvent as ReactPointerEvent,
@@ -6,12 +6,7 @@ import type {
   SetStateAction,
   WheelEvent as ReactWheelEvent,
 } from 'react'
-import {
-  clamp,
-  distance,
-  getBounds,
-  uid,
-} from '../cad/cad-geometry'
+import { clamp, getBounds } from '../cad/cad-geometry'
 import type {
   FoldLine,
   HardwareKind,
@@ -29,20 +24,8 @@ import type {
   Viewport,
 } from '../cad/cad-types'
 import { snapPointToContext } from '../ops/pattern-ops'
-import {
-  createStitchHole,
-  findNearestStitchAnchor,
-} from '../ops/stitch-hole-ops'
-import {
-  DEFAULT_FOLD_CLEARANCE_MM,
-  DEFAULT_FOLD_DIRECTION,
-  DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
-  DEFAULT_FOLD_RADIUS_MM,
-  DEFAULT_FOLD_STIFFNESS,
-  DEFAULT_FOLD_THICKNESS_MM,
-} from '../ops/fold-line-ops'
-import { sanitizeFoldLine } from '../editor-parsers'
-import { HARDWARE_PRESETS, MAX_ZOOM, MIN_ZOOM } from '../editor-constants'
+import { CanvasToolManager, getCanvasToolHint, type ToolRuntime } from '../tools/canvas-tool-manager'
+import { MAX_ZOOM, MIN_ZOOM } from '../editor-constants'
 
 type PanState = {
   startX: number
@@ -50,6 +33,22 @@ type PanState = {
   originX: number
   originY: number
   pointerId: number
+}
+
+type ShapeDragState = {
+  pointerId: number
+  start: Point
+  shapeIds: string[]
+  initialShapesById: Map<string, Shape>
+  didMove: boolean
+}
+
+type HandlePointKey = 'start' | 'mid' | 'control' | 'end'
+
+type HandleDragState = {
+  pointerId: number
+  shapeId: string
+  pointKey: HandlePointKey
 }
 
 type UseCanvasInteractionsParams = {
@@ -82,6 +81,7 @@ type UseCanvasInteractionsParams = {
   textSweepDeg: number
   stitchHoles: StitchHole[]
   hardwareMarkers: HardwareMarker[]
+  selectedShapeIds: string[]
   selectedStitchHoleId: string | null
   selectedHardwareMarkerId: string | null
   setStatus: Dispatch<SetStateAction<string>>
@@ -98,6 +98,65 @@ type UseCanvasInteractionsParams = {
   clearDraft: () => void
   ensureActiveLayerWritable: () => boolean
   ensureActiveLineTypeWritable: () => boolean
+}
+
+function translateShape(shape: Shape, dx: number, dy: number): Shape {
+  if (shape.type === 'line') {
+    return {
+      ...shape,
+      start: { x: shape.start.x + dx, y: shape.start.y + dy },
+      end: { x: shape.end.x + dx, y: shape.end.y + dy },
+    }
+  }
+  if (shape.type === 'arc') {
+    return {
+      ...shape,
+      start: { x: shape.start.x + dx, y: shape.start.y + dy },
+      mid: { x: shape.mid.x + dx, y: shape.mid.y + dy },
+      end: { x: shape.end.x + dx, y: shape.end.y + dy },
+    }
+  }
+  if (shape.type === 'bezier') {
+    return {
+      ...shape,
+      start: { x: shape.start.x + dx, y: shape.start.y + dy },
+      control: { x: shape.control.x + dx, y: shape.control.y + dy },
+      end: { x: shape.end.x + dx, y: shape.end.y + dy },
+    }
+  }
+  return {
+    ...shape,
+    start: { x: shape.start.x + dx, y: shape.start.y + dy },
+    end: { x: shape.end.x + dx, y: shape.end.y + dy },
+  }
+}
+
+function withUpdatedHandlePoint(shape: Shape, pointKey: HandlePointKey, point: Point): Shape {
+  if (shape.type === 'line' || shape.type === 'text') {
+    if (pointKey === 'start' || pointKey === 'end') {
+      return {
+        ...shape,
+        [pointKey]: point,
+      }
+    }
+    return shape
+  }
+  if (shape.type === 'arc') {
+    if (pointKey === 'start' || pointKey === 'mid' || pointKey === 'end') {
+      return {
+        ...shape,
+        [pointKey]: point,
+      }
+    }
+    return shape
+  }
+  if (pointKey === 'start' || pointKey === 'control' || pointKey === 'end') {
+    return {
+      ...shape,
+      [pointKey]: point,
+    }
+  }
+  return shape
 }
 
 export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
@@ -131,6 +190,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     textSweepDeg,
     stitchHoles,
     hardwareMarkers,
+    selectedShapeIds,
     selectedStitchHoleId,
     selectedHardwareMarkerId,
     setStatus,
@@ -148,6 +208,11 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
   } = params
+
+  const toolManager = useMemo(() => new CanvasToolManager(), [])
+  const referencePointRef = useRef<Point>({ x: 0, y: 0 })
+  const shapeDragRef = useRef<ShapeDragState | null>(null)
+  const handleDragRef = useRef<HandleDragState | null>(null)
 
   useEffect(() => {
     const svg = svgRef.current
@@ -200,6 +265,44 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       hardwareMarkers: visibleHardwareMarkers,
       viewportScale: viewport.scale,
     })
+
+  const createToolRuntime = (): ToolRuntime => ({
+    draftPoints,
+    activeLayerId,
+    activeLineTypeId,
+    activeSketchGroup,
+    viewportScale: viewport.scale,
+    stitchHoleType,
+    hardwarePreset,
+    customHardwareDiameterMm,
+    customHardwareSpacingMm,
+    textDraftValue,
+    textFontFamily,
+    textFontSizeMm,
+    textTransformMode,
+    textRadiusMm,
+    textSweepDeg,
+    stitchTargetShapes,
+    lineTypesById,
+    shapesById,
+    layers,
+    stitchHoles,
+    setDraftPoints,
+    clearDraft,
+    setStatus,
+    setShapes,
+    setFoldLines,
+    setStitchHoles,
+    setSelectedStitchHoleId,
+    setHardwareMarkers,
+    setSelectedHardwareMarkerId,
+    ensureActiveLayerWritable,
+    ensureActiveLineTypeWritable,
+    pointPicked: (point) => {
+      referencePointRef.current = point
+      setCursorPoint(point)
+    },
+  })
 
   const zoomAtScreenPoint = (screenX: number, screenY: number, zoomFactor: number) => {
     setViewport((previous) => {
@@ -254,7 +357,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       x: rect.width / 2 - (bounds.minX + bounds.width / 2) * fitScale,
       y: rect.height / 2 - (bounds.minY + bounds.height / 2) * fitScale,
     })
-      setStatus('View fit to current sketch view')
+    setStatus('View fit to current sketch view')
   }
 
   const beginPan = (clientX: number, clientY: number, pointerId: number) => {
@@ -297,239 +400,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     if (!rawPoint) {
       return
     }
-    const snappedPoint = getSnappedPoint(rawPoint)
-    const point = snappedPoint.point
-
+    const point = getSnappedPoint(rawPoint).point
     setCursorPoint(point)
 
-    if (tool === 'line') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      if (draftPoints.length === 0) {
-        setDraftPoints([point])
-        setStatus('Line: pick end point')
-        return
-      }
-
-      const start = draftPoints[0]
-      if (distance(start, point) < 0.001) {
-        setStatus('Line ignored: start and end overlap')
-        clearDraft()
-        return
-      }
-
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'line',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start,
-          end: point,
-        },
-      ])
-      clearDraft()
-      setStatus('Line created')
-      return
-    }
-
-    if (tool === 'stitch-hole') {
-      const nearestStitchAnchor = findNearestStitchAnchor(point, stitchTargetShapes, lineTypesById, 16 / viewport.scale)
-      if (!nearestStitchAnchor) {
-        setStatus('No stitch path near pointer. Tap near a visible stitch line.')
-        return
-      }
-
-      const targetShape = shapesById[nearestStitchAnchor.shapeId]
-      if (!targetShape) {
-        setStatus('Could not resolve stitch path')
-        return
-      }
-
-      const targetLayer = layers.find((layer) => layer.id === targetShape.layerId)
-      if (targetLayer?.locked) {
-        setStatus('Target layer is locked. Unlock it before placing stitch holes.')
-        return
-      }
-
-      let createdHoleId: string | null = null
-      setStitchHoles((previous) => {
-        const nextSequence =
-          previous
-            .filter((stitchHole) => stitchHole.shapeId === nearestStitchAnchor.shapeId)
-            .reduce((maximum, stitchHole) => Math.max(maximum, stitchHole.sequence), -1) + 1
-        const createdHole = {
-          ...createStitchHole(nearestStitchAnchor, stitchHoleType),
-          sequence: nextSequence,
-        }
-        createdHoleId = createdHole.id
-        return [
-          ...previous,
-          createdHole,
-        ]
-      })
-      setSelectedStitchHoleId(createdHoleId)
-      setStatus(`Stitch hole placed (${stitchHoleType})`)
-      return
-    }
-
-    if (tool === 'text') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      const safeText = textDraftValue.trim().length > 0 ? textDraftValue.trim() : 'Text'
-      const safeFontSize = clamp(textFontSizeMm || 12, 2, 120)
-      const baseLength = Math.max(safeFontSize * 0.8, safeText.length * safeFontSize * 0.62)
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'text',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start: point,
-          end: { x: point.x + baseLength, y: point.y },
-          text: safeText,
-          fontFamily: textFontFamily,
-          fontSizeMm: safeFontSize,
-          transform: textTransformMode,
-          radiusMm: clamp(textRadiusMm || 40, 2, 2000),
-          sweepDeg: clamp(textSweepDeg || 140, -1080, 1080),
-        },
-      ])
-      clearDraft()
-      setStatus(`Text placed: ${safeText}`)
-      return
-    }
-
-    if (tool === 'hardware') {
-      if (!ensureActiveLayerWritable()) {
-        return
-      }
-
-      const preset = hardwarePreset === 'custom' ? null : HARDWARE_PRESETS[hardwarePreset]
-      const marker: HardwareMarker = {
-        id: uid(),
-        layerId: activeLayerId,
-        groupId: activeSketchGroup?.id,
-        point,
-        kind: hardwarePreset,
-        label: hardwarePreset === 'custom' ? 'Hardware' : preset?.label ?? 'Hardware',
-        holeDiameterMm:
-          hardwarePreset === 'custom'
-            ? clamp(customHardwareDiameterMm || 4, 0.1, 120)
-            : (preset?.holeDiameterMm ?? 4),
-        spacingMm:
-          hardwarePreset === 'custom'
-            ? clamp(customHardwareSpacingMm || 0, 0, 300)
-            : (preset?.spacingMm ?? 0),
-        notes: '',
-        visible: true,
-      }
-      setHardwareMarkers((previous) => [...previous, marker])
-      setSelectedHardwareMarkerId(marker.id)
-      setStatus(`Placed hardware marker (${marker.kind})`)
-      return
-    }
-
-    if (tool === 'fold') {
-      if (draftPoints.length === 0) {
-        setDraftPoints([point])
-        setStatus('Fold line: pick end point')
-        return
-      }
-
-      const start = draftPoints[0]
-      if (distance(start, point) < 0.001) {
-        setStatus('Fold line ignored: start and end overlap')
-        clearDraft()
-        return
-      }
-
-      setFoldLines((previous) => [
-        ...previous,
-        sanitizeFoldLine({
-          id: uid(),
-          name: `Fold ${previous.length + 1}`,
-          start,
-          end: point,
-          angleDeg: 0,
-          maxAngleDeg: 180,
-          direction: DEFAULT_FOLD_DIRECTION,
-          radiusMm: DEFAULT_FOLD_RADIUS_MM,
-          thicknessMm: DEFAULT_FOLD_THICKNESS_MM,
-          neutralAxisRatio: DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
-          stiffness: DEFAULT_FOLD_STIFFNESS,
-          clearanceMm: DEFAULT_FOLD_CLEARANCE_MM,
-        }),
-      ])
-      clearDraft()
-      setStatus('Fold line assigned')
-      return
-    }
-
-    if (tool === 'arc') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      if (draftPoints.length < 2) {
-        setDraftPoints((previous) => [...previous, point])
-        setStatus(draftPoints.length === 0 ? 'Arc: pick midpoint' : 'Arc: pick end point')
-        return
-      }
-
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'arc',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start: draftPoints[0],
-          mid: draftPoints[1],
-          end: point,
-        },
-      ])
-      clearDraft()
-      setStatus('Arc created')
-      return
-    }
-
-    if (tool === 'bezier') {
-      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
-        return
-      }
-
-      if (draftPoints.length < 2) {
-        setDraftPoints((previous) => [...previous, point])
-        setStatus(draftPoints.length === 0 ? 'Bezier: pick control point' : 'Bezier: pick end point')
-        return
-      }
-
-      setShapes((previous) => [
-        ...previous,
-        {
-          id: uid(),
-          type: 'bezier',
-          layerId: activeLayerId,
-          lineTypeId: activeLineTypeId,
-          groupId: activeSketchGroup?.id,
-          start: draftPoints[0],
-          control: draftPoints[1],
-          end: point,
-        },
-      ])
-      clearDraft()
-      setStatus('Bezier created')
-    }
+    toolManager.pointerDown(tool, point, createToolRuntime())
   }
 
   const handleShapePointerDown = (event: ReactPointerEvent<SVGElement>, shapeId: string) => {
@@ -541,22 +415,89 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       return
     }
 
+    const point = toWorldPoint(event.clientX, event.clientY)
+    if (!point) {
+      return
+    }
+
     event.stopPropagation()
     setSelectedHardwareMarkerId(null)
 
-    setSelectedShapeIds((previous) => {
-      const isAlreadySelected = previous.includes(shapeId)
-      let next: string[]
+    const isAlreadySelected = selectedShapeIds.includes(shapeId)
+    let nextSelection = selectedShapeIds
 
-      if (event.shiftKey) {
-        next = isAlreadySelected ? previous.filter((entry) => entry !== shapeId) : [...previous, shapeId]
-      } else {
-        next = isAlreadySelected && previous.length === 1 ? [] : [shapeId]
+    if (event.shiftKey) {
+      nextSelection = isAlreadySelected
+        ? selectedShapeIds.filter((entry) => entry !== shapeId)
+        : [...selectedShapeIds, shapeId]
+    } else if (!isAlreadySelected) {
+      nextSelection = [shapeId]
+    }
+
+    setSelectedShapeIds(nextSelection)
+    setStatus(
+      nextSelection.length === 0
+        ? 'Shape selection cleared'
+        : `${nextSelection.length} shape${nextSelection.length === 1 ? '' : 's'} selected`,
+    )
+
+    if (event.shiftKey || nextSelection.length === 0) {
+      return
+    }
+
+    const initialShapesById = new Map<string, Shape>()
+    for (const id of nextSelection) {
+      const shape = shapesById[id]
+      if (shape) {
+        initialShapesById.set(id, shape)
       }
+    }
+    if (initialShapesById.size === 0) {
+      return
+    }
 
-      setStatus(next.length === 0 ? 'Shape selection cleared' : `${next.length} shape${next.length === 1 ? '' : 's'} selected`)
-      return next
-    })
+    shapeDragRef.current = {
+      pointerId: event.pointerId,
+      start: point,
+      shapeIds: Array.from(initialShapesById.keys()),
+      initialShapesById,
+      didMove: false,
+    }
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Safe no-op on browsers that do not support capture for SVG child nodes.
+    }
+  }
+
+  const handleShapeHandlePointerDown = (
+    event: ReactPointerEvent<SVGCircleElement>,
+    shapeId: string,
+    pointKey: HandlePointKey,
+  ) => {
+    if (tool !== 'pan') {
+      return
+    }
+    if (event.pointerType !== 'touch' && event.button !== 0) {
+      return
+    }
+
+    event.stopPropagation()
+    setSelectedShapeIds([shapeId])
+    setSelectedStitchHoleId(null)
+    setSelectedHardwareMarkerId(null)
+    handleDragRef.current = {
+      pointerId: event.pointerId,
+      shapeId,
+      pointKey,
+    }
+
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // Safe no-op on browsers that do not support capture for SVG child nodes.
+    }
   }
 
   const handleStitchHolePointerDown = (event: ReactPointerEvent<SVGElement>, stitchHoleId: string) => {
@@ -619,6 +560,54 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       return
     }
 
+    const handleDragState = handleDragRef.current
+    if (handleDragState) {
+      if (event.pointerType === 'touch' && event.pointerId !== handleDragState.pointerId) {
+        return
+      }
+
+      const point = toWorldPoint(event.clientX, event.clientY)
+      if (!point) {
+        return
+      }
+      const snapped = getSnappedPoint(point).point
+      setCursorPoint(snapped)
+      setShapes((previous) =>
+        previous.map((shape) =>
+          shape.id === handleDragState.shapeId ? withUpdatedHandlePoint(shape, handleDragState.pointKey, snapped) : shape,
+        ),
+      )
+      return
+    }
+
+    const shapeDragState = shapeDragRef.current
+    if (shapeDragState) {
+      if (event.pointerType === 'touch' && event.pointerId !== shapeDragState.pointerId) {
+        return
+      }
+
+      const point = toWorldPoint(event.clientX, event.clientY)
+      if (!point) {
+        return
+      }
+      const deltaX = point.x - shapeDragState.start.x
+      const deltaY = point.y - shapeDragState.start.y
+      if (!shapeDragState.didMove && (Math.abs(deltaX) > 1e-4 || Math.abs(deltaY) > 1e-4)) {
+        shapeDragState.didMove = true
+      }
+      setCursorPoint(point)
+      setShapes((previous) =>
+        previous.map((shape) => {
+          const initial = shapeDragState.initialShapesById.get(shape.id)
+          if (!initial) {
+            return shape
+          }
+          return translateShape(initial, deltaX, deltaY)
+        }),
+      )
+      return
+    }
+
     if (draftPoints.length === 0 && tool !== 'hardware') {
       return
     }
@@ -631,15 +620,25 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
     const panState = panRef.current
-    if (!panState) {
-      return
+    if (panState && !(event.pointerType === 'touch' && event.pointerId !== panState.pointerId)) {
+      panRef.current = null
     }
 
-    if (event.pointerType === 'touch' && event.pointerId !== panState.pointerId) {
-      return
+    const handleDragState = handleDragRef.current
+    if (handleDragState && !(event.pointerType === 'touch' && event.pointerId !== handleDragState.pointerId)) {
+      handleDragRef.current = null
     }
 
-    panRef.current = null
+    const shapeDragState = shapeDragRef.current
+    if (shapeDragState && !(event.pointerType === 'touch' && event.pointerId !== shapeDragState.pointerId)) {
+      shapeDragRef.current = null
+      if (shapeDragState.didMove) {
+        setStatus(
+          `Moved ${shapeDragState.shapeIds.length} shape${shapeDragState.shapeIds.length === 1 ? '' : 's'}`,
+        )
+      }
+    }
+
     if (event.pointerType !== 'touch') {
       try {
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -665,16 +664,31 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     zoomAtScreenPoint(screenX, screenY, zoomFactor)
   }
 
+  const runPrecisionCommand = (command: string) => {
+    const message = toolManager.processCommand(command, {
+      tool,
+      runtime: createToolRuntime(),
+      referencePoint: referencePointRef.current,
+    })
+    setStatus(message)
+    return message
+  }
+
+  const toolHint = getCanvasToolHint(tool, draftPoints)
+
   return {
     handleZoomStep,
     handleResetView,
     handleFitView,
     handlePointerDown,
     handleShapePointerDown,
+    handleShapeHandlePointerDown,
     handleStitchHolePointerDown,
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
     handleWheel,
+    runPrecisionCommand,
+    toolHint,
   }
 }

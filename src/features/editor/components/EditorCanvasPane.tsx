@@ -5,6 +5,7 @@ import type {
   HardwareMarker,
   Layer,
   LineType,
+  Point,
   Shape,
   StitchHole,
   TextShape,
@@ -56,6 +57,12 @@ type EditorCanvasPaneProps = {
   cutStrokeColor: string
   displayLayerColorsById: Record<string, string>
   onShapePointerDown: (event: PointerEvent<SVGElement>, shapeId: string) => void
+  onShapeHandlePointerDown: (
+    event: PointerEvent<SVGCircleElement>,
+    shapeId: string,
+    pointKey: 'start' | 'mid' | 'control' | 'end',
+  ) => void
+  showShapeHandles: boolean
   visibleStitchHoles: StitchHole[]
   selectedStitchHoleId: string | null
   showStitchSequenceLabels: boolean
@@ -107,6 +114,8 @@ export function EditorCanvasPane({
   cutStrokeColor,
   displayLayerColorsById,
   onShapePointerDown,
+  onShapeHandlePointerDown,
+  showShapeHandles,
   visibleStitchHoles,
   selectedStitchHoleId,
   showStitchSequenceLabels,
@@ -125,6 +134,27 @@ export function EditorCanvasPane({
   fallbackLayerStroke,
   stackLegendEntries,
 }: EditorCanvasPaneProps) {
+  const shapeHandleEntries = (shape: Shape): Array<{ key: 'start' | 'mid' | 'control' | 'end'; point: Point }> => {
+    if (shape.type === 'line' || shape.type === 'text') {
+      return [
+        { key: 'start', point: shape.start },
+        { key: 'end', point: shape.end },
+      ]
+    }
+    if (shape.type === 'arc') {
+      return [
+        { key: 'start', point: shape.start },
+        { key: 'mid', point: shape.mid },
+        { key: 'end', point: shape.end },
+      ]
+    }
+    return [
+      { key: 'start', point: shape.start },
+      { key: 'control', point: shape.control },
+      { key: 'end', point: shape.end },
+    ]
+  }
+
   const resolveShapeStrokeColor = (shape: Shape) => {
     const lineType = lineTypesById[shape.lineTypeId]
     const lineTypeRole = lineType?.role ?? 'cut'
@@ -453,6 +483,22 @@ export function EditorCanvasPane({
               />
             )
           })}
+
+          {showShapeHandles &&
+            visibleShapes
+              .filter((shape) => selectedShapeIdSet.has(shape.id))
+              .flatMap((shape) =>
+                shapeHandleEntries(shape).map((entry) => (
+                  <circle
+                    key={`${shape.id}-${entry.key}-handle`}
+                    cx={entry.point.x}
+                    cy={entry.point.y}
+                    r={2.3}
+                    className="shape-handle"
+                    onPointerDown={(event) => onShapeHandlePointerDown(event, shape.id, entry.key)}
+                  />
+                )),
+              )}
 
           {visibleStitchHoles.map((stitchHole) => {
             const isSelected = stitchHole.id === selectedStitchHoleId

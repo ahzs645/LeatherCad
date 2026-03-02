@@ -56,6 +56,68 @@ export function useDraftPreviewElement(params: UseDraftPreviewElementParams) {
       )
     }
 
+    if (tool === 'polyline') {
+      const start = draftPoints[draftPoints.length - 1]
+      return (
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={cursorPoint.x}
+          y2={cursorPoint.y}
+          className="shape-preview"
+          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
+        />
+      )
+    }
+
+    if (tool === 'rectangle') {
+      const start = draftPoints[0]
+      const minX = Math.min(start.x, cursorPoint.x)
+      const minY = Math.min(start.y, cursorPoint.y)
+      const width = Math.abs(cursorPoint.x - start.x)
+      const height = Math.abs(cursorPoint.y - start.y)
+      return (
+        <rect
+          x={minX}
+          y={minY}
+          width={width}
+          height={height}
+          className="shape-preview"
+          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
+        />
+      )
+    }
+
+    if (tool === 'circle') {
+      const center = draftPoints[0]
+      const radius = Math.hypot(cursorPoint.x - center.x, cursorPoint.y - center.y)
+      return (
+        <circle
+          cx={center.x}
+          cy={center.y}
+          r={radius}
+          className="shape-preview"
+          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
+        />
+      )
+    }
+
+    if (tool === 'ellipse') {
+      const center = draftPoints[0]
+      const radiusX = Math.abs(cursorPoint.x - center.x)
+      const radiusY = Math.abs(cursorPoint.y - center.y)
+      return (
+        <ellipse
+          cx={center.x}
+          cy={center.y}
+          rx={radiusX}
+          ry={radiusY}
+          className="shape-preview"
+          style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }}
+        />
+      )
+    }
+
     if (tool === 'arc') {
       if (draftPoints.length === 1) {
         return (

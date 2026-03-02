@@ -148,17 +148,18 @@ export function TemplateRepositoryModal({
                     onDeleteCatalogShop(selectedCatalogShop.id)
                   }
                 }}
-                disabled={!selectedCatalogShop}
+                disabled={!selectedCatalogShop || selectedCatalogShop.isBundled}
               >
                 Delete Catalog
               </button>
             </div>
             <div className="template-list">
               {catalogRepository.length === 0 ? (
-                <p className="hint">No catalogs imported yet.</p>
+                <p className="hint">No catalogs available yet.</p>
               ) : (
                 catalogRepository.map((shop) => {
                   const itemCount = getCatalogItemCount(shop)
+                  const groupCount = typeof shop.groupCount === 'number' ? shop.groupCount : shop.groups.length
                   return (
                     <label key={shop.id} className="template-item">
                       <input
@@ -169,7 +170,7 @@ export function TemplateRepositoryModal({
                       />
                       <span className="template-item-name">{shop.name}</span>
                       <span className="template-item-meta">
-                        {shop.groups.length} groups, {itemCount} items
+                        {groupCount} groups, {itemCount} items
                         {shop.sourceFileName ? ` - ${shop.sourceFileName}` : ''}
                       </span>
                     </label>

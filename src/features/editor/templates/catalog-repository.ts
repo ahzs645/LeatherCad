@@ -1,4 +1,7 @@
+import { BUNDLED_CATALOG_SUMMARIES } from './catalog-builtins'
+
 const CATALOG_REPOSITORY_STORAGE_KEY = 'leathercraft-catalog-repository-v1'
+const BUNDLED_CATALOG_IMPORTED_AT = '2026-01-01T00:00:00.000Z'
 
 export type CatalogRepositoryItem = {
   id: string
@@ -33,6 +36,9 @@ export type CatalogRepositoryShop = {
   sourceFileName: string
   importedAt: string
   groups: CatalogRepositoryGroup[]
+  groupCount?: number
+  itemCount?: number
+  isBundled?: boolean
 }
 
 function cloneCatalogRepositoryShop(shop: CatalogRepositoryShop): CatalogRepositoryShop {
@@ -63,6 +69,10 @@ function parseOptionalNumber(value: unknown): number | null {
 
 function buildFallbackId(prefix: string, index: number) {
   return `${prefix}-${index + 1}`
+}
+
+function slugifyId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 function parseCatalogItem(candidate: unknown, parentId: string, index: number): CatalogRepositoryItem | null {
@@ -126,6 +136,15 @@ function parseCatalogRepositoryShop(candidate: unknown): CatalogRepositoryShop |
   ) {
     return null
   }
+  if (value.groupCount !== undefined && typeof value.groupCount !== 'number') {
+    return null
+  }
+  if (value.itemCount !== undefined && typeof value.itemCount !== 'number') {
+    return null
+  }
+  if (value.isBundled !== undefined && typeof value.isBundled !== 'boolean') {
+    return null
+  }
 
   const groups = value.groups
     .filter((group): group is CatalogRepositoryGroup => {
@@ -170,6 +189,9 @@ function parseCatalogRepositoryShop(candidate: unknown): CatalogRepositoryShop |
   return {
     ...value,
     groups,
+    groupCount: value.groupCount,
+    itemCount: value.itemCount,
+    isBundled: value.isBundled,
   } as CatalogRepositoryShop
 }
 
@@ -224,6 +246,8 @@ function parseCatalogRoot(raw: string): {
       sourceFileName: '',
       importedAt: '',
       groups,
+      groupCount: groups.length,
+      itemCount: groups.reduce((count, group) => count + group.items.length, 0),
     },
   }
 }
@@ -269,6 +293,24 @@ export function loadCatalogRepository(): CatalogRepositoryShop[] {
   }
 }
 
+export function loadBundledCatalogRepository(): CatalogRepositoryShop[] {
+  return BUNDLED_CATALOG_SUMMARIES.map((summary) => ({
+    id: `builtin-${slugifyId(summary.sourceFileName)}`,
+    name: summary.name,
+    guid: summary.guid,
+    url: summary.url,
+    memo: summary.memo,
+    shopVersion: summary.shopVersion,
+    metaVersion: summary.metaVersion,
+    sourceFileName: summary.sourceFileName,
+    importedAt: BUNDLED_CATALOG_IMPORTED_AT,
+    groups: [],
+    groupCount: summary.groupCount,
+    itemCount: summary.itemCount,
+    isBundled: true,
+  }))
+}
+
 export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
   if (typeof window === 'undefined') {
     return
@@ -281,5 +323,8 @@ export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
 }
 
 export function getCatalogItemCount(shop: CatalogRepositoryShop): number {
+  if (typeof shop.itemCount === 'number') {
+    return shop.itemCount
+  }
   return shop.groups.reduce((count, group) => count + group.items.length, 0)
 }

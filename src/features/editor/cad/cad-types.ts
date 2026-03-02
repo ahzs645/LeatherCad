@@ -1,4 +1,16 @@
-export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold' | 'stitch-hole' | 'hardware' | 'text'
+export type Tool =
+  | 'pan'
+  | 'line'
+  | 'polyline'
+  | 'rectangle'
+  | 'circle'
+  | 'ellipse'
+  | 'arc'
+  | 'bezier'
+  | 'fold'
+  | 'stitch-hole'
+  | 'hardware'
+  | 'text'
 
 export type Point = {
   x: number

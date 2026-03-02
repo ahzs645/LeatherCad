@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import '../../app/styles/App.css'
 import {
   uid,
@@ -29,6 +29,8 @@ import { EditorModalStack } from './components/EditorModalStack'
 import { EditorPreviewPane } from './components/EditorPreviewPane'
 import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
+import { ContextualActionsPanel } from './components/ContextualActionsPanel'
+import { PrecisionCommandPanel } from './components/PrecisionCommandPanel'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
@@ -44,6 +46,7 @@ import {
 } from './templates/template-repository'
 import { createBuiltinTemplateRepository } from './templates/template-builtins'
 import {
+  loadBundledCatalogRepository,
   loadCatalogRepository,
   saveCatalogRepository,
   type CatalogRepositoryShop,
@@ -266,11 +269,23 @@ export function EditorApp() {
   })
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
   const [catalogRepository, setCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadCatalogRepository())
-  const [selectedCatalogShopId, setSelectedCatalogShopId] = useState<string | null>(null)
+  const [bundledCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadBundledCatalogRepository())
+  const [selectedCatalogShopId, setSelectedCatalogShopId] = useState<string | null>(
+    () => catalogRepository[0]?.id ?? bundledCatalogRepository[0]?.id ?? null,
+  )
   const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
   const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
   const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
+  const mergedCatalogRepository = useMemo(() => {
+    if (bundledCatalogRepository.length === 0) {
+      return catalogRepository
+    }
+    const byId = new Map<string, CatalogRepositoryShop>()
+    bundledCatalogRepository.forEach((shop) => byId.set(shop.id, shop))
+    catalogRepository.forEach((shop) => byId.set(shop.id, shop))
+    return Array.from(byId.values()).sort((left, right) => (left.importedAt > right.importedAt ? -1 : 1))
+  }, [bundledCatalogRepository, catalogRepository])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -640,15 +655,6 @@ export function EditorApp() {
   })
 
   useEffect(() => {
-    setSelectedCatalogShopId((previous) => {
-      if (!previous) {
-        return catalogRepository[0]?.id ?? null
-      }
-      return catalogRepository.some((shop) => shop.id === previous) ? previous : catalogRepository[0]?.id ?? null
-    })
-  }, [catalogRepository])
-
-  useEffect(() => {
     saveCatalogRepository(catalogRepository)
   }, [catalogRepository])
 
@@ -727,11 +733,14 @@ export function EditorApp() {
     handleFitView,
     handlePointerDown,
     handleShapePointerDown,
+    handleShapeHandlePointerDown,
     handleStitchHolePointerDown,
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
     handleWheel,
+    runPrecisionCommand,
+    toolHint,
   } = useCanvasInteractions({
     svgRef,
     panRef,
@@ -762,6 +771,7 @@ export function EditorApp() {
     textSweepDeg,
     stitchHoles,
     hardwareMarkers,
+    selectedShapeIds,
     selectedStitchHoleId,
     selectedHardwareMarkerId,
     setStatus,
@@ -937,6 +947,10 @@ export function EditorApp() {
 
   const selectedEditableShape =
     selectedShapeIds.length === 1 ? (shapesById[selectedShapeIds[0]] ?? null) : null
+  const selectedShapes = useMemo(
+    () => selectedShapeIds.map((shapeId) => shapesById[shapeId]).filter((shape): shape is Shape => shape !== undefined),
+    [selectedShapeIds, shapesById],
+  )
 
   const handleUpdateSelectedShapePoint = (
     pointKey: 'start' | 'mid' | 'control' | 'end',
@@ -1427,7 +1441,7 @@ export function EditorApp() {
     showTemplateRepositoryModal,
     setShowTemplateRepositoryModal,
     templateRepository,
-    catalogRepository,
+    catalogRepository: mergedCatalogRepository,
     selectedTemplateEntryId,
     selectedTemplateEntry,
     selectedCatalogShopId,
@@ -1630,6 +1644,8 @@ export function EditorApp() {
           cutStrokeColor={cutStrokeColor}
           displayLayerColorsById={displayLayerColorsById}
           onShapePointerDown={handleShapePointerDown}
+          onShapeHandlePointerDown={handleShapeHandlePointerDown}
+          showShapeHandles={tool === 'pan'}
           visibleStitchHoles={workspaceStitchHoles}
           selectedStitchHoleId={selectedStitchHoleId}
           showStitchSequenceLabels={showStitchSequenceLabels}
@@ -1663,6 +1679,26 @@ export function EditorApp() {
       </main>
 
       <EditorModalStack {...modalStackProps} />
+
+      <ContextualActionsPanel
+        selectedShapes={selectedShapes}
+        onAlignX={() => handleAlignSelection('x')}
+        onAlignY={() => handleAlignSelection('y')}
+        onAlignBoth={() => handleAlignSelection('both')}
+        onAlignToGrid={handleAlignSelectionToGrid}
+        onCreateOffset={handleCreateOffsetGeometryFromSelection}
+        onCreateBoxStitch={handleCreateBoxStitchFromSelection}
+        onBevelCorner={handleBevelSelectedCorner}
+        onRoundCorner={handleRoundSelectedCorner}
+        onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
+        onAddAlignConstraints={handleAddAlignConstraintsFromSelection}
+        onApplyConstraints={handleApplyConstraints}
+        onApplySeamAllowance={handleApplySeamAllowanceToSelection}
+        onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
+        onApplyTextDefaults={handleApplyTextDefaultsToSelection}
+      />
+
+      <PrecisionCommandPanel toolHint={toolHint} onRunCommand={runPrecisionCommand} />
 
       <section className="project-memo-panel">
         <label className="project-memo-label" htmlFor="project-memo-input">

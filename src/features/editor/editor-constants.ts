@@ -45,6 +45,10 @@ export const CLIPBOARD_PASTE_OFFSET = 12
 export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'pan', label: 'Move' },
   { value: 'line', label: 'Line' },
+  { value: 'polyline', label: 'Polyline' },
+  { value: 'rectangle', label: 'Rectangle' },
+  { value: 'circle', label: 'Circle' },
+  { value: 'ellipse', label: 'Ellipse' },
   { value: 'arc', label: 'Arc' },
   { value: 'bezier', label: 'Bezier' },
   { value: 'fold', label: 'Fold' },

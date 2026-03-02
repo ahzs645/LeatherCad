@@ -415,6 +415,18 @@ export function EditorTopbar({
                 <button className={tool === 'line' ? 'active' : ''} onClick={() => onSetActiveTool('line')}>
                   Line
                 </button>
+                <button className={tool === 'polyline' ? 'active' : ''} onClick={() => onSetActiveTool('polyline')}>
+                  Polyline
+                </button>
+                <button className={tool === 'rectangle' ? 'active' : ''} onClick={() => onSetActiveTool('rectangle')}>
+                  Rect
+                </button>
+                <button className={tool === 'circle' ? 'active' : ''} onClick={() => onSetActiveTool('circle')}>
+                  Circle
+                </button>
+                <button className={tool === 'ellipse' ? 'active' : ''} onClick={() => onSetActiveTool('ellipse')}>
+                  Ellipse
+                </button>
                 <button className={tool === 'arc' ? 'active' : ''} onClick={() => onSetActiveTool('arc')}>
                   Arc
                 </button>
