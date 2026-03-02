@@ -17,13 +17,23 @@ import {
   uid,
 } from './cad-geometry'
 import type {
+  AlignConstraint,
+  ConstraintAnchor,
+  ConstraintAxis,
+  ConstraintEdge,
   DocFile,
   FoldLine,
+  HardwareKind,
+  HardwareMarker,
   Layer,
   LineType,
   LineTypeRole,
+  ParametricConstraint,
   Point,
+  SeamAllowance,
   Shape,
+  SketchGroup,
+  SnapSettings,
   StitchHole,
   StitchHoleType,
   TracingOverlay,
@@ -77,6 +87,25 @@ import {
   pasteClipboardPayload,
   type ClipboardPayload,
 } from './shape-selection-ops'
+import {
+  alignSelectedShapes,
+  alignSelectedShapesToGrid,
+  applyParametricConstraints,
+  buildSeamAllowancePath,
+  computeBoundsFromShapes,
+  getShapeAnchorPoint,
+  snapPointToContext,
+  translateShape,
+} from './pattern-ops'
+import {
+  DEFAULT_FOLD_CLEARANCE_MM,
+  DEFAULT_FOLD_DIRECTION,
+  DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+  DEFAULT_FOLD_RADIUS_MM,
+  DEFAULT_FOLD_STIFFNESS,
+  DEFAULT_FOLD_THICKNESS_MM,
+  parseFoldDirection,
+} from './fold-line-ops'
 
 const GRID_STEP = 100
 const GRID_EXTENT = 4000
@@ -90,6 +119,24 @@ const STITCH_COLOR_DARK = '#f59e0b'
 const STITCH_COLOR_LIGHT = '#b45309'
 const FOLD_COLOR_DARK = '#ef4444'
 const FOLD_COLOR_LIGHT = '#dc2626'
+const DEFAULT_SEAM_ALLOWANCE_MM = 4
+const SUB_SKETCH_COPY_OFFSET_MM = 18
+
+const DEFAULT_SNAP_SETTINGS: SnapSettings = {
+  enabled: true,
+  grid: true,
+  gridStep: 10,
+  endpoints: true,
+  midpoints: true,
+  guides: true,
+  hardware: true,
+}
+
+const HARDWARE_PRESETS: Record<Exclude<HardwareKind, 'custom'>, { label: string; holeDiameterMm: number; spacingMm: number }> = {
+  snap: { label: 'Snap', holeDiameterMm: 4, spacingMm: 0 },
+  rivet: { label: 'Rivet', holeDiameterMm: 3, spacingMm: 0 },
+  buckle: { label: 'Buckle', holeDiameterMm: 5, spacingMm: 18 },
+}
 
 type MobileViewMode = 'editor' | 'preview' | 'split'
 type MobileOptionsTab = 'view' | 'layers' | 'file'
@@ -126,14 +173,35 @@ type MobileFileAction =
   | 'toggle-3d'
   | 'clear'
 
+type SeamGuide = {
+  id: string
+  shapeId: string
+  d: string
+  labelPoint: Point
+  offsetMm: number
+}
+
+type AnnotationLabel = {
+  id: string
+  text: string
+  point: Point
+}
+
 type EditorSnapshot = {
   layers: Layer[]
   activeLayerId: string
+  sketchGroups: SketchGroup[]
+  activeSketchGroupId: string | null
   lineTypes: LineType[]
   activeLineTypeId: string
   shapes: Shape[]
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
+  constraints: ParametricConstraint[]
+  seamAllowances: SeamAllowance[]
+  hardwareMarkers: HardwareMarker[]
+  snapSettings: SnapSettings
+  showAnnotations: boolean
   tracingOverlays: TracingOverlay[]
   layerColorOverrides: Record<string, string>
   frontLayerColor: string
@@ -228,19 +296,57 @@ function parseFoldLine(value: unknown): FoldLine | null {
     end?: unknown
     angleDeg?: unknown
     maxAngleDeg?: unknown
+    direction?: unknown
+    radiusMm?: unknown
+    thicknessMm?: unknown
+    neutralAxisRatio?: unknown
+    stiffness?: unknown
+    clearanceMm?: unknown
   }
 
   if (!isPointLike(candidate.start) || !isPointLike(candidate.end)) {
     return null
   }
 
-  return {
+  return sanitizeFoldLine({
     id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
     name: typeof candidate.name === 'string' && candidate.name.length > 0 ? candidate.name : 'Fold',
     start: candidate.start,
     end: candidate.end,
-    angleDeg: typeof candidate.angleDeg === 'number' ? clamp(candidate.angleDeg, 0, 180) : 0,
-    maxAngleDeg: typeof candidate.maxAngleDeg === 'number' ? clamp(candidate.maxAngleDeg, 10, 180) : 180,
+    angleDeg: typeof candidate.angleDeg === 'number' ? candidate.angleDeg : 0,
+    maxAngleDeg: typeof candidate.maxAngleDeg === 'number' ? candidate.maxAngleDeg : 180,
+    direction: candidate.direction as FoldLine['direction'],
+    radiusMm: typeof candidate.radiusMm === 'number' ? candidate.radiusMm : DEFAULT_FOLD_RADIUS_MM,
+    thicknessMm: typeof candidate.thicknessMm === 'number' ? candidate.thicknessMm : DEFAULT_FOLD_THICKNESS_MM,
+    neutralAxisRatio:
+      typeof candidate.neutralAxisRatio === 'number'
+        ? candidate.neutralAxisRatio
+        : DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+    stiffness: typeof candidate.stiffness === 'number' ? candidate.stiffness : DEFAULT_FOLD_STIFFNESS,
+    clearanceMm: typeof candidate.clearanceMm === 'number' ? candidate.clearanceMm : DEFAULT_FOLD_CLEARANCE_MM,
+  })
+}
+
+function sanitizeFoldLine(foldLine: FoldLine): FoldLine {
+  const maxAngleDeg = Number.isFinite(foldLine.maxAngleDeg) ? clamp(foldLine.maxAngleDeg, 10, 180) : 180
+  return {
+    ...foldLine,
+    angleDeg: Number.isFinite(foldLine.angleDeg) ? clamp(foldLine.angleDeg, 0, maxAngleDeg) : 0,
+    maxAngleDeg,
+    direction: parseFoldDirection(foldLine.direction) ?? DEFAULT_FOLD_DIRECTION,
+    radiusMm: Number.isFinite(foldLine.radiusMm) ? clamp(foldLine.radiusMm ?? DEFAULT_FOLD_RADIUS_MM, 0, 30) : DEFAULT_FOLD_RADIUS_MM,
+    thicknessMm: Number.isFinite(foldLine.thicknessMm)
+      ? clamp(foldLine.thicknessMm ?? DEFAULT_FOLD_THICKNESS_MM, 0.2, 20)
+      : DEFAULT_FOLD_THICKNESS_MM,
+    neutralAxisRatio: Number.isFinite(foldLine.neutralAxisRatio)
+      ? clamp(foldLine.neutralAxisRatio ?? DEFAULT_FOLD_NEUTRAL_AXIS_RATIO, 0, 1)
+      : DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+    stiffness: Number.isFinite(foldLine.stiffness)
+      ? clamp(foldLine.stiffness ?? DEFAULT_FOLD_STIFFNESS, 0, 1)
+      : DEFAULT_FOLD_STIFFNESS,
+    clearanceMm: Number.isFinite(foldLine.clearanceMm)
+      ? clamp(foldLine.clearanceMm ?? DEFAULT_FOLD_CLEARANCE_MM, 0, 20)
+      : DEFAULT_FOLD_CLEARANCE_MM,
   }
 }
 
@@ -255,6 +361,7 @@ function parseLayer(value: unknown): Layer | null {
     visible?: unknown
     locked?: unknown
     stackLevel?: unknown
+    annotation?: unknown
   }
 
   if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
@@ -270,6 +377,217 @@ function parseLayer(value: unknown): Layer | null {
       typeof candidate.stackLevel === 'number' && Number.isFinite(candidate.stackLevel)
         ? Math.max(0, Math.round(candidate.stackLevel))
         : undefined,
+    annotation: typeof candidate.annotation === 'string' ? candidate.annotation : undefined,
+  }
+}
+
+function parseSketchGroup(value: unknown): SketchGroup | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as {
+    id?: unknown
+    name?: unknown
+    layerId?: unknown
+    visible?: unknown
+    locked?: unknown
+    annotation?: unknown
+  }
+
+  if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
+    return null
+  }
+  if (typeof candidate.layerId !== 'string' || candidate.layerId.length === 0) {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    name: typeof candidate.name === 'string' && candidate.name.trim().length > 0 ? candidate.name.trim() : 'Sub-Sketch',
+    layerId: candidate.layerId,
+    visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
+    locked: typeof candidate.locked === 'boolean' ? candidate.locked : false,
+    annotation: typeof candidate.annotation === 'string' ? candidate.annotation : undefined,
+  }
+}
+
+function parseSeamAllowance(value: unknown): SeamAllowance | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as {
+    id?: unknown
+    shapeId?: unknown
+    offsetMm?: unknown
+  }
+
+  if (typeof candidate.shapeId !== 'string' || candidate.shapeId.length === 0) {
+    return null
+  }
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
+    shapeId: candidate.shapeId,
+    offsetMm:
+      typeof candidate.offsetMm === 'number' && Number.isFinite(candidate.offsetMm)
+        ? Math.max(0.1, Math.abs(candidate.offsetMm))
+        : DEFAULT_SEAM_ALLOWANCE_MM,
+  }
+}
+
+function parseHardwareMarker(value: unknown): HardwareMarker | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as {
+    id?: unknown
+    layerId?: unknown
+    groupId?: unknown
+    point?: unknown
+    kind?: unknown
+    label?: unknown
+    holeDiameterMm?: unknown
+    spacingMm?: unknown
+    notes?: unknown
+    visible?: unknown
+  }
+
+  if (typeof candidate.layerId !== 'string' || candidate.layerId.length === 0 || !isPointLike(candidate.point)) {
+    return null
+  }
+
+  const kind: HardwareKind =
+    candidate.kind === 'snap' || candidate.kind === 'rivet' || candidate.kind === 'buckle' || candidate.kind === 'custom'
+      ? candidate.kind
+      : 'snap'
+
+  const fallbackPreset = kind === 'custom' ? HARDWARE_PRESETS.snap : HARDWARE_PRESETS[kind]
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
+    layerId: candidate.layerId,
+    groupId: typeof candidate.groupId === 'string' && candidate.groupId.length > 0 ? candidate.groupId : undefined,
+    point: candidate.point,
+    kind,
+    label:
+      typeof candidate.label === 'string' && candidate.label.trim().length > 0
+        ? candidate.label.trim()
+        : kind === 'custom'
+          ? 'Hardware'
+          : fallbackPreset.label,
+    holeDiameterMm:
+      typeof candidate.holeDiameterMm === 'number' && Number.isFinite(candidate.holeDiameterMm)
+        ? Math.max(0.1, Math.abs(candidate.holeDiameterMm))
+        : fallbackPreset.holeDiameterMm,
+    spacingMm:
+      typeof candidate.spacingMm === 'number' && Number.isFinite(candidate.spacingMm)
+        ? Math.max(0, candidate.spacingMm)
+        : fallbackPreset.spacingMm,
+    notes: typeof candidate.notes === 'string' ? candidate.notes : undefined,
+    visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
+  }
+}
+
+function parseConstraintAnchor(value: unknown): ConstraintAnchor {
+  if (value === 'start' || value === 'end' || value === 'mid' || value === 'center') {
+    return value
+  }
+  return 'center'
+}
+
+function parseConstraint(value: unknown): ParametricConstraint | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as {
+    id?: unknown
+    name?: unknown
+    type?: unknown
+    enabled?: unknown
+    shapeId?: unknown
+    referenceLayerId?: unknown
+    edge?: unknown
+    anchor?: unknown
+    offsetMm?: unknown
+    referenceShapeId?: unknown
+    axis?: unknown
+    referenceAnchor?: unknown
+  }
+
+  if (typeof candidate.shapeId !== 'string' || candidate.shapeId.length === 0) {
+    return null
+  }
+
+  const id = typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid()
+  const name = typeof candidate.name === 'string' && candidate.name.trim().length > 0 ? candidate.name.trim() : 'Constraint'
+  const enabled = typeof candidate.enabled === 'boolean' ? candidate.enabled : true
+
+  if (candidate.type === 'edge-offset') {
+    if (typeof candidate.referenceLayerId !== 'string' || candidate.referenceLayerId.length === 0) {
+      return null
+    }
+    const edge: ConstraintEdge =
+      candidate.edge === 'left' || candidate.edge === 'right' || candidate.edge === 'top' || candidate.edge === 'bottom'
+        ? candidate.edge
+        : 'left'
+    return {
+      id,
+      name,
+      type: 'edge-offset',
+      enabled,
+      shapeId: candidate.shapeId,
+      referenceLayerId: candidate.referenceLayerId,
+      edge,
+      anchor: parseConstraintAnchor(candidate.anchor),
+      offsetMm:
+        typeof candidate.offsetMm === 'number' && Number.isFinite(candidate.offsetMm)
+          ? Math.max(0, candidate.offsetMm)
+          : 10,
+    }
+  }
+
+  if (candidate.type === 'align') {
+    if (typeof candidate.referenceShapeId !== 'string' || candidate.referenceShapeId.length === 0) {
+      return null
+    }
+    const axis: ConstraintAxis = candidate.axis === 'x' || candidate.axis === 'y' || candidate.axis === 'both' ? candidate.axis : 'x'
+    return {
+      id,
+      name,
+      type: 'align',
+      enabled,
+      shapeId: candidate.shapeId,
+      referenceShapeId: candidate.referenceShapeId,
+      axis,
+      anchor: parseConstraintAnchor(candidate.anchor),
+      referenceAnchor: parseConstraintAnchor(candidate.referenceAnchor),
+    }
+  }
+
+  return null
+}
+
+function parseSnapSettings(value: unknown): SnapSettings | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<SnapSettings>
+  return {
+    enabled: typeof candidate.enabled === 'boolean' ? candidate.enabled : DEFAULT_SNAP_SETTINGS.enabled,
+    grid: typeof candidate.grid === 'boolean' ? candidate.grid : DEFAULT_SNAP_SETTINGS.grid,
+    gridStep:
+      typeof candidate.gridStep === 'number' && Number.isFinite(candidate.gridStep)
+        ? Math.max(0.1, candidate.gridStep)
+        : DEFAULT_SNAP_SETTINGS.gridStep,
+    endpoints: typeof candidate.endpoints === 'boolean' ? candidate.endpoints : DEFAULT_SNAP_SETTINGS.endpoints,
+    midpoints: typeof candidate.midpoints === 'boolean' ? candidate.midpoints : DEFAULT_SNAP_SETTINGS.midpoints,
+    guides: typeof candidate.guides === 'boolean' ? candidate.guides : DEFAULT_SNAP_SETTINGS.guides,
+    hardware: typeof candidate.hardware === 'boolean' ? candidate.hardware : DEFAULT_SNAP_SETTINGS.hardware,
   }
 }
 
@@ -314,6 +632,10 @@ function newLayerName(index: number) {
   return `Layer ${index + 1}`
 }
 
+function newSketchGroupName(index: number) {
+  return `Sub-Sketch ${index + 1}`
+}
+
 function createDefaultLayer(id: string): Layer {
   return {
     id,
@@ -341,6 +663,13 @@ function App() {
   const [shapes, setShapes] = useState<Shape[]>([])
   const [foldLines, setFoldLines] = useState<FoldLine[]>([])
   const [stitchHoles, setStitchHoles] = useState<StitchHole[]>([])
+  const [sketchGroups, setSketchGroups] = useState<SketchGroup[]>([])
+  const [activeSketchGroupId, setActiveSketchGroupId] = useState<string | null>(null)
+  const [constraints, setConstraints] = useState<ParametricConstraint[]>([])
+  const [seamAllowances, setSeamAllowances] = useState<SeamAllowance[]>([])
+  const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
+  const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS)
+  const [showAnnotations, setShowAnnotations] = useState(true)
   const [layers, setLayers] = useState<Layer[]>(() => [
     {
       id: initialLayerIdRef.current,
@@ -373,6 +702,7 @@ function App() {
   const [dxfVersion, setDxfVersion] = useState<DxfVersion>('r12')
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([])
   const [selectedStitchHoleId, setSelectedStitchHoleId] = useState<string | null>(null)
+  const [selectedHardwareMarkerId, setSelectedHardwareMarkerId] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark')
   const [legendMode, setLegendMode] = useState<LegendMode>('layer')
   const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
@@ -382,6 +712,7 @@ function App() {
   const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
   const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
   const [showTracingModal, setShowTracingModal] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
   const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => loadTemplateRepository())
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
   const [showTemplateRepositoryModal, setShowTemplateRepositoryModal] = useState(false)
@@ -397,6 +728,13 @@ function App() {
   const [printStitchAsDots, setPrintStitchAsDots] = useState(false)
   const [showPrintAreas, setShowPrintAreas] = useState(false)
   const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false)
+  const [seamAllowanceInputMm, setSeamAllowanceInputMm] = useState(DEFAULT_SEAM_ALLOWANCE_MM)
+  const [constraintEdge, setConstraintEdge] = useState<ConstraintEdge>('left')
+  const [constraintOffsetMm, setConstraintOffsetMm] = useState(10)
+  const [constraintAxis, setConstraintAxis] = useState<ConstraintAxis>('x')
+  const [hardwarePreset, setHardwarePreset] = useState<HardwareKind>('snap')
+  const [customHardwareDiameterMm, setCustomHardwareDiameterMm] = useState(4)
+  const [customHardwareSpacingMm, setCustomHardwareSpacingMm] = useState(0)
   const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
   const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
@@ -416,6 +754,14 @@ function App() {
   )
 
   const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? layers[0] ?? null, [layers, activeLayerId])
+  const sketchGroupsById = useMemo(
+    () => Object.fromEntries(sketchGroups.map((group) => [group.id, group])),
+    [sketchGroups],
+  )
+  const activeSketchGroup = useMemo(
+    () => (activeSketchGroupId ? sketchGroups.find((group) => group.id === activeSketchGroupId) ?? null : null),
+    [sketchGroups, activeSketchGroupId],
+  )
   const activeLineType = useMemo(
     () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
     [lineTypes, activeLineTypeId],
@@ -440,6 +786,10 @@ function App() {
     () => stitchHoles.find((stitchHole) => stitchHole.id === selectedStitchHoleId) ?? null,
     [stitchHoles, selectedStitchHoleId],
   )
+  const selectedHardwareMarker = useMemo(
+    () => hardwareMarkers.find((marker) => marker.id === selectedHardwareMarkerId) ?? null,
+    [hardwareMarkers, selectedHardwareMarkerId],
+  )
   const activeTracingOverlay = useMemo(
     () => tracingOverlays.find((overlay) => overlay.id === activeTracingOverlayId) ?? null,
     [tracingOverlays, activeTracingOverlayId],
@@ -453,8 +803,17 @@ function App() {
   const visibleShapes = useMemo(() => {
     const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
     const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
-    return shapes.filter((shape) => visibleLayerIds.has(shape.layerId) && visibleLineTypeIds.has(shape.lineTypeId))
-  }, [layers, lineTypes, shapes])
+    return shapes.filter((shape) => {
+      if (!visibleLayerIds.has(shape.layerId) || !visibleLineTypeIds.has(shape.lineTypeId)) {
+        return false
+      }
+      if (!shape.groupId) {
+        return true
+      }
+      const group = sketchGroupsById[shape.groupId]
+      return group ? group.visible : true
+    })
+  }, [layers, lineTypes, shapes, sketchGroupsById])
   const visibleShapeIdSet = useMemo(() => new Set(visibleShapes.map((shape) => shape.id)), [visibleShapes])
   const visibleStitchHoles = useMemo(
     () =>
@@ -469,6 +828,94 @@ function App() {
     [stitchHoles, shapesById, visibleShapeIdSet, lineTypesById],
   )
   const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
+  const visibleHardwareMarkers = useMemo(
+    () =>
+      hardwareMarkers.filter((marker) => {
+        if (!marker.visible || !visibleLayerIdSet.has(marker.layerId)) {
+          return false
+        }
+        if (!marker.groupId) {
+          return true
+        }
+        const group = sketchGroupsById[marker.groupId]
+        return group ? group.visible : true
+      }),
+    [hardwareMarkers, visibleLayerIdSet, sketchGroupsById],
+  )
+  const seamGuides = useMemo<SeamGuide[]>(
+    () =>
+      seamAllowances
+        .map((entry) => {
+          const shape = shapesById[entry.shapeId]
+          if (!shape || !visibleShapeIdSet.has(shape.id)) {
+            return null
+          }
+          const d = buildSeamAllowancePath(shape, entry.offsetMm)
+          if (!d) {
+            return null
+          }
+          return {
+            id: entry.id,
+            shapeId: shape.id,
+            d,
+            labelPoint: getShapeAnchorPoint(shape, 'center'),
+            offsetMm: entry.offsetMm,
+          }
+        })
+        .filter((entry): entry is SeamGuide => entry !== null),
+    [seamAllowances, shapesById, visibleShapeIdSet],
+  )
+  const annotationLabels = useMemo<AnnotationLabel[]>(() => {
+    if (!showAnnotations) {
+      return []
+    }
+
+    const labels: AnnotationLabel[] = []
+    for (const layer of layers) {
+      if (!layer.visible || !layer.annotation || layer.annotation.trim().length === 0) {
+        continue
+      }
+      const onLayer = visibleShapes.filter((shape) => shape.layerId === layer.id)
+      const bounds = computeBoundsFromShapes(onLayer)
+      if (!bounds) {
+        continue
+      }
+      labels.push({
+        id: `layer-${layer.id}`,
+        text: layer.annotation.trim(),
+        point: { x: bounds.minX + 6, y: bounds.minY - 8 },
+      })
+    }
+
+    for (const group of sketchGroups) {
+      if (!group.visible || !group.annotation || group.annotation.trim().length === 0) {
+        continue
+      }
+      const onGroup = visibleShapes.filter((shape) => shape.groupId === group.id)
+      const bounds = computeBoundsFromShapes(onGroup)
+      if (!bounds) {
+        continue
+      }
+      labels.push({
+        id: `group-${group.id}`,
+        text: group.annotation.trim(),
+        point: { x: bounds.minX + 6, y: bounds.minY - 8 },
+      })
+    }
+
+    for (const marker of visibleHardwareMarkers) {
+      if (!marker.notes || marker.notes.trim().length === 0) {
+        continue
+      }
+      labels.push({
+        id: `hardware-${marker.id}`,
+        text: marker.notes.trim(),
+        point: { x: marker.point.x + 7, y: marker.point.y - 7 },
+      })
+    }
+
+    return labels
+  }, [showAnnotations, layers, sketchGroups, visibleShapes, visibleHardwareMarkers])
   const lineTypeStylesById = useMemo(
     () =>
       Object.fromEntries(
@@ -583,11 +1030,18 @@ function App() {
     () => ({
       layers: deepClone(layers),
       activeLayerId,
+      sketchGroups: deepClone(sketchGroups),
+      activeSketchGroupId,
       lineTypes: deepClone(lineTypes),
       activeLineTypeId,
       shapes: deepClone(shapes),
       foldLines: deepClone(foldLines),
       stitchHoles: deepClone(stitchHoles),
+      constraints: deepClone(constraints),
+      seamAllowances: deepClone(seamAllowances),
+      hardwareMarkers: deepClone(hardwareMarkers),
+      snapSettings: deepClone(snapSettings),
+      showAnnotations,
       tracingOverlays: deepClone(tracingOverlays),
       layerColorOverrides: deepClone(layerColorOverrides),
       frontLayerColor,
@@ -596,11 +1050,18 @@ function App() {
     [
       layers,
       activeLayerId,
+      sketchGroups,
+      activeSketchGroupId,
       lineTypes,
       activeLineTypeId,
       shapes,
       foldLines,
       stitchHoles,
+      constraints,
+      seamAllowances,
+      hardwareMarkers,
+      snapSettings,
+      showAnnotations,
       tracingOverlays,
       layerColorOverrides,
       frontLayerColor,
@@ -615,17 +1076,25 @@ function App() {
   const applyEditorSnapshot = (snapshot: EditorSnapshot) => {
     setLayers(snapshot.layers)
     setActiveLayerId(snapshot.activeLayerId)
+    setSketchGroups(snapshot.sketchGroups)
+    setActiveSketchGroupId(snapshot.activeSketchGroupId)
     setLineTypes(snapshot.lineTypes)
     setActiveLineTypeId(snapshot.activeLineTypeId)
     setShapes(snapshot.shapes)
     setFoldLines(snapshot.foldLines)
     setStitchHoles(snapshot.stitchHoles)
+    setConstraints(snapshot.constraints)
+    setSeamAllowances(snapshot.seamAllowances)
+    setHardwareMarkers(snapshot.hardwareMarkers)
+    setSnapSettings(snapshot.snapSettings)
+    setShowAnnotations(snapshot.showAnnotations)
     setTracingOverlays(snapshot.tracingOverlays)
     setLayerColorOverrides(snapshot.layerColorOverrides)
     setFrontLayerColor(snapshot.frontLayerColor)
     setBackLayerColor(snapshot.backLayerColor)
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
+    setSelectedHardwareMarkerId(null)
   }
 
   const gridLines = useMemo(() => {
@@ -725,6 +1194,14 @@ function App() {
     }
   }
 
+  const getSnappedPoint = (point: Point) =>
+    snapPointToContext(point, snapSettings, {
+      shapes: visibleShapes,
+      foldLines,
+      hardwareMarkers: visibleHardwareMarkers,
+      viewportScale: viewport.scale,
+    })
+
   const zoomAtScreenPoint = (screenX: number, screenY: number, zoomFactor: number) => {
     setViewport((previous) => {
       const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
@@ -813,6 +1290,21 @@ function App() {
       return false
     }
 
+    if (activeSketchGroup) {
+      if (!activeSketchGroup.visible) {
+        setStatus('Active sub-sketch is hidden. Show it before drawing.')
+        return false
+      }
+      if (activeSketchGroup.locked) {
+        setStatus('Active sub-sketch is locked. Unlock it before drawing.')
+        return false
+      }
+      if (activeSketchGroup.layerId !== activeLayer.id) {
+        setStatus('Active sub-sketch belongs to another layer. Switch layer or clear active sub-sketch.')
+        return false
+      }
+    }
+
     return true
   }
 
@@ -835,14 +1327,22 @@ function App() {
     const defaultLineTypes = createDefaultLineTypes()
     setLayers([createDefaultLayer(baseLayerId)])
     setActiveLayerId(baseLayerId)
+    setSketchGroups([])
+    setActiveSketchGroupId(null)
     setLineTypes(defaultLineTypes)
     setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
     setShapes([])
     setFoldLines([])
     setStitchHoles([])
+    setConstraints([])
+    setSeamAllowances([])
+    setHardwareMarkers([])
+    setSnapSettings(DEFAULT_SNAP_SETTINGS)
+    setShowAnnotations(true)
     setTracingOverlays([])
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
+    setSelectedHardwareMarkerId(null)
     setLayerColorOverrides({})
     setShowPrintAreas(false)
     clearDraft()
@@ -854,17 +1354,68 @@ function App() {
     const normalizedActiveLayerId = normalizedLayers.some((layer) => layer.id === doc.activeLayerId)
       ? doc.activeLayerId
       : normalizedLayers[0].id
+    const layerIdSet = new Set(normalizedLayers.map((layer) => layer.id))
+    const normalizedSketchGroups = (doc.sketchGroups ?? []).filter((group) => layerIdSet.has(group.layerId))
+    const sketchGroupIdSet = new Set(normalizedSketchGroups.map((group) => group.id))
+    const normalizedShapes = doc.objects.map((shape) => {
+      if (!shape.groupId || !sketchGroupIdSet.has(shape.groupId)) {
+        return {
+          ...shape,
+          groupId: undefined,
+        }
+      }
+
+      const group = normalizedSketchGroups.find((entry) => entry.id === shape.groupId)
+      if (!group || group.layerId !== shape.layerId) {
+        return {
+          ...shape,
+          groupId: undefined,
+        }
+      }
+
+      return shape
+    })
+    const shapeIdSet = new Set(normalizedShapes.map((shape) => shape.id))
+    const normalizedConstraints = (doc.constraints ?? []).filter((constraint) => {
+      if (!shapeIdSet.has(constraint.shapeId)) {
+        return false
+      }
+      if (constraint.type === 'edge-offset') {
+        return layerIdSet.has(constraint.referenceLayerId)
+      }
+      return shapeIdSet.has(constraint.referenceShapeId)
+    })
+    const normalizedSeamAllowances = (doc.seamAllowances ?? []).filter((entry) => shapeIdSet.has(entry.shapeId))
+    const normalizedHardwareMarkers = (doc.hardwareMarkers ?? []).filter((marker) => {
+      if (!layerIdSet.has(marker.layerId)) {
+        return false
+      }
+      if (!marker.groupId) {
+        return true
+      }
+      return sketchGroupIdSet.has(marker.groupId)
+    })
+    const normalizedActiveSketchGroupId =
+      doc.activeSketchGroupId && sketchGroupIdSet.has(doc.activeSketchGroupId) ? doc.activeSketchGroupId : null
     const nextLineTypes = normalizeLineTypes(doc.lineTypes ?? [])
     setLayers(normalizedLayers)
     setActiveLayerId(normalizedActiveLayerId)
+    setSketchGroups(normalizedSketchGroups)
+    setActiveSketchGroupId(normalizedActiveSketchGroupId)
     setLineTypes(nextLineTypes)
     setActiveLineTypeId(resolveActiveLineTypeId(nextLineTypes, doc.activeLineTypeId))
-    setShapes(doc.objects)
+    setShapes(normalizedShapes)
     setFoldLines(doc.foldLines)
     setStitchHoles(normalizeStitchHoleSequences(doc.stitchHoles ?? []))
+    setConstraints(normalizedConstraints)
+    setSeamAllowances(normalizedSeamAllowances)
+    setHardwareMarkers(normalizedHardwareMarkers)
+    setSnapSettings(doc.snapSettings ?? DEFAULT_SNAP_SETTINGS)
+    setShowAnnotations(typeof doc.showAnnotations === 'boolean' ? doc.showAnnotations : true)
     setTracingOverlays(doc.tracingOverlays ?? [])
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
+    setSelectedHardwareMarkerId(null)
     setLayerColorOverrides({})
     setTool('pan')
     setShowPrintAreas(false)
@@ -908,16 +1459,32 @@ function App() {
 
   const handleDeleteSelection = useCallback(() => {
     if (selectedShapeIdSet.size === 0) {
+      if (selectedHardwareMarkerId) {
+        setHardwareMarkers((previous) => previous.filter((marker) => marker.id !== selectedHardwareMarkerId))
+        setSelectedHardwareMarkerId(null)
+        setStatus('Deleted selected hardware marker')
+        return
+      }
       setStatus('No selected shapes to delete')
       return
     }
     const deleteCount = selectedShapeIdSet.size
     setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
     setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
+    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
+    setConstraints((previous) =>
+      previous.filter((entry) => {
+        if (selectedShapeIdSet.has(entry.shapeId)) {
+          return false
+        }
+        return entry.type === 'edge-offset' ? true : !selectedShapeIdSet.has(entry.referenceShapeId)
+      }),
+    )
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
+    setSelectedHardwareMarkerId(null)
     setStatus(`Deleted ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
-  }, [selectedShapeIdSet])
+  }, [selectedShapeIdSet, selectedHardwareMarkerId])
 
   const handleCutSelection = useCallback(() => {
     if (selectedShapeIdSet.size === 0) {
@@ -929,8 +1496,18 @@ function App() {
     const deleteCount = selectedShapeIdSet.size
     setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
     setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
+    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
+    setConstraints((previous) =>
+      previous.filter((entry) => {
+        if (selectedShapeIdSet.has(entry.shapeId)) {
+          return false
+        }
+        return entry.type === 'edge-offset' ? true : !selectedShapeIdSet.has(entry.referenceShapeId)
+      }),
+    )
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
+    setSelectedHardwareMarkerId(null)
     setStatus(`Cut ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
   }, [selectedShapeIdSet, shapes, stitchHoles])
 
@@ -1014,11 +1591,18 @@ function App() {
     units: 'mm',
     layers,
     activeLayerId,
+    sketchGroups,
+    activeSketchGroupId,
     lineTypes,
     activeLineTypeId,
     objects: shapes,
     foldLines,
     stitchHoles,
+    constraints,
+    seamAllowances,
+    hardwareMarkers,
+    snapSettings,
+    showAnnotations,
     tracingOverlays,
   })
 
@@ -1441,10 +2025,12 @@ function App() {
       return
     }
 
-    const point = toWorldPoint(event.clientX, event.clientY)
-    if (!point) {
+    const rawPoint = toWorldPoint(event.clientX, event.clientY)
+    if (!rawPoint) {
       return
     }
+    const snappedPoint = getSnappedPoint(rawPoint)
+    const point = snappedPoint.point
 
     setCursorPoint(point)
 
@@ -1473,6 +2059,7 @@ function App() {
           type: 'line',
           layerId: activeLayerId,
           lineTypeId: activeLineTypeId,
+          groupId: activeSketchGroup?.id,
           start,
           end: point,
         },
@@ -1522,6 +2109,36 @@ function App() {
       return
     }
 
+    if (tool === 'hardware') {
+      if (!ensureActiveLayerWritable()) {
+        return
+      }
+
+      const preset = hardwarePreset === 'custom' ? null : HARDWARE_PRESETS[hardwarePreset]
+      const marker: HardwareMarker = {
+        id: uid(),
+        layerId: activeLayerId,
+        groupId: activeSketchGroup?.id,
+        point,
+        kind: hardwarePreset,
+        label: hardwarePreset === 'custom' ? 'Hardware' : preset?.label ?? 'Hardware',
+        holeDiameterMm:
+          hardwarePreset === 'custom'
+            ? clamp(customHardwareDiameterMm || 4, 0.1, 120)
+            : (preset?.holeDiameterMm ?? 4),
+        spacingMm:
+          hardwarePreset === 'custom'
+            ? clamp(customHardwareSpacingMm || 0, 0, 300)
+            : (preset?.spacingMm ?? 0),
+        notes: '',
+        visible: true,
+      }
+      setHardwareMarkers((previous) => [...previous, marker])
+      setSelectedHardwareMarkerId(marker.id)
+      setStatus(`Placed hardware marker (${marker.kind})`)
+      return
+    }
+
     if (tool === 'fold') {
       if (draftPoints.length === 0) {
         setDraftPoints([point])
@@ -1538,14 +2155,20 @@ function App() {
 
       setFoldLines((previous) => [
         ...previous,
-        {
+        sanitizeFoldLine({
           id: uid(),
           name: `Fold ${previous.length + 1}`,
           start,
           end: point,
           angleDeg: 0,
           maxAngleDeg: 180,
-        },
+          direction: DEFAULT_FOLD_DIRECTION,
+          radiusMm: DEFAULT_FOLD_RADIUS_MM,
+          thicknessMm: DEFAULT_FOLD_THICKNESS_MM,
+          neutralAxisRatio: DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+          stiffness: DEFAULT_FOLD_STIFFNESS,
+          clearanceMm: DEFAULT_FOLD_CLEARANCE_MM,
+        }),
       ])
       clearDraft()
       setStatus('Fold line assigned')
@@ -1570,6 +2193,7 @@ function App() {
           type: 'arc',
           layerId: activeLayerId,
           lineTypeId: activeLineTypeId,
+          groupId: activeSketchGroup?.id,
           start: draftPoints[0],
           mid: draftPoints[1],
           end: point,
@@ -1598,6 +2222,7 @@ function App() {
           type: 'bezier',
           layerId: activeLayerId,
           lineTypeId: activeLineTypeId,
+          groupId: activeSketchGroup?.id,
           start: draftPoints[0],
           control: draftPoints[1],
           end: point,
@@ -1654,6 +2279,26 @@ function App() {
     setStatus(nextId ? `Stitch hole ${stitchHole.sequence + 1} selected` : 'Stitch-hole selection cleared')
   }
 
+  const handleHardwarePointerDown = (event: ReactPointerEvent<SVGGElement>, markerId: string) => {
+    if (tool !== 'pan') {
+      return
+    }
+
+    if (event.pointerType !== 'touch' && event.button !== 0) {
+      return
+    }
+
+    const marker = hardwareMarkers.find((entry) => entry.id === markerId)
+    if (!marker) {
+      return
+    }
+
+    event.stopPropagation()
+    const nextId = selectedHardwareMarkerId === markerId ? null : markerId
+    setSelectedHardwareMarkerId(nextId)
+    setStatus(nextId ? `Hardware marker selected: ${marker.label}` : 'Hardware marker selection cleared')
+  }
+
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
     const panState = panRef.current
     if (isPanning && panState) {
@@ -1671,13 +2316,13 @@ function App() {
       return
     }
 
-    if (draftPoints.length === 0) {
+    if (draftPoints.length === 0 && tool !== 'hardware') {
       return
     }
 
     const point = toWorldPoint(event.clientX, event.clientY)
     if (point) {
-      setCursorPoint(point)
+      setCursorPoint(getSnappedPoint(point).point)
     }
   }
 
@@ -1813,6 +2458,13 @@ function App() {
         objects?: unknown[]
         foldLines?: unknown[]
         stitchHoles?: unknown[]
+        constraints?: unknown[]
+        seamAllowances?: unknown[]
+        hardwareMarkers?: unknown[]
+        sketchGroups?: unknown[]
+        activeSketchGroupId?: unknown
+        snapSettings?: unknown
+        showAnnotations?: unknown
         tracingOverlays?: unknown[]
         layers?: unknown[]
         activeLayerId?: unknown
@@ -1846,6 +2498,18 @@ function App() {
         typeof parsed.activeLayerId === 'string' && nextLayers.some((layer) => layer.id === parsed.activeLayerId)
           ? parsed.activeLayerId
           : nextLayers[0].id
+      const nextLayerIdSet = new Set(nextLayers.map((layer) => layer.id))
+      const nextSketchGroups = Array.isArray(parsed.sketchGroups)
+        ? parsed.sketchGroups
+            .map(parseSketchGroup)
+            .filter((group): group is SketchGroup => group !== null && nextLayerIdSet.has(group.layerId))
+        : []
+      const nextSketchGroupIdSet = new Set(nextSketchGroups.map((group) => group.id))
+      const nextSketchGroupById = Object.fromEntries(nextSketchGroups.map((group) => [group.id, group]))
+      const nextActiveSketchGroupId =
+        typeof parsed.activeSketchGroupId === 'string' && nextSketchGroupIdSet.has(parsed.activeSketchGroupId)
+          ? parsed.activeSketchGroupId
+          : null
 
       const parsedLineTypes = Array.isArray(parsed.lineTypes)
         ? parsed.lineTypes.map((candidate, index) => parseLineType(candidate, index)).filter((lineType): lineType is LineType => lineType !== null)
@@ -1870,6 +2534,14 @@ function App() {
           (candidate as { lineTypeId?: unknown }).lineTypeId,
           nextActiveLineTypeId,
         )
+        const rawGroupId =
+          typeof (candidate as { groupId?: unknown }).groupId === 'string'
+            ? (candidate as { groupId: string }).groupId
+            : null
+        const groupId =
+          rawGroupId && nextSketchGroupIdSet.has(rawGroupId) && nextSketchGroupById[rawGroupId]?.layerId === layerId
+            ? rawGroupId
+            : undefined
 
         const sourceShapeId =
           typeof (candidate as { id?: unknown }).id === 'string' && (candidate as { id: string }).id.length > 0
@@ -1884,6 +2556,7 @@ function App() {
             type: 'line',
             layerId,
             lineTypeId,
+            groupId,
             start: candidate.start,
             end: candidate.end,
           })
@@ -1893,6 +2566,7 @@ function App() {
             type: 'arc',
             layerId,
             lineTypeId,
+            groupId,
             start: candidate.start,
             mid: candidate.mid,
             end: candidate.end,
@@ -1903,6 +2577,7 @@ function App() {
             type: 'bezier',
             layerId,
             lineTypeId,
+            groupId,
             start: candidate.start,
             control: candidate.control,
             end: candidate.end,
@@ -1934,6 +2609,60 @@ function App() {
         }
       }
       const normalizedStitchHoles = normalizeStitchHoleSequences(nextStitchHoles)
+      const nextShapeIdSet = new Set(nextShapes.map((shape) => shape.id))
+      const nextConstraints = Array.isArray(parsed.constraints)
+        ? parsed.constraints
+            .map(parseConstraint)
+            .filter((constraint): constraint is ParametricConstraint => constraint !== null)
+            .map((constraint) => {
+              if (constraint.type === 'edge-offset') {
+                return {
+                  ...constraint,
+                  shapeId: shapeIdMap.get(constraint.shapeId) ?? '',
+                }
+              }
+              return {
+                ...constraint,
+                shapeId: shapeIdMap.get(constraint.shapeId) ?? '',
+                referenceShapeId: shapeIdMap.get(constraint.referenceShapeId) ?? '',
+              } as AlignConstraint
+            })
+            .filter((constraint) => {
+              if (!nextShapeIdSet.has(constraint.shapeId)) {
+                return false
+              }
+              if (constraint.type === 'edge-offset') {
+                return nextLayerIdSet.has(constraint.referenceLayerId)
+              }
+              return nextShapeIdSet.has(constraint.referenceShapeId)
+            })
+        : []
+      const nextSeamAllowances = Array.isArray(parsed.seamAllowances)
+        ? parsed.seamAllowances
+            .map(parseSeamAllowance)
+            .filter((entry): entry is SeamAllowance => entry !== null)
+            .map((entry) => ({
+              ...entry,
+              shapeId: shapeIdMap.get(entry.shapeId) ?? '',
+            }))
+            .filter((entry) => nextShapeIdSet.has(entry.shapeId))
+        : []
+      const nextHardwareMarkers = Array.isArray(parsed.hardwareMarkers)
+        ? parsed.hardwareMarkers
+            .map(parseHardwareMarker)
+            .filter((marker): marker is HardwareMarker => marker !== null)
+            .filter((marker) => {
+              if (!nextLayerIdSet.has(marker.layerId)) {
+                return false
+              }
+              if (!marker.groupId) {
+                return true
+              }
+              return nextSketchGroupIdSet.has(marker.groupId)
+            })
+        : []
+      const nextSnapSettings = parseSnapSettings(parsed.snapSettings) ?? DEFAULT_SNAP_SETTINGS
+      const nextShowAnnotations = typeof parsed.showAnnotations === 'boolean' ? parsed.showAnnotations : true
       const nextTracingOverlays = Array.isArray(parsed.tracingOverlays)
         ? parsed.tracingOverlays
             .map(parseTracingOverlay)
@@ -1946,14 +2675,21 @@ function App() {
           units: 'mm',
           layers: nextLayers,
           activeLayerId: nextActiveLayerId,
+          sketchGroups: nextSketchGroups,
+          activeSketchGroupId: nextActiveSketchGroupId,
           lineTypes: nextLineTypes,
           activeLineTypeId: nextActiveLineTypeId,
           objects: nextShapes,
           foldLines: nextFoldLines,
           stitchHoles: normalizedStitchHoles,
+          constraints: nextConstraints,
+          seamAllowances: nextSeamAllowances,
+          hardwareMarkers: nextHardwareMarkers,
+          snapSettings: nextSnapSettings,
+          showAnnotations: nextShowAnnotations,
           tracingOverlays: nextTracingOverlays,
         },
-        `Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${normalizedStitchHoles.length} holes, ${nextLayers.length} layers)`,
+        `Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${normalizedStitchHoles.length} holes, ${nextLayers.length} layers, ${nextHardwareMarkers.length} hardware markers)`,
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
@@ -1983,7 +2719,13 @@ function App() {
         setStatus('SVG import produced no drawable shapes')
         return
       }
-      setShapes((previous) => [...previous, ...imported.shapes])
+      setShapes((previous) => [
+        ...previous,
+        ...imported.shapes.map((shape) => ({
+          ...shape,
+          groupId: activeSketchGroup?.id,
+        })),
+      ])
       setSelectedShapeIds(imported.shapes.map((shape) => shape.id))
       if (imported.warnings.length > 0) {
         setStatus(`Imported SVG (${imported.shapes.length} shapes) with ${imported.warnings.length} warning(s)`)
@@ -2156,6 +2898,36 @@ function App() {
           : shape,
       ),
     )
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.layerId === deleteLayerId
+          ? {
+              ...group,
+              layerId: fallbackLayer.id,
+            }
+          : group,
+      ),
+    )
+    setHardwareMarkers((previous) =>
+      previous.map((marker) =>
+        marker.layerId === deleteLayerId
+          ? {
+              ...marker,
+              layerId: fallbackLayer.id,
+            }
+          : marker,
+      ),
+    )
+    setConstraints((previous) =>
+      previous.map((constraint) =>
+        constraint.type === 'edge-offset' && constraint.referenceLayerId === deleteLayerId
+          ? {
+              ...constraint,
+              referenceLayerId: fallbackLayer.id,
+            }
+          : constraint,
+      ),
+    )
     setStatus(`Deleted layer and moved its shapes to "${fallbackLayer.name}"`)
   }
 
@@ -2303,6 +3075,394 @@ function App() {
     setBackLayerColor(DEFAULT_BACK_LAYER_COLOR)
     setLayerColorOverrides({})
     setStatus('Layer color continuum reset')
+  }
+
+  const handleCreateSketchGroupFromSelection = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to create a sub-sketch')
+      return
+    }
+
+    if (!activeLayer) {
+      setStatus('No active layer for sub-sketch creation')
+      return
+    }
+
+    const nextGroupId = uid()
+    const nextGroup: SketchGroup = {
+      id: nextGroupId,
+      name: newSketchGroupName(sketchGroups.length),
+      layerId: activeLayer.id,
+      visible: true,
+      locked: false,
+    }
+
+    setSketchGroups((previous) => [...previous, nextGroup])
+    setShapes((previous) =>
+      previous.map((shape) =>
+        selectedShapeIdSet.has(shape.id)
+          ? {
+              ...shape,
+              groupId: nextGroupId,
+            }
+          : shape,
+      ),
+    )
+    setActiveSketchGroupId(nextGroupId)
+    setStatus(`Created sub-sketch "${nextGroup.name}"`)
+  }
+
+  const handleRenameActiveSketchGroup = () => {
+    if (!activeSketchGroup) {
+      setStatus('No active sub-sketch to rename')
+      return
+    }
+
+    const nextName = window.prompt('Sub-sketch name', activeSketchGroup.name)?.trim()
+    if (!nextName) {
+      return
+    }
+
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.id === activeSketchGroup.id
+          ? {
+              ...group,
+              name: nextName,
+            }
+          : group,
+      ),
+    )
+    setStatus(`Renamed sub-sketch to "${nextName}"`)
+  }
+
+  const handleToggleActiveSketchGroupVisibility = () => {
+    if (!activeSketchGroup) {
+      setStatus('No active sub-sketch to update')
+      return
+    }
+
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.id === activeSketchGroup.id
+          ? {
+              ...group,
+              visible: !group.visible,
+            }
+          : group,
+      ),
+    )
+    setStatus(activeSketchGroup.visible ? 'Active sub-sketch hidden' : 'Active sub-sketch shown')
+  }
+
+  const handleToggleActiveSketchGroupLock = () => {
+    if (!activeSketchGroup) {
+      setStatus('No active sub-sketch to update')
+      return
+    }
+
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.id === activeSketchGroup.id
+          ? {
+              ...group,
+              locked: !group.locked,
+            }
+          : group,
+      ),
+    )
+    setStatus(activeSketchGroup.locked ? 'Active sub-sketch unlocked' : 'Active sub-sketch locked')
+  }
+
+  const handleClearActiveSketchGroup = () => {
+    setActiveSketchGroupId(null)
+    setStatus('Active sub-sketch cleared')
+  }
+
+  const handleDeleteActiveSketchGroup = () => {
+    if (!activeSketchGroup) {
+      setStatus('No active sub-sketch to delete')
+      return
+    }
+
+    const deleteGroupId = activeSketchGroup.id
+    setSketchGroups((previous) => previous.filter((group) => group.id !== deleteGroupId))
+    setShapes((previous) =>
+      previous.map((shape) =>
+        shape.groupId === deleteGroupId
+          ? {
+              ...shape,
+              groupId: undefined,
+            }
+          : shape,
+      ),
+    )
+    setHardwareMarkers((previous) =>
+      previous.map((marker) =>
+        marker.groupId === deleteGroupId
+          ? {
+              ...marker,
+              groupId: undefined,
+            }
+          : marker,
+      ),
+    )
+    setActiveSketchGroupId(null)
+    setStatus('Deleted active sub-sketch')
+  }
+
+  const handleDuplicateActiveSketchGroup = () => {
+    if (!activeSketchGroup) {
+      setStatus('No active sub-sketch to place')
+      return
+    }
+
+    const sourceShapes = shapes.filter((shape) => shape.groupId === activeSketchGroup.id)
+    if (sourceShapes.length === 0) {
+      setStatus('Active sub-sketch has no shapes to place')
+      return
+    }
+
+    const shapeIdMap = new Map<string, string>()
+    const duplicatedShapes = sourceShapes.map((shape) => {
+      const nextId = uid()
+      shapeIdMap.set(shape.id, nextId)
+      return {
+        ...translateShape(shape, SUB_SKETCH_COPY_OFFSET_MM, SUB_SKETCH_COPY_OFFSET_MM),
+        id: nextId,
+      }
+    })
+    const duplicatedShapeIds = new Set(duplicatedShapes.map((shape) => shape.id))
+    const duplicatedHoles = stitchHoles
+      .filter((hole) => shapeIdMap.has(hole.shapeId))
+      .map((hole) => ({
+        ...hole,
+        id: uid(),
+        shapeId: shapeIdMap.get(hole.shapeId) ?? hole.shapeId,
+        point: {
+          x: hole.point.x + SUB_SKETCH_COPY_OFFSET_MM,
+          y: hole.point.y + SUB_SKETCH_COPY_OFFSET_MM,
+        },
+      }))
+    const duplicatedSeamAllowances = seamAllowances
+      .filter((entry) => shapeIdMap.has(entry.shapeId))
+      .map((entry) => ({
+        ...entry,
+        id: uid(),
+        shapeId: shapeIdMap.get(entry.shapeId) ?? entry.shapeId,
+      }))
+    const duplicatedHardware = hardwareMarkers
+      .filter((marker) => marker.groupId === activeSketchGroup.id)
+      .map((marker) => ({
+        ...marker,
+        id: uid(),
+        point: {
+          x: marker.point.x + SUB_SKETCH_COPY_OFFSET_MM,
+          y: marker.point.y + SUB_SKETCH_COPY_OFFSET_MM,
+        },
+      }))
+
+    setShapes((previous) => [...previous, ...duplicatedShapes])
+    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...duplicatedHoles]))
+    setSeamAllowances((previous) => [...previous, ...duplicatedSeamAllowances])
+    setHardwareMarkers((previous) => [...previous, ...duplicatedHardware])
+    setSelectedShapeIds(Array.from(duplicatedShapeIds))
+    setStatus(`Placed ${duplicatedShapes.length} copied sub-sketch shape${duplicatedShapes.length === 1 ? '' : 's'}`)
+  }
+
+  const handleSetActiveLayerAnnotation = (value: string) => {
+    if (!activeLayer) {
+      return
+    }
+    setLayers((previous) =>
+      previous.map((layer) =>
+        layer.id === activeLayer.id
+          ? {
+              ...layer,
+              annotation: value,
+            }
+          : layer,
+      ),
+    )
+  }
+
+  const handleSetActiveSketchAnnotation = (value: string) => {
+    if (!activeSketchGroup) {
+      return
+    }
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.id === activeSketchGroup.id
+          ? {
+              ...group,
+              annotation: value,
+            }
+          : group,
+      ),
+    )
+  }
+
+  const handleAddEdgeConstraintFromSelection = () => {
+    if (!activeLayer) {
+      setStatus('No active layer available for edge constraint')
+      return
+    }
+
+    const firstShapeId = selectedShapeIds[0]
+    if (!firstShapeId) {
+      setStatus('Select a shape to add an edge-offset constraint')
+      return
+    }
+
+    const nextConstraint: ParametricConstraint = {
+      id: uid(),
+      name: `Edge offset ${constraints.length + 1}`,
+      type: 'edge-offset',
+      enabled: true,
+      shapeId: firstShapeId,
+      referenceLayerId: activeLayer.id,
+      edge: constraintEdge,
+      anchor: 'center',
+      offsetMm: clamp(constraintOffsetMm, 0, 999),
+    }
+    setConstraints((previous) => [...previous, nextConstraint])
+    setStatus('Edge-offset constraint added')
+  }
+
+  const handleAddAlignConstraintsFromSelection = () => {
+    if (selectedShapeIds.length < 2) {
+      setStatus('Select at least two shapes to add alignment constraints')
+      return
+    }
+
+    const referenceShapeId = selectedShapeIds[0]
+    const nextConstraints: ParametricConstraint[] = selectedShapeIds.slice(1).map((shapeId, index) => ({
+      id: uid(),
+      name: `Align ${constraints.length + index + 1}`,
+      type: 'align',
+      enabled: true,
+      shapeId,
+      referenceShapeId,
+      axis: constraintAxis,
+      anchor: 'center',
+      referenceAnchor: 'center',
+    }))
+    setConstraints((previous) => [...previous, ...nextConstraints])
+    setStatus(`Added ${nextConstraints.length} alignment constraint${nextConstraints.length === 1 ? '' : 's'}`)
+  }
+
+  const handleApplyConstraints = () => {
+    if (constraints.length === 0) {
+      setStatus('No constraints to apply')
+      return
+    }
+    setShapes((previous) => applyParametricConstraints(previous, layers, constraints))
+    setStatus('Applied parametric constraints')
+  }
+
+  const handleAlignSelection = (axis: 'x' | 'y' | 'both') => {
+    if (selectedShapeIdSet.size < 2) {
+      setStatus('Select at least two shapes to align')
+      return
+    }
+    setShapes((previous) => alignSelectedShapes(previous, selectedShapeIdSet, axis))
+    const axisLabel = axis === 'both' ? 'X/Y centers' : axis.toUpperCase()
+    setStatus(`Aligned selected shapes on ${axisLabel}`)
+  }
+
+  const handleAlignSelectionToGrid = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to align to the grid')
+      return
+    }
+    setShapes((previous) => alignSelectedShapesToGrid(previous, selectedShapeIdSet, snapSettings.gridStep))
+    setStatus('Aligned selected shapes to grid')
+  }
+
+  const handleApplySeamAllowanceToSelection = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first')
+      return
+    }
+
+    const safeOffset = clamp(seamAllowanceInputMm, 0.1, 150)
+    const selectedIds = new Set(selectedShapeIds)
+
+    setSeamAllowances((previous) => {
+      const retained = previous.filter((entry) => !selectedIds.has(entry.shapeId))
+      const created = selectedShapeIds.map((shapeId) => ({
+        id: uid(),
+        shapeId,
+        offsetMm: safeOffset,
+      }))
+      return [...retained, ...created]
+    })
+
+    setStatus(`Applied ${safeOffset.toFixed(1)}mm seam allowance to ${selectedShapeIds.length} shape${selectedShapeIds.length === 1 ? '' : 's'}`)
+  }
+
+  const handleClearSeamAllowanceOnSelection = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first')
+      return
+    }
+    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
+    setStatus('Cleared seam allowance on selected shapes')
+  }
+
+  const handleClearAllSeamAllowances = () => {
+    if (seamAllowances.length === 0) {
+      setStatus('No seam allowances to clear')
+      return
+    }
+    setSeamAllowances([])
+    setStatus('Cleared all seam allowances')
+  }
+
+  const handleToggleConstraintEnabled = (constraintId: string) => {
+    setConstraints((previous) =>
+      previous.map((entry) =>
+        entry.id === constraintId
+          ? {
+              ...entry,
+              enabled: !entry.enabled,
+            }
+          : entry,
+      ),
+    )
+  }
+
+  const handleDeleteConstraint = (constraintId: string) => {
+    setConstraints((previous) => previous.filter((entry) => entry.id !== constraintId))
+  }
+
+  const handleDeleteSelectedHardwareMarker = () => {
+    if (!selectedHardwareMarker) {
+      setStatus('No hardware marker selected')
+      return
+    }
+
+    const markerId = selectedHardwareMarker.id
+    setHardwareMarkers((previous) => previous.filter((marker) => marker.id !== markerId))
+    setSelectedHardwareMarkerId(null)
+    setStatus('Deleted hardware marker')
+  }
+
+  const handleUpdateSelectedHardwareMarker = (patch: Partial<HardwareMarker>) => {
+    if (!selectedHardwareMarker) {
+      return
+    }
+
+    setHardwareMarkers((previous) =>
+      previous.map((marker) =>
+        marker.id === selectedHardwareMarker.id
+          ? {
+              ...marker,
+              ...patch,
+            }
+          : marker,
+      ),
+    )
   }
 
   const handleCountStitchHolesOnSelectedShapes = () => {
@@ -2652,7 +3812,6 @@ function App() {
   const showViewOptions = showMobileMenu && mobileOptionsTab === 'view'
   const showLayerOptions = showMobileMenu && mobileOptionsTab === 'layers'
   const showFileOptions = showMobileMenu && mobileOptionsTab === 'file'
-  const showMeta = isMobileLayout ? showMobileMenu : true
   const showDesktopToolSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
   const showDesktopPresetSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
   const showDesktopZoomSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
@@ -2699,6 +3858,15 @@ function App() {
               <span>{selectedShapeCount} selected</span>
               <span>{selectedStitchHoleCount} selected holes</span>
               <span>{showThreePreview ? '3D on' : '3D off'}</span>
+              <button
+                type="button"
+                className="help-button"
+                onClick={() => setShowHelpModal(true)}
+                aria-label="Open help"
+                title="Help"
+              >
+                ?
+              </button>
             </div>
           </div>
         )}
@@ -2762,20 +3930,31 @@ function App() {
                 </>
               )}
               {isMobileLayout && (
-                <button
-                  className="mobile-menu-toggle"
-                  onClick={() =>
-                    setShowMobileMenu((previous) => {
-                      const next = !previous
-                      if (next) {
-                        setMobileOptionsTab('view')
-                      }
-                      return next
-                    })
-                  }
-                >
-                  {showMobileMenu ? 'Close' : 'Options'}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="help-button mobile-help-toggle"
+                    onClick={() => setShowHelpModal(true)}
+                    aria-label="Open help"
+                    title="Help"
+                  >
+                    ?
+                  </button>
+                  <button
+                    className="mobile-menu-toggle"
+                    onClick={() =>
+                      setShowMobileMenu((previous) => {
+                        const next = !previous
+                        if (next) {
+                          setMobileOptionsTab('view')
+                        }
+                        return next
+                      })
+                    }
+                  >
+                    {showMobileMenu ? 'Close' : 'Options'}
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -3041,18 +4220,6 @@ function App() {
           )}
         </div>
 
-        {showMeta && (
-          <div className="group meta ribbon-meta">
-            <span>{Math.round(viewport.scale * 100)}% zoom</span>
-            <span>{visibleShapes.length}/{shapes.length} visible shapes</span>
-            <span>{layers.length} layers</span>
-            <span>{lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types</span>
-            <span>{foldLines.length} bends</span>
-            <span>{stitchHoles.length} stitch holes</span>
-            <span>{tracingOverlays.length} traces</span>
-            <span>{templateRepository.length} templates</span>
-          </div>
-        )}
       </header>
 
       <main className={workspaceClassName}>
@@ -3333,14 +4500,14 @@ function App() {
               lineTypes={lineTypes}
               themeMode={themeMode}
               isMobileLayout={isMobileLayout}
-              onUpdateFoldLine={(foldLineId, angleDeg) =>
+              onUpdateFoldLine={(foldLineId, updates) =>
                 setFoldLines((previous) =>
                   previous.map((foldLine) =>
                     foldLine.id === foldLineId
-                      ? {
+                      ? sanitizeFoldLine({
                           ...foldLine,
-                          angleDeg,
-                        }
+                          ...updates,
+                        })
                       : foldLine,
                   ),
                 )
@@ -3379,6 +4546,36 @@ function App() {
         onAssignSelectedToActiveType={handleAssignSelectedToActiveLineType}
         onClearSelection={handleClearShapeSelection}
       />
+
+      {showHelpModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowHelpModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowHelpModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div
+            className="help-modal"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="help-modal-title"
+          >
+            <div className="line-type-modal-header">
+              <h2 id="help-modal-title">Help</h2>
+              <button onClick={() => setShowHelpModal(false)}>Close</button>
+            </div>
+            <ul className="help-list">
+              <li>Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo, Cmd/Ctrl+C/X/V clipboard, Delete removes selection.</li>
+              <li>Mobile: use 2D / 3D / Split buttons to focus workspace.</li>
+            </ul>
+          </div>
+        </div>
+      )}
 
       {showLayerColorModal && (
         <div
@@ -3907,8 +5104,18 @@ function App() {
       <footer className="statusbar">
         <span>Tool: {toolLabel(tool)}</span>
         <span>{status}</span>
-        <span>Tip: Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo, Cmd/Ctrl+C/X/V clipboard, Delete removes selection.</span>
-        <span>Mobile: use 2D / 3D / Split buttons to focus workspace.</span>
+        <span className="statusbar-meta">{Math.round(viewport.scale * 100)}% zoom</span>
+        <span className="statusbar-meta">
+          {visibleShapes.length}/{shapes.length} visible shapes
+        </span>
+        <span className="statusbar-meta">{layers.length} layers</span>
+        <span className="statusbar-meta">
+          {lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types
+        </span>
+        <span className="statusbar-meta">{foldLines.length} bends</span>
+        <span className="statusbar-meta">{stitchHoles.length} stitch holes</span>
+        <span className="statusbar-meta">{tracingOverlays.length} traces</span>
+        <span className="statusbar-meta">{templateRepository.length} templates</span>
       </footer>
 
       <input

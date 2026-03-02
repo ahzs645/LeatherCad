@@ -160,6 +160,12 @@ const walletFolds: FoldLine[] = [
     end: { x: 0, y: 140 },
     angleDeg: 58,
     maxAngleDeg: 180,
+    direction: 'valley',
+    radiusMm: 1.4,
+    thicknessMm: 1.7,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.35,
+    clearanceMm: 0.25,
   },
 ]
 
@@ -189,6 +195,12 @@ const cardSleeveFolds: FoldLine[] = [
     end: { x: 0, y: 102 },
     angleDeg: 16,
     maxAngleDeg: 120,
+    direction: 'mountain',
+    radiusMm: 0.8,
+    thicknessMm: 1.3,
+    neutralAxisRatio: 0.45,
+    stiffness: 0.22,
+    clearanceMm: 0.15,
   },
 ]
 
@@ -221,6 +233,12 @@ const triFoldFolds: FoldLine[] = [
     end: { x: -100, y: 118 },
     angleDeg: 32,
     maxAngleDeg: 180,
+    direction: 'mountain',
+    radiusMm: 1.2,
+    thicknessMm: 1.6,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.3,
+    clearanceMm: 0.2,
   },
   {
     id: 'tri-fold-right',
@@ -229,6 +247,12 @@ const triFoldFolds: FoldLine[] = [
     end: { x: 100, y: 118 },
     angleDeg: 28,
     maxAngleDeg: 180,
+    direction: 'valley',
+    radiusMm: 1.2,
+    thicknessMm: 1.6,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.3,
+    clearanceMm: 0.2,
   },
 ]
 

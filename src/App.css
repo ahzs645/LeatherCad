@@ -208,15 +208,14 @@
 .topbar-mobile .tool-group {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(108px, auto) 1fr auto;
+  grid-template-columns: minmax(108px, auto) 1fr auto auto;
   align-items: center;
   gap: 8px;
 }
 
 .topbar-mobile .layer-controls,
 .topbar-mobile .line-type-controls,
-.topbar-mobile .file-controls,
-.topbar-mobile .group.meta {
+.topbar-mobile .file-controls {
   width: 100%;
   flex-wrap: wrap;
 }
@@ -311,21 +310,26 @@
   min-width: 164px;
 }
 
-.group.meta {
-  color: var(--text-meta);
-  font-size: 13px;
-}
-
-.ribbon-meta {
-  padding: 0 14px 10px;
-  border-top: 1px solid var(--border-soft);
-  gap: 14px;
-}
-
-.topbar-mobile .ribbon-meta {
-  width: 100%;
+.help-button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 999px;
   padding: 0;
-  border-top: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desktop-ribbon-strip-meta .help-button {
+  margin-left: 2px;
+}
+
+.mobile-help-toggle {
+  justify-self: end;
 }
 
 .mobile-menu-toggle {
@@ -586,6 +590,10 @@ button:disabled {
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
 }
 
+.statusbar-meta {
+  color: var(--text-meta);
+}
+
 .hidden-input {
   display: none;
 }
@@ -727,6 +735,29 @@ button:disabled {
   border-radius: 12px;
   background: var(--surface-modal);
   overflow: auto;
+}
+
+.help-modal {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-modal);
+}
+
+.help-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--text-subtle);
+  font-size: 13px;
+}
+
+.help-list li {
+  line-height: 1.35;
 }
 
 .layer-color-modal-header {
@@ -1027,8 +1058,24 @@ button:disabled {
   padding: 6px 8px;
 }
 
+.field-row select {
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-input);
+  color: var(--app-text);
+  padding: 6px 8px;
+}
+
 .field-row input[type='range'] {
   padding: 0;
+}
+
+.fold-control-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
 }
 
 .button-row {
@@ -1132,14 +1179,9 @@ button:disabled {
     padding: 6px 9px;
   }
 
-  .topbar-mobile.topbar-compact .group.meta {
-    display: none;
-  }
-
-  .group.meta {
-    width: 100%;
-    justify-content: flex-start;
-    margin-left: 0;
+  .topbar-mobile .tool-group .help-button {
+    padding: 0;
+    font-size: 16px;
   }
 
   .statusbar {

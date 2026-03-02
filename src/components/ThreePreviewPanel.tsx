@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad-types'
 import { ThreeBridge } from '../three-bridge'
+import {
+  DEFAULT_FOLD_CLEARANCE_MM,
+  DEFAULT_FOLD_DIRECTION,
+  DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+  DEFAULT_FOLD_RADIUS_MM,
+  DEFAULT_FOLD_STIFFNESS,
+  DEFAULT_FOLD_THICKNESS_MM,
+} from '../fold-line-ops'
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]
@@ -10,7 +18,7 @@ type ThreePreviewPanelProps = {
   lineTypes: LineType[]
   themeMode: 'dark' | 'light'
   isMobileLayout: boolean
-  onUpdateFoldLine: (foldLineId: string, angleDeg: number) => void
+  onUpdateFoldLine: (foldLineId: string, updates: Partial<FoldLine>) => void
 }
 
 const DEFAULT_TEXTURE_FORM: TextureSource = {
@@ -182,18 +190,109 @@ export function ThreePreviewPanel({
               <p className="hint">Use the Fold tool in 2D canvas to assign bend lines.</p>
             ) : (
               foldLines.map((foldLine) => (
-                <label key={foldLine.id} className="field-row">
-                  <span>
-                    {foldLine.name}: {Math.round(foldLine.angleDeg)} deg
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={foldLine.maxAngleDeg}
-                    value={foldLine.angleDeg}
-                    onChange={(event) => onUpdateFoldLine(foldLine.id, Number(event.target.value))}
-                  />
-                </label>
+                <div key={foldLine.id} className="fold-control-card">
+                  <label className="field-row">
+                    <span>
+                      {foldLine.name}: {Math.round(foldLine.angleDeg)} deg
+                    </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={foldLine.maxAngleDeg}
+                      value={foldLine.angleDeg}
+                      onChange={(event) => onUpdateFoldLine(foldLine.id, { angleDeg: Number(event.target.value) })}
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Direction</span>
+                    <select
+                      value={foldLine.direction ?? DEFAULT_FOLD_DIRECTION}
+                      onChange={(event) =>
+                        onUpdateFoldLine(foldLine.id, {
+                          direction: event.target.value === 'valley' ? 'valley' : 'mountain',
+                        })
+                      }
+                    >
+                      <option value="mountain">Mountain</option>
+                      <option value="valley">Valley</option>
+                    </select>
+                  </label>
+                  <label className="field-row">
+                    <span>Fold Radius (mm)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={30}
+                      step={0.1}
+                      value={foldLine.radiusMm ?? DEFAULT_FOLD_RADIUS_MM}
+                      onChange={(event) =>
+                        onUpdateFoldLine(foldLine.id, {
+                          radiusMm: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Material Thickness (mm)</span>
+                    <input
+                      type="number"
+                      min={0.2}
+                      max={20}
+                      step={0.1}
+                      value={foldLine.thicknessMm ?? DEFAULT_FOLD_THICKNESS_MM}
+                      onChange={(event) =>
+                        onUpdateFoldLine(foldLine.id, {
+                          thicknessMm: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Clearance (mm)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={20}
+                      step={0.05}
+                      value={foldLine.clearanceMm ?? DEFAULT_FOLD_CLEARANCE_MM}
+                      onChange={(event) =>
+                        onUpdateFoldLine(foldLine.id, {
+                          clearanceMm: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Neutral Axis Ratio</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={foldLine.neutralAxisRatio ?? DEFAULT_FOLD_NEUTRAL_AXIS_RATIO}
+                      onChange={(event) =>
+                        onUpdateFoldLine(foldLine.id, {
+                          neutralAxisRatio: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Stiffness</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={foldLine.stiffness ?? DEFAULT_FOLD_STIFFNESS}
+                      onChange={(event) =>
+                        onUpdateFoldLine(foldLine.id, {
+                          stiffness: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
               ))
             )}
           </div>

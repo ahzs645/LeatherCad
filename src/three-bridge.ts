@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { sampleShapePoints } from './cad-geometry'
 import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from './cad-types'
+import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from './fold-line-ops'
 
 type ModelTransform = {
   scale: number
@@ -28,6 +29,9 @@ const STITCH_LINE_COLOR = '#f97316'
 const FOLD_LINE_COLOR = '#fb7185'
 const STITCH_THREAD_COLOR = '#fb923c'
 const LAYER_STACK_STEP = 0.012
+const COLLISION_SEARCH_STEP_DEG = 1
+const MIN_OVERLAP_AREA_WORLD = 0.00002
+const MIN_OVERLAP_HEIGHT_WORLD = 0.00045
 
 function disposeObjectGraph(root: THREE.Object3D, preservedMaterials: Set<THREE.Material>) {
   root.traverse((object) => {
@@ -175,6 +179,12 @@ function lineIntersectionOnSegment(a: THREE.Vector2, b: THREE.Vector2, sideA: nu
   return a.clone().lerp(b, t)
 }
 
+function distanceToFoldAxisInWorld(point: THREE.Vector3, foldAxisPoint: THREE.Vector2, foldAxisDirection: THREE.Vector3) {
+  const dx = point.x - foldAxisPoint.x
+  const dz = point.z - foldAxisPoint.y
+  return Math.abs(dx * -foldAxisDirection.z + dz * foldAxisDirection.x)
+}
+
 export class ThreeBridge {
   private canvas: HTMLCanvasElement
   private renderer: THREE.WebGLRenderer
@@ -220,7 +230,12 @@ export class ThreeBridge {
   private foldLines: FoldLine[] = []
   private stitchHoles: StitchHole[] = []
   private activeFoldAxis = new THREE.Vector3(0, 0, 1)
+  private activeFoldMid = new THREE.Vector2(0, 0)
+  private activeFoldBehavior: ResolvedFoldBehavior = resolveFoldBehavior(null)
   private activeFoldAngleDeg = 0
+  private staticPanels: THREE.Mesh[] = []
+  private foldingPanels: THREE.Mesh[] = []
+  private staticPanelBoxes: THREE.Box3[] = []
 
   private transform: ModelTransform = {
     scale: 1,
@@ -305,9 +320,104 @@ export class ThreeBridge {
     return axis.normalize()
   }
 
+  private resolvePrimaryFoldBehavior() {
+    const foldLine = this.foldLines[0] ?? null
+    const behavior = resolveFoldBehavior(foldLine)
+    this.activeFoldBehavior = behavior
+    return behavior
+  }
+
+  private foldLiftWorldForAngle(angleDeg: number, behavior: ResolvedFoldBehavior) {
+    const radians = THREE.MathUtils.degToRad(angleDeg)
+    const thicknessWorld = behavior.thicknessMm * this.transform.scale
+    const clearanceWorld = behavior.clearanceMm * this.transform.scale
+    const radiusWorld = behavior.radiusMm * this.transform.scale
+    const neutralAxisAdjustment = (behavior.neutralAxisRatio - 0.5) * thicknessWorld * Math.sin(radians)
+    const hingeLift = (thicknessWorld + clearanceWorld) * Math.sin(radians / 2)
+    const curvatureLift = radiusWorld * (1 - Math.cos(radians))
+    return (hingeLift + curvatureLift + neutralAxisAdjustment) * foldDirectionSign(behavior.direction)
+  }
+
+  private applyFoldTransform(angleDeg: number, behavior: ResolvedFoldBehavior) {
+    const signedRadians = foldDirectionSign(behavior.direction) * THREE.MathUtils.degToRad(angleDeg)
+    this.foldingSideGroup.quaternion.setFromAxisAngle(this.activeFoldAxis, signedRadians)
+    this.foldingSideGroup.position.set(0, this.foldLiftWorldForAngle(angleDeg, behavior), 0)
+    this.modelRoot.updateMatrixWorld(true)
+  }
+
+  private rebuildStaticPanelBoxCache() {
+    this.staticSideGroup.updateMatrixWorld(true)
+    this.staticPanelBoxes = this.staticPanels.map((panel) => new THREE.Box3().setFromObject(panel))
+  }
+
+  private hasPanelCollision(behavior: ResolvedFoldBehavior) {
+    if (this.staticPanelBoxes.length === 0 || this.foldingPanels.length === 0) {
+      return false
+    }
+
+    const clearanceWorld = behavior.clearanceMm * this.transform.scale
+    const thicknessWorld = behavior.thicknessMm * this.transform.scale
+    const hingeAllowance = (behavior.radiusMm + behavior.clearanceMm + behavior.thicknessMm * 0.5) * this.transform.scale
+    const overlapHeightThreshold = Math.max(MIN_OVERLAP_HEIGHT_WORLD, clearanceWorld * (0.35 + behavior.stiffness * 0.65))
+    const overlapAreaThreshold = Math.max(
+      MIN_OVERLAP_AREA_WORLD,
+      Math.max(clearanceWorld, thicknessWorld * 0.4) * Math.max(clearanceWorld, thicknessWorld * 0.4),
+    )
+    const foldingBox = new THREE.Box3()
+    const overlapBox = new THREE.Box3()
+    const overlapSize = new THREE.Vector3()
+    const overlapCenter = new THREE.Vector3()
+
+    for (const foldingPanel of this.foldingPanels) {
+      foldingBox.setFromObject(foldingPanel)
+      for (const staticBox of this.staticPanelBoxes) {
+        if (!foldingBox.intersectsBox(staticBox)) {
+          continue
+        }
+
+        overlapBox.copy(foldingBox).intersect(staticBox)
+        if (overlapBox.isEmpty()) {
+          continue
+        }
+
+        overlapBox.getSize(overlapSize)
+        const overlapArea = overlapSize.x * overlapSize.z
+        if (overlapArea <= overlapAreaThreshold || overlapSize.y <= overlapHeightThreshold) {
+          continue
+        }
+
+        overlapBox.getCenter(overlapCenter)
+        const axisDistance = distanceToFoldAxisInWorld(overlapCenter, this.activeFoldMid, this.activeFoldAxis)
+        if (axisDistance > hingeAllowance) {
+          return true
+        }
+      }
+    }
+
+    return false
+  }
+
+  private resolveSafeFoldAngle(targetAngleDeg: number, behavior: ResolvedFoldBehavior) {
+    const clampedTarget = THREE.MathUtils.clamp(targetAngleDeg, 0, behavior.maxAngleDeg)
+    if (clampedTarget <= EPSILON || this.staticPanels.length === 0 || this.foldingPanels.length === 0) {
+      return clampedTarget
+    }
+
+    for (let candidate = clampedTarget; candidate >= 0; candidate -= COLLISION_SEARCH_STEP_DEG) {
+      this.applyFoldTransform(candidate, behavior)
+      if (!this.hasPanelCollision(behavior)) {
+        return candidate
+      }
+    }
+
+    return 0
+  }
+
   private updateFoldRotation() {
-    const radians = -THREE.MathUtils.degToRad(THREE.MathUtils.clamp(this.activeFoldAngleDeg, 0, 180))
-    this.foldingSideGroup.quaternion.setFromAxisAngle(this.activeFoldAxis, radians)
+    const behavior = this.resolvePrimaryFoldBehavior()
+    const targetAngle = THREE.MathUtils.clamp(this.activeFoldAngleDeg, 0, behavior.maxAngleDeg)
+    const safeAngle = this.resolveSafeFoldAngle(targetAngle, behavior)
+    this.applyFoldTransform(safeAngle, behavior)
   }
 
   private shapeColor(shape: Shape) {
@@ -582,6 +692,9 @@ export class ThreeBridge {
     clearGroup(this.staticSideGroup, this.preservedMaterials)
     clearGroup(this.foldingSideGroup, this.preservedMaterials)
     clearGroup(this.foldGuideGroup, this.preservedMaterials)
+    this.staticPanels = []
+    this.foldingPanels = []
+    this.staticPanelBoxes = []
 
     const documentBounds = this.computeTransform()
     const documentRectangle = [
@@ -608,7 +721,13 @@ export class ThreeBridge {
 
     const foldMid = foldStart.clone().add(foldEnd).multiplyScalar(0.5)
     this.foldingPivot.position.set(foldMid.x, 0, foldMid.y)
+    this.activeFoldMid = foldMid.clone()
     this.activeFoldAxis = this.foldAxisFromLine(foldStart, foldEnd)
+    this.activeFoldBehavior = resolveFoldBehavior(this.foldLines[0] ?? null)
+    const dynamicLayerStep = Math.max(
+      LAYER_STACK_STEP,
+      (this.activeFoldBehavior.thicknessMm + this.activeFoldBehavior.clearanceMm * 0.5) * this.transform.scale,
+    )
 
     const layerOrder = this.layers.map((layer) => layer.id)
     const layerStackLevels = new Map<string, number>()
@@ -668,12 +787,13 @@ export class ThreeBridge {
       }
 
       const stackLevel = layerStackLevels.get(layerSlice.layerId) ?? index
-      const yOffset = stackLevel * LAYER_STACK_STEP
+      const yOffset = stackLevel * dynamicLayerStep
       maxYOffset = Math.max(maxYOffset, yOffset)
 
       if (negativePolygon.length >= 3) {
         const staticPanel = this.createPanelMesh(negativePolygon, this.leftMaterial, layerProjectedBounds, null, yOffset)
         if (staticPanel) {
+          this.staticPanels.push(staticPanel)
           this.staticSideGroup.add(staticPanel)
           this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null, yOffset)
         }
@@ -682,6 +802,7 @@ export class ThreeBridge {
       if (positivePolygon.length >= 3) {
         const foldingPanel = this.createPanelMesh(positivePolygon, this.rightMaterial, layerProjectedBounds, foldMid, yOffset)
         if (foldingPanel) {
+          this.foldingPanels.push(foldingPanel)
           this.foldingSideGroup.add(foldingPanel)
           this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid, yOffset)
         }
@@ -767,6 +888,7 @@ export class ThreeBridge {
       this.foldGuideGroup.add(line)
     }
 
+    this.rebuildStaticPanelBoxCache()
     this.updateFoldRotation()
   }
 
@@ -811,9 +933,8 @@ export class ThreeBridge {
     this.shapes = [...shapes]
     this.foldLines = [...foldLines]
     this.stitchHoles = [...stitchHoles]
-    if (this.foldLines.length > 0) {
-      this.activeFoldAngleDeg = this.foldLines[0].angleDeg
-    }
+    this.activeFoldBehavior = resolveFoldBehavior(this.foldLines[0] ?? null)
+    this.activeFoldAngleDeg = this.activeFoldBehavior.targetAngleDeg
     this.rebuildModel()
   }
 
@@ -834,14 +955,14 @@ export class ThreeBridge {
 
   setFoldLines(foldLines: FoldLine[]) {
     this.foldLines = [...foldLines]
-    if (this.foldLines.length > 0) {
-      this.activeFoldAngleDeg = this.foldLines[0].angleDeg
-    }
+    this.activeFoldBehavior = resolveFoldBehavior(this.foldLines[0] ?? null)
+    this.activeFoldAngleDeg = this.activeFoldBehavior.targetAngleDeg
     this.rebuildModel()
   }
 
   setFoldAngle(angleDeg: number) {
-    this.activeFoldAngleDeg = THREE.MathUtils.clamp(angleDeg, 0, 180)
+    const behavior = this.resolvePrimaryFoldBehavior()
+    this.activeFoldAngleDeg = THREE.MathUtils.clamp(angleDeg, 0, behavior.maxAngleDeg)
     this.updateFoldRotation()
   }
 

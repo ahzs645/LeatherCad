@@ -77,6 +77,8 @@ export type SketchGroup = {
   annotation?: string
 }
 
+export type FoldDirection = 'mountain' | 'valley'
+
 export type FoldLine = {
   id: string
   name: string
@@ -84,6 +86,12 @@ export type FoldLine = {
   end: Point
   angleDeg: number
   maxAngleDeg: number
+  direction?: FoldDirection
+  radiusMm?: number
+  thicknessMm?: number
+  neutralAxisRatio?: number
+  stiffness?: number
+  clearanceMm?: number
 }
 
 export type StitchHoleType = 'round' | 'slit'
