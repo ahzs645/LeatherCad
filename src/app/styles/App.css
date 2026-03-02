@@ -632,6 +632,7 @@ button:disabled {
   min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 32vw);
+  overflow: hidden;
 }
 
 .workspace.desktop .canvas-pane {
@@ -684,13 +685,18 @@ button:disabled {
   min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .canvas-tool-rail {
   min-height: 0;
+  max-height: 100%;
   padding: 12px 8px;
   border-right: 1px solid var(--border-soft);
   background: var(--surface-panel);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 .canvas-tool-sidebar {
@@ -703,17 +709,6 @@ button:disabled {
   background: var(--surface-legend);
   box-shadow: 0 8px 18px rgba(2, 6, 23, 0.18);
   backdrop-filter: blur(6px);
-}
-
-.canvas-tool-sidebar::after {
-  content: attr(data-section);
-  display: block;
-  margin-top: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 .canvas-tool-sidebar .tool-icon-grid {

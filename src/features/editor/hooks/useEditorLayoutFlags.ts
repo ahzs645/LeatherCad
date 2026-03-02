@@ -43,7 +43,7 @@ export function useEditorLayoutFlags(params: UseEditorLayoutFlagsParams): Editor
   const hidePreviewPane = isMobileLayout && (mobileViewMode === 'editor' || !showThreePreview)
   const showViewOptions = showMobileMenu && mobileOptionsTab === 'view'
   const showFileOptions = showMobileMenu && mobileOptionsTab === 'file'
-  const showDesktopToolSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
+  const showDesktopToolSection = false
   const showDesktopPresetSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
   const showDesktopZoomSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
   const showDesktopEditSection = desktopRibbonTab === 'edit'

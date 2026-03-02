@@ -1620,7 +1620,7 @@ export function EditorApp() {
         <div className="canvas-stage">
           {!isMobileLayout && (
             <aside className="canvas-tool-rail" aria-label="Geometry tools">
-              <div className="group tool-group ribbon-section canvas-tool-sidebar" data-section="Geometry">
+              <div className="group tool-group ribbon-section canvas-tool-sidebar">
                 <div className="tool-icon-grid">
                   {DESKTOP_TOOL_ICON_ITEMS.map((toolItem) => (
                     <button
