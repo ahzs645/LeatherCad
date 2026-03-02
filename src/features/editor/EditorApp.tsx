@@ -48,18 +48,9 @@ import {
 import { applyLineTypeToShapeIds } from './ops/line-type-ops'
 import {
   createStitchHole,
-  deleteStitchHolesForShapes,
-  fixStitchHoleOrderFromHole,
   findNearestStitchAnchor,
-  generateFixedPitchStitchHoles,
-  generateVariablePitchStitchHoles,
   normalizeStitchHoleSequences,
-  resequenceStitchHolesOnShape,
-  selectNextStitchHole,
 } from './ops/stitch-hole-ops'
-import { importSvgAsShapes } from './io/io-svg'
-import { buildDxfFromShapes } from './io/io-dxf'
-import { buildPdfFromShapes } from './io/io-pdf'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './data/sample-doc'
 import { applyRedo, applyUndo, deepClone, pushHistorySnapshot, type HistoryState } from './ops/history-ops'
 import type { PrintPaper } from './preview/print-preview'
@@ -80,9 +71,6 @@ import {
   type ClipboardPayload,
 } from './ops/shape-selection-ops'
 import {
-  alignSelectedShapes,
-  alignSelectedShapesToGrid,
-  applyParametricConstraints,
   snapPointToContext,
   translateShape,
 } from './ops/pattern-ops'
@@ -133,13 +121,16 @@ import type {
 import {
   createDefaultLayer,
   downloadFile,
-  newLayerName,
   newSketchGroupName,
   normalizeHexColor,
   toolLabel,
 } from './editor-utils'
 import { useEditorDerivedState } from './hooks/useEditorDerivedState'
-import { parseImportedJsonDocument } from './editor-json-import'
+import { useExportActions } from './hooks/useExportActions'
+import { useLayerActions } from './hooks/useLayerActions'
+import { useConstraintActions } from './hooks/useConstraintActions'
+import { useStitchActions } from './hooks/useStitchActions'
+import { useFileActions } from './hooks/useFileActions'
 
 export function EditorApp() {
   const initialLayerIdRef = useRef(uid())
@@ -1699,368 +1690,57 @@ export function EditorApp() {
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9
     zoomAtScreenPoint(screenX, screenY, zoomFactor)
   }
+  const { handleExportSvg, handleExportDxf, handleExportPdf } = useExportActions({
+    shapes,
+    foldLines,
+    lineTypes,
+    lineTypesById,
+    lineTypeStylesById,
+    sketchGroupsById,
+    selectedShapeIdSet,
+    visibleLayerIdSet,
+    exportOnlySelectedShapes,
+    exportOnlyVisibleLineTypes,
+    exportRoleFilters,
+    exportForceSolidStrokes,
+    dxfFlipY,
+    dxfVersion,
+    setStatus,
+  })
 
-  const getExportableShapes = () =>
-    shapes.filter((shape) => {
-      if (exportOnlySelectedShapes && !selectedShapeIdSet.has(shape.id)) {
-        return false
-      }
-      if (!visibleLayerIdSet.has(shape.layerId)) {
-        return false
-      }
-      if (shape.groupId) {
-        const group = sketchGroupsById[shape.groupId]
-        if (group && !group.visible) {
-          return false
-        }
-      }
-      const lineType = lineTypesById[shape.lineTypeId]
-      const role = lineType?.role ?? 'cut'
-      const isVisible = lineType?.visible ?? true
-      if (exportOnlyVisibleLineTypes && !isVisible) {
-        return false
-      }
-      return exportRoleFilters[role]
-    })
-
-  const shapeToExportSvg = (shape: Shape) => {
-    const lineType = lineTypesById[shape.lineTypeId]
-    const stroke = lineType?.color ?? '#0f172a'
-    const strokeDasharray = exportForceSolidStrokes ? undefined : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
-    const dashAttribute = strokeDasharray ? ` stroke-dasharray="${strokeDasharray}"` : ''
-
-    if (shape.type === 'line') {
-      return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
-    }
-
-    if (shape.type === 'arc') {
-      return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
-    }
-
-    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
-  }
-
-  const handleExportSvg = () => {
-    const exportShapes = getExportableShapes()
-    if (exportShapes.length === 0) {
-      setStatus('No shapes matched the current export filters')
-      return
-    }
-
-    const bounds = getBounds(exportShapes)
-    const objectMarkup = exportShapes.map(shapeToExportSvg).join('\n  ')
-    const includeFoldLines = exportRoleFilters.fold
-    const foldMarkup = includeFoldLines
-      ? foldLines
-          .map(
-            (foldLine) =>
-              `<line x1="${round(foldLine.start.x)}" y1="${round(foldLine.start.y)}" x2="${round(foldLine.end.x)}" y2="${round(foldLine.end.y)}" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="6 4" fill="none" data-type="fold-line"/>`,
-          )
-          .join('\n  ')
-      : ''
-
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${foldMarkup}\n</svg>`
-
-    downloadFile('leathercraft-export.svg', svg, 'image/svg+xml;charset=utf-8')
-    setStatus(`Exported SVG (${exportShapes.length} shapes, ${includeFoldLines ? foldLines.length : 0} folds)`)
-  }
-
-  const handleExportDxf = () => {
-    const exportShapes = getExportableShapes()
-    if (exportShapes.length === 0) {
-      setStatus('No shapes matched the current export filters')
-      return
-    }
-
-    const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
-      flipY: dxfFlipY,
-      version: dxfVersion,
-      forceSolidLineStyle: exportForceSolidStrokes,
-      lineTypeStyles: lineTypeStylesById,
-    })
-    downloadFile('leathercraft-export.dxf', content, 'application/dxf')
-    setStatus(
-      `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, flipY ${dxfFlipY ? 'on' : 'off'})`,
-    )
-  }
-
-  const handleExportPdf = () => {
-    const exportShapes = getExportableShapes()
-    if (exportShapes.length === 0) {
-      setStatus('No shapes matched the current export filters')
-      return
-    }
-
-    const pdf = buildPdfFromShapes(exportShapes, {
-      forceSolidLineStyle: exportForceSolidStrokes,
-      lineTypeStyles: lineTypeStylesById,
-      lineTypeColors: Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType.color])),
-    })
-
-    downloadFile('leathercraft-export.pdf', pdf, 'application/pdf')
-    setStatus(`Exported PDF (${exportShapes.length} shapes)`)
-  }
-
-  const handleSaveJson = () => {
-    const doc = buildCurrentDocFile()
-    downloadFile('leathercraft-doc.json', JSON.stringify(doc, null, 2), 'application/json;charset=utf-8')
-    setStatus('Document JSON saved')
-  }
-
-  const handleLoadJson = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-
-    if (!file) {
-      return
-    }
-
-    try {
-      const raw = await file.text()
-      const imported = parseImportedJsonDocument(raw)
-      applyLoadedDocument(
-        imported.doc,
-        `Loaded JSON (${imported.summary.shapeCount} shapes, ${imported.summary.foldCount} folds, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers, ${imported.summary.hardwareMarkerCount} hardware markers)`,
-      )
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`Load failed: ${message}`)
-    }
-  }
-
-  const handleImportSvg = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) {
-      return
-    }
-
-    if (!activeLayer) {
-      setStatus('No active layer to import into')
-      return
-    }
-
-    try {
-      const rawSvg = await file.text()
-      const imported = importSvgAsShapes(rawSvg, {
-        layerId: activeLayer.id,
-        lineTypeId: activeLineTypeId,
-      })
-      if (imported.shapes.length === 0) {
-        setStatus('SVG import produced no drawable shapes')
-        return
-      }
-      setShapes((previous) => [
-        ...previous,
-        ...imported.shapes.map((shape) => ({
-          ...shape,
-          groupId: activeSketchGroup?.id,
-        })),
-      ])
-      setSelectedShapeIds(imported.shapes.map((shape) => shape.id))
-      if (imported.warnings.length > 0) {
-        setStatus(`Imported SVG (${imported.shapes.length} shapes) with ${imported.warnings.length} warning(s)`)
-      } else {
-        setStatus(`Imported SVG (${imported.shapes.length} shapes)`)
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`SVG import failed: ${message}`)
-    }
-  }
-
-  const handleLoadPreset = (presetId = selectedPresetId) => {
-    const preset = PRESET_DOCS.find((entry) => entry.id === presetId)
-    if (!preset) {
-      setStatus('Preset not found')
-      return
-    }
-
-    const sample =
-      typeof structuredClone === 'function'
-        ? structuredClone(preset.doc)
-        : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
-
-    applyLoadedDocument(sample, `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`)
-    setShowThreePreview(true)
-    if (isMobileLayout) {
-      setMobileViewMode('editor')
-      setShowMobileMenu(false)
-    }
-  }
-
-  const handleAddLayer = () => {
-    const nextLayerId = uid()
-    setLayers((previous) => [
-      ...previous,
-      {
-        id: nextLayerId,
-        name: newLayerName(previous.length),
-        visible: true,
-        locked: false,
-        stackLevel:
-          previous.reduce(
-            (maximum, layer, index) =>
-              Math.max(
-                maximum,
-                typeof layer.stackLevel === 'number' && Number.isFinite(layer.stackLevel) ? layer.stackLevel : index,
-              ),
-            -1,
-          ) + 1,
-      },
-    ])
-    setActiveLayerId(nextLayerId)
-    setStatus('Layer added')
-  }
-
-  const handleRenameActiveLayer = () => {
-    if (!activeLayer) {
-      setStatus('No active layer to rename')
-      return
-    }
-
-    const nextName = window.prompt('Layer name', activeLayer.name)?.trim()
-    if (!nextName) {
-      return
-    }
-
-    setLayers((previous) =>
-      previous.map((layer) =>
-        layer.id === activeLayer.id
-          ? {
-              ...layer,
-              name: nextName,
-            }
-          : layer,
-      ),
-    )
-    setStatus(`Renamed layer to "${nextName}"`)
-  }
-
-  const handleToggleLayerVisibility = () => {
-    if (!activeLayer) {
-      setStatus('No active layer to update')
-      return
-    }
-
-    setLayers((previous) =>
-      previous.map((layer) =>
-        layer.id === activeLayer.id
-          ? {
-              ...layer,
-              visible: !layer.visible,
-            }
-          : layer,
-      ),
-    )
-    setStatus(activeLayer.visible ? 'Active layer hidden' : 'Active layer shown')
-  }
-
-  const handleToggleLayerLock = () => {
-    if (!activeLayer) {
-      setStatus('No active layer to update')
-      return
-    }
-
-    setLayers((previous) =>
-      previous.map((layer) =>
-        layer.id === activeLayer.id
-          ? {
-              ...layer,
-              locked: !layer.locked,
-            }
-          : layer,
-      ),
-    )
-    setStatus(activeLayer.locked ? 'Active layer unlocked' : 'Active layer locked')
-  }
-
-  const handleMoveLayer = (direction: -1 | 1) => {
-    if (!activeLayer) {
-      return
-    }
-
-    setLayers((previous) => {
-      const index = previous.findIndex((layer) => layer.id === activeLayer.id)
-      if (index < 0) {
-        return previous
-      }
-
-      const target = index + direction
-      if (target < 0 || target >= previous.length) {
-        return previous
-      }
-
-      const next = [...previous]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
-    })
-    setStatus(direction < 0 ? 'Moved layer up' : 'Moved layer down')
-  }
-
-  const handleDeleteLayer = () => {
-    if (!activeLayer) {
-      setStatus('No active layer to delete')
-      return
-    }
-
-    if (layers.length === 1) {
-      setStatus('Cannot delete the last remaining layer')
-      return
-    }
-
-    const activeIndex = layers.findIndex((layer) => layer.id === activeLayer.id)
-    if (activeIndex < 0) {
-      return
-    }
-
-    const fallbackLayer = layers[activeIndex > 0 ? activeIndex - 1 : 1]
-    const deleteLayerId = activeLayer.id
-
-    setLayers((previous) => previous.filter((layer) => layer.id !== deleteLayerId))
-    setActiveLayerId(fallbackLayer.id)
-    setShapes((previous) =>
-      previous.map((shape) =>
-        shape.layerId === deleteLayerId
-          ? {
-              ...shape,
-              layerId: fallbackLayer.id,
-            }
-          : shape,
-      ),
-    )
-    setSketchGroups((previous) =>
-      previous.map((group) =>
-        group.layerId === deleteLayerId
-          ? {
-              ...group,
-              layerId: fallbackLayer.id,
-            }
-          : group,
-      ),
-    )
-    setHardwareMarkers((previous) =>
-      previous.map((marker) =>
-        marker.layerId === deleteLayerId
-          ? {
-              ...marker,
-              layerId: fallbackLayer.id,
-            }
-          : marker,
-      ),
-    )
-    setConstraints((previous) =>
-      previous.map((constraint) =>
-        constraint.type === 'edge-offset' && constraint.referenceLayerId === deleteLayerId
-          ? {
-              ...constraint,
-              referenceLayerId: fallbackLayer.id,
-            }
-          : constraint,
-      ),
-    )
-    setStatus(`Deleted layer and moved its shapes to "${fallbackLayer.name}"`)
-  }
+  const { handleSaveJson, handleLoadJson, handleImportSvg, handleLoadPreset } = useFileActions({
+    buildCurrentDocFile,
+    applyLoadedDocument,
+    selectedPresetId,
+    isMobileLayout,
+    activeLayer,
+    activeLineTypeId,
+    activeSketchGroup,
+    setShapes,
+    setSelectedShapeIds,
+    setStatus,
+    setShowThreePreview,
+    setMobileViewMode,
+    setShowMobileMenu,
+  })
+  const {
+    handleAddLayer,
+    handleRenameActiveLayer,
+    handleToggleLayerVisibility,
+    handleToggleLayerLock,
+    handleMoveLayer,
+    handleDeleteLayer,
+  } = useLayerActions({
+    activeLayer,
+    layers,
+    setLayers,
+    setActiveLayerId,
+    setShapes,
+    setSketchGroups,
+    setHardwareMarkers,
+    setConstraints,
+    setStatus,
+  })
 
   const handleToggleActiveLineTypeVisibility = () => {
     if (!activeLineType) {
@@ -2432,140 +2112,34 @@ export function EditorApp() {
       ),
     )
   }
-
-  const handleAddEdgeConstraintFromSelection = () => {
-    if (!activeLayer) {
-      setStatus('No active layer available for edge constraint')
-      return
-    }
-
-    const firstShapeId = selectedShapeIds[0]
-    if (!firstShapeId) {
-      setStatus('Select a shape to add an edge-offset constraint')
-      return
-    }
-
-    const nextConstraint: ParametricConstraint = {
-      id: uid(),
-      name: `Edge offset ${constraints.length + 1}`,
-      type: 'edge-offset',
-      enabled: true,
-      shapeId: firstShapeId,
-      referenceLayerId: activeLayer.id,
-      edge: constraintEdge,
-      anchor: 'center',
-      offsetMm: clamp(constraintOffsetMm, 0, 999),
-    }
-    setConstraints((previous) => [...previous, nextConstraint])
-    setStatus('Edge-offset constraint added')
-  }
-
-  const handleAddAlignConstraintsFromSelection = () => {
-    if (selectedShapeIds.length < 2) {
-      setStatus('Select at least two shapes to add alignment constraints')
-      return
-    }
-
-    const referenceShapeId = selectedShapeIds[0]
-    const nextConstraints: ParametricConstraint[] = selectedShapeIds.slice(1).map((shapeId, index) => ({
-      id: uid(),
-      name: `Align ${constraints.length + index + 1}`,
-      type: 'align',
-      enabled: true,
-      shapeId,
-      referenceShapeId,
-      axis: constraintAxis,
-      anchor: 'center',
-      referenceAnchor: 'center',
-    }))
-    setConstraints((previous) => [...previous, ...nextConstraints])
-    setStatus(`Added ${nextConstraints.length} alignment constraint${nextConstraints.length === 1 ? '' : 's'}`)
-  }
-
-  const handleApplyConstraints = () => {
-    if (constraints.length === 0) {
-      setStatus('No constraints to apply')
-      return
-    }
-    setShapes((previous) => applyParametricConstraints(previous, layers, constraints))
-    setStatus('Applied parametric constraints')
-  }
-
-  const handleAlignSelection = (axis: 'x' | 'y' | 'both') => {
-    if (selectedShapeIdSet.size < 2) {
-      setStatus('Select at least two shapes to align')
-      return
-    }
-    setShapes((previous) => alignSelectedShapes(previous, selectedShapeIdSet, axis))
-    const axisLabel = axis === 'both' ? 'X/Y centers' : axis.toUpperCase()
-    setStatus(`Aligned selected shapes on ${axisLabel}`)
-  }
-
-  const handleAlignSelectionToGrid = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes to align to the grid')
-      return
-    }
-    setShapes((previous) => alignSelectedShapesToGrid(previous, selectedShapeIdSet, snapSettings.gridStep))
-    setStatus('Aligned selected shapes to grid')
-  }
-
-  const handleApplySeamAllowanceToSelection = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes first')
-      return
-    }
-
-    const safeOffset = clamp(seamAllowanceInputMm, 0.1, 150)
-    const selectedIds = new Set(selectedShapeIds)
-
-    setSeamAllowances((previous) => {
-      const retained = previous.filter((entry) => !selectedIds.has(entry.shapeId))
-      const created = selectedShapeIds.map((shapeId) => ({
-        id: uid(),
-        shapeId,
-        offsetMm: safeOffset,
-      }))
-      return [...retained, ...created]
-    })
-
-    setStatus(`Applied ${safeOffset.toFixed(1)}mm seam allowance to ${selectedShapeIds.length} shape${selectedShapeIds.length === 1 ? '' : 's'}`)
-  }
-
-  const handleClearSeamAllowanceOnSelection = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes first')
-      return
-    }
-    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
-    setStatus('Cleared seam allowance on selected shapes')
-  }
-
-  const handleClearAllSeamAllowances = () => {
-    if (seamAllowances.length === 0) {
-      setStatus('No seam allowances to clear')
-      return
-    }
-    setSeamAllowances([])
-    setStatus('Cleared all seam allowances')
-  }
-
-  const handleToggleConstraintEnabled = (constraintId: string) => {
-    setConstraints((previous) =>
-      previous.map((entry) =>
-        entry.id === constraintId
-          ? {
-              ...entry,
-              enabled: !entry.enabled,
-            }
-          : entry,
-      ),
-    )
-  }
-
-  const handleDeleteConstraint = (constraintId: string) => {
-    setConstraints((previous) => previous.filter((entry) => entry.id !== constraintId))
-  }
+  const {
+    handleAddEdgeConstraintFromSelection,
+    handleAddAlignConstraintsFromSelection,
+    handleApplyConstraints,
+    handleAlignSelection,
+    handleAlignSelectionToGrid,
+    handleApplySeamAllowanceToSelection,
+    handleClearSeamAllowanceOnSelection,
+    handleClearAllSeamAllowances,
+    handleToggleConstraintEnabled,
+    handleDeleteConstraint,
+  } = useConstraintActions({
+    activeLayer,
+    layers,
+    selectedShapeIds,
+    selectedShapeIdSet,
+    constraintEdge,
+    constraintOffsetMm,
+    constraintAxis,
+    constraints,
+    seamAllowanceInputMm,
+    seamAllowances,
+    snapSettings,
+    setShapes,
+    setConstraints,
+    setSeamAllowances,
+    setStatus,
+  })
 
   const handleDeleteSelectedHardwareMarker = () => {
     if (!selectedHardwareMarker) {
@@ -2595,207 +2169,33 @@ export function EditorApp() {
       ),
     )
   }
-
-  const handleCountStitchHolesOnSelectedShapes = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes first to count stitch holes')
-      return
-    }
-    setStatus(`Selected shapes contain ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'}`)
-  }
-
-  const handleDeleteStitchHolesOnSelectedShapes = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes first to delete stitch holes')
-      return
-    }
-
-    if (selectedStitchHoleCount === 0) {
-      setStatus('Selected shapes do not contain stitch holes')
-      return
-    }
-
-    setStitchHoles((previous) => normalizeStitchHoleSequences(deleteStitchHolesForShapes(previous, selectedShapeIdSet)))
-    setStatus(`Deleted ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'} on selected shapes`)
-  }
-
-  const handleClearAllStitchHoles = () => {
-    if (stitchHoles.length === 0) {
-      setStatus('No stitch holes to clear')
-      return
-    }
-    setStitchHoles([])
-    setSelectedStitchHoleId(null)
-    setStatus('Cleared all stitch holes')
-  }
-
-  const getSelectedStitchShapes = () =>
-    shapes.filter((shape) => {
-      if (!selectedShapeIdSet.has(shape.id)) {
-        return false
-      }
-      const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
-      return lineTypeRole === 'stitch'
-    })
-
-  const handleAutoPlaceFixedPitchStitchHoles = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more stitch paths first')
-      return
-    }
-
-    const selectedStitchShapes = getSelectedStitchShapes()
-
-    if (selectedStitchShapes.length === 0) {
-      setStatus('Selected shapes are not stitch-role paths')
-      return
-    }
-
-    const safePitch = clamp(stitchPitchMm, 0.2, 100)
-    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
-    const generatedHoles = selectedStitchShapes.flatMap((shape) =>
-      generateFixedPitchStitchHoles(shape, safePitch, stitchHoleType, 0),
-    )
-
-    setStitchHoles((previous) => {
-      const retained = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
-      return normalizeStitchHoleSequences([...retained, ...generatedHoles])
-    })
-    setSelectedStitchHoleId(generatedHoles[0]?.id ?? null)
-
-    setStatus(
-      `Auto placed ${generatedHoles.length} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} at ${safePitch.toFixed(1)}mm pitch`,
-    )
-  }
-
-  const handleAutoPlaceVariablePitchStitchHoles = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more stitch paths first')
-      return
-    }
-
-    const selectedStitchShapes = getSelectedStitchShapes()
-    if (selectedStitchShapes.length === 0) {
-      setStatus('Selected shapes are not stitch-role paths')
-      return
-    }
-
-    const safeStartPitch = clamp(stitchVariablePitchStartMm, 0.2, 100)
-    const safeEndPitch = clamp(stitchVariablePitchEndMm, 0.2, 100)
-    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
-    const generatedHoles = selectedStitchShapes.flatMap((shape) =>
-      generateVariablePitchStitchHoles(shape, safeStartPitch, safeEndPitch, stitchHoleType, 0),
-    )
-
-    setStitchHoles((previous) => {
-      const retained = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
-      return normalizeStitchHoleSequences([...retained, ...generatedHoles])
-    })
-    setSelectedStitchHoleId(generatedHoles[0]?.id ?? null)
-
-    setStatus(
-      `Auto placed ${generatedHoles.length} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} using ${safeStartPitch.toFixed(1)} to ${safeEndPitch.toFixed(1)}mm pitch`,
-    )
-  }
-
-  const handleResequenceSelectedStitchHoles = (reverse = false) => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more stitch paths first')
-      return
-    }
-
-    const selectedShapes = shapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-    if (selectedShapes.length === 0) {
-      setStatus('No selected shapes to re-sequence')
-      return
-    }
-
-    setStitchHoles((previous) => {
-      const byShape = new Map<string, StitchHole[]>()
-      for (const hole of previous) {
-        const entries = byShape.get(hole.shapeId) ?? []
-        entries.push(hole)
-        byShape.set(hole.shapeId, entries)
-      }
-
-      const preserved: StitchHole[] = []
-      for (const hole of previous) {
-        if (!selectedShapeIdSet.has(hole.shapeId)) {
-          preserved.push(hole)
-        }
-      }
-
-      const resequenced: StitchHole[] = []
-      for (const shape of selectedShapes) {
-        const holes = byShape.get(shape.id) ?? []
-        if (holes.length === 0) {
-          continue
-        }
-        resequenced.push(...resequenceStitchHolesOnShape(holes, shape, reverse))
-      }
-      return normalizeStitchHoleSequences([...preserved, ...resequenced])
-    })
-
-    setStatus(reverse ? 'Reversed stitch-hole order on selected paths' : 'Re-sequenced stitch holes on selected paths')
-  }
-
-  const handleSelectNextStitchHole = () => {
-    const preferredShapeId =
-      selectedStitchHole?.shapeId ??
-      shapes.find((shape) => selectedShapeIdSet.has(shape.id) && (stitchHoleCountsByShape[shape.id] ?? 0) > 0)?.id ??
-      stitchHoles[0]?.shapeId ??
-      null
-
-    if (!preferredShapeId) {
-      setStatus('No stitch holes available to select')
-      return
-    }
-
-    const holesOnShape = stitchHoles.filter((stitchHole) => stitchHole.shapeId === preferredShapeId)
-    const currentHoleId = selectedStitchHole?.shapeId === preferredShapeId ? selectedStitchHole.id : null
-    const nextHole = selectNextStitchHole(holesOnShape, currentHoleId)
-    if (!nextHole) {
-      setStatus('No stitch holes available to select')
-      return
-    }
-
-    setSelectedStitchHoleId(nextHole.id)
-    setStatus(`Selected stitch hole ${nextHole.sequence + 1} of ${holesOnShape.length}`)
-  }
-
-  const handleFixStitchHoleOrderFromSelected = (reverse = false) => {
-    if (!selectedStitchHole) {
-      setStatus('Select a stitch hole first (Move tool)')
-      return
-    }
-
-    const targetShape = shapesById[selectedStitchHole.shapeId]
-    if (!targetShape) {
-      setStatus('Selected stitch hole has no valid path')
-      return
-    }
-
-    const targetLayer = layers.find((layer) => layer.id === targetShape.layerId)
-    if (targetLayer?.locked) {
-      setStatus('Target layer is locked. Unlock it before editing stitch order.')
-      return
-    }
-
-    const lineTypeRole = lineTypesById[targetShape.lineTypeId]?.role ?? 'cut'
-    if (lineTypeRole !== 'stitch') {
-      setStatus('Selected stitch hole is not on a stitch-role path')
-      return
-    }
-
-    setStitchHoles((previous) => {
-      const onShape = previous.filter((stitchHole) => stitchHole.shapeId === targetShape.id)
-      const retained = previous.filter((stitchHole) => stitchHole.shapeId !== targetShape.id)
-      const fixedOrder = fixStitchHoleOrderFromHole(onShape, targetShape, selectedStitchHole.id, reverse)
-      return normalizeStitchHoleSequences([...retained, ...fixedOrder])
-    })
-
-    setStatus(reverse ? 'Fixed stitch order in reverse from selected hole' : 'Fixed stitch order from selected hole')
-  }
+  const {
+    handleCountStitchHolesOnSelectedShapes,
+    handleDeleteStitchHolesOnSelectedShapes,
+    handleClearAllStitchHoles,
+    handleAutoPlaceFixedPitchStitchHoles,
+    handleAutoPlaceVariablePitchStitchHoles,
+    handleResequenceSelectedStitchHoles,
+    handleSelectNextStitchHole,
+    handleFixStitchHoleOrderFromSelected,
+  } = useStitchActions({
+    selectedShapeIdSet,
+    selectedStitchHoleCount,
+    stitchHoles,
+    setStitchHoles,
+    setSelectedStitchHoleId,
+    setStatus,
+    shapes,
+    lineTypesById,
+    stitchPitchMm,
+    stitchVariablePitchStartMm,
+    stitchVariablePitchEndMm,
+    stitchHoleType,
+    selectedStitchHole,
+    shapesById,
+    layers,
+    stitchHoleCountsByShape,
+  })
 
   const handleRunMobileLayerAction = () => {
     if (mobileLayerAction === 'add') {
