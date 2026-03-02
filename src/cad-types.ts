@@ -1,4 +1,4 @@
-export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold' | 'stitch-hole'
+export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold' | 'stitch-hole' | 'hardware'
 
 export type Point = {
   x: number
@@ -22,6 +22,7 @@ type BaseShape = {
   id: string
   layerId: string
   lineTypeId: string
+  groupId?: string
 }
 
 export type LineShape = {
@@ -29,6 +30,7 @@ export type LineShape = {
   type: 'line'
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
+  groupId?: BaseShape['groupId']
   start: Point
   end: Point
 }
@@ -38,6 +40,7 @@ export type ArcShape = {
   type: 'arc'
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
+  groupId?: BaseShape['groupId']
   start: Point
   mid: Point
   end: Point
@@ -48,6 +51,7 @@ export type BezierShape = {
   type: 'bezier'
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
+  groupId?: BaseShape['groupId']
   start: Point
   control: Point
   end: Point
@@ -61,6 +65,16 @@ export type Layer = {
   visible: boolean
   locked: boolean
   stackLevel?: number
+  annotation?: string
+}
+
+export type SketchGroup = {
+  id: string
+  name: string
+  layerId: string
+  visible: boolean
+  locked: boolean
+  annotation?: string
 }
 
 export type FoldLine = {
@@ -81,6 +95,69 @@ export type StitchHole = {
   angleDeg: number
   holeType: StitchHoleType
   sequence: number
+}
+
+export type ConstraintAnchor = 'start' | 'end' | 'mid' | 'center'
+
+export type ConstraintEdge = 'left' | 'right' | 'top' | 'bottom'
+
+export type ConstraintAxis = 'x' | 'y' | 'both'
+
+export type EdgeOffsetConstraint = {
+  id: string
+  name: string
+  type: 'edge-offset'
+  enabled: boolean
+  shapeId: string
+  referenceLayerId: string
+  edge: ConstraintEdge
+  anchor: ConstraintAnchor
+  offsetMm: number
+}
+
+export type AlignConstraint = {
+  id: string
+  name: string
+  type: 'align'
+  enabled: boolean
+  shapeId: string
+  referenceShapeId: string
+  axis: ConstraintAxis
+  anchor: ConstraintAnchor
+  referenceAnchor: ConstraintAnchor
+}
+
+export type ParametricConstraint = EdgeOffsetConstraint | AlignConstraint
+
+export type SeamAllowance = {
+  id: string
+  shapeId: string
+  offsetMm: number
+}
+
+export type HardwareKind = 'snap' | 'rivet' | 'buckle' | 'custom'
+
+export type HardwareMarker = {
+  id: string
+  layerId: string
+  groupId?: string
+  point: Point
+  kind: HardwareKind
+  label: string
+  holeDiameterMm: number
+  spacingMm: number
+  notes?: string
+  visible: boolean
+}
+
+export type SnapSettings = {
+  enabled: boolean
+  grid: boolean
+  gridStep: number
+  endpoints: boolean
+  midpoints: boolean
+  guides: boolean
+  hardware: boolean
 }
 
 export type TracingOverlayKind = 'image' | 'pdf'
@@ -107,11 +184,18 @@ export type DocFile = {
   units: 'mm'
   layers: Layer[]
   activeLayerId: string
+  sketchGroups?: SketchGroup[]
+  activeSketchGroupId?: string | null
   lineTypes: LineType[]
   activeLineTypeId: string
   objects: Shape[]
   foldLines: FoldLine[]
   stitchHoles?: StitchHole[]
+  constraints?: ParametricConstraint[]
+  seamAllowances?: SeamAllowance[]
+  hardwareMarkers?: HardwareMarker[]
+  snapSettings?: SnapSettings
+  showAnnotations?: boolean
   tracingOverlays?: TracingOverlay[]
 }
 
