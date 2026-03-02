@@ -96,6 +96,7 @@ type MobileOptionsTab = 'view' | 'layers' | 'file'
 type ThemeMode = 'dark' | 'light'
 type LegendMode = 'layer' | 'stack'
 type DxfVersion = 'r12' | 'r14'
+type DesktopRibbonTab = 'build' | 'edit' | 'stitch' | 'layers' | 'output' | 'view'
 type ExportRoleFilters = Record<LineTypeRole, boolean>
 type MobileLayerAction =
   | 'add'
@@ -163,6 +164,15 @@ const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
   { value: 'view', label: 'View' },
   { value: 'layers', label: 'Layers' },
   { value: 'file', label: 'File' },
+]
+
+const DESKTOP_RIBBON_TABS: Array<{ value: DesktopRibbonTab; label: string }> = [
+  { value: 'build', label: 'Build' },
+  { value: 'edit', label: 'Edit' },
+  { value: 'stitch', label: 'Stitch' },
+  { value: 'layers', label: 'Layers' },
+  { value: 'output', label: 'Output' },
+  { value: 'view', label: 'View' },
 ]
 
 function toolLabel(tool: Tool) {
@@ -350,6 +360,7 @@ function App() {
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [mobileOptionsTab, setMobileOptionsTab] = useState<MobileOptionsTab>('view')
+  const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
@@ -530,27 +541,35 @@ function App() {
     return colorMap
   }, [layers, layerStackLevels, stackColorsByLevel])
   const stackLegendEntries = useMemo(() => {
-    const grouped = new Map<number, string[]>()
+    const grouped = new Map<number, { layerNames: string[]; layerColors: string[] }>()
     for (const layer of layers) {
       const stackLevel = layerStackLevels[layer.id] ?? 0
-      const names = grouped.get(stackLevel) ?? []
-      names.push(layer.name)
-      grouped.set(stackLevel, names)
+      const entry = grouped.get(stackLevel) ?? { layerNames: [], layerColors: [] }
+      entry.layerNames.push(layer.name)
+      entry.layerColors.push(layerColorsById[layer.id] ?? stackColorsByLevel[stackLevel] ?? DEFAULT_FRONT_LAYER_COLOR)
+      grouped.set(stackLevel, entry)
     }
 
     return Array.from(grouped.entries())
-      .map(([stackLevel, layerNames]) => ({
-        stackLevel,
-        layerNames,
-        color: stackColorsByLevel[stackLevel] ?? DEFAULT_FRONT_LAYER_COLOR,
-      }))
+      .map(([stackLevel, entry]) => {
+        const uniqueColors = Array.from(new Set(entry.layerColors))
+        return {
+          stackLevel,
+          layerNames: entry.layerNames,
+          swatchBackground:
+            uniqueColors.length > 1
+              ? `linear-gradient(90deg, ${uniqueColors.join(', ')})`
+              : uniqueColors[0] ?? DEFAULT_FRONT_LAYER_COLOR,
+        }
+      })
       .sort((left, right) => left.stackLevel - right.stackLevel)
-  }, [layers, layerStackLevels, stackColorsByLevel])
+  }, [layers, layerStackLevels, layerColorsById, stackColorsByLevel])
   const displayLayerColorsById = legendMode === 'stack' ? stackColorsByLayerId : layerColorsById
   const activeLayerColor = activeLayer
     ? displayLayerColorsById[activeLayer.id] ?? DEFAULT_FRONT_LAYER_COLOR
     : DEFAULT_FRONT_LAYER_COLOR
   const fallbackLayerStroke = themeMode === 'light' ? '#0f172a' : '#e2e8f0'
+  const cutStrokeColor = lineTypes.find((lineType) => lineType.role === 'cut')?.color ?? fallbackLayerStroke
   const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
   const foldStrokeColor = themeMode === 'light' ? FOLD_COLOR_LIGHT : FOLD_COLOR_DARK
   const activeLineTypeStrokeColor =
@@ -2625,15 +2644,35 @@ function App() {
   }
 
   const workspaceClassName = `workspace ${isMobileLayout ? `mobile-${mobileViewMode}` : 'desktop'}`
-  const topbarClassName = `topbar ${isMobileLayout ? 'topbar-mobile' : ''} ${
+  const topbarClassName = `topbar ${isMobileLayout ? 'topbar-mobile' : `desktop-ribbon-tab-${desktopRibbonTab}`} ${
     isMobileLayout && !showMobileMenu ? 'topbar-compact' : ''
   }`
   const hideCanvasPane = isMobileLayout && showThreePreview && mobileViewMode === 'preview'
   const hidePreviewPane = isMobileLayout && (mobileViewMode === 'editor' || !showThreePreview)
-  const showViewOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'view')
-  const showLayerOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'layers')
-  const showFileOptions = !isMobileLayout || (showMobileMenu && mobileOptionsTab === 'file')
-  const showMeta = !isMobileLayout || showMobileMenu
+  const showViewOptions = showMobileMenu && mobileOptionsTab === 'view'
+  const showLayerOptions = showMobileMenu && mobileOptionsTab === 'layers'
+  const showFileOptions = showMobileMenu && mobileOptionsTab === 'file'
+  const showMeta = isMobileLayout ? showMobileMenu : true
+  const showDesktopToolSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
+  const showDesktopPresetSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
+  const showDesktopZoomSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
+  const showDesktopEditSection = desktopRibbonTab === 'edit'
+  const showDesktopLineTypeSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
+  const showDesktopStitchSection = desktopRibbonTab === 'stitch'
+  const showDesktopLayerSection =
+    desktopRibbonTab === 'build' ||
+    desktopRibbonTab === 'edit' ||
+    desktopRibbonTab === 'stitch' ||
+    desktopRibbonTab === 'layers'
+  const showDesktopFileSection = desktopRibbonTab === 'output'
+  const showToolSection = isMobileLayout || showDesktopToolSection
+  const showPresetSection = isMobileLayout ? showViewOptions : showDesktopPresetSection
+  const showZoomSection = isMobileLayout ? showViewOptions : showDesktopZoomSection
+  const showEditSection = isMobileLayout ? showViewOptions : showDesktopEditSection
+  const showLineTypeSection = isMobileLayout ? showViewOptions : showDesktopLineTypeSection
+  const showStitchSection = isMobileLayout ? showViewOptions : showDesktopStitchSection
+  const showLayerSection = isMobileLayout ? showLayerOptions : showDesktopLayerSection
+  const showFileSection = isMobileLayout ? showFileOptions : showDesktopFileSection
   const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
 
   return (
@@ -3064,7 +3103,8 @@ function App() {
                     ? stitchStrokeColor
                     : lineTypeRole === 'fold'
                       ? foldStrokeColor
-                      : lineType?.color ?? displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
+                      : lineType?.color ??
+                        (lineTypeRole === 'cut' ? cutStrokeColor : displayLayerColorsById[shape.layerId] ?? cutStrokeColor)
                 const strokeDasharray = lineTypeStrokeDasharray(lineType?.style ?? 'solid')
                 if (shape.type === 'line') {
                   return (
@@ -3170,7 +3210,7 @@ function App() {
               >
                 <div className="layer-legend-header">
                   <span>{legendMode === 'layer' ? 'Layer Legend' : 'Stack Legend'}</span>
-                  <span>{legendMode === 'layer' ? 'Front -&gt; Back' : 'Height'}</span>
+                  <span>{legendMode === 'layer' ? 'Front -> Back' : 'Height'}</span>
                 </div>
                 <div className="legend-mode-tabs" role="tablist" aria-label="Legend mode">
                   <button
@@ -3210,7 +3250,7 @@ function App() {
                   <div className="stack-legend-items">
                     {stackLegendEntries.map((entry) => (
                       <div key={`stack-${entry.stackLevel}`} className="stack-legend-item">
-                        <span className="layer-legend-swatch" style={{ backgroundColor: entry.color }} />
+                        <span className="layer-legend-swatch" style={{ background: entry.swatchBackground }} />
                         <span className="stack-level-chip">{`z${entry.stackLevel}`}</span>
                         <span className="stack-level-label">{entry.layerNames.join(', ')}</span>
                       </div>
@@ -3219,6 +3259,10 @@ function App() {
                 )}
 
                 <div className="legend-key-list">
+                  <div className="legend-key-item">
+                    <span className="layer-legend-swatch" style={{ backgroundColor: cutStrokeColor }} />
+                    <span>Cut lines</span>
+                  </div>
                   <div className="legend-key-item">
                     <span className="layer-legend-swatch" style={{ backgroundColor: stitchStrokeColor }} />
                     <span>Stitch lines</span>
