@@ -4,11 +4,8 @@ import {
   uid,
 } from './cad/cad-geometry'
 import type {
-  ConstraintAxis,
-  ConstraintEdge,
   DocFile,
   FoldLine,
-  HardwareKind,
   HardwareMarker,
   Layer,
   LineType,
@@ -36,7 +33,6 @@ import {
 } from './cad/line-types'
 import { DEFAULT_PRESET_ID } from './data/sample-doc'
 import { type HistoryState } from './ops/history-ops'
-import type { PrintPaper } from './preview/print-preview'
 import {
   loadTemplateRepository,
   type TemplateRepositoryEntry,
@@ -47,17 +43,11 @@ import {
   DEFAULT_BACK_LAYER_COLOR,
   DEFAULT_EXPORT_ROLE_FILTERS,
   DEFAULT_FRONT_LAYER_COLOR,
-  DEFAULT_SEAM_ALLOWANCE_MM,
   DEFAULT_SNAP_SETTINGS,
 } from './editor-constants'
-import {
-  sanitizeFoldLine,
-} from './editor-parsers'
 import type {
   DesktopRibbonTab,
-  DxfVersion,
   EditorSnapshot,
-  ExportRoleFilters,
   LegendMode,
   MobileFileAction,
   MobileLayerAction,
@@ -66,7 +56,6 @@ import type {
   ThemeMode,
 } from './editor-types'
 import {
-  normalizeHexColor,
   toolLabel,
 } from './editor-utils'
 import { useEditorDerivedState } from './hooks/useEditorDerivedState'
@@ -86,12 +75,18 @@ import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
 import { useDraftPreviewElement, useGridLines } from './hooks/useDraftCanvasElements'
 import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
+import { useEditorLayoutFlags } from './hooks/useEditorLayoutFlags'
 import { useLoadedDocumentActions } from './hooks/useLoadedDocumentActions'
+import { useEditorPreviewPaneProps } from './hooks/useEditorPreviewPaneProps'
 import { useSketchGroupActions } from './hooks/useSketchGroupActions'
 import { useHistoryActions } from './hooks/useHistoryActions'
 import { useEditorStateActions } from './hooks/useEditorStateActions'
+import { useEditorModalStackProps } from './hooks/useEditorModalStackProps'
+import { useEditorStatusBarProps } from './hooks/useEditorStatusBarProps'
+import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useThemeActions } from './hooks/useThemeActions'
+import { useEditorPanelState } from './hooks/useEditorPanelState'
 
 export function EditorApp() {
   const initialLayerIdRef = useRef(uid())
@@ -135,15 +130,72 @@ export function EditorApp() {
   const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
-  const [showLayerColorModal, setShowLayerColorModal] = useState(false)
-  const [showLineTypePalette, setShowLineTypePalette] = useState(false)
-  const [showExportOptionsModal, setShowExportOptionsModal] = useState(false)
-  const [exportOnlySelectedShapes, setExportOnlySelectedShapes] = useState(false)
-  const [exportOnlyVisibleLineTypes, setExportOnlyVisibleLineTypes] = useState(true)
-  const [exportRoleFilters, setExportRoleFilters] = useState<ExportRoleFilters>({ ...DEFAULT_EXPORT_ROLE_FILTERS })
-  const [exportForceSolidStrokes, setExportForceSolidStrokes] = useState(false)
-  const [dxfFlipY, setDxfFlipY] = useState(false)
-  const [dxfVersion, setDxfVersion] = useState<DxfVersion>('r12')
+  const {
+    showLayerColorModal,
+    setShowLayerColorModal,
+    showLineTypePalette,
+    setShowLineTypePalette,
+    showExportOptionsModal,
+    setShowExportOptionsModal,
+    exportOnlySelectedShapes,
+    setExportOnlySelectedShapes,
+    exportOnlyVisibleLineTypes,
+    setExportOnlyVisibleLineTypes,
+    exportRoleFilters,
+    setExportRoleFilters,
+    exportForceSolidStrokes,
+    setExportForceSolidStrokes,
+    dxfFlipY,
+    setDxfFlipY,
+    dxfVersion,
+    setDxfVersion,
+    showTracingModal,
+    setShowTracingModal,
+    showPatternToolsModal,
+    setShowPatternToolsModal,
+    showHelpModal,
+    setShowHelpModal,
+    showTemplateRepositoryModal,
+    setShowTemplateRepositoryModal,
+    printPaper,
+    setPrintPaper,
+    printTileX,
+    setPrintTileX,
+    printTileY,
+    setPrintTileY,
+    printOverlapMm,
+    setPrintOverlapMm,
+    printMarginMm,
+    setPrintMarginMm,
+    printScalePercent,
+    setPrintScalePercent,
+    printSelectedOnly,
+    setPrintSelectedOnly,
+    printRulerInside,
+    setPrintRulerInside,
+    printInColor,
+    setPrintInColor,
+    printStitchAsDots,
+    setPrintStitchAsDots,
+    showPrintAreas,
+    setShowPrintAreas,
+    showPrintPreviewModal,
+    setShowPrintPreviewModal,
+    seamAllowanceInputMm,
+    setSeamAllowanceInputMm,
+    constraintEdge,
+    setConstraintEdge,
+    constraintOffsetMm,
+    setConstraintOffsetMm,
+    constraintAxis,
+    setConstraintAxis,
+    hardwarePreset,
+    setHardwarePreset,
+    customHardwareDiameterMm,
+    setCustomHardwareDiameterMm,
+    customHardwareSpacingMm,
+    setCustomHardwareSpacingMm,
+  } = useEditorPanelState()
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([])
   const [selectedStitchHoleId, setSelectedStitchHoleId] = useState<string | null>(null)
   const [selectedHardwareMarkerId, setSelectedHardwareMarkerId] = useState<string | null>(null)
@@ -155,31 +207,8 @@ export function EditorApp() {
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
   const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
   const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
-  const [showTracingModal, setShowTracingModal] = useState(false)
-  const [showPatternToolsModal, setShowPatternToolsModal] = useState(false)
-  const [showHelpModal, setShowHelpModal] = useState(false)
   const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => loadTemplateRepository())
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
-  const [showTemplateRepositoryModal, setShowTemplateRepositoryModal] = useState(false)
-  const [printPaper, setPrintPaper] = useState<PrintPaper>('letter')
-  const [printTileX, setPrintTileX] = useState(1)
-  const [printTileY, setPrintTileY] = useState(1)
-  const [printOverlapMm, setPrintOverlapMm] = useState(4)
-  const [printMarginMm, setPrintMarginMm] = useState(8)
-  const [printScalePercent, setPrintScalePercent] = useState(100)
-  const [printSelectedOnly, setPrintSelectedOnly] = useState(false)
-  const [printRulerInside, setPrintRulerInside] = useState(false)
-  const [printInColor, setPrintInColor] = useState(true)
-  const [printStitchAsDots, setPrintStitchAsDots] = useState(false)
-  const [showPrintAreas, setShowPrintAreas] = useState(false)
-  const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false)
-  const [seamAllowanceInputMm, setSeamAllowanceInputMm] = useState(DEFAULT_SEAM_ALLOWANCE_MM)
-  const [constraintEdge, setConstraintEdge] = useState<ConstraintEdge>('left')
-  const [constraintOffsetMm, setConstraintOffsetMm] = useState(10)
-  const [constraintAxis, setConstraintAxis] = useState<ConstraintAxis>('x')
-  const [hardwarePreset, setHardwarePreset] = useState<HardwareKind>('snap')
-  const [customHardwareDiameterMm, setCustomHardwareDiameterMm] = useState(4)
-  const [customHardwareSpacingMm, setCustomHardwareSpacingMm] = useState(0)
   const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
   const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
@@ -782,160 +811,314 @@ export function EditorApp() {
     setStatus(`Tool selected: ${toolLabel(nextTool)}`)
   }
 
-  const workspaceClassName = `workspace ${isMobileLayout ? `mobile-${mobileViewMode}` : 'desktop'}`
-  const topbarClassName = `topbar ${isMobileLayout ? 'topbar-mobile' : `desktop-ribbon-tab-${desktopRibbonTab}`} ${
-    isMobileLayout && !showMobileMenu ? 'topbar-compact' : ''
-  }`
-  const hideCanvasPane = isMobileLayout && showThreePreview && mobileViewMode === 'preview'
-  const hidePreviewPane = isMobileLayout && (mobileViewMode === 'editor' || !showThreePreview)
-  const showViewOptions = showMobileMenu && mobileOptionsTab === 'view'
-  const showLayerOptions = showMobileMenu && mobileOptionsTab === 'layers'
-  const showFileOptions = showMobileMenu && mobileOptionsTab === 'file'
-  const showDesktopToolSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
-  const showDesktopPresetSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
-  const showDesktopZoomSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
-  const showDesktopEditSection = desktopRibbonTab === 'edit'
-  const showDesktopLineTypeSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
-  const showDesktopStitchSection = desktopRibbonTab === 'stitch'
-  const showDesktopLayerSection =
-    desktopRibbonTab === 'build' ||
-    desktopRibbonTab === 'edit' ||
-    desktopRibbonTab === 'stitch' ||
-    desktopRibbonTab === 'layers'
-  const showDesktopFileSection = desktopRibbonTab === 'output'
-  const showToolSection = isMobileLayout || showDesktopToolSection
-  const showPresetSection = isMobileLayout ? showViewOptions : showDesktopPresetSection
-  const showZoomSection = isMobileLayout ? showViewOptions : showDesktopZoomSection
-  const showEditSection = isMobileLayout ? showViewOptions : showDesktopEditSection
-  const showLineTypeSection = isMobileLayout ? showViewOptions : showDesktopLineTypeSection
-  const showStitchSection = isMobileLayout ? showViewOptions : showDesktopStitchSection
-  const showLayerSection = isMobileLayout ? showLayerOptions : showDesktopLayerSection
-  const showFileSection = isMobileLayout ? showFileOptions : showDesktopFileSection
-  const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
+  const {
+    workspaceClassName,
+    topbarClassName,
+    hideCanvasPane,
+    hidePreviewPane,
+    showToolSection,
+    showPresetSection,
+    showZoomSection,
+    showEditSection,
+    showLineTypeSection,
+    showStitchSection,
+    showLayerSection,
+    showFileSection,
+    showLayerLegend,
+  } = useEditorLayoutFlags({
+    isMobileLayout,
+    mobileViewMode,
+    showThreePreview,
+    showMobileMenu,
+    mobileOptionsTab,
+    desktopRibbonTab,
+  })
+  const topbarProps = useEditorTopbarProps({
+    topbarClassName,
+    isMobileLayout,
+    desktopRibbonTab,
+    setDesktopRibbonTab,
+    selectedShapeCount,
+    selectedStitchHoleCount,
+    showThreePreview,
+    setShowHelpModal,
+    showToolSection,
+    tool,
+    setActiveTool,
+    mobileViewMode,
+    setMobileViewMode,
+    showMobileMenu,
+    setShowMobileMenu,
+    mobileOptionsTab,
+    setMobileOptionsTab,
+    showPresetSection,
+    selectedPresetId,
+    setSelectedPresetId,
+    handleLoadPreset,
+    handleToggleTheme,
+    themeMode,
+    showZoomSection,
+    handleZoomStep,
+    handleFitView,
+    handleResetView,
+    showEditSection,
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+    handleCopySelection,
+    handleCutSelection,
+    handlePasteClipboard,
+    canPaste: Boolean(clipboardPayload && clipboardPayload.shapes.length > 0),
+    handleDuplicateSelection,
+    handleDeleteSelection,
+    handleMoveSelectionBackward,
+    handleMoveSelectionForward,
+    handleSendSelectionToBack,
+    handleBringSelectionToFront,
+    showLineTypeSection,
+    activeLineType,
+    lineTypes,
+    setActiveLineTypeId,
+    handleToggleActiveLineTypeVisibility,
+    setShowLineTypePalette,
+    showStitchSection,
+    stitchHoleType,
+    setStitchHoleType,
+    stitchPitchMm,
+    setStitchPitchMm,
+    stitchVariablePitchStartMm,
+    stitchVariablePitchEndMm,
+    setStitchVariablePitchStartMm,
+    setStitchVariablePitchEndMm,
+    handleAutoPlaceFixedPitchStitchHoles,
+    handleAutoPlaceVariablePitchStitchHoles,
+    handleResequenceSelectedStitchHoles,
+    handleSelectNextStitchHole,
+    handleFixStitchHoleOrderFromSelected,
+    showStitchSequenceLabels,
+    setShowStitchSequenceLabels,
+    handleCountStitchHolesOnSelectedShapes,
+    handleDeleteStitchHolesOnSelectedShapes,
+    handleClearAllStitchHoles,
+    stitchHolesLength: stitchHoles.length,
+    hasSelectedStitchHole: selectedStitchHole !== null,
+    showLayerSection,
+    activeLayer,
+    layers,
+    layerStackLevels,
+    setActiveLayerId,
+    clearDraft,
+    mobileLayerAction,
+    setMobileLayerAction,
+    handleRunMobileLayerAction,
+    handleAddLayer,
+    handleRenameActiveLayer,
+    handleToggleLayerVisibility,
+    handleToggleLayerLock,
+    handleMoveLayer,
+    handleDeleteLayer,
+    setShowLayerColorModal,
+    showFileSection,
+    mobileFileAction,
+    setMobileFileAction,
+    handleRunMobileFileAction,
+    handleSaveJson,
+    fileInputRef,
+    svgInputRef,
+    tracingInputRef,
+    handleExportSvg,
+    handleExportPdf,
+    handleExportDxf,
+    setShowExportOptionsModal,
+    setShowPatternToolsModal,
+    setShowTemplateRepositoryModal,
+    setShowTracingModal,
+    tracingOverlaysLength: tracingOverlays.length,
+    setShowPrintPreviewModal,
+    showPrintAreas,
+    setShowPrintAreas,
+    setShowThreePreview,
+    resetDocument,
+  })
+  const modalStackProps = useEditorModalStackProps({
+    showLineTypePalette,
+    setShowLineTypePalette,
+    lineTypes,
+    setLineTypes,
+    activeLineType,
+    shapeCountsByLineType,
+    selectedShapeCount,
+    setActiveLineTypeId,
+    handleShowAllLineTypes,
+    handleIsolateActiveLineType,
+    handleUpdateActiveLineTypeRole,
+    handleUpdateActiveLineTypeStyle,
+    handleUpdateActiveLineTypeColor,
+    handleSelectShapesByActiveLineType,
+    handleAssignSelectedToActiveLineType,
+    handleClearShapeSelection,
+    showHelpModal,
+    setShowHelpModal,
+    showLayerColorModal,
+    setShowLayerColorModal,
+    layers,
+    layerColorsById,
+    layerColorOverrides,
+    frontLayerColor,
+    backLayerColor,
+    setFrontLayerColor,
+    setBackLayerColor,
+    handleSetLayerColorOverride,
+    handleClearLayerColorOverride,
+    handleResetLayerColors,
+    showExportOptionsModal,
+    setShowExportOptionsModal,
+    activeExportRoleCount,
+    exportOnlySelectedShapes,
+    setExportOnlySelectedShapes,
+    exportOnlyVisibleLineTypes,
+    setExportOnlyVisibleLineTypes,
+    exportForceSolidStrokes,
+    setExportForceSolidStrokes,
+    exportRoleFilters,
+    setExportRoleFilters,
+    dxfVersion,
+    setDxfVersion,
+    dxfFlipY,
+    setDxfFlipY,
+    handleResetExportOptions,
+    showTemplateRepositoryModal,
+    setShowTemplateRepositoryModal,
+    templateRepository,
+    selectedTemplateEntryId,
+    selectedTemplateEntry,
+    setSelectedTemplateEntryId,
+    handleSaveTemplateToRepository,
+    handleExportTemplateRepository,
+    templateImportInputRef,
+    handleLoadTemplateAsDocument,
+    handleInsertTemplateIntoDocument,
+    handleDeleteTemplateFromRepository,
+    showPatternToolsModal,
+    setShowPatternToolsModal,
+    snapSettings,
+    setSnapSettings,
+    handleAlignSelection,
+    handleAlignSelectionToGrid,
+    activeLayer,
+    activeLayerId,
+    sketchGroups,
+    activeSketchGroup,
+    setActiveSketchGroupId,
+    handleCreateSketchGroupFromSelection,
+    handleDuplicateActiveSketchGroup,
+    handleRenameActiveSketchGroup,
+    handleToggleActiveSketchGroupVisibility,
+    handleToggleActiveSketchGroupLock,
+    handleClearActiveSketchGroup,
+    handleDeleteActiveSketchGroup,
+    handleSetActiveLayerAnnotation,
+    handleSetActiveSketchAnnotation,
+    showAnnotations,
+    setShowAnnotations,
+    constraintEdge,
+    setConstraintEdge,
+    constraintOffsetMm,
+    setConstraintOffsetMm,
+    constraintAxis,
+    setConstraintAxis,
+    handleAddEdgeConstraintFromSelection,
+    handleAddAlignConstraintsFromSelection,
+    handleApplyConstraints,
+    constraints,
+    handleToggleConstraintEnabled,
+    handleDeleteConstraint,
+    seamAllowanceInputMm,
+    setSeamAllowanceInputMm,
+    handleApplySeamAllowanceToSelection,
+    handleClearSeamAllowanceOnSelection,
+    handleClearAllSeamAllowances,
+    seamAllowancesLength: seamAllowances.length,
+    hardwarePreset,
+    setHardwarePreset,
+    customHardwareDiameterMm,
+    setCustomHardwareDiameterMm,
+    customHardwareSpacingMm,
+    setCustomHardwareSpacingMm,
+    setActiveTool,
+    selectedHardwareMarker,
+    handleUpdateSelectedHardwareMarker,
+    handleDeleteSelectedHardwareMarker,
+    showTracingModal,
+    setShowTracingModal,
+    tracingOverlays,
+    activeTracingOverlay,
+    tracingInputRef,
+    handleDeleteTracingOverlay,
+    setActiveTracingOverlayId,
+    handleUpdateTracingOverlay,
+    showPrintPreviewModal,
+    setShowPrintPreviewModal,
+    printPaper,
+    setPrintPaper,
+    printScalePercent,
+    setPrintScalePercent,
+    printTileX,
+    setPrintTileX,
+    printTileY,
+    setPrintTileY,
+    printOverlapMm,
+    setPrintOverlapMm,
+    printMarginMm,
+    setPrintMarginMm,
+    printSelectedOnly,
+    setPrintSelectedOnly,
+    printRulerInside,
+    setPrintRulerInside,
+    printInColor,
+    setPrintInColor,
+    printStitchAsDots,
+    setPrintStitchAsDots,
+    printPlan,
+    showPrintAreas,
+    setShowPrintAreas,
+    handleFitView,
+  })
+  const previewPaneProps = useEditorPreviewPaneProps({
+    showThreePreview,
+    hidePreviewPane,
+    isMobileLayout,
+    mobileViewMode,
+    shapes: visibleShapes,
+    stitchHoles: visibleStitchHoles,
+    foldLines,
+    layers,
+    lineTypes,
+    themeMode,
+    setFoldLines,
+  })
+  const statusBarProps = useEditorStatusBarProps({
+    toolLabel: toolLabel(tool),
+    status,
+    zoomPercent: Math.round(viewport.scale * 100),
+    visibleShapeCount: visibleShapes.length,
+    shapeCount: shapes.length,
+    layerCount: layers.length,
+    sketchGroupCount: sketchGroups.length,
+    lineTypes,
+    foldLineCount: foldLines.length,
+    stitchHoleCount: stitchHoles.length,
+    seamAllowanceCount: seamAllowances.length,
+    constraintCount: constraints.length,
+    hardwareMarkerCount: hardwareMarkers.length,
+    tracingOverlayCount: tracingOverlays.length,
+    templateCount: templateRepository.length,
+  })
 
   return (
     <div className={`app-shell ${themeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
-      <EditorTopbar
-        topbarClassName={topbarClassName}
-        isMobileLayout={isMobileLayout}
-        desktopRibbonTab={desktopRibbonTab}
-        onDesktopRibbonTabChange={setDesktopRibbonTab}
-        selectedShapeCount={selectedShapeCount}
-        selectedStitchHoleCount={selectedStitchHoleCount}
-        showThreePreview={showThreePreview}
-        onOpenHelpModal={() => setShowHelpModal(true)}
-        showToolSection={showToolSection}
-        tool={tool}
-        onSetActiveTool={setActiveTool}
-        mobileViewMode={mobileViewMode}
-        onSetMobileViewMode={setMobileViewMode}
-        showMobileMenu={showMobileMenu}
-        onToggleMobileMenu={() =>
-          setShowMobileMenu((previous) => {
-            const next = !previous
-            if (next) {
-              setMobileOptionsTab('view')
-            }
-            return next
-          })
-        }
-        mobileOptionsTab={mobileOptionsTab}
-        onSetMobileOptionsTab={setMobileOptionsTab}
-        showPresetSection={showPresetSection}
-        selectedPresetId={selectedPresetId}
-        onSetSelectedPresetId={setSelectedPresetId}
-        onLoadPreset={handleLoadPreset}
-        onToggleTheme={handleToggleTheme}
-        themeMode={themeMode}
-        showZoomSection={showZoomSection}
-        onZoomOut={() => handleZoomStep(0.85)}
-        onZoomIn={() => handleZoomStep(1.15)}
-        onFitView={handleFitView}
-        onResetView={handleResetView}
-        showEditSection={showEditSection}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onCopySelection={handleCopySelection}
-        onCutSelection={handleCutSelection}
-        onPasteClipboard={handlePasteClipboard}
-        canPaste={Boolean(clipboardPayload && clipboardPayload.shapes.length > 0)}
-        onDuplicateSelection={handleDuplicateSelection}
-        onDeleteSelection={handleDeleteSelection}
-        onMoveSelectionBackward={handleMoveSelectionBackward}
-        onMoveSelectionForward={handleMoveSelectionForward}
-        onSendSelectionToBack={handleSendSelectionToBack}
-        onBringSelectionToFront={handleBringSelectionToFront}
-        showLineTypeSection={showLineTypeSection}
-        activeLineType={activeLineType}
-        lineTypes={lineTypes}
-        onSetActiveLineTypeId={setActiveLineTypeId}
-        onToggleActiveLineTypeVisibility={handleToggleActiveLineTypeVisibility}
-        onOpenLineTypePalette={() => setShowLineTypePalette(true)}
-        showStitchSection={showStitchSection}
-        stitchHoleType={stitchHoleType}
-        onSetStitchHoleType={setStitchHoleType}
-        stitchPitchMm={stitchPitchMm}
-        onSetStitchPitchMm={setStitchPitchMm}
-        stitchVariablePitchStartMm={stitchVariablePitchStartMm}
-        stitchVariablePitchEndMm={stitchVariablePitchEndMm}
-        onSetStitchVariablePitchStartMm={setStitchVariablePitchStartMm}
-        onSetStitchVariablePitchEndMm={setStitchVariablePitchEndMm}
-        onAutoPlaceFixedPitchStitchHoles={handleAutoPlaceFixedPitchStitchHoles}
-        onAutoPlaceVariablePitchStitchHoles={handleAutoPlaceVariablePitchStitchHoles}
-        onResequenceSelectedStitchHoles={() => handleResequenceSelectedStitchHoles(false)}
-        onReverseSelectedStitchHoles={() => handleResequenceSelectedStitchHoles(true)}
-        onSelectNextStitchHole={handleSelectNextStitchHole}
-        onFixStitchHoleOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(false)}
-        onFixReverseStitchHoleOrderFromSelected={() => handleFixStitchHoleOrderFromSelected(true)}
-        showStitchSequenceLabels={showStitchSequenceLabels}
-        onToggleStitchSequenceLabels={() => setShowStitchSequenceLabels((previous) => !previous)}
-        onCountStitchHolesOnSelectedShapes={handleCountStitchHolesOnSelectedShapes}
-        onDeleteStitchHolesOnSelectedShapes={handleDeleteStitchHolesOnSelectedShapes}
-        onClearAllStitchHoles={handleClearAllStitchHoles}
-        selectedHoleCount={selectedStitchHoleCount}
-        stitchHoleCount={stitchHoles.length}
-        hasSelectedStitchHole={selectedStitchHole !== null}
-        showLayerSection={showLayerSection}
-        activeLayer={activeLayer}
-        layers={layers}
-        layerStackLevels={layerStackLevels}
-        onSetActiveLayerId={setActiveLayerId}
-        onClearDraft={clearDraft}
-        mobileLayerAction={mobileLayerAction}
-        onSetMobileLayerAction={setMobileLayerAction}
-        onRunMobileLayerAction={handleRunMobileLayerAction}
-        onAddLayer={handleAddLayer}
-        onRenameActiveLayer={handleRenameActiveLayer}
-        onToggleLayerVisibility={handleToggleLayerVisibility}
-        onToggleLayerLock={handleToggleLayerLock}
-        onMoveLayerUp={() => handleMoveLayer(-1)}
-        onMoveLayerDown={() => handleMoveLayer(1)}
-        onDeleteLayer={handleDeleteLayer}
-        onOpenLayerColorModal={() => setShowLayerColorModal(true)}
-        showFileSection={showFileSection}
-        mobileFileAction={mobileFileAction}
-        onSetMobileFileAction={setMobileFileAction}
-        onRunMobileFileAction={handleRunMobileFileAction}
-        onSaveJson={handleSaveJson}
-        onOpenLoadJson={() => fileInputRef.current?.click()}
-        onOpenImportSvg={() => svgInputRef.current?.click()}
-        onExportSvg={handleExportSvg}
-        onExportPdf={handleExportPdf}
-        onExportDxf={handleExportDxf}
-        onOpenExportOptionsModal={() => setShowExportOptionsModal(true)}
-        onOpenPatternToolsModal={() => setShowPatternToolsModal(true)}
-        onOpenTemplateRepositoryModal={() => setShowTemplateRepositoryModal(true)}
-        onOpenTracingImport={() => tracingInputRef.current?.click()}
-        onOpenTracingModal={() => setShowTracingModal(true)}
-        hasTracingOverlays={tracingOverlays.length > 0}
-        onOpenPrintPreviewModal={() => setShowPrintPreviewModal(true)}
-        showPrintAreas={showPrintAreas}
-        onTogglePrintAreas={() => setShowPrintAreas((previous) => !previous)}
-        onToggleThreePreview={() => setShowThreePreview((previous) => !previous)}
-        onResetDocument={resetDocument}
-      />
+      <EditorTopbar {...topbarProps} />
 
       <main className={workspaceClassName}>
         <EditorCanvasPane
@@ -980,230 +1163,12 @@ export function EditorApp() {
           stackLegendEntries={stackLegendEntries}
         />
 
-        <EditorPreviewPane
-          showThreePreview={showThreePreview}
-          hidePreviewPane={hidePreviewPane}
-          isMobileLayout={isMobileLayout}
-          mobileViewMode={mobileViewMode}
-          shapes={visibleShapes}
-          stitchHoles={visibleStitchHoles}
-          foldLines={foldLines}
-          layers={layers}
-          lineTypes={lineTypes}
-          themeMode={themeMode}
-          onUpdateFoldLine={(foldLineId, updates) =>
-            setFoldLines((previous) =>
-              previous.map((foldLine) =>
-                foldLine.id === foldLineId
-                  ? sanitizeFoldLine({
-                      ...foldLine,
-                      ...updates,
-                    })
-                  : foldLine,
-              ),
-            )
-          }
-        />
+        <EditorPreviewPane {...previewPaneProps} />
       </main>
 
-      <EditorModalStack
-        lineTypePaletteProps={{
-          open: showLineTypePalette,
-          lineTypes,
-          activeLineType,
-          shapeCountsByLineType,
-          selectedShapeCount,
-          onClose: () => setShowLineTypePalette(false),
-          onSetActiveLineTypeId: setActiveLineTypeId,
-          onToggleLineTypeVisibility: (lineTypeId) =>
-            setLineTypes((previous) =>
-              previous.map((lineType) =>
-                lineType.id === lineTypeId
-                  ? {
-                      ...lineType,
-                      visible: !lineType.visible,
-                    }
-                  : lineType,
-              ),
-            ),
-          onShowAllTypes: handleShowAllLineTypes,
-          onIsolateActiveType: handleIsolateActiveLineType,
-          onUpdateActiveLineTypeRole: handleUpdateActiveLineTypeRole,
-          onUpdateActiveLineTypeStyle: handleUpdateActiveLineTypeStyle,
-          onUpdateActiveLineTypeColor: handleUpdateActiveLineTypeColor,
-          onSelectShapesByActiveType: handleSelectShapesByActiveLineType,
-          onAssignSelectedToActiveType: handleAssignSelectedToActiveLineType,
-          onClearSelection: handleClearShapeSelection,
-        }}
-        helpModalProps={{
-          open: showHelpModal,
-          onClose: () => setShowHelpModal(false),
-        }}
-        layerColorModalProps={{
-          open: showLayerColorModal,
-          onClose: () => setShowLayerColorModal(false),
-          layers,
-          layerColorsById,
-          layerColorOverrides,
-          frontLayerColor,
-          backLayerColor,
-          onFrontLayerColorChange: (color) => setFrontLayerColor(normalizeHexColor(color, DEFAULT_FRONT_LAYER_COLOR)),
-          onBackLayerColorChange: (color) => setBackLayerColor(normalizeHexColor(color, DEFAULT_BACK_LAYER_COLOR)),
-          onSetLayerColorOverride: handleSetLayerColorOverride,
-          onClearLayerColorOverride: handleClearLayerColorOverride,
-          onResetLayerColors: handleResetLayerColors,
-        }}
-        exportOptionsModalProps={{
-          open: showExportOptionsModal,
-          onClose: () => setShowExportOptionsModal(false),
-          activeExportRoleCount,
-          exportOnlySelectedShapes,
-          exportOnlyVisibleLineTypes,
-          exportForceSolidStrokes,
-          exportRoleFilters,
-          dxfVersion,
-          dxfFlipY,
-          onExportOnlySelectedShapesChange: setExportOnlySelectedShapes,
-          onExportOnlyVisibleLineTypesChange: setExportOnlyVisibleLineTypes,
-          onExportForceSolidStrokesChange: setExportForceSolidStrokes,
-          onExportRoleFilterChange: (role, enabled) =>
-            setExportRoleFilters((previous) => ({
-              ...previous,
-              [role]: enabled,
-            })),
-          onDxfVersionChange: setDxfVersion,
-          onDxfFlipYChange: setDxfFlipY,
-          onResetDefaults: handleResetExportOptions,
-        }}
-        templateRepositoryModalProps={{
-          open: showTemplateRepositoryModal,
-          onClose: () => setShowTemplateRepositoryModal(false),
-          templateRepository,
-          selectedTemplateEntryId,
-          selectedTemplateEntry,
-          onSelectTemplateEntry: setSelectedTemplateEntryId,
-          onSaveTemplate: handleSaveTemplateToRepository,
-          onExportRepository: handleExportTemplateRepository,
-          onImportRepository: () => templateImportInputRef.current?.click(),
-          onLoadAsDocument: handleLoadTemplateAsDocument,
-          onInsertIntoDocument: handleInsertTemplateIntoDocument,
-          onDeleteTemplate: handleDeleteTemplateFromRepository,
-        }}
-        patternToolsModalProps={{
-          open: showPatternToolsModal,
-          onClose: () => setShowPatternToolsModal(false),
-          snapSettings,
-          onSetSnapSettings: setSnapSettings,
-          selectedShapeCount,
-          onAlignSelection: handleAlignSelection,
-          onAlignSelectionToGrid: handleAlignSelectionToGrid,
-          activeLayer,
-          activeLayerId,
-          sketchGroups,
-          activeSketchGroup,
-          onSetActiveSketchGroupId: setActiveSketchGroupId,
-          onCreateSketchGroupFromSelection: handleCreateSketchGroupFromSelection,
-          onDuplicateActiveSketchGroup: handleDuplicateActiveSketchGroup,
-          onRenameActiveSketchGroup: handleRenameActiveSketchGroup,
-          onToggleActiveSketchGroupVisibility: handleToggleActiveSketchGroupVisibility,
-          onToggleActiveSketchGroupLock: handleToggleActiveSketchGroupLock,
-          onClearActiveSketchGroup: handleClearActiveSketchGroup,
-          onDeleteActiveSketchGroup: handleDeleteActiveSketchGroup,
-          onSetActiveLayerAnnotation: handleSetActiveLayerAnnotation,
-          onSetActiveSketchAnnotation: handleSetActiveSketchAnnotation,
-          showAnnotations,
-          onSetShowAnnotations: setShowAnnotations,
-          constraintEdge,
-          onSetConstraintEdge: setConstraintEdge,
-          constraintOffsetMm,
-          onSetConstraintOffsetMm: setConstraintOffsetMm,
-          constraintAxis,
-          onSetConstraintAxis: setConstraintAxis,
-          onAddEdgeConstraintFromSelection: handleAddEdgeConstraintFromSelection,
-          onAddAlignConstraintsFromSelection: handleAddAlignConstraintsFromSelection,
-          onApplyConstraints: handleApplyConstraints,
-          constraints,
-          onToggleConstraintEnabled: handleToggleConstraintEnabled,
-          onDeleteConstraint: handleDeleteConstraint,
-          seamAllowanceInputMm,
-          onSetSeamAllowanceInputMm: setSeamAllowanceInputMm,
-          onApplySeamAllowanceToSelection: handleApplySeamAllowanceToSelection,
-          onClearSeamAllowanceOnSelection: handleClearSeamAllowanceOnSelection,
-          onClearAllSeamAllowances: handleClearAllSeamAllowances,
-          seamAllowanceCount: seamAllowances.length,
-          hardwarePreset,
-          onSetHardwarePreset: setHardwarePreset,
-          customHardwareDiameterMm,
-          onSetCustomHardwareDiameterMm: setCustomHardwareDiameterMm,
-          customHardwareSpacingMm,
-          onSetCustomHardwareSpacingMm: setCustomHardwareSpacingMm,
-          onSetActiveTool: setActiveTool,
-          selectedHardwareMarker,
-          onUpdateSelectedHardwareMarker: handleUpdateSelectedHardwareMarker,
-          onDeleteSelectedHardwareMarker: handleDeleteSelectedHardwareMarker,
-        }}
-        tracingModalProps={{
-          open: showTracingModal,
-          onClose: () => setShowTracingModal(false),
-          tracingOverlays,
-          activeTracingOverlay,
-          onImportTracing: () => tracingInputRef.current?.click(),
-          onDeleteActiveTracing: () => {
-            if (activeTracingOverlay) {
-              handleDeleteTracingOverlay(activeTracingOverlay.id)
-            }
-          },
-          onSetActiveTracingOverlayId: setActiveTracingOverlayId,
-          onUpdateTracingOverlay: handleUpdateTracingOverlay,
-        }}
-        printPreviewModalProps={{
-          open: showPrintPreviewModal,
-          onClose: () => setShowPrintPreviewModal(false),
-          printPaper,
-          onSetPrintPaper: setPrintPaper,
-          printScalePercent,
-          onSetPrintScalePercent: setPrintScalePercent,
-          printTileX,
-          onSetPrintTileX: setPrintTileX,
-          printTileY,
-          onSetPrintTileY: setPrintTileY,
-          printOverlapMm,
-          onSetPrintOverlapMm: setPrintOverlapMm,
-          printMarginMm,
-          onSetPrintMarginMm: setPrintMarginMm,
-          printSelectedOnly,
-          onSetPrintSelectedOnly: setPrintSelectedOnly,
-          printRulerInside,
-          onSetPrintRulerInside: setPrintRulerInside,
-          printInColor,
-          onSetPrintInColor: setPrintInColor,
-          printStitchAsDots,
-          onSetPrintStitchAsDots: setPrintStitchAsDots,
-          printPlan,
-          showPrintAreas,
-          onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),
-          onFitView: handleFitView,
-        }}
-      />
+      <EditorModalStack {...modalStackProps} />
 
-      <EditorStatusBar
-        toolLabel={toolLabel(tool)}
-        status={status}
-        zoomPercent={Math.round(viewport.scale * 100)}
-        visibleShapeCount={visibleShapes.length}
-        shapeCount={shapes.length}
-        layerCount={layers.length}
-        sketchGroupCount={sketchGroups.length}
-        visibleLineTypeCount={lineTypes.filter((lineType) => lineType.visible).length}
-        lineTypeCount={lineTypes.length}
-        foldLineCount={foldLines.length}
-        stitchHoleCount={stitchHoles.length}
-        seamAllowanceCount={seamAllowances.length}
-        constraintCount={constraints.length}
-        hardwareMarkerCount={hardwareMarkers.length}
-        tracingOverlayCount={tracingOverlays.length}
-        templateCount={templateRepository.length}
-      />
+      <EditorStatusBar {...statusBarProps} />
 
       <EditorHiddenInputs
         fileInputRef={fileInputRef}
