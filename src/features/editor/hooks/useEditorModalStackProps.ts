@@ -82,12 +82,15 @@ type UseEditorModalStackPropsParams = {
   selectedTemplateEntryId: string | null
   selectedTemplateEntry: TemplateRepositoryEntry | null
   selectedCatalogShopId: string | null
+  selectedPresetId: string
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
   setSelectedCatalogShopId: Dispatch<SetStateAction<string | null>>
+  setSelectedPresetId: Dispatch<SetStateAction<string>>
   handleSaveTemplateToRepository: () => void
   handleExportTemplateRepository: () => void
   templateImportInputRef: RefObject<HTMLInputElement | null>
   catalogImportInputRef: RefObject<HTMLInputElement | null>
+  handleLoadPreset: () => void
   handleLoadTemplateAsDocument: () => void
   handleInsertTemplateIntoDocument: () => void
   handleDeleteTemplateFromRepository: (entryId: string) => void
@@ -277,12 +280,15 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     selectedTemplateEntryId,
     selectedTemplateEntry,
     selectedCatalogShopId,
+    selectedPresetId,
     setSelectedTemplateEntryId,
     setSelectedCatalogShopId,
+    setSelectedPresetId,
     handleSaveTemplateToRepository,
     handleExportTemplateRepository,
     templateImportInputRef,
     catalogImportInputRef,
+    handleLoadPreset,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleDeleteTemplateFromRepository,
@@ -491,12 +497,15 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       selectedTemplateEntryId,
       selectedTemplateEntry,
       selectedCatalogShopId,
+      selectedPresetId,
       onSelectTemplateEntry: setSelectedTemplateEntryId,
       onSelectCatalogShop: setSelectedCatalogShopId,
+      onSelectPreset: setSelectedPresetId,
       onSaveTemplate: handleSaveTemplateToRepository,
       onExportRepository: handleExportTemplateRepository,
       onImportRepository: () => templateImportInputRef.current?.click(),
       onImportCatalog: () => catalogImportInputRef.current?.click(),
+      onLoadPreset: handleLoadPreset,
       onLoadAsDocument: handleLoadAsDocument,
       onInsertIntoDocument: handleInsertIntoDocument,
       onDeleteTemplate: handleDeleteTemplate,

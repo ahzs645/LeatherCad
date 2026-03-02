@@ -7,6 +7,7 @@
 .app-shell {
   --app-text: #e2e8f0;
   --bg-main: radial-gradient(circle at top left, #1f2937, #0b1120 60%, #020617 100%);
+  --surface-top-overlay: linear-gradient(180deg, rgba(30, 41, 59, 0.3), rgba(15, 23, 42, 0.92));
   --surface-top: rgba(15, 23, 42, 0.9);
   --surface-panel: rgba(15, 23, 42, 0.88);
   --surface-status: rgba(15, 23, 42, 0.92);
@@ -45,6 +46,7 @@
 .app-shell.theme-light {
   --app-text: #0f172a;
   --bg-main: radial-gradient(circle at top left, #f8fbff, #edf4ff 58%, #e2eaf7 100%);
+  --surface-top-overlay: linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(229, 239, 252, 0.95));
   --surface-top: rgba(250, 252, 255, 0.95);
   --surface-panel: rgba(244, 248, 255, 0.92);
   --surface-status: rgba(250, 252, 255, 0.95);
@@ -100,9 +102,7 @@
 .topbar:not(.topbar-mobile) {
   gap: 0;
   padding: 0;
-  background:
-    linear-gradient(180deg, rgba(30, 41, 59, 0.3), rgba(15, 23, 42, 0.92)),
-    var(--surface-top);
+  background: var(--surface-top-overlay), var(--surface-top);
 }
 
 .desktop-ribbon-strip {
@@ -1046,6 +1046,31 @@ button:disabled {
   color: var(--text-muted-strong);
 }
 
+.project-memo-modal {
+  width: min(620px, 100%);
+  max-height: min(82vh, 860px);
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-modal);
+  overflow: auto;
+}
+
+.project-memo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-memo-modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--app-text);
+}
+
 .project-memo-input {
   min-height: 64px;
   resize: vertical;
@@ -1467,6 +1492,104 @@ button:disabled {
   color: var(--text-muted);
 }
 
+.catalog-preview-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 220px;
+}
+
+.catalog-preview-item-list {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+  padding: 8px;
+  max-height: 32vh;
+  overflow: auto;
+}
+
+.catalog-preview-item-chip {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-modal);
+  color: var(--app-text);
+  padding: 7px 8px;
+}
+
+.catalog-preview-item-chip:hover {
+  border-color: var(--border-color);
+}
+
+.catalog-preview-item-chip.active {
+  border-color: var(--accent-border);
+  background: var(--surface-hover);
+}
+
+.catalog-preview-item-chip-name {
+  font-size: 12px;
+  color: var(--app-text);
+}
+
+.catalog-preview-item-chip-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.catalog-preview-detail {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+  padding: 10px;
+  max-height: 32vh;
+  overflow: auto;
+}
+
+.catalog-preview-detail h4 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted-strong);
+}
+
+.catalog-preview-detail-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.catalog-preview-detail-grid {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.catalog-preview-detail-grid dt {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.catalog-preview-detail-grid dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted-strong);
+  word-break: break-word;
+}
+
+.catalog-preview-detail-memo {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .print-preview-summary {
   display: grid;
   gap: 4px;
@@ -1787,7 +1910,13 @@ button:disabled {
   .line-type-modal-list,
   .line-type-edit-grid,
   .export-role-grid,
-  .pattern-toggle-grid {
+  .pattern-toggle-grid,
+  .catalog-preview-layout {
     grid-template-columns: 1fr;
+  }
+
+  .catalog-preview-item-list,
+  .catalog-preview-detail {
+    max-height: 24vh;
   }
 }

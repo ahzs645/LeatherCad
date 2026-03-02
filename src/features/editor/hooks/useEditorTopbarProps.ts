@@ -32,9 +32,6 @@ type UseEditorTopbarPropsParams = {
   setShowMobileMenu: Dispatch<SetStateAction<boolean>>
   mobileOptionsTab: MobileOptionsTab
   setMobileOptionsTab: Dispatch<SetStateAction<MobileOptionsTab>>
-  showPresetSection: boolean
-  selectedPresetId: string
-  setSelectedPresetId: Dispatch<SetStateAction<string>>
   handleLoadPreset: () => void
   handleSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode
@@ -161,9 +158,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setShowMobileMenu,
     mobileOptionsTab,
     setMobileOptionsTab,
-    showPresetSection,
-    selectedPresetId,
-    setSelectedPresetId,
     handleLoadPreset,
     handleSetThemeMode,
     themeMode,
@@ -293,12 +287,9 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
           setMobileOptionsTab('view')
         }
         return next
-      }),
+    }),
     mobileOptionsTab,
     onSetMobileOptionsTab: setMobileOptionsTab,
-    showPresetSection,
-    selectedPresetId,
-    onSetSelectedPresetId: setSelectedPresetId,
     onLoadPreset: handleLoadPreset,
     onSetThemeMode: handleSetThemeMode,
     themeMode,

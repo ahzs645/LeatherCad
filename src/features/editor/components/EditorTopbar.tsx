@@ -12,7 +12,6 @@ import type {
   ThemeMode,
 } from '../editor-types'
 import { StitchHolePanel } from './StitchHolePanel'
-import { PRESET_DOCS } from '../data/sample-doc'
 
 type EditorTopbarProps = {
   topbarClassName: string
@@ -34,9 +33,6 @@ type EditorTopbarProps = {
   onToggleMobileMenu: () => void
   mobileOptionsTab: MobileOptionsTab
   onSetMobileOptionsTab: (tab: MobileOptionsTab) => void
-  showPresetSection: boolean
-  selectedPresetId: string
-  onSetSelectedPresetId: (presetId: string) => void
   onLoadPreset: () => void
   onSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode
@@ -227,9 +223,6 @@ export function EditorTopbar({
   onToggleMobileMenu,
   mobileOptionsTab,
   onSetMobileOptionsTab,
-  showPresetSection,
-  selectedPresetId,
-  onSetSelectedPresetId,
   onLoadPreset,
   onSetThemeMode,
   themeMode,
@@ -483,24 +476,6 @@ export function EditorTopbar({
           </div>
         )}
 
-        {showPresetSection && (
-          <div className="group preset-controls ribbon-section" data-section="Workspace">
-            <select
-              className="preset-select"
-              value={selectedPresetId}
-              onChange={(event) => onSetSelectedPresetId(event.target.value)}
-            >
-              {PRESET_DOCS.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-            <button onClick={onLoadPreset}>Load Preset</button>
-            {isMobileLayout && renderThemeModeToggle('mobile-theme-toggle')}
-          </div>
-        )}
-
         {showZoomSection && (
           <div className="group zoom-controls ribbon-section" data-section="View">
             <div className="view-mode-toggle" role="tablist" aria-label="Workspace view mode">
@@ -520,6 +495,7 @@ export function EditorTopbar({
             </label>
             <button onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
             <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
+            {isMobileLayout && renderThemeModeToggle('mobile-theme-toggle')}
           </div>
         )}
 
