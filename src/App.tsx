@@ -68,6 +68,7 @@ import {
 } from './stitch-hole-ops'
 import { importSvgAsShapes } from './io-svg'
 import { buildDxfFromShapes } from './io-dxf'
+import { buildPdfFromShapes } from './io-pdf'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './sample-doc'
 import { applyRedo, applyUndo, deepClone, pushHistorySnapshot, type HistoryState } from './history-ops'
 import { buildPrintPlan, type PrintPaper } from './print-preview'
@@ -160,9 +161,11 @@ type MobileFileAction =
   | 'import-svg'
   | 'load-preset'
   | 'export-svg'
+  | 'export-pdf'
   | 'export-dxf'
   | 'export-options'
   | 'template-repository'
+  | 'pattern-tools'
   | 'import-tracing'
   | 'print-preview'
   | 'undo'
@@ -226,6 +229,7 @@ const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'bezier', label: 'Bezier' },
   { value: 'fold', label: 'Fold' },
   { value: 'stitch-hole', label: 'Stitch Hole' },
+  { value: 'hardware', label: 'Hardware' },
 ]
 
 const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
@@ -695,6 +699,7 @@ function App() {
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
   const [showLineTypePalette, setShowLineTypePalette] = useState(false)
   const [showExportOptionsModal, setShowExportOptionsModal] = useState(false)
+  const [exportOnlySelectedShapes, setExportOnlySelectedShapes] = useState(false)
   const [exportOnlyVisibleLineTypes, setExportOnlyVisibleLineTypes] = useState(true)
   const [exportRoleFilters, setExportRoleFilters] = useState<ExportRoleFilters>({ ...DEFAULT_EXPORT_ROLE_FILTERS })
   const [exportForceSolidStrokes, setExportForceSolidStrokes] = useState(false)
@@ -712,6 +717,7 @@ function App() {
   const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
   const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
   const [showTracingModal, setShowTracingModal] = useState(false)
+  const [showPatternToolsModal, setShowPatternToolsModal] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => loadTemplateRepository())
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
@@ -1410,7 +1416,7 @@ function App() {
     setConstraints(normalizedConstraints)
     setSeamAllowances(normalizedSeamAllowances)
     setHardwareMarkers(normalizedHardwareMarkers)
-    setSnapSettings(doc.snapSettings ?? DEFAULT_SNAP_SETTINGS)
+    setSnapSettings(parseSnapSettings(doc.snapSettings) ?? DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(typeof doc.showAnnotations === 'boolean' ? doc.showAnnotations : true)
     setTracingOverlays(doc.tracingOverlays ?? [])
     setSelectedShapeIds([])
@@ -1802,6 +1808,19 @@ function App() {
   }, [layers, activeLayerId])
 
   useEffect(() => {
+    setActiveSketchGroupId((previous) => {
+      if (!previous) {
+        return previous
+      }
+      const match = sketchGroups.find((group) => group.id === previous)
+      if (!match) {
+        return null
+      }
+      return match.layerId === activeLayerId ? previous : null
+    })
+  }, [sketchGroups, activeLayerId])
+
+  useEffect(() => {
     if (lineTypes.length === 0) {
       setLineTypes(createDefaultLineTypes())
       return
@@ -1823,6 +1842,37 @@ function App() {
   }, [shapes])
 
   useEffect(() => {
+    setSeamAllowances((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
+      const next = previous.filter((entry) => shapeIdSet.has(entry.shapeId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [shapes])
+
+  useEffect(() => {
+    setConstraints((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
+      const layerIdSet = new Set(layers.map((layer) => layer.id))
+      const next = previous.filter((entry) => {
+        if (!shapeIdSet.has(entry.shapeId)) {
+          return false
+        }
+        if (entry.type === 'edge-offset') {
+          return layerIdSet.has(entry.referenceLayerId)
+        }
+        return shapeIdSet.has(entry.referenceShapeId)
+      })
+      return next.length === previous.length ? previous : next
+    })
+  }, [shapes, layers])
+
+  useEffect(() => {
     setStitchHoles((previous) => {
       if (previous.length === 0) {
         return previous
@@ -1841,6 +1891,46 @@ function App() {
       return stitchHoles.some((stitchHole) => stitchHole.id === previous) ? previous : null
     })
   }, [stitchHoles])
+
+  useEffect(() => {
+    setSelectedHardwareMarkerId((previous) => {
+      if (!previous) {
+        return previous
+      }
+      return hardwareMarkers.some((marker) => marker.id === previous) ? previous : null
+    })
+  }, [hardwareMarkers])
+
+  useEffect(() => {
+    setSketchGroups((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const layerIdSet = new Set(layers.map((layer) => layer.id))
+      const next = previous.filter((group) => layerIdSet.has(group.layerId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [layers])
+
+  useEffect(() => {
+    setHardwareMarkers((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const layerIdSet = new Set(layers.map((layer) => layer.id))
+      const groupIdSet = new Set(sketchGroups.map((group) => group.id))
+      const next = previous.filter((marker) => {
+        if (!layerIdSet.has(marker.layerId)) {
+          return false
+        }
+        if (!marker.groupId) {
+          return true
+        }
+        return groupIdSet.has(marker.groupId)
+      })
+      return next.length === previous.length ? previous : next
+    })
+  }, [layers, sketchGroups])
 
   useEffect(() => {
     setLayerColorOverrides((previous) => {
@@ -2243,6 +2333,7 @@ function App() {
     }
 
     event.stopPropagation()
+    setSelectedHardwareMarkerId(null)
 
     setSelectedShapeIds((previous) => {
       const isAlreadySelected = previous.includes(shapeId)
@@ -2274,6 +2365,7 @@ function App() {
     }
 
     event.stopPropagation()
+    setSelectedShapeIds([])
     const nextId = selectedStitchHoleId === stitchHoleId ? null : stitchHoleId
     setSelectedStitchHoleId(nextId)
     setStatus(nextId ? `Stitch hole ${stitchHole.sequence + 1} selected` : 'Stitch-hole selection cleared')
@@ -2294,6 +2386,8 @@ function App() {
     }
 
     event.stopPropagation()
+    setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
     const nextId = selectedHardwareMarkerId === markerId ? null : markerId
     setSelectedHardwareMarkerId(nextId)
     setStatus(nextId ? `Hardware marker selected: ${marker.label}` : 'Hardware marker selection cleared')
@@ -2365,8 +2459,17 @@ function App() {
 
   const getExportableShapes = () =>
     shapes.filter((shape) => {
+      if (exportOnlySelectedShapes && !selectedShapeIdSet.has(shape.id)) {
+        return false
+      }
       if (!visibleLayerIdSet.has(shape.layerId)) {
         return false
+      }
+      if (shape.groupId) {
+        const group = sketchGroupsById[shape.groupId]
+        if (group && !group.visible) {
+          return false
+        }
       }
       const lineType = lineTypesById[shape.lineTypeId]
       const role = lineType?.role ?? 'cut'
@@ -2436,6 +2539,23 @@ function App() {
     setStatus(
       `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, flipY ${dxfFlipY ? 'on' : 'off'})`,
     )
+  }
+
+  const handleExportPdf = () => {
+    const exportShapes = getExportableShapes()
+    if (exportShapes.length === 0) {
+      setStatus('No shapes matched the current export filters')
+      return
+    }
+
+    const pdf = buildPdfFromShapes(exportShapes, {
+      forceSolidLineStyle: exportForceSolidStrokes,
+      lineTypeStyles: lineTypeStylesById,
+      lineTypeColors: Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType.color])),
+    })
+
+    downloadFile('leathercraft-export.pdf', pdf, 'application/pdf')
+    setStatus(`Exported PDF (${exportShapes.length} shapes)`)
   }
 
   const handleSaveJson = () => {
@@ -3731,6 +3851,11 @@ function App() {
       return
     }
 
+    if (mobileFileAction === 'export-pdf') {
+      handleExportPdf()
+      return
+    }
+
     if (mobileFileAction === 'export-dxf') {
       handleExportDxf()
       return
@@ -3743,6 +3868,11 @@ function App() {
 
     if (mobileFileAction === 'template-repository') {
       setShowTemplateRepositoryModal(true)
+      return
+    }
+
+    if (mobileFileAction === 'pattern-tools') {
+      setShowPatternToolsModal(true)
       return
     }
 
@@ -3926,6 +4056,9 @@ function App() {
                   </button>
                   <button className={tool === 'stitch-hole' ? 'active' : ''} onClick={() => setActiveTool('stitch-hole')}>
                     Stitch Hole
+                  </button>
+                  <button className={tool === 'hardware' ? 'active' : ''} onClick={() => setActiveTool('hardware')}>
+                    Hardware
                   </button>
                 </>
               )}
@@ -4175,9 +4308,11 @@ function App() {
                     <option value="import-svg">Import SVG</option>
                     <option value="load-preset">Load Preset</option>
                     <option value="export-svg">Export SVG</option>
+                    <option value="export-pdf">Export PDF</option>
                     <option value="export-dxf">Export DXF</option>
                     <option value="export-options">Export Options</option>
                     <option value="template-repository">Template Repository</option>
+                    <option value="pattern-tools">Pattern Tools</option>
                     <option value="import-tracing">Import Tracing</option>
                     <option value="print-preview">Print Preview</option>
                     <option value="undo">Undo</option>
@@ -4197,8 +4332,10 @@ function App() {
                   <button onClick={() => svgInputRef.current?.click()}>Import SVG</button>
                   <button onClick={() => handleLoadPreset()}>Load Preset</button>
                   <button onClick={handleExportSvg}>Export SVG</button>
+                  <button onClick={handleExportPdf}>Export PDF</button>
                   <button onClick={handleExportDxf}>Export DXF</button>
                   <button onClick={() => setShowExportOptionsModal(true)}>Export Options</button>
+                  <button onClick={() => setShowPatternToolsModal(true)}>Pattern Tools</button>
                   <button onClick={() => setShowTemplateRepositoryModal(true)}>Templates</button>
                   <button onClick={() => tracingInputRef.current?.click()}>Tracing</button>
                   <button onClick={() => setShowTracingModal(true)} disabled={tracingOverlays.length === 0}>
@@ -4302,6 +4439,17 @@ function App() {
                   </g>
                 ))}
 
+              {seamGuides.map((guide) => (
+                <g key={guide.id}>
+                  <path d={guide.d} className="seam-guide-line" />
+                  {showAnnotations && (
+                    <text x={guide.labelPoint.x + 5} y={guide.labelPoint.y + 5} className="seam-guide-label">
+                      {`${guide.offsetMm.toFixed(1)}mm seam`}
+                    </text>
+                  )}
+                </g>
+              ))}
+
               {visibleShapes.map((shape) => {
                 const lineType = lineTypesById[shape.lineTypeId]
                 const lineTypeRole = lineType?.role ?? 'cut'
@@ -4395,6 +4543,24 @@ function App() {
                 )
               })}
 
+              {visibleHardwareMarkers.map((marker) => {
+                const isSelected = marker.id === selectedHardwareMarkerId
+                return (
+                  <g
+                    key={marker.id}
+                    className={isSelected ? 'hardware-marker hardware-marker-selected' : 'hardware-marker'}
+                    onPointerDown={(event) => handleHardwarePointerDown(event, marker.id)}
+                  >
+                    <circle cx={marker.point.x} cy={marker.point.y} r={3.2} />
+                    <line x1={marker.point.x - 4.2} y1={marker.point.y} x2={marker.point.x + 4.2} y2={marker.point.y} />
+                    <line x1={marker.point.x} y1={marker.point.y - 4.2} x2={marker.point.x} y2={marker.point.y + 4.2} />
+                    <text x={marker.point.x + 4.8} y={marker.point.y - 4.8} className="hardware-marker-label">
+                      {`${marker.label} (${marker.holeDiameterMm.toFixed(1)}mm)`}
+                    </text>
+                  </g>
+                )
+              })}
+
               {foldLines.map((foldLine) => (
                 <line
                   key={foldLine.id}
@@ -4404,6 +4570,12 @@ function App() {
                   y2={foldLine.end.y}
                   className="fold-line"
                 />
+              ))}
+
+              {annotationLabels.map((label) => (
+                <text key={label.id} x={label.point.x} y={label.point.y} className="annotation-label">
+                  {label.text}
+                </text>
               ))}
 
               {previewElement}
@@ -4675,9 +4847,17 @@ function App() {
               <button onClick={() => setShowExportOptionsModal(false)}>Done</button>
             </div>
 
-            <p className="hint">Applies to both SVG and DXF exports.</p>
+            <p className="hint">Applies to SVG, PDF, and DXF exports.</p>
 
             <div className="control-block">
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={exportOnlySelectedShapes}
+                  onChange={(event) => setExportOnlySelectedShapes(event.target.checked)}
+                />
+                <span>Export only selected shapes</span>
+              </label>
               <label className="layer-toggle-item">
                 <input
                   type="checkbox"
@@ -4739,6 +4919,7 @@ function App() {
             <div className="line-type-modal-actions">
               <button
                 onClick={() => {
+                  setExportOnlySelectedShapes(false)
                   setExportOnlyVisibleLineTypes(true)
                   setExportRoleFilters({ ...DEFAULT_EXPORT_ROLE_FILTERS })
                   setExportForceSolidStrokes(false)
@@ -4812,6 +4993,425 @@ function App() {
               >
                 Delete Template
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPatternToolsModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowPatternToolsModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowPatternToolsModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div className="line-type-modal pattern-tools-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="line-type-modal-header">
+              <h2>Pattern Tools</h2>
+              <button onClick={() => setShowPatternToolsModal(false)}>Done</button>
+            </div>
+            <p className="hint">
+              Manage sub-sketches, constraints, seam offsets, snapping, annotations, and hardware markers from one panel.
+            </p>
+
+            <div className="control-block">
+              <h3>Snap + Align</h3>
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={snapSettings.enabled}
+                  onChange={(event) =>
+                    setSnapSettings((previous) => ({
+                      ...previous,
+                      enabled: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Enable snapping</span>
+              </label>
+              <div className="pattern-toggle-grid">
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={snapSettings.grid}
+                    onChange={(event) =>
+                      setSnapSettings((previous) => ({
+                        ...previous,
+                        grid: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Grid</span>
+                </label>
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={snapSettings.endpoints}
+                    onChange={(event) =>
+                      setSnapSettings((previous) => ({
+                        ...previous,
+                        endpoints: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Endpoints</span>
+                </label>
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={snapSettings.midpoints}
+                    onChange={(event) =>
+                      setSnapSettings((previous) => ({
+                        ...previous,
+                        midpoints: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Midpoints</span>
+                </label>
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={snapSettings.guides}
+                    onChange={(event) =>
+                      setSnapSettings((previous) => ({
+                        ...previous,
+                        guides: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Guides</span>
+                </label>
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={snapSettings.hardware}
+                    onChange={(event) =>
+                      setSnapSettings((previous) => ({
+                        ...previous,
+                        hardware: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Hardware</span>
+                </label>
+              </div>
+              <label className="field-row">
+                <span>Grid snap step (mm)</span>
+                <input
+                  type="number"
+                  min={0.1}
+                  step={0.5}
+                  value={snapSettings.gridStep}
+                  onChange={(event) =>
+                    setSnapSettings((previous) => ({
+                      ...previous,
+                      gridStep: clamp(Number(event.target.value) || 0.1, 0.1, 1000),
+                    }))
+                  }
+                />
+              </label>
+              <div className="button-row">
+                <button onClick={() => handleAlignSelection('x')} disabled={selectedShapeCount < 2}>
+                  Align X
+                </button>
+                <button onClick={() => handleAlignSelection('y')} disabled={selectedShapeCount < 2}>
+                  Align Y
+                </button>
+                <button onClick={() => handleAlignSelection('both')} disabled={selectedShapeCount < 2}>
+                  Align XY
+                </button>
+                <button onClick={handleAlignSelectionToGrid} disabled={selectedShapeCount === 0}>
+                  Align to Grid
+                </button>
+              </div>
+            </div>
+
+            <div className="control-block">
+              <h3>Sub-Sketches + Annotations</h3>
+              <label className="field-row">
+                <span>Active sub-sketch</span>
+                <select
+                  className="action-select"
+                  value={activeSketchGroup?.id ?? ''}
+                  onChange={(event) => setActiveSketchGroupId(event.target.value || null)}
+                >
+                  <option value="">None</option>
+                  {sketchGroups
+                    .filter((group) => group.layerId === activeLayerId)
+                    .map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                        {group.visible ? '' : ' (hidden)'}
+                        {group.locked ? ' (locked)' : ''}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <div className="line-type-modal-actions">
+                <button onClick={handleCreateSketchGroupFromSelection} disabled={selectedShapeCount === 0}>
+                  Create from Selection
+                </button>
+                <button onClick={handleDuplicateActiveSketchGroup} disabled={!activeSketchGroup}>
+                  Place Copy
+                </button>
+                <button onClick={handleRenameActiveSketchGroup} disabled={!activeSketchGroup}>
+                  Rename
+                </button>
+                <button onClick={handleToggleActiveSketchGroupVisibility} disabled={!activeSketchGroup}>
+                  {activeSketchGroup?.visible ? 'Hide' : 'Show'}
+                </button>
+                <button onClick={handleToggleActiveSketchGroupLock} disabled={!activeSketchGroup}>
+                  {activeSketchGroup?.locked ? 'Unlock' : 'Lock'}
+                </button>
+                <button onClick={handleClearActiveSketchGroup} disabled={!activeSketchGroup}>
+                  Clear Active
+                </button>
+                <button onClick={handleDeleteActiveSketchGroup} disabled={!activeSketchGroup}>
+                  Delete Sub-Sketch
+                </button>
+              </div>
+              <div className="line-type-edit-grid">
+                <label className="field-row">
+                  <span>Layer annotation</span>
+                  <input
+                    value={activeLayer?.annotation ?? ''}
+                    placeholder="e.g. Main body"
+                    onChange={(event) => handleSetActiveLayerAnnotation(event.target.value)}
+                  />
+                </label>
+                <label className="field-row">
+                  <span>Sub-sketch annotation</span>
+                  <input
+                    value={activeSketchGroup?.annotation ?? ''}
+                    placeholder="e.g. Inner pocket"
+                    onChange={(event) => handleSetActiveSketchAnnotation(event.target.value)}
+                    disabled={!activeSketchGroup}
+                  />
+                </label>
+              </div>
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={showAnnotations}
+                  onChange={(event) => setShowAnnotations(event.target.checked)}
+                />
+                <span>Show annotation labels on canvas</span>
+              </label>
+            </div>
+
+            <div className="control-block">
+              <h3>Parametric Constraints</h3>
+              <div className="line-type-edit-grid">
+                <label className="field-row">
+                  <span>Edge</span>
+                  <select
+                    className="action-select"
+                    value={constraintEdge}
+                    onChange={(event) => setConstraintEdge(event.target.value as ConstraintEdge)}
+                  >
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                  </select>
+                </label>
+                <label className="field-row">
+                  <span>Offset (mm)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={constraintOffsetMm}
+                    onChange={(event) => setConstraintOffsetMm(clamp(Number(event.target.value) || 0, 0, 999))}
+                  />
+                </label>
+                <label className="field-row">
+                  <span>Align axis</span>
+                  <select
+                    className="action-select"
+                    value={constraintAxis}
+                    onChange={(event) => setConstraintAxis(event.target.value as ConstraintAxis)}
+                  >
+                    <option value="x">X</option>
+                    <option value="y">Y</option>
+                    <option value="both">Both</option>
+                  </select>
+                </label>
+              </div>
+              <div className="line-type-modal-actions">
+                <button onClick={handleAddEdgeConstraintFromSelection} disabled={selectedShapeCount === 0}>
+                  Add Edge Offset
+                </button>
+                <button onClick={handleAddAlignConstraintsFromSelection} disabled={selectedShapeCount < 2}>
+                  Add Align Rules
+                </button>
+                <button onClick={handleApplyConstraints} disabled={constraints.length === 0}>
+                  Apply Constraints
+                </button>
+              </div>
+              {constraints.length === 0 ? (
+                <p className="hint">No constraints yet.</p>
+              ) : (
+                <div className="template-list pattern-constraint-list">
+                  {constraints.map((constraint) => (
+                    <div key={constraint.id} className="pattern-constraint-item">
+                      <label className="layer-toggle-item">
+                        <input
+                          type="checkbox"
+                          checked={constraint.enabled}
+                          onChange={() => handleToggleConstraintEnabled(constraint.id)}
+                        />
+                        <span>{constraint.name}</span>
+                      </label>
+                      <span className="template-item-meta">
+                        {constraint.type === 'edge-offset'
+                          ? `${constraint.edge} @ ${constraint.offsetMm.toFixed(1)}mm`
+                          : `Align ${constraint.axis}`}
+                      </span>
+                      <button onClick={() => handleDeleteConstraint(constraint.id)}>Delete</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="control-block">
+              <h3>Seam Offsets</h3>
+              <label className="field-row">
+                <span>Offset distance (mm)</span>
+                <input
+                  type="number"
+                  min={0.1}
+                  step={0.5}
+                  value={seamAllowanceInputMm}
+                  onChange={(event) => setSeamAllowanceInputMm(clamp(Number(event.target.value) || 0.1, 0.1, 150))}
+                />
+              </label>
+              <div className="line-type-modal-actions">
+                <button onClick={handleApplySeamAllowanceToSelection} disabled={selectedShapeCount === 0}>
+                  Apply to Selection
+                </button>
+                <button onClick={handleClearSeamAllowanceOnSelection} disabled={selectedShapeCount === 0}>
+                  Clear on Selection
+                </button>
+                <button onClick={handleClearAllSeamAllowances} disabled={seamAllowances.length === 0}>
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            <div className="control-block">
+              <h3>Hardware Markers</h3>
+              <div className="line-type-edit-grid">
+                <label className="field-row">
+                  <span>Preset</span>
+                  <select
+                    className="action-select"
+                    value={hardwarePreset}
+                    onChange={(event) => setHardwarePreset(event.target.value as HardwareKind)}
+                  >
+                    <option value="snap">Snap</option>
+                    <option value="rivet">Rivet</option>
+                    <option value="buckle">Buckle</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label className="field-row">
+                  <span>Custom hole (mm)</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={customHardwareDiameterMm}
+                    disabled={hardwarePreset !== 'custom'}
+                    onChange={(event) => setCustomHardwareDiameterMm(clamp(Number(event.target.value) || 0.1, 0.1, 120))}
+                  />
+                </label>
+                <label className="field-row">
+                  <span>Custom spacing (mm)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={customHardwareSpacingMm}
+                    disabled={hardwarePreset !== 'custom'}
+                    onChange={(event) => setCustomHardwareSpacingMm(clamp(Number(event.target.value) || 0, 0, 300))}
+                  />
+                </label>
+              </div>
+              <div className="line-type-modal-actions">
+                <button onClick={() => setActiveTool('hardware')}>Use Hardware Tool</button>
+                <button onClick={() => setActiveTool('pan')}>Back to Move Tool</button>
+              </div>
+              <p className="hint">
+                Pick the Hardware tool, then click on canvas to place markers with metadata for holes and spacing.
+              </p>
+
+              {selectedHardwareMarker ? (
+                <div className="line-type-edit-grid">
+                  <label className="field-row">
+                    <span>Label</span>
+                    <input
+                      value={selectedHardwareMarker.label}
+                      onChange={(event) => handleUpdateSelectedHardwareMarker({ label: event.target.value })}
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Hole diameter (mm)</span>
+                    <input
+                      type="number"
+                      min={0.1}
+                      step={0.1}
+                      value={selectedHardwareMarker.holeDiameterMm}
+                      onChange={(event) =>
+                        handleUpdateSelectedHardwareMarker({
+                          holeDiameterMm: clamp(Number(event.target.value) || 0.1, 0.1, 120),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Spacing (mm)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={selectedHardwareMarker.spacingMm}
+                      onChange={(event) =>
+                        handleUpdateSelectedHardwareMarker({
+                          spacingMm: clamp(Number(event.target.value) || 0, 0, 300),
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Notes</span>
+                    <input
+                      value={selectedHardwareMarker.notes ?? ''}
+                      placeholder="e.g. set with #9 snap"
+                      onChange={(event) => handleUpdateSelectedHardwareMarker({ notes: event.target.value })}
+                    />
+                  </label>
+                  <label className="layer-toggle-item">
+                    <input
+                      type="checkbox"
+                      checked={selectedHardwareMarker.visible}
+                      onChange={(event) => handleUpdateSelectedHardwareMarker({ visible: event.target.checked })}
+                    />
+                    <span>Visible</span>
+                  </label>
+                  <div className="line-type-modal-actions">
+                    <button onClick={handleDeleteSelectedHardwareMarker}>Delete Marker</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="hint">Select a hardware marker in Move tool to edit metadata.</p>
+              )}
             </div>
           </div>
         </div>
@@ -5109,11 +5709,15 @@ function App() {
           {visibleShapes.length}/{shapes.length} visible shapes
         </span>
         <span className="statusbar-meta">{layers.length} layers</span>
+        <span className="statusbar-meta">{sketchGroups.length} sub-sketches</span>
         <span className="statusbar-meta">
           {lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types
         </span>
         <span className="statusbar-meta">{foldLines.length} bends</span>
         <span className="statusbar-meta">{stitchHoles.length} stitch holes</span>
+        <span className="statusbar-meta">{seamAllowances.length} seam offsets</span>
+        <span className="statusbar-meta">{constraints.length} constraints</span>
+        <span className="statusbar-meta">{hardwareMarkers.length} hardware markers</span>
         <span className="statusbar-meta">{tracingOverlays.length} traces</span>
         <span className="statusbar-meta">{templateRepository.length} templates</span>
       </footer>

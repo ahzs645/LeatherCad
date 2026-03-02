@@ -562,6 +562,63 @@ button:disabled {
   user-select: none;
 }
 
+.seam-guide-line {
+  stroke: rgba(59, 130, 246, 0.9);
+  stroke-width: 1.3;
+  stroke-dasharray: 4 4;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.seam-guide-label {
+  fill: var(--text-muted-strong);
+  font-size: 3.6px;
+  paint-order: stroke;
+  stroke: rgba(15, 23, 42, 0.8);
+  stroke-width: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.hardware-marker {
+  fill: rgba(250, 204, 21, 0.12);
+  stroke: #facc15;
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+}
+
+.hardware-marker line {
+  stroke: inherit;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.hardware-marker-selected {
+  stroke: #0ea5e9;
+}
+
+.hardware-marker-label {
+  fill: var(--text-muted-strong);
+  font-size: 3.5px;
+  paint-order: stroke;
+  stroke: rgba(15, 23, 42, 0.8);
+  stroke-width: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+
+.annotation-label {
+  fill: var(--text-muted-strong);
+  font-size: 3.8px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: rgba(15, 23, 42, 0.85);
+  stroke-width: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
 .shape-preview {
   stroke: var(--shape-preview-color);
   stroke-width: 2;
@@ -837,6 +894,11 @@ button:disabled {
   overflow: auto;
 }
 
+.pattern-tools-modal {
+  width: min(760px, 100%);
+  max-height: min(86vh, 920px);
+}
+
 .export-options-modal {
   width: min(560px, 100%);
   max-height: min(80vh, 820px);
@@ -876,6 +938,27 @@ button:disabled {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 8px;
+}
+
+.pattern-toggle-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pattern-constraint-list {
+  max-height: 28vh;
+}
+
+.pattern-constraint-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+  padding: 7px 9px;
 }
 
 .template-item {
@@ -1211,7 +1294,8 @@ button:disabled {
 
   .line-type-modal-list,
   .line-type-edit-grid,
-  .export-role-grid {
+  .export-role-grid,
+  .pattern-toggle-grid {
     grid-template-columns: 1fr;
   }
 }
