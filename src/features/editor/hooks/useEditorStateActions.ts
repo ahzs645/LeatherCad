@@ -16,6 +16,7 @@ import type {
   SketchGroup,
   SnapSettings,
   StitchHole,
+  TextureSource,
   TracingOverlay,
 } from '../cad/cad-types'
 import { DEFAULT_SNAP_SETTINGS } from '../editor-constants'
@@ -42,6 +43,13 @@ type UseEditorStateActionsParams = {
   setSnapSettings: Dispatch<SetStateAction<SnapSettings>>
   setShowAnnotations: Dispatch<SetStateAction<boolean>>
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
+  setProjectMemo: Dispatch<SetStateAction<string>>
+  setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
+  setStitchThreadColor: Dispatch<SetStateAction<string>>
+  setThreeTextureSource: Dispatch<SetStateAction<TextureSource | null>>
+  setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
+  setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
+  setShowDimensions: Dispatch<SetStateAction<boolean>>
   setLayerColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
   setFrontLayerColor: Dispatch<SetStateAction<string>>
   setBackLayerColor: Dispatch<SetStateAction<string>>
@@ -73,6 +81,13 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setLayerColorOverrides,
     setFrontLayerColor,
     setBackLayerColor,
@@ -99,6 +114,13 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings(snapshot.snapSettings)
     setShowAnnotations(snapshot.showAnnotations)
     setTracingOverlays(snapshot.tracingOverlays)
+    setProjectMemo(snapshot.projectMemo)
+    setStitchAlwaysShapeIds(snapshot.stitchAlwaysShapeIds)
+    setStitchThreadColor(snapshot.stitchThreadColor)
+    setThreeTextureSource(snapshot.threeTextureSource)
+    setThreeTextureShapeIds(snapshot.threeTextureShapeIds)
+    setShowCanvasRuler(snapshot.showCanvasRuler)
+    setShowDimensions(snapshot.showDimensions)
     setLayerColorOverrides(snapshot.layerColorOverrides)
     setFrontLayerColor(snapshot.frontLayerColor)
     setBackLayerColor(snapshot.backLayerColor)
@@ -121,6 +143,13 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setLayerColorOverrides,
     setFrontLayerColor,
     setBackLayerColor,
@@ -195,6 +224,13 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings(DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(true)
     setTracingOverlays([])
+    setProjectMemo('')
+    setStitchAlwaysShapeIds([])
+    setStitchThreadColor('#fb923c')
+    setThreeTextureSource(null)
+    setThreeTextureShapeIds([])
+    setShowCanvasRuler(true)
+    setShowDimensions(false)
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
     setSelectedHardwareMarkerId(null)
@@ -219,6 +255,13 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,

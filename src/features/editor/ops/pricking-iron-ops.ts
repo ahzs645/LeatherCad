@@ -12,6 +12,7 @@ export type PrickingIronPreset = {
 export const CUSTOM_PRICKING_IRON_STORAGE_KEY = 'leathercraft-custom-pricking-irons-v1'
 
 const BASE_PITCHES_MM = [3, 3.38, 3.85, 4]
+const BASE_INCH_SPI = [5, 6, 7, 8, 9, 10]
 const BUILTIN_SHAPES: Array<{ shape: PrickingIronShape; label: string }> = [
   { shape: 'diamond', label: 'Diamond' },
   { shape: 'french', label: 'French' },
@@ -36,6 +37,16 @@ export function createBuiltinPrickingIrons(): PrickingIronPreset[] {
         name: `${shapeEntry.label} ${pitchLabel}`,
         shape: shapeEntry.shape,
         pitchMm: pitch,
+      })
+    }
+
+    for (const spi of BASE_INCH_SPI) {
+      const pitchMm = 25.4 / spi
+      presets.push({
+        id: `${shapeEntry.shape}-spi-${spi}`,
+        name: `${shapeEntry.label} ${spi} SPI`,
+        shape: shapeEntry.shape,
+        pitchMm,
       })
     }
   }
@@ -129,4 +140,3 @@ export function createCustomPrickingIron(params: {
     pitchMm: clampPitch(params.pitchMm),
   }
 }
-

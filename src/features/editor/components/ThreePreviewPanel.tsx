@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { sampleShapePoints } from '../cad/cad-geometry'
 import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
 import { ThreeBridge } from '../three/three-bridge'
 import {
@@ -12,7 +13,14 @@ import {
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]
+  selectedShapeIds: string[]
   stitchHoles: StitchHole[]
+  stitchThreadColor: string
+  onSetStitchThreadColor: (color: string) => void
+  threeTextureSource: TextureSource | null
+  onSetThreeTextureSource: (source: TextureSource | null) => void
+  threeTextureShapeIds: string[]
+  onSetThreeTextureShapeIds: (shapeIds: string[]) => void
   foldLines: FoldLine[]
   layers: Layer[]
   lineTypes: LineType[]
@@ -29,9 +37,36 @@ const DEFAULT_TEXTURE_FORM: TextureSource = {
   roughnessUrl: '',
 }
 
+function normalizeTextureSource(value: TextureSource): TextureSource {
+  const source: TextureSource = {
+    sourceUrl: value.sourceUrl.trim(),
+    license: value.license.trim(),
+    albedoUrl: value.albedoUrl.trim(),
+  }
+
+  const normalUrl = (value.normalUrl ?? '').trim()
+  if (normalUrl.length > 0) {
+    source.normalUrl = normalUrl
+  }
+
+  const roughnessUrl = (value.roughnessUrl ?? '').trim()
+  if (roughnessUrl.length > 0) {
+    source.roughnessUrl = roughnessUrl
+  }
+
+  return source
+}
+
 export function ThreePreviewPanel({
   shapes,
+  selectedShapeIds,
   stitchHoles,
+  stitchThreadColor,
+  onSetStitchThreadColor,
+  threeTextureSource,
+  onSetThreeTextureSource,
+  threeTextureShapeIds,
+  onSetThreeTextureShapeIds,
   foldLines,
   layers,
   lineTypes,
@@ -43,7 +78,7 @@ export function ThreePreviewPanel({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const bridgeRef = useRef<ThreeBridge | null>(null)
 
-  const [textureForm, setTextureForm] = useState<TextureSource>(DEFAULT_TEXTURE_FORM)
+  const [textureForm, setTextureForm] = useState<TextureSource>(() => threeTextureSource ?? DEFAULT_TEXTURE_FORM)
   const [textureStatus, setTextureStatus] = useState('Default leather material active')
   const [showControls, setShowControls] = useState(!isMobileLayout)
   const [hidden3dLayerIds, setHidden3dLayerIds] = useState<string[]>([])
@@ -70,6 +105,30 @@ export function ThreePreviewPanel({
   const visibleLayerCountIn3d = useMemo(
     () => layers.filter((layer) => layer.visible && !effectiveHidden3dLayerIds.includes(layer.id)).length,
     [layers, effectiveHidden3dLayerIds],
+  )
+
+  const closedShapeIdSet = useMemo(() => {
+    const result = new Set<string>()
+    for (const shape of shapes) {
+      if (shape.type === 'text') {
+        continue
+      }
+      const sampled = sampleShapePoints(shape, shape.type === 'line' ? 2 : 40)
+      if (sampled.length < 3) {
+        continue
+      }
+      const first = sampled[0]
+      const last = sampled[sampled.length - 1]
+      if (Math.hypot(last.x - first.x, last.y - first.y) <= 0.5) {
+        result.add(shape.id)
+      }
+    }
+    return result
+  }, [shapes])
+
+  const selectedClosedShapeIds = useMemo(
+    () => selectedShapeIds.filter((shapeId) => closedShapeIdSet.has(shapeId)),
+    [selectedShapeIds, closedShapeIdSet],
   )
 
   useEffect(() => {
@@ -112,6 +171,55 @@ export function ThreePreviewPanel({
   useEffect(() => {
     bridgeRef.current?.setTheme(themeMode)
   }, [themeMode])
+
+  useEffect(() => {
+    bridgeRef.current?.setThreadColor(stitchThreadColor)
+  }, [stitchThreadColor])
+
+  useEffect(() => {
+    bridgeRef.current?.setTextureAssignments(threeTextureShapeIds)
+  }, [threeTextureShapeIds])
+
+  useEffect(() => {
+    const bridge = bridgeRef.current
+    if (!bridge) {
+      return
+    }
+
+    let cancelled = false
+
+    const apply = async () => {
+      if (!threeTextureSource || !threeTextureSource.albedoUrl.trim()) {
+        bridge.useDefaultTexture()
+        if (!cancelled) {
+          setTextureStatus('Default leather material active')
+        }
+        return
+      }
+
+      try {
+        await bridge.setTexture(threeTextureSource)
+        bridge.setTextureAssignments(threeTextureShapeIds)
+        if (!cancelled) {
+          setTextureStatus(
+            threeTextureShapeIds.length > 0
+              ? `Texture loaded for ${threeTextureShapeIds.length} shape${threeTextureShapeIds.length === 1 ? '' : 's'}`
+              : 'Texture loaded (no shapes assigned yet)',
+          )
+        }
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'unknown error'
+          setTextureStatus(`Texture load failed: ${message}`)
+        }
+      }
+    }
+
+    void apply()
+    return () => {
+      cancelled = true
+    }
+  }, [threeTextureSource, threeTextureShapeIds])
 
   return (
     <div className={`three-preview-shell ${showControls ? '' : 'preview-controls-collapsed'}`}>
@@ -299,6 +407,18 @@ export function ThreePreviewPanel({
           </div>
 
           <div className="control-block">
+            <h3>Stitch Simulator</h3>
+            <label className="field-row">
+              <span>Thread Color</span>
+              <input
+                type="color"
+                value={stitchThreadColor}
+                onChange={(event) => onSetStitchThreadColor(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="control-block">
             <h3>Texture Source</h3>
             <label className="field-row">
               <span>Texture source URL</span>
@@ -369,29 +489,100 @@ export function ThreePreviewPanel({
             <div className="button-row">
               <button
                 onClick={async () => {
-                  if (!bridgeRef.current) {
+                  const bridge = bridgeRef.current
+                  if (!bridge) {
                     return
                   }
 
-                  if (!textureForm.albedoUrl.trim()) {
+                  if (selectedClosedShapeIds.length === 0) {
+                    setTextureStatus('Select one or more closed shapes in 2D first')
+                    return
+                  }
+
+                  const nextSource = normalizeTextureSource(textureForm)
+                  if (!nextSource.albedoUrl) {
                     setTextureStatus('Set at least an albedo URL before applying texture')
                     return
                   }
 
                   try {
                     setTextureStatus('Loading texture set...')
-                    await bridgeRef.current.setTexture(textureForm)
-                    setTextureStatus('Texture set applied to wallet preview')
+                    await bridge.setTexture(nextSource)
+                    setTextureForm(nextSource)
+                    const nextAssignedIds = Array.from(new Set([...threeTextureShapeIds, ...selectedClosedShapeIds]))
+                    onSetThreeTextureSource(nextSource)
+                    onSetThreeTextureShapeIds(nextAssignedIds)
+                    bridge.setTextureAssignments(nextAssignedIds)
+                    setTextureStatus(
+                      `Applied texture to ${selectedClosedShapeIds.length} selected closed shape${selectedClosedShapeIds.length === 1 ? '' : 's'}`,
+                    )
                   } catch (error) {
                     const message = error instanceof Error ? error.message : 'unknown error'
                     setTextureStatus(`Texture load failed: ${message}`)
                   }
                 }}
               >
-                Apply Texture
+                Apply to Selection
+              </button>
+              <button
+                onClick={async () => {
+                  const bridge = bridgeRef.current
+                  if (!bridge) {
+                    return
+                  }
+
+                  const nextSource = normalizeTextureSource(textureForm)
+                  if (!nextSource.albedoUrl) {
+                    setTextureStatus('Set at least an albedo URL before applying texture')
+                    return
+                  }
+
+                  const allShapeIds = shapes.filter((shape) => closedShapeIdSet.has(shape.id)).map((shape) => shape.id)
+                  if (allShapeIds.length === 0) {
+                    setTextureStatus('No closed shapes available for texture application')
+                    return
+                  }
+
+                  try {
+                    setTextureStatus('Loading texture set...')
+                    await bridge.setTexture(nextSource)
+                    setTextureForm(nextSource)
+                    onSetThreeTextureSource(nextSource)
+                    onSetThreeTextureShapeIds(allShapeIds)
+                    bridge.setTextureAssignments(allShapeIds)
+                    setTextureStatus(
+                      `Applied texture to all ${allShapeIds.length} closed shape${allShapeIds.length === 1 ? '' : 's'}`,
+                    )
+                  } catch (error) {
+                    const message = error instanceof Error ? error.message : 'unknown error'
+                    setTextureStatus(`Texture load failed: ${message}`)
+                  }
+                }}
+              >
+                Apply Globally
               </button>
               <button
                 onClick={() => {
+                  if (selectedClosedShapeIds.length === 0) {
+                    setTextureStatus('Select one or more closed shapes in 2D first')
+                    return
+                  }
+                  const selectedIdSet = new Set(selectedClosedShapeIds)
+                  const nextAssignedIds = threeTextureShapeIds.filter((shapeId) => !selectedIdSet.has(shapeId))
+                  onSetThreeTextureShapeIds(nextAssignedIds)
+                  bridgeRef.current?.setTextureAssignments(nextAssignedIds)
+                  setTextureStatus(
+                    `Removed texture assignment from ${selectedClosedShapeIds.length} selected closed shape${selectedClosedShapeIds.length === 1 ? '' : 's'}`,
+                  )
+                }}
+              >
+                Clear Selection Texture
+              </button>
+              <button
+                onClick={() => {
+                  onSetThreeTextureSource(null)
+                  onSetThreeTextureShapeIds([])
+                  setTextureForm(DEFAULT_TEXTURE_FORM)
                   bridgeRef.current?.useDefaultTexture()
                   setTextureStatus('Switched back to default leather material')
                 }}
@@ -399,6 +590,10 @@ export function ThreePreviewPanel({
                 Reset Material
               </button>
             </div>
+            <p className="hint">
+              Texture assignments: {threeTextureShapeIds.length} shape{threeTextureShapeIds.length === 1 ? '' : 's'}
+            </p>
+            <p className="hint">Closed selected shapes: {selectedClosedShapeIds.length}</p>
             <p className="hint">{textureStatus}</p>
           </div>
         </div>

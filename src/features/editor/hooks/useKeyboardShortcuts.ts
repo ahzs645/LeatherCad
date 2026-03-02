@@ -10,6 +10,7 @@ type UseKeyboardShortcutsParams = {
   handleCutSelection: () => void
   handlePasteClipboard: () => void
   handleDuplicateSelection: () => void
+  handleSelectAllShapes: () => void
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -23,6 +24,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleCutSelection,
     handlePasteClipboard,
     handleDuplicateSelection,
+    handleSelectAllShapes,
   } = params
 
   useEffect(() => {
@@ -79,6 +81,11 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
       if (key === 'd') {
         event.preventDefault()
         handleDuplicateSelection()
+        return
+      }
+      if (key === 'a') {
+        event.preventDefault()
+        handleSelectAllShapes()
       }
     }
 
@@ -94,5 +101,6 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleCutSelection,
     handlePasteClipboard,
     handleDuplicateSelection,
+    handleSelectAllShapes,
   ])
 }

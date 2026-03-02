@@ -383,6 +383,15 @@ export function parseTracingOverlay(value: unknown): TracingOverlay | null {
     name: candidate.name,
     kind: candidate.kind,
     sourceUrl: candidate.sourceUrl,
+    pdfSourceUrl: typeof candidate.pdfSourceUrl === 'string' && candidate.pdfSourceUrl.length > 0 ? candidate.pdfSourceUrl : undefined,
+    pdfPageNumber:
+      typeof candidate.pdfPageNumber === 'number' && Number.isFinite(candidate.pdfPageNumber) && candidate.pdfPageNumber > 0
+        ? Math.round(candidate.pdfPageNumber)
+        : undefined,
+    pdfPageCount:
+      typeof candidate.pdfPageCount === 'number' && Number.isFinite(candidate.pdfPageCount) && candidate.pdfPageCount > 0
+        ? Math.round(candidate.pdfPageCount)
+        : undefined,
     visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
     locked: typeof candidate.locked === 'boolean' ? candidate.locked : true,
     opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0.05, 1) : 0.75,
@@ -392,6 +401,6 @@ export function parseTracingOverlay(value: unknown): TracingOverlay | null {
     offsetY: typeof candidate.offsetY === 'number' ? candidate.offsetY : 0,
     width: typeof candidate.width === 'number' && candidate.width > 0 ? candidate.width : 800,
     height: typeof candidate.height === 'number' && candidate.height > 0 ? candidate.height : 800,
-    isObjectUrl: false,
+    isObjectUrl: typeof candidate.isObjectUrl === 'boolean' ? candidate.isObjectUrl : false,
   }
 }

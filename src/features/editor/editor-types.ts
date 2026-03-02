@@ -11,6 +11,7 @@ import type {
   SketchGroup,
   SnapSettings,
   StitchHole,
+  TextureSource,
   TracingOverlay,
 } from './cad/cad-types'
 
@@ -85,6 +86,13 @@ export type EditorSnapshot = {
   snapSettings: SnapSettings
   showAnnotations: boolean
   tracingOverlays: TracingOverlay[]
+  projectMemo: string
+  stitchAlwaysShapeIds: string[]
+  stitchThreadColor: string
+  threeTextureSource: TextureSource | null
+  threeTextureShapeIds: string[]
+  showCanvasRuler: boolean
+  showDimensions: boolean
   layerColorOverrides: Record<string, string>
   frontLayerColor: string
   backLayerColor: string

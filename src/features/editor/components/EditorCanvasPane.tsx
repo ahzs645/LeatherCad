@@ -1,5 +1,5 @@
 import type { PointerEvent, PointerEventHandler, ReactElement, RefObject, WheelEventHandler } from 'react'
-import { arcPath, round } from '../cad/cad-geometry'
+import { arcPath, round, sampleShapePoints } from '../cad/cad-geometry'
 import type {
   FoldLine,
   HardwareMarker,
@@ -13,7 +13,8 @@ import type {
 } from '../cad/cad-types'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
-import type { AnnotationLabel, LegendMode, ResolvedThemeMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
+import type { AnnotationLabel, LegendMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
+import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
 import type { PrintPlan } from '../preview/print-preview'
 import { LayerLegendPanel } from './LayerLegendPanel'
 
@@ -31,9 +32,11 @@ type EditorCanvasPaneProps = {
   onPointerUp: PointerEventHandler<SVGSVGElement>
   onWheel: WheelEventHandler<SVGSVGElement>
   viewport: Viewport
+  displayUnit: DisplayUnit
   gridLines: ReactElement[]
+  showCanvasRuler: boolean
+  showDimensions: boolean
   tracingOverlays: TracingOverlay[]
-  themeMode: ResolvedThemeMode
   showPrintAreas: boolean
   printPlan: PrintPlan | null
   seamGuides: SeamGuide[]
@@ -76,9 +79,11 @@ export function EditorCanvasPane({
   onPointerUp,
   onWheel,
   viewport,
+  displayUnit,
   gridLines,
+  showCanvasRuler,
+  showDimensions,
   tracingOverlays,
-  themeMode,
   showPrintAreas,
   printPlan,
   seamGuides,
@@ -199,6 +204,44 @@ export function EditorCanvasPane({
     )
   }
 
+  const dimensionShapes = showDimensions
+    ? selectedShapeIdSet.size > 0
+      ? visibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+      : visibleShapes.slice(0, 40)
+    : []
+
+  const dimensionEntries = dimensionShapes
+    .map((shape) => {
+      const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 36)
+      if (sampled.length < 2) {
+        return null
+      }
+
+      let lengthMm = 0
+      for (let index = 1; index < sampled.length; index += 1) {
+        const dx = sampled[index].x - sampled[index - 1].x
+        const dy = sampled[index].y - sampled[index - 1].y
+        lengthMm += Math.hypot(dx, dy)
+      }
+
+      if (!Number.isFinite(lengthMm) || lengthMm <= 0.01) {
+        return null
+      }
+
+      const mid = sampled[Math.floor(sampled.length / 2)]
+      return {
+        id: shape.id,
+        x: mid.x + 4,
+        y: mid.y - 4,
+        text: formatDisplayDistance(lengthMm, displayUnit, displayUnit === 'in' ? 3 : 1),
+      }
+    })
+    .filter((entry): entry is { id: string; x: number; y: number; text: string } => entry !== null)
+
+  const rulerTickValues = showCanvasRuler
+    ? Array.from({ length: 81 }, (_, index) => (index - 40) * 50)
+    : []
+
   return (
     <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`}>
       <svg
@@ -214,6 +257,44 @@ export function EditorCanvasPane({
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
           {gridLines}
 
+          {showCanvasRuler && (
+            <g className="xy-ruler-overlay">
+              <line x1={-2400} y1={0} x2={2400} y2={0} className="xy-ruler-axis" />
+              <line x1={0} y1={-2400} x2={0} y2={2400} className="xy-ruler-axis" />
+              {rulerTickValues.map((value) => {
+                const major = value % 200 === 0
+                const tick = major ? 7 : 4
+                return (
+                  <g key={`ruler-x-${value}`}>
+                    <line x1={value} y1={-tick} x2={value} y2={tick} className="xy-ruler-tick" />
+                    {major && value !== 0 && (
+                      <text x={value + 2} y={-9} className="xy-ruler-label">
+                        {formatDisplayDistance(value, displayUnit, displayUnit === 'in' ? 2 : 0)}
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
+              {rulerTickValues.map((value) => {
+                const major = value % 200 === 0
+                const tick = major ? 7 : 4
+                return (
+                  <g key={`ruler-y-${value}`}>
+                    <line x1={-tick} y1={value} x2={tick} y2={value} className="xy-ruler-tick" />
+                    {major && value !== 0 && (
+                      <text x={8} y={value - 2} className="xy-ruler-label">
+                        {formatDisplayDistance(-value, displayUnit, displayUnit === 'in' ? 2 : 0)}
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
+              <text x={10} y={-10} className="xy-ruler-origin">
+                0,0
+              </text>
+            </g>
+          )}
+
           {tracingOverlays
             .filter((overlay) => overlay.visible)
             .map((overlay) => {
@@ -223,36 +304,16 @@ export function EditorCanvasPane({
               )}) scale(${scale})`
               const x = round(-overlay.width / 2)
               const y = round(-overlay.height / 2)
-              if (overlay.kind === 'image') {
-                return (
-                  <g key={overlay.id} transform={transform} opacity={overlay.opacity}>
-                    <image
-                      href={overlay.sourceUrl}
-                      x={x}
-                      y={y}
-                      width={round(overlay.width)}
-                      height={round(overlay.height)}
-                      preserveAspectRatio="xMidYMid meet"
-                    />
-                  </g>
-                )
-              }
-
               return (
                 <g key={overlay.id} transform={transform} opacity={overlay.opacity}>
-                  <rect
+                  <image
+                    href={overlay.sourceUrl}
                     x={x}
                     y={y}
                     width={round(overlay.width)}
                     height={round(overlay.height)}
-                    fill={themeMode === 'light' ? '#dbeafe' : '#1e293b'}
-                    stroke={themeMode === 'light' ? '#1d4ed8' : '#93c5fd'}
-                    strokeWidth={2}
-                    strokeDasharray="8 4"
+                    preserveAspectRatio="xMidYMid meet"
                   />
-                  <text x={round(0)} y={round(0)} textAnchor="middle" className="tracing-pdf-label">
-                    PDF Trace
-                  </text>
                 </g>
               )
             })}
@@ -454,6 +515,12 @@ export function EditorCanvasPane({
           {annotationLabels.map((label) => (
             <text key={label.id} x={label.point.x} y={label.point.y} className="annotation-label">
               {label.text}
+            </text>
+          ))}
+
+          {dimensionEntries.map((entry) => (
+            <text key={`dim-${entry.id}`} x={entry.x} y={entry.y} className="dimension-label">
+              {entry.text}
             </text>
           ))}
 

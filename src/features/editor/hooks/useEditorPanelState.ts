@@ -7,6 +7,7 @@ import type { PrintPaper } from '../preview/print-preview'
 export function useEditorPanelState() {
   const [showLayerColorModal, setShowLayerColorModal] = useState(false)
   const [showLineTypePalette, setShowLineTypePalette] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
   const [showExportOptionsModal, setShowExportOptionsModal] = useState(false)
   const [exportOnlySelectedShapes, setExportOnlySelectedShapes] = useState(false)
   const [exportOnlyVisibleLineTypes, setExportOnlyVisibleLineTypes] = useState(true)
@@ -45,6 +46,8 @@ export function useEditorPanelState() {
     setShowLayerColorModal,
     showLineTypePalette,
     setShowLineTypePalette,
+    showExportModal,
+    setShowExportModal,
     showExportOptionsModal,
     setShowExportOptionsModal,
     exportOnlySelectedShapes,

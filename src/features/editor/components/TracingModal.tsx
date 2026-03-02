@@ -10,6 +10,7 @@ type TracingModalProps = {
   onDeleteActiveTracing: () => void
   onSetActiveTracingOverlayId: (overlayId: string | null) => void
   onUpdateTracingOverlay: (overlayId: string, patch: Partial<TracingOverlay>) => void
+  onSetPdfTracingPage: (overlay: TracingOverlay, pageNumber: number) => void
 }
 
 export function TracingModal({
@@ -21,6 +22,7 @@ export function TracingModal({
   onDeleteActiveTracing,
   onSetActiveTracingOverlayId,
   onUpdateTracingOverlay,
+  onSetPdfTracingPage,
 }: TracingModalProps) {
   if (!open) {
     return null
@@ -125,6 +127,19 @@ export function TracingModal({
                 }
               />
             </label>
+            {activeTracingOverlay.kind === 'pdf' && (activeTracingOverlay.pdfPageCount ?? 1) > 1 && (
+              <label className="field-row">
+                <span>PDF Page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={activeTracingOverlay.pdfPageCount}
+                  step={1}
+                  value={activeTracingOverlay.pdfPageNumber ?? 1}
+                  onChange={(event) => onSetPdfTracingPage(activeTracingOverlay, Number(event.target.value))}
+                />
+              </label>
+            )}
             <div className="line-type-edit-grid">
               <label className="field-row">
                 <span>Offset X</span>

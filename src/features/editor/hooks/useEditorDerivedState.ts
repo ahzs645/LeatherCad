@@ -20,6 +20,7 @@ import type {
   SketchGroup,
   SnapSettings,
   StitchHole,
+  TextureSource,
   TracingOverlay,
 } from '../cad/cad-types'
 import type {
@@ -59,6 +60,13 @@ type UseEditorDerivedStateParams = {
   snapSettings: SnapSettings
   showAnnotations: boolean
   tracingOverlays: TracingOverlay[]
+  projectMemo: string
+  stitchAlwaysShapeIds: string[]
+  stitchThreadColor: string
+  threeTextureSource: TextureSource | null
+  threeTextureShapeIds: string[]
+  showCanvasRuler: boolean
+  showDimensions: boolean
   activeTracingOverlayId: string | null
   selectedShapeIds: string[]
   selectedStitchHoleId: string | null
@@ -99,6 +107,13 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     snapSettings,
     showAnnotations,
     tracingOverlays,
+    projectMemo,
+    stitchAlwaysShapeIds,
+    stitchThreadColor,
+    threeTextureSource,
+    threeTextureShapeIds,
+    showCanvasRuler,
+    showDimensions,
     activeTracingOverlayId,
     selectedShapeIds,
     selectedStitchHoleId,
@@ -167,6 +182,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     () => templateRepository.find((entry) => entry.id === selectedTemplateEntryId) ?? null,
     [templateRepository, selectedTemplateEntryId],
   )
+  const stitchAlwaysShapeIdSet = useMemo(() => new Set(stitchAlwaysShapeIds), [stitchAlwaysShapeIds])
   const canUndo = historyState.past.length > 0
   const canRedo = historyState.future.length > 0
 
@@ -265,9 +281,9 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
           return false
         }
         const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
-        return lineTypeRole === 'stitch'
+        return lineTypeRole === 'stitch' || stitchAlwaysShapeIdSet.has(shape.id)
       }),
-    [stitchHoles, shapesById, visibleShapeIdSet, lineTypesById],
+    [stitchHoles, shapesById, visibleShapeIdSet, lineTypesById, stitchAlwaysShapeIdSet],
   )
 
   const visibleHardwareMarkers = useMemo(
@@ -520,6 +536,13 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       snapSettings: deepClone(snapSettings),
       showAnnotations,
       tracingOverlays: deepClone(tracingOverlays),
+      projectMemo,
+      stitchAlwaysShapeIds: deepClone(stitchAlwaysShapeIds),
+      stitchThreadColor,
+      threeTextureSource: deepClone(threeTextureSource),
+      threeTextureShapeIds: deepClone(threeTextureShapeIds),
+      showCanvasRuler,
+      showDimensions,
       layerColorOverrides: deepClone(layerColorOverrides),
       frontLayerColor,
       backLayerColor,
@@ -540,6 +563,13 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       snapSettings,
       showAnnotations,
       tracingOverlays,
+      projectMemo,
+      stitchAlwaysShapeIds,
+      stitchThreadColor,
+      threeTextureSource,
+      threeTextureShapeIds,
+      showCanvasRuler,
+      showDimensions,
       layerColorOverrides,
       frontLayerColor,
       backLayerColor,

@@ -5,6 +5,7 @@ type DxfVersion = 'r12' | 'r14'
 type DxfExportOptions = {
   flipY?: boolean
   version?: DxfVersion
+  unit?: 'mm' | 'in'
   forceSolidLineStyle?: boolean
   lineTypeStyles?: Record<string, LineTypeStyle>
 }
@@ -40,6 +41,7 @@ function dxfLineTypeFromStyle(style: LineTypeStyle) {
 }
 
 function toSegments(shape: Shape, options: Required<Pick<DxfExportOptions, 'flipY' | 'forceSolidLineStyle'>> & {
+  unit: 'mm' | 'in'
   lineTypeStyles: Record<string, LineTypeStyle>
 }) {
   const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 72)
@@ -49,6 +51,7 @@ function toSegments(shape: Shape, options: Required<Pick<DxfExportOptions, 'flip
   }
 
   const signY = options.flipY ? -1 : 1
+  const unitScale = options.unit === 'in' ? 1 / 25.4 : 1
   const style = options.lineTypeStyles[shape.lineTypeId] ?? 'solid'
   const lineTypeName = options.forceSolidLineStyle ? 'CONTINUOUS' : dxfLineTypeFromStyle(style)
   for (let index = 1; index < sampled.length; index += 1) {
@@ -57,10 +60,10 @@ function toSegments(shape: Shape, options: Required<Pick<DxfExportOptions, 'flip
     segments.push({
       layerName: sanitizeLayerName(shape.layerId),
       lineTypeName,
-      x1: start.x,
-      y1: start.y * signY,
-      x2: end.x,
-      y2: end.y * signY,
+      x1: start.x * unitScale,
+      y1: start.y * signY * unitScale,
+      x2: end.x * unitScale,
+      y2: end.y * signY * unitScale,
     })
   }
 
@@ -210,11 +213,13 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
   const flipY = options.flipY ?? false
   const forceSolidLineStyle = options.forceSolidLineStyle ?? false
   const version = options.version ?? 'r12'
+  const unit = options.unit ?? 'mm'
   const lineTypeStyles = options.lineTypeStyles ?? {}
-  const segments = shapes.flatMap((shape) => toSegments(shape, { flipY, forceSolidLineStyle, lineTypeStyles }))
+  const segments = shapes.flatMap((shape) => toSegments(shape, { flipY, forceSolidLineStyle, unit, lineTypeStyles }))
   const usedLineTypes = new Set<Segment['lineTypeName']>(segments.map((segment) => segment.lineTypeName))
   usedLineTypes.add('CONTINUOUS')
   const versionCode = version === 'r14' ? 'AC1014' : 'AC1009'
+  const insertUnitsCode = unit === 'in' ? '1' : '4'
 
   const body: string[] = [
     '0',
@@ -228,7 +233,7 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
     '9',
     '$INSUNITS',
     '70',
-    '4',
+    insertUnitsCode,
     '0',
     'ENDSEC',
     '0',

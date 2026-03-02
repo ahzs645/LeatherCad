@@ -12,6 +12,7 @@ import type {
   Shape,
   SketchGroup,
   StitchHole,
+  TextureSource,
   Tool,
   TracingOverlay,
 } from '../cad/cad-types'
@@ -38,6 +39,13 @@ type UseLoadedDocumentActionsParams = {
   setSnapSettings: Dispatch<SetStateAction<import('../cad/cad-types').SnapSettings>>
   setShowAnnotations: Dispatch<SetStateAction<boolean>>
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
+  setProjectMemo: Dispatch<SetStateAction<string>>
+  setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
+  setStitchThreadColor: Dispatch<SetStateAction<string>>
+  setThreeTextureSource: Dispatch<SetStateAction<TextureSource | null>>
+  setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
+  setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
+  setShowDimensions: Dispatch<SetStateAction<boolean>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
@@ -65,6 +73,13 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
@@ -122,6 +137,26 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     })
     const normalizedActiveSketchGroupId =
       doc.activeSketchGroupId && sketchGroupIdSet.has(doc.activeSketchGroupId) ? doc.activeSketchGroupId : null
+    const normalizedProjectMemo = typeof doc.projectMemo === 'string' ? doc.projectMemo.slice(0, 8000) : ''
+    const normalizedStitchAlwaysShapeIds = Array.isArray(doc.stitchAlwaysShapeIds)
+      ? doc.stitchAlwaysShapeIds.filter((shapeId): shapeId is string => typeof shapeId === 'string' && shapeIdSet.has(shapeId))
+      : []
+    const normalizedStitchThreadColor =
+      typeof doc.stitchThreadColor === 'string' && doc.stitchThreadColor.trim().length > 0
+        ? doc.stitchThreadColor
+        : '#fb923c'
+    const normalizedThreeTextureSource =
+      doc.threeTextureSource &&
+      typeof doc.threeTextureSource === 'object' &&
+      typeof doc.threeTextureSource.albedoUrl === 'string' &&
+      doc.threeTextureSource.albedoUrl.trim().length > 0
+        ? (doc.threeTextureSource as TextureSource)
+        : null
+    const normalizedThreeTextureShapeIds = Array.isArray(doc.threeTextureShapeIds)
+      ? doc.threeTextureShapeIds.filter((shapeId): shapeId is string => typeof shapeId === 'string' && shapeIdSet.has(shapeId))
+      : []
+    const normalizedShowCanvasRuler = typeof doc.showCanvasRuler === 'boolean' ? doc.showCanvasRuler : true
+    const normalizedShowDimensions = typeof doc.showDimensions === 'boolean' ? doc.showDimensions : false
     const nextLineTypes = normalizeLineTypes(doc.lineTypes ?? [])
 
     setLayers(normalizedLayers)
@@ -139,6 +174,13 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSnapSettings(parseSnapSettings(doc.snapSettings) ?? DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(typeof doc.showAnnotations === 'boolean' ? doc.showAnnotations : true)
     setTracingOverlays(doc.tracingOverlays ?? [])
+    setProjectMemo(normalizedProjectMemo)
+    setStitchAlwaysShapeIds(normalizedStitchAlwaysShapeIds)
+    setStitchThreadColor(normalizedStitchThreadColor)
+    setThreeTextureSource(normalizedThreeTextureSource)
+    setThreeTextureShapeIds(normalizedThreeTextureShapeIds)
+    setShowCanvasRuler(normalizedShowCanvasRuler)
+    setShowDimensions(normalizedShowDimensions)
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
     setSelectedHardwareMarkerId(null)
@@ -164,6 +206,13 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,

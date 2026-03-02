@@ -1,6 +1,7 @@
 import { clamp } from '../cad/cad-geometry'
 import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
 import { DESKTOP_RIBBON_TABS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
+import type { DisplayUnit } from '../ops/unit-ops'
 import type {
   DesktopRibbonTab,
   MobileFileAction,
@@ -38,6 +39,12 @@ type EditorTopbarProps = {
   onSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode
   showZoomSection: boolean
+  displayUnit: DisplayUnit
+  onSetDisplayUnit: (unit: DisplayUnit) => void
+  showCanvasRuler: boolean
+  onToggleCanvasRuler: () => void
+  showDimensions: boolean
+  onToggleDimensions: () => void
   sketchWorkspaceMode: SketchWorkspaceMode
   onSetSketchWorkspaceMode: (mode: SketchWorkspaceMode) => void
   onZoomOut: () => void
@@ -53,8 +60,23 @@ type EditorTopbarProps = {
   onCutSelection: () => void
   onPasteClipboard: () => void
   canPaste: boolean
+  onSelectAllShapes: () => void
   onDuplicateSelection: () => void
   onDeleteSelection: () => void
+  onGroupSelection: () => void
+  onUngroupSelection: () => void
+  onMoveSelectionByDistance: () => void
+  onCopySelectionByDistance: () => void
+  onRotateSelectionCw1: () => void
+  onRotateSelectionCw5: () => void
+  onRotateSelectionCcw1: () => void
+  onRotateSelectionCcw5: () => void
+  onScaleSelectionUp1: () => void
+  onScaleSelectionDown1: () => void
+  onScaleSelectionUp5: () => void
+  onScaleSelectionDown5: () => void
+  onEnableStitchOnSelection: () => void
+  onDisableStitchOnSelection: () => void
   onMoveSelectionBackward: () => void
   onMoveSelectionForward: () => void
   onSendSelectionToBack: () => void
@@ -117,6 +139,8 @@ type EditorTopbarProps = {
   onExportPdf: () => void
   onExportDxf: () => void
   onExportLaserSvg: () => void
+  onOpenInNewTab: () => void
+  onOpenExportModal: () => void
   onOpenExportOptionsModal: () => void
   onOpenPatternToolsModal: () => void
   onOpenTemplateRepositoryModal: () => void
@@ -195,6 +219,12 @@ export function EditorTopbar({
   onSetThemeMode,
   themeMode,
   showZoomSection,
+  displayUnit,
+  onSetDisplayUnit,
+  showCanvasRuler,
+  onToggleCanvasRuler,
+  showDimensions,
+  onToggleDimensions,
   sketchWorkspaceMode,
   onSetSketchWorkspaceMode,
   onZoomOut,
@@ -210,8 +240,23 @@ export function EditorTopbar({
   onCutSelection,
   onPasteClipboard,
   canPaste,
+  onSelectAllShapes,
   onDuplicateSelection,
   onDeleteSelection,
+  onGroupSelection,
+  onUngroupSelection,
+  onMoveSelectionByDistance,
+  onCopySelectionByDistance,
+  onRotateSelectionCw1,
+  onRotateSelectionCw5,
+  onRotateSelectionCcw1,
+  onRotateSelectionCcw5,
+  onScaleSelectionUp1,
+  onScaleSelectionDown1,
+  onScaleSelectionUp5,
+  onScaleSelectionDown5,
+  onEnableStitchOnSelection,
+  onDisableStitchOnSelection,
   onMoveSelectionBackward,
   onMoveSelectionForward,
   onSendSelectionToBack,
@@ -267,22 +312,15 @@ export function EditorTopbar({
   mobileFileAction,
   onSetMobileFileAction,
   onRunMobileFileAction,
-  onSaveJson,
   onOpenLoadJson,
   onOpenImportSvg,
-  onExportSvg,
-  onExportPdf,
-  onExportDxf,
-  onExportLaserSvg,
-  onOpenExportOptionsModal,
+  onOpenInNewTab,
+  onOpenExportModal,
   onOpenPatternToolsModal,
   onOpenTemplateRepositoryModal,
   onOpenTracingImport,
   onOpenTracingModal,
   hasTracingOverlays,
-  onOpenPrintPreviewModal,
-  showPrintAreas,
-  onTogglePrintAreas,
   onToggleThreePreview,
   onResetDocument,
 }: EditorTopbarProps) {
@@ -326,6 +364,7 @@ export function EditorTopbar({
             <span>{selectedShapeCount} selected</span>
             <span>{selectedStitchHoleCount} selected holes</span>
             <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</button>
+            <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
             {renderThemeModeToggle('desktop-theme-toggle')}
             <button
               type="button"
@@ -406,6 +445,7 @@ export function EditorTopbar({
             )}
             {isMobileLayout && (
               <>
+                <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
                 <button
                   type="button"
                   className="help-button mobile-help-toggle"
@@ -465,6 +505,15 @@ export function EditorTopbar({
                 Sketch Focus
               </button>
             </div>
+            <label className="stitch-pitch-inline">
+              <span>Units</span>
+              <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
+                <option value="mm">mm</option>
+                <option value="in">in</option>
+              </select>
+            </label>
+            <button onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
+            <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
             <button onClick={onZoomOut}>-</button>
             <button onClick={onZoomIn}>+</button>
             <button onClick={onFitView}>Fit</button>
@@ -489,11 +538,54 @@ export function EditorTopbar({
             <button onClick={onPasteClipboard} disabled={!canPaste}>
               Paste
             </button>
+            <button onClick={onSelectAllShapes}>Select All</button>
             <button onClick={onDuplicateSelection} disabled={selectedShapeCount === 0}>
               Duplicate
             </button>
             <button onClick={onDeleteSelection} disabled={selectedShapeCount === 0}>
               Delete
+            </button>
+            <button onClick={onGroupSelection} disabled={selectedShapeCount < 2}>
+              Group
+            </button>
+            <button onClick={onUngroupSelection} disabled={selectedShapeCount === 0}>
+              Ungroup
+            </button>
+            <button onClick={onMoveSelectionByDistance} disabled={selectedShapeCount === 0}>
+              Move by Dist
+            </button>
+            <button onClick={onCopySelectionByDistance} disabled={selectedShapeCount === 0}>
+              Copy by Dist
+            </button>
+            <button onClick={onRotateSelectionCw1} disabled={selectedShapeCount === 0}>
+              Rotate +1
+            </button>
+            <button onClick={onRotateSelectionCw5} disabled={selectedShapeCount === 0}>
+              Rotate +5
+            </button>
+            <button onClick={onRotateSelectionCcw1} disabled={selectedShapeCount === 0}>
+              Rotate -1
+            </button>
+            <button onClick={onRotateSelectionCcw5} disabled={selectedShapeCount === 0}>
+              Rotate -5
+            </button>
+            <button onClick={onScaleSelectionUp1} disabled={selectedShapeCount === 0}>
+              Scale +1%
+            </button>
+            <button onClick={onScaleSelectionDown1} disabled={selectedShapeCount === 0}>
+              Scale -1%
+            </button>
+            <button onClick={onScaleSelectionUp5} disabled={selectedShapeCount === 0}>
+              Scale +5%
+            </button>
+            <button onClick={onScaleSelectionDown5} disabled={selectedShapeCount === 0}>
+              Scale -5%
+            </button>
+            <button onClick={onEnableStitchOnSelection} disabled={selectedShapeCount === 0}>
+              Stitch Always +
+            </button>
+            <button onClick={onDisableStitchOnSelection} disabled={selectedShapeCount === 0}>
+              Stitch Always -
             </button>
             <button onClick={onMoveSelectionBackward} disabled={selectedShapeCount === 0}>
               Send Back
@@ -538,6 +630,7 @@ export function EditorTopbar({
             <StitchHolePanel
               holeType={stitchHoleType}
               onChangeHoleType={onSetStitchHoleType}
+              displayUnit={displayUnit}
               pitchMm={stitchPitchMm}
               onChangePitchMm={(nextPitch) => onSetStitchPitchMm(clamp(nextPitch || 0, 0.2, 100))}
               variablePitchStartMm={stitchVariablePitchStartMm}
@@ -642,49 +735,68 @@ export function EditorTopbar({
                   value={mobileFileAction}
                   onChange={(event) => onSetMobileFileAction(event.target.value as MobileFileAction)}
                 >
-                  <option value="save-json">Save JSON</option>
-                  <option value="load-json">Load JSON</option>
-                  <option value="import-svg">Import SVG</option>
-                  <option value="load-preset">Load Preset</option>
-                  <option value="export-svg">Export SVG</option>
-                  <option value="export-pdf">Export PDF</option>
-                  <option value="export-dxf">Export DXF</option>
-                  <option value="export-options">Export Options</option>
-                  <option value="template-repository">Template Repository</option>
-                  <option value="pattern-tools">Pattern Tools</option>
-                  <option value="import-tracing">Import Tracing</option>
-                  <option value="print-preview">Print Preview</option>
-                  <option value="undo">Undo</option>
-                  <option value="redo">Redo</option>
-                  <option value="copy">Copy Selection</option>
-                  <option value="paste">Paste</option>
-                  <option value="delete">Delete Selection</option>
-                  <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
-                  <option value="clear">Clear Document</option>
+                  <optgroup label="Inputs">
+                    <option value="load-json">Load JSON</option>
+                    <option value="import-svg">Import SVG</option>
+                    <option value="load-preset">Load Preset</option>
+                    <option value="import-tracing">Import Tracing</option>
+                  </optgroup>
+                  <optgroup label="Exports">
+                    <option value="save-json">Save JSON</option>
+                    <option value="export-svg">Export SVG</option>
+                    <option value="export-pdf">Export PDF</option>
+                    <option value="export-dxf">Export DXF</option>
+                    <option value="export-options">Export Options</option>
+                    <option value="print-preview">Print Preview</option>
+                  </optgroup>
+                  <optgroup label="Tools">
+                    <option value="template-repository">Template Repository</option>
+                    <option value="pattern-tools">Pattern Tools</option>
+                  </optgroup>
+                  <optgroup label="Edit">
+                    <option value="undo">Undo</option>
+                    <option value="redo">Redo</option>
+                    <option value="copy">Copy Selection</option>
+                    <option value="paste">Paste</option>
+                    <option value="delete">Delete Selection</option>
+                  </optgroup>
+                  <optgroup label="View / Reset">
+                    <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
+                    <option value="clear">Clear Document</option>
+                  </optgroup>
                 </select>
                 <button onClick={onRunMobileFileAction}>Apply</button>
               </div>
             ) : (
               <>
-                <button onClick={onSaveJson}>Save JSON</button>
-                <button onClick={onOpenLoadJson}>Load JSON</button>
-                <button onClick={onOpenImportSvg}>Import SVG</button>
-                <button onClick={onLoadPreset}>Load Preset</button>
-                <button onClick={onExportSvg}>Export SVG</button>
-                <button onClick={onExportPdf}>Export PDF</button>
-                <button onClick={onExportDxf}>Export DXF</button>
-                <button onClick={onExportLaserSvg}>Export Laser SVG</button>
-                <button onClick={onOpenExportOptionsModal}>Export Options</button>
-                <button onClick={onOpenPatternToolsModal}>Pattern Tools</button>
-                <button onClick={onOpenTemplateRepositoryModal}>Templates</button>
-                <button onClick={onOpenTracingImport}>Tracing</button>
-                <button onClick={onOpenTracingModal} disabled={!hasTracingOverlays}>
-                  Tracing Controls
-                </button>
-                <button onClick={onOpenPrintPreviewModal}>Print Preview</button>
-                <button onClick={onTogglePrintAreas}>{showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}</button>
-                <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D' : 'Show 3D'}</button>
-                <button onClick={onResetDocument}>Clear</button>
+                <div className="file-action-cluster" role="group" aria-label="Input actions">
+                  <span className="file-action-cluster-label">Inputs</span>
+                  <div className="file-action-row">
+                    <button onClick={onOpenLoadJson}>Load JSON</button>
+                    <button onClick={onOpenImportSvg}>Import SVG</button>
+                    <button onClick={onLoadPreset}>Load Preset</button>
+                    <button onClick={onOpenTracingImport}>Tracing</button>
+                  </div>
+                </div>
+                <div className="file-action-cluster" role="group" aria-label="Export actions">
+                  <span className="file-action-cluster-label">Exports</span>
+                  <div className="file-action-row">
+                    <button onClick={onOpenInNewTab}>Open in New Tab</button>
+                    <button onClick={onOpenExportModal}>Open Export Center</button>
+                  </div>
+                </div>
+                <div className="file-action-cluster" role="group" aria-label="Output tools">
+                  <span className="file-action-cluster-label">Tools</span>
+                  <div className="file-action-row">
+                    <button onClick={onOpenPatternToolsModal}>Pattern Tools</button>
+                    <button onClick={onOpenTemplateRepositoryModal}>Templates</button>
+                    <button onClick={onOpenTracingModal} disabled={!hasTracingOverlays}>
+                      Tracing Controls
+                    </button>
+                    <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D' : 'Show 3D'}</button>
+                    <button onClick={onResetDocument}>Clear</button>
+                  </div>
+                </div>
               </>
             )}
           </div>

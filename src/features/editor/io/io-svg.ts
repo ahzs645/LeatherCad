@@ -11,18 +11,49 @@ type SvgImportResult = {
   warnings: string[]
 }
 
-function parseLength(value: string | null, fallback = 0) {
+function unitToMm(unit: string) {
+  if (unit === 'mm') {
+    return 1
+  }
+  if (unit === 'cm') {
+    return 10
+  }
+  if (unit === 'in') {
+    return 25.4
+  }
+  if (unit === 'pt') {
+    return 25.4 / 72
+  }
+  if (unit === 'pc') {
+    return (25.4 / 72) * 12
+  }
+  if (unit === 'm') {
+    return 1000
+  }
+  return 1
+}
+
+function parseLength(value: string | null, fallback = 0, documentScaleMm = 1) {
   if (!value) {
     return fallback
   }
-  const parsed = Number.parseFloat(value)
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(-?\d*\.?\d+(?:e[-+]?\d+)?)([a-z%]*)$/i)
+  if (!match) {
+    return fallback
+  }
+  const parsed = Number.parseFloat(match[1])
   if (!Number.isFinite(parsed)) {
     return fallback
   }
-  return parsed
+  const unit = match[2].toLowerCase()
+  if (!unit || unit === '%') {
+    return parsed * documentScaleMm
+  }
+  return parsed * unitToMm(unit)
 }
 
-function parsePointList(value: string | null) {
+function parsePointList(value: string | null, documentScaleMm = 1) {
   if (!value) {
     return [] as Array<{ x: number; y: number }>
   }
@@ -34,8 +65,8 @@ function parsePointList(value: string | null) {
 
   const points: Array<{ x: number; y: number }> = []
   for (let index = 0; index + 1 < chunks.length; index += 2) {
-    const x = Number.parseFloat(chunks[index])
-    const y = Number.parseFloat(chunks[index + 1])
+    const x = parseLength(chunks[index], Number.NaN, documentScaleMm)
+    const y = parseLength(chunks[index + 1], Number.NaN, documentScaleMm)
     if (Number.isFinite(x) && Number.isFinite(y)) {
       points.push({ x, y })
     }
@@ -75,11 +106,11 @@ function polylineToLines(points: Array<{ x: number; y: number }>, closed: boolea
   return shapes
 }
 
-function rectToLines(rect: SVGRectElement, layerId: string, lineTypeId: string) {
-  const x = parseLength(rect.getAttribute('x'), 0)
-  const y = parseLength(rect.getAttribute('y'), 0)
-  const width = parseLength(rect.getAttribute('width'), 0)
-  const height = parseLength(rect.getAttribute('height'), 0)
+function rectToLines(rect: SVGRectElement, layerId: string, lineTypeId: string, documentScaleMm: number) {
+  const x = parseLength(rect.getAttribute('x'), 0, documentScaleMm)
+  const y = parseLength(rect.getAttribute('y'), 0, documentScaleMm)
+  const width = parseLength(rect.getAttribute('width'), 0, documentScaleMm)
+  const height = parseLength(rect.getAttribute('height'), 0, documentScaleMm)
 
   return polylineToLines(
     [
@@ -137,6 +168,67 @@ function pathToLines(pathElement: SVGPathElement, layerId: string, lineTypeId: s
   return polylineToLines(points, startsClosed, layerId, lineTypeId)
 }
 
+function scaleShapePoints(shape: Shape, scaleMm: number): Shape {
+  if (Math.abs(scaleMm - 1) < 1e-6) {
+    return shape
+  }
+
+  if (shape.type === 'line') {
+    return {
+      ...shape,
+      start: { x: shape.start.x * scaleMm, y: shape.start.y * scaleMm },
+      end: { x: shape.end.x * scaleMm, y: shape.end.y * scaleMm },
+    }
+  }
+
+  if (shape.type === 'arc') {
+    return {
+      ...shape,
+      start: { x: shape.start.x * scaleMm, y: shape.start.y * scaleMm },
+      mid: { x: shape.mid.x * scaleMm, y: shape.mid.y * scaleMm },
+      end: { x: shape.end.x * scaleMm, y: shape.end.y * scaleMm },
+    }
+  }
+
+  if (shape.type === 'bezier') {
+    return {
+      ...shape,
+      start: { x: shape.start.x * scaleMm, y: shape.start.y * scaleMm },
+      control: { x: shape.control.x * scaleMm, y: shape.control.y * scaleMm },
+      end: { x: shape.end.x * scaleMm, y: shape.end.y * scaleMm },
+    }
+  }
+
+  return {
+    ...shape,
+    start: { x: shape.start.x * scaleMm, y: shape.start.y * scaleMm },
+    end: { x: shape.end.x * scaleMm, y: shape.end.y * scaleMm },
+  }
+}
+
+function resolveDocumentUnitScaleMm(svgElement: SVGSVGElement) {
+  const viewBox = svgElement.viewBox.baseVal
+  const widthAttr = svgElement.getAttribute('width')
+  const heightAttr = svgElement.getAttribute('height')
+
+  const widthMm = parseLength(widthAttr, Number.NaN, 1)
+  const heightMm = parseLength(heightAttr, Number.NaN, 1)
+  const widthScale = Number.isFinite(widthMm) && viewBox && viewBox.width > 0 ? widthMm / viewBox.width : Number.NaN
+  const heightScale = Number.isFinite(heightMm) && viewBox && viewBox.height > 0 ? heightMm / viewBox.height : Number.NaN
+
+  if (Number.isFinite(widthScale) && Number.isFinite(heightScale)) {
+    return (widthScale + heightScale) / 2
+  }
+  if (Number.isFinite(widthScale)) {
+    return widthScale
+  }
+  if (Number.isFinite(heightScale)) {
+    return heightScale
+  }
+
+  return 1
+}
+
 function shapesToApproximateArcs(shapes: Shape[]) {
   const normalized: Shape[] = []
   for (const shape of shapes) {
@@ -165,47 +257,49 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
   const shapes: Shape[] = []
   const layerId = options.layerId
   const lineTypeId = options.lineTypeId
+  const svgRoot = parsed.querySelector('svg')
+  const documentScaleMm = svgRoot ? resolveDocumentUnitScaleMm(svgRoot) : 1
 
   const lineElements = parsed.querySelectorAll('line')
   lineElements.forEach((lineElement) => {
-    const x1 = parseLength(lineElement.getAttribute('x1'))
-    const y1 = parseLength(lineElement.getAttribute('y1'))
-    const x2 = parseLength(lineElement.getAttribute('x2'))
-    const y2 = parseLength(lineElement.getAttribute('y2'))
+    const x1 = parseLength(lineElement.getAttribute('x1'), 0, documentScaleMm)
+    const y1 = parseLength(lineElement.getAttribute('y1'), 0, documentScaleMm)
+    const x2 = parseLength(lineElement.getAttribute('x2'), 0, documentScaleMm)
+    const y2 = parseLength(lineElement.getAttribute('y2'), 0, documentScaleMm)
     shapes.push(lineShape(layerId, lineTypeId, { x: x1, y: y1 }, { x: x2, y: y2 }))
   })
 
   const polylineElements = parsed.querySelectorAll('polyline')
   polylineElements.forEach((polylineElement) => {
-    const points = parsePointList(polylineElement.getAttribute('points'))
+    const points = parsePointList(polylineElement.getAttribute('points'), documentScaleMm)
     shapes.push(...polylineToLines(points, false, layerId, lineTypeId))
   })
 
   const polygonElements = parsed.querySelectorAll('polygon')
   polygonElements.forEach((polygonElement) => {
-    const points = parsePointList(polygonElement.getAttribute('points'))
+    const points = parsePointList(polygonElement.getAttribute('points'), documentScaleMm)
     shapes.push(...polylineToLines(points, true, layerId, lineTypeId))
   })
 
   const rectElements = parsed.querySelectorAll('rect')
   rectElements.forEach((rectElement) => {
-    shapes.push(...rectToLines(rectElement, layerId, lineTypeId))
+    shapes.push(...rectToLines(rectElement, layerId, lineTypeId, documentScaleMm))
   })
 
   const circleElements = parsed.querySelectorAll('circle')
   circleElements.forEach((circleElement) => {
-    const centerX = parseLength(circleElement.getAttribute('cx'))
-    const centerY = parseLength(circleElement.getAttribute('cy'))
-    const radius = parseLength(circleElement.getAttribute('r'))
+    const centerX = parseLength(circleElement.getAttribute('cx'), 0, documentScaleMm)
+    const centerY = parseLength(circleElement.getAttribute('cy'), 0, documentScaleMm)
+    const radius = parseLength(circleElement.getAttribute('r'), 0, documentScaleMm)
     shapes.push(...ellipseToLines(centerX, centerY, radius, radius, layerId, lineTypeId))
   })
 
   const ellipseElements = parsed.querySelectorAll('ellipse')
   ellipseElements.forEach((ellipseElement) => {
-    const centerX = parseLength(ellipseElement.getAttribute('cx'))
-    const centerY = parseLength(ellipseElement.getAttribute('cy'))
-    const radiusX = parseLength(ellipseElement.getAttribute('rx'))
-    const radiusY = parseLength(ellipseElement.getAttribute('ry'))
+    const centerX = parseLength(ellipseElement.getAttribute('cx'), 0, documentScaleMm)
+    const centerY = parseLength(ellipseElement.getAttribute('cy'), 0, documentScaleMm)
+    const radiusX = parseLength(ellipseElement.getAttribute('rx'), 0, documentScaleMm)
+    const radiusY = parseLength(ellipseElement.getAttribute('ry'), 0, documentScaleMm)
     shapes.push(...ellipseToLines(centerX, centerY, radiusX, radiusY, layerId, lineTypeId))
   })
 
@@ -221,7 +315,10 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
       const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
       tempPath.setAttribute('d', d)
       tempSvg.appendChild(tempPath)
-      shapes.push(...pathToLines(tempPath, layerId, lineTypeId))
+      const pathShapes = pathToLines(tempPath, layerId, lineTypeId).map((shape) =>
+        scaleShapePoints(shape, documentScaleMm),
+      )
+      shapes.push(...pathShapes)
     } catch {
       warnings.push('Skipped an unsupported path element')
     }

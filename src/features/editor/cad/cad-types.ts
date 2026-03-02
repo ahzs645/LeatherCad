@@ -197,6 +197,9 @@ export type TracingOverlay = {
   name: string
   kind: TracingOverlayKind
   sourceUrl: string
+  pdfSourceUrl?: string
+  pdfPageNumber?: number
+  pdfPageCount?: number
   visible: boolean
   locked: boolean
   opacity: number
@@ -207,6 +210,14 @@ export type TracingOverlay = {
   width: number
   height: number
   isObjectUrl?: boolean
+}
+
+export type TextureSource = {
+  sourceUrl: string
+  license: string
+  albedoUrl: string
+  normalUrl?: string
+  roughnessUrl?: string
 }
 
 export type DocFile = {
@@ -227,18 +238,17 @@ export type DocFile = {
   snapSettings?: SnapSettings
   showAnnotations?: boolean
   tracingOverlays?: TracingOverlay[]
+  projectMemo?: string
+  stitchAlwaysShapeIds?: string[]
+  stitchThreadColor?: string
+  threeTextureSource?: TextureSource | null
+  threeTextureShapeIds?: string[]
+  showCanvasRuler?: boolean
+  showDimensions?: boolean
 }
 
 export type Viewport = {
   x: number
   y: number
   scale: number
-}
-
-export type TextureSource = {
-  sourceUrl: string
-  license: string
-  albedoUrl: string
-  normalUrl?: string
-  roughnessUrl?: string
 }

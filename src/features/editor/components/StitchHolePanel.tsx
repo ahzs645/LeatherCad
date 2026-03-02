@@ -9,10 +9,19 @@ import {
   saveCustomPrickingIrons,
   type PrickingIronPreset,
 } from '../ops/pricking-iron-ops'
+import {
+  formatDisplayDistance,
+  fromDisplayValue,
+  toDisplayValue,
+  unitInputMin,
+  unitInputStep,
+  type DisplayUnit,
+} from '../ops/unit-ops'
 
 type StitchHolePanelProps = {
   holeType: StitchHoleType
   onChangeHoleType: (holeType: StitchHoleType) => void
+  displayUnit: DisplayUnit
   pitchMm: number
   onChangePitchMm: (pitchMm: number) => void
   variablePitchStartMm: number
@@ -40,6 +49,7 @@ type StitchHolePanelProps = {
 export function StitchHolePanel({
   holeType,
   onChangeHoleType,
+  displayUnit,
   pitchMm,
   onChangePitchMm,
   variablePitchStartMm,
@@ -92,15 +102,17 @@ export function StitchHolePanel({
 
     const shapeInput = window.prompt('Shape: diamond / french / flat / round', 'diamond')
     const shape = parsePrickingIronShape(shapeInput?.trim().toLowerCase())
-    const pitchInput = Number(window.prompt('Pitch in mm', pitchMm.toFixed(2)))
-    if (!Number.isFinite(pitchInput) || pitchInput <= 0) {
+    const currentPitchDisplay = toDisplayValue(pitchMm, displayUnit)
+    const pitchInputDisplay = Number(window.prompt(`Pitch in ${displayUnit}`, currentPitchDisplay.toFixed(3)))
+    if (!Number.isFinite(pitchInputDisplay) || pitchInputDisplay <= 0) {
       return
     }
+    const pitchInputMm = fromDisplayValue(pitchInputDisplay, displayUnit)
 
     const customIron = createCustomPrickingIron({
       name,
       shape,
-      pitchMm: pitchInput,
+      pitchMm: pitchInputMm,
     })
     const nextCustom = [customIron, ...customPrickingIrons]
     setCustomPrickingIrons(nextCustom)
@@ -134,7 +146,7 @@ export function StitchHolePanel({
         >
           {allPrickingIrons.map((entry) => (
             <option key={entry.id} value={entry.id}>
-              {entry.name} ({entry.pitchMm.toFixed(2)}mm)
+              {entry.name} ({formatDisplayDistance(entry.pitchMm, displayUnit, displayUnit === 'in' ? 3 : 2)})
             </option>
           ))}
         </select>
@@ -164,30 +176,30 @@ export function StitchHolePanel({
         <span>Pitch</span>
         <input
           type="number"
-          min={0.2}
-          step={0.2}
-          value={pitchMm}
-          onChange={(event) => onChangePitchMm(Number(event.target.value))}
+          min={unitInputMin(displayUnit)}
+          step={unitInputStep(displayUnit)}
+          value={toDisplayValue(pitchMm, displayUnit)}
+          onChange={(event) => onChangePitchMm(fromDisplayValue(Number(event.target.value), displayUnit))}
         />
       </label>
       <label className="stitch-pitch-inline">
         <span>Var From</span>
         <input
           type="number"
-          min={0.2}
-          step={0.2}
-          value={variablePitchStartMm}
-          onChange={(event) => onChangeVariablePitchStartMm(Number(event.target.value))}
+          min={unitInputMin(displayUnit)}
+          step={unitInputStep(displayUnit)}
+          value={toDisplayValue(variablePitchStartMm, displayUnit)}
+          onChange={(event) => onChangeVariablePitchStartMm(fromDisplayValue(Number(event.target.value), displayUnit))}
         />
       </label>
       <label className="stitch-pitch-inline">
         <span>Var To</span>
         <input
           type="number"
-          min={0.2}
-          step={0.2}
-          value={variablePitchEndMm}
-          onChange={(event) => onChangeVariablePitchEndMm(Number(event.target.value))}
+          min={unitInputMin(displayUnit)}
+          step={unitInputStep(displayUnit)}
+          value={toDisplayValue(variablePitchEndMm, displayUnit)}
+          onChange={(event) => onChangeVariablePitchEndMm(fromDisplayValue(Number(event.target.value), displayUnit))}
         />
       </label>
       <button onClick={onAutoPlaceFixedPitch} disabled={selectedShapeCount === 0}>

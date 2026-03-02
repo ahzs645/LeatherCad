@@ -6,6 +6,14 @@ export type ClipboardPayload = {
   stitchHoles: StitchHole[]
 }
 
+type ClipboardEnvelope = {
+  kind: 'leathercraft-shape-clipboard'
+  version: 1
+  payload: ClipboardPayload
+}
+
+type Point = { x: number; y: number }
+
 function cloneShape(shape: Shape): Shape {
   if (shape.type === 'line') {
     return {
@@ -54,6 +62,36 @@ export function copySelectionToClipboard(
         ...stitchHole,
         point: { ...stitchHole.point },
       })),
+  }
+}
+
+export function serializeClipboardPayload(payload: ClipboardPayload): string {
+  const envelope: ClipboardEnvelope = {
+    kind: 'leathercraft-shape-clipboard',
+    version: 1,
+    payload,
+  }
+  return JSON.stringify(envelope)
+}
+
+export function parseClipboardPayload(raw: string): ClipboardPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<ClipboardEnvelope>
+    if (parsed.kind !== 'leathercraft-shape-clipboard' || parsed.version !== 1 || !parsed.payload) {
+      return null
+    }
+    if (!Array.isArray(parsed.payload.shapes) || !Array.isArray(parsed.payload.stitchHoles)) {
+      return null
+    }
+    return {
+      shapes: parsed.payload.shapes.map((shape) => cloneShape(shape)),
+      stitchHoles: parsed.payload.stitchHoles.map((stitchHole) => ({
+        ...stitchHole,
+        point: { ...stitchHole.point },
+      })),
+    }
+  } catch {
+    return null
   }
 }
 
@@ -180,4 +218,169 @@ export function moveSelectionToEdge(
   }
   const unselected = shapes.filter((shape) => !selectedShapeIds.has(shape.id))
   return edge === 'front' ? [...unselected, ...selected] : [...selected, ...unselected]
+}
+
+function shapeCenter(shape: Shape): Point {
+  if (shape.type === 'line' || shape.type === 'text') {
+    return {
+      x: (shape.start.x + shape.end.x) / 2,
+      y: (shape.start.y + shape.end.y) / 2,
+    }
+  }
+  if (shape.type === 'arc') {
+    return {
+      x: (shape.start.x + shape.mid.x + shape.end.x) / 3,
+      y: (shape.start.y + shape.mid.y + shape.end.y) / 3,
+    }
+  }
+  return {
+    x: (shape.start.x + shape.control.x + shape.end.x) / 3,
+    y: (shape.start.y + shape.control.y + shape.end.y) / 3,
+  }
+}
+
+export function getSelectionCenter(shapes: Shape[], selectedShapeIds: Set<string>): Point | null {
+  let sumX = 0
+  let sumY = 0
+  let count = 0
+  for (const shape of shapes) {
+    if (!selectedShapeIds.has(shape.id)) {
+      continue
+    }
+    const center = shapeCenter(shape)
+    sumX += center.x
+    sumY += center.y
+    count += 1
+  }
+  if (count === 0) {
+    return null
+  }
+  return { x: sumX / count, y: sumY / count }
+}
+
+function mapShapePoints(shape: Shape, mapPoint: (point: Point) => Point): Shape {
+  if (shape.type === 'line') {
+    return {
+      ...shape,
+      start: mapPoint(shape.start),
+      end: mapPoint(shape.end),
+    }
+  }
+  if (shape.type === 'arc') {
+    return {
+      ...shape,
+      start: mapPoint(shape.start),
+      mid: mapPoint(shape.mid),
+      end: mapPoint(shape.end),
+    }
+  }
+  if (shape.type === 'bezier') {
+    return {
+      ...shape,
+      start: mapPoint(shape.start),
+      control: mapPoint(shape.control),
+      end: mapPoint(shape.end),
+    }
+  }
+  return {
+    ...shape,
+    start: mapPoint(shape.start),
+    end: mapPoint(shape.end),
+  }
+}
+
+export function rotatePointAround(point: Point, center: Point, radians: number): Point {
+  const cos = Math.cos(radians)
+  const sin = Math.sin(radians)
+  const dx = point.x - center.x
+  const dy = point.y - center.y
+  return {
+    x: center.x + dx * cos - dy * sin,
+    y: center.y + dx * sin + dy * cos,
+  }
+}
+
+export function scalePointFrom(point: Point, center: Point, factor: number): Point {
+  return {
+    x: center.x + (point.x - center.x) * factor,
+    y: center.y + (point.y - center.y) * factor,
+  }
+}
+
+export function translateSelection(shapes: Shape[], selectedShapeIds: Set<string>, dx: number, dy: number): Shape[] {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy) || (Math.abs(dx) < 1e-8 && Math.abs(dy) < 1e-8)) {
+    return shapes
+  }
+  return shapes.map((shape) =>
+    selectedShapeIds.has(shape.id)
+      ? mapShapePoints(shape, (point) => ({
+          x: point.x + dx,
+          y: point.y + dy,
+        }))
+      : shape,
+  )
+}
+
+export function rotateSelection(shapes: Shape[], selectedShapeIds: Set<string>, angleDeg: number): Shape[] {
+  if (!Number.isFinite(angleDeg) || Math.abs(angleDeg) < 1e-8) {
+    return shapes
+  }
+  const center = getSelectionCenter(shapes, selectedShapeIds)
+  if (!center) {
+    return shapes
+  }
+  const radians = (angleDeg * Math.PI) / 180
+  return shapes.map((shape) =>
+    selectedShapeIds.has(shape.id) ? mapShapePoints(shape, (point) => rotatePointAround(point, center, radians)) : shape,
+  )
+}
+
+export function scaleSelection(shapes: Shape[], selectedShapeIds: Set<string>, factor: number): Shape[] {
+  if (!Number.isFinite(factor) || factor <= 0 || Math.abs(factor - 1) < 1e-8) {
+    return shapes
+  }
+  const center = getSelectionCenter(shapes, selectedShapeIds)
+  if (!center) {
+    return shapes
+  }
+  return shapes.map((shape) =>
+    selectedShapeIds.has(shape.id) ? mapShapePoints(shape, (point) => scalePointFrom(point, center, factor)) : shape,
+  )
+}
+
+export function transformSelectedStitchHoles(
+  stitchHoles: StitchHole[],
+  selectedShapeIds: Set<string>,
+  transformPoint: (point: Point) => Point,
+): StitchHole[] {
+  return stitchHoles.map((stitchHole) =>
+    selectedShapeIds.has(stitchHole.shapeId)
+      ? {
+          ...stitchHole,
+          point: transformPoint(stitchHole.point),
+        }
+      : stitchHole,
+  )
+}
+
+export function groupSelection(shapes: Shape[], selectedShapeIds: Set<string>, groupId: string): Shape[] {
+  return shapes.map((shape) =>
+    selectedShapeIds.has(shape.id)
+      ? {
+          ...shape,
+          groupId,
+        }
+      : shape,
+  )
+}
+
+export function ungroupSelection(shapes: Shape[], selectedShapeIds: Set<string>): Shape[] {
+  return shapes.map((shape) =>
+    selectedShapeIds.has(shape.id)
+      ? {
+          ...shape,
+          groupId: undefined,
+        }
+      : shape,
+  )
 }

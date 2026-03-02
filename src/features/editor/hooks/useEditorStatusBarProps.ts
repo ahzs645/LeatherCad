@@ -5,6 +5,7 @@ import { EditorStatusBar } from '../components/EditorStatusBar'
 type UseEditorStatusBarPropsParams = {
   toolLabel: string
   status: string
+  displayUnit: 'mm' | 'in'
   zoomPercent: number
   visibleShapeCount: number
   shapeCount: number
@@ -24,6 +25,7 @@ export function useEditorStatusBarProps(params: UseEditorStatusBarPropsParams): 
   const {
     toolLabel,
     status,
+    displayUnit,
     zoomPercent,
     visibleShapeCount,
     shapeCount,
@@ -42,6 +44,7 @@ export function useEditorStatusBarProps(params: UseEditorStatusBarPropsParams): 
   return {
     toolLabel,
     status,
+    displayUnit,
     zoomPercent,
     visibleShapeCount,
     shapeCount,

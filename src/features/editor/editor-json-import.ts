@@ -10,6 +10,7 @@ import type {
   Shape,
   SketchGroup,
   StitchHole,
+  TextureSource,
   TracingOverlay,
 } from './cad/cad-types'
 import {
@@ -44,6 +45,13 @@ type ImportedJsonCandidate = {
   snapSettings?: unknown
   showAnnotations?: unknown
   tracingOverlays?: unknown[]
+  projectMemo?: unknown
+  stitchAlwaysShapeIds?: unknown[]
+  stitchThreadColor?: unknown
+  threeTextureSource?: unknown
+  threeTextureShapeIds?: unknown[]
+  showCanvasRuler?: unknown
+  showDimensions?: unknown
   layers?: unknown[]
   activeLayerId?: unknown
   lineTypes?: unknown[]
@@ -226,6 +234,30 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
 
   const normalizedStitchHoles = normalizeStitchHoleSequences(nextStitchHoles)
   const nextShapeIdSet = new Set(nextShapes.map((shape) => shape.id))
+  const projectMemo = typeof parsed.projectMemo === 'string' ? parsed.projectMemo.slice(0, 8000) : ''
+  const stitchAlwaysShapeIds = Array.isArray(parsed.stitchAlwaysShapeIds)
+    ? parsed.stitchAlwaysShapeIds
+        .map((shapeId) => (typeof shapeId === 'string' ? shapeIdMap.get(shapeId) ?? null : null))
+        .filter((shapeId): shapeId is string => typeof shapeId === 'string' && nextShapeIdSet.has(shapeId))
+    : []
+  const stitchThreadColor =
+    typeof parsed.stitchThreadColor === 'string' && parsed.stitchThreadColor.trim().length > 0
+      ? parsed.stitchThreadColor
+      : '#fb923c'
+  const threeTextureSource =
+    parsed.threeTextureSource &&
+    typeof parsed.threeTextureSource === 'object' &&
+    typeof (parsed.threeTextureSource as TextureSource).albedoUrl === 'string' &&
+    (parsed.threeTextureSource as TextureSource).albedoUrl.trim().length > 0
+      ? (parsed.threeTextureSource as TextureSource)
+      : null
+  const threeTextureShapeIds = Array.isArray(parsed.threeTextureShapeIds)
+    ? parsed.threeTextureShapeIds
+        .map((shapeId) => (typeof shapeId === 'string' ? shapeIdMap.get(shapeId) ?? null : null))
+        .filter((shapeId): shapeId is string => typeof shapeId === 'string' && nextShapeIdSet.has(shapeId))
+    : []
+  const showCanvasRuler = typeof parsed.showCanvasRuler === 'boolean' ? parsed.showCanvasRuler : true
+  const showDimensions = typeof parsed.showDimensions === 'boolean' ? parsed.showDimensions : false
 
   const nextConstraints = Array.isArray(parsed.constraints)
     ? parsed.constraints
@@ -308,6 +340,13 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       snapSettings: nextSnapSettings,
       showAnnotations: nextShowAnnotations,
       tracingOverlays: nextTracingOverlays,
+      projectMemo,
+      stitchAlwaysShapeIds,
+      stitchThreadColor,
+      threeTextureSource,
+      threeTextureShapeIds,
+      showCanvasRuler,
+      showDimensions,
     },
     summary: {
       shapeCount: nextShapes.length,

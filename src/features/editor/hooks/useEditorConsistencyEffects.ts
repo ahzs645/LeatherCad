@@ -40,6 +40,7 @@ type UseEditorConsistencyEffectsParams = {
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setLayerColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
   tracingOverlays: TracingOverlay[]
+  setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
   setActiveTracingOverlayId: Dispatch<SetStateAction<string | null>>
   tracingObjectUrlsRef: MutableRefObject<Set<string>>
   templateRepository: TemplateRepositoryEntry[]
@@ -76,6 +77,7 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     setHardwareMarkers,
     setLayerColorOverrides,
     tracingOverlays,
+    setThreeTextureShapeIds,
     setActiveTracingOverlayId,
     tracingObjectUrlsRef,
     templateRepository,
@@ -174,6 +176,17 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
   }, [shapes, setStitchHoles])
 
   useEffect(() => {
+    setThreeTextureShapeIds((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
+      const next = previous.filter((shapeId) => shapeIdSet.has(shapeId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [shapes, setThreeTextureShapeIds])
+
+  useEffect(() => {
     setSelectedStitchHoleId((previous) => {
       if (!previous) {
         return previous
@@ -268,11 +281,16 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
   }, [templateRepository])
 
   useEffect(() => {
-    const objectUrls = new Set(
-      tracingOverlays
-        .filter((overlay) => overlay.isObjectUrl)
-        .map((overlay) => overlay.sourceUrl),
-    )
+    const objectUrls = new Set<string>()
+    for (const overlay of tracingOverlays) {
+      if (!overlay.isObjectUrl) {
+        continue
+      }
+      objectUrls.add(overlay.sourceUrl)
+      if (overlay.pdfSourceUrl) {
+        objectUrls.add(overlay.pdfSourceUrl)
+      }
+    }
 
     tracingObjectUrlsRef.current.forEach((url) => {
       if (!objectUrls.has(url)) {

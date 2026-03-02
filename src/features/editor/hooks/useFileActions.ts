@@ -3,8 +3,11 @@ import type { DocFile, Layer, Shape, SketchGroup } from '../cad/cad-types'
 import { importSvgAsShapes } from '../io/io-svg'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from '../data/sample-doc'
 import { parseImportedJsonDocument } from '../editor-json-import'
+import { uid } from '../cad/cad-geometry'
 import { downloadFile } from '../editor-utils'
 import type { MobileViewMode } from '../editor-types'
+
+const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
 type UseFileActionsParams = {
   buildCurrentDocFile: () => DocFile
@@ -142,10 +145,29 @@ export function useFileActions(params: UseFileActionsParams) {
     }
   }
 
+  const handleOpenInNewTab = () => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const token = uid()
+    const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
+    const url = new URL(window.location.href)
+    url.searchParams.set('openDoc', token)
+    window.localStorage.setItem(storageKey, JSON.stringify(buildCurrentDocFile()))
+    const opened = window.open(url.toString(), '_blank', 'noopener,noreferrer')
+    if (!opened) {
+      setStatus('Could not open a new tab (popup may be blocked)')
+      return
+    }
+    setStatus('Opened current project in a new tab')
+  }
+
   return {
     handleSaveJson,
     handleLoadJson,
     handleImportSvg,
     handleLoadPreset,
+    handleOpenInNewTab,
   }
 }

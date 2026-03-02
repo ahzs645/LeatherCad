@@ -1,4 +1,4 @@
-import type { FoldLine, Layer, LineType, Shape, StitchHole } from '../cad/cad-types'
+import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
 import type { ResolvedThemeMode } from '../editor-types'
 import { ThreePreviewPanel } from './ThreePreviewPanel'
 
@@ -8,7 +8,14 @@ type EditorPreviewPaneProps = {
   isMobileLayout: boolean
   mobileViewMode: 'editor' | 'preview' | 'split'
   shapes: Shape[]
+  selectedShapeIds: string[]
   stitchHoles: StitchHole[]
+  stitchThreadColor: string
+  onSetStitchThreadColor: (color: string) => void
+  threeTextureSource: TextureSource | null
+  onSetThreeTextureSource: (source: TextureSource | null) => void
+  threeTextureShapeIds: string[]
+  onSetThreeTextureShapeIds: (shapeIds: string[]) => void
   foldLines: FoldLine[]
   layers: Layer[]
   lineTypes: LineType[]
@@ -22,7 +29,14 @@ export function EditorPreviewPane({
   isMobileLayout,
   mobileViewMode,
   shapes,
+  selectedShapeIds,
   stitchHoles,
+  stitchThreadColor,
+  onSetStitchThreadColor,
+  threeTextureSource,
+  onSetThreeTextureSource,
+  threeTextureShapeIds,
+  onSetThreeTextureShapeIds,
   foldLines,
   layers,
   lineTypes,
@@ -42,7 +56,14 @@ export function EditorPreviewPane({
       <ThreePreviewPanel
         key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
         shapes={shapes}
+        selectedShapeIds={selectedShapeIds}
         stitchHoles={stitchHoles}
+        stitchThreadColor={stitchThreadColor}
+        onSetStitchThreadColor={onSetStitchThreadColor}
+        threeTextureSource={threeTextureSource}
+        onSetThreeTextureSource={onSetThreeTextureSource}
+        threeTextureShapeIds={threeTextureShapeIds}
+        onSetThreeTextureShapeIds={onSetThreeTextureShapeIds}
         foldLines={foldLines}
         layers={layers}
         lineTypes={lineTypes}

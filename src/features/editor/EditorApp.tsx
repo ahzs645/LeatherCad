@@ -17,6 +17,7 @@ import type {
   SnapSettings,
   StitchHole,
   StitchHoleType,
+  TextureSource,
   TextTransformMode,
   TracingOverlay,
   Tool,
@@ -35,6 +36,7 @@ import {
 } from './cad/line-types'
 import { DEFAULT_PRESET_ID } from './data/sample-doc'
 import { type HistoryState } from './ops/history-ops'
+import { parseImportedJsonDocument } from './editor-json-import'
 import {
   hasTemplateRepositoryStorage,
   loadTemplateRepository,
@@ -99,10 +101,12 @@ import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
+import type { DisplayUnit } from './ops/unit-ops'
 
 const DESKTOP_PREVIEW_MIN_WIDTH_PX = 300
 const DESKTOP_CANVAS_MIN_WIDTH_PX = 420
 const DESKTOP_SPLITTER_WIDTH_PX = 12
+const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
 const getSystemThemeMode = (): ResolvedThemeMode => {
   if (typeof window === 'undefined') {
@@ -160,11 +164,14 @@ export function EditorApp() {
   const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
+  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('mm')
   const {
     showLayerColorModal,
     setShowLayerColorModal,
     showLineTypePalette,
     setShowLineTypePalette,
+    showExportModal,
+    setShowExportModal,
     showExportOptionsModal,
     setShowExportOptionsModal,
     exportOnlySelectedShapes,
@@ -241,6 +248,13 @@ export function EditorApp() {
   const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
   const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
+  const [projectMemo, setProjectMemo] = useState('')
+  const [stitchAlwaysShapeIds, setStitchAlwaysShapeIds] = useState<string[]>([])
+  const [stitchThreadColor, setStitchThreadColor] = useState('#fb923c')
+  const [threeTextureSource, setThreeTextureSource] = useState<TextureSource | null>(null)
+  const [threeTextureShapeIds, setThreeTextureShapeIds] = useState<string[]>([])
+  const [showCanvasRuler, setShowCanvasRuler] = useState(true)
+  const [showDimensions, setShowDimensions] = useState(false)
   const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
   const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
   const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => {
@@ -349,6 +363,13 @@ export function EditorApp() {
     snapSettings,
     showAnnotations,
     tracingOverlays,
+    projectMemo,
+    stitchAlwaysShapeIds,
+    stitchThreadColor,
+    threeTextureSource,
+    threeTextureShapeIds,
+    showCanvasRuler,
+    showDimensions,
     activeTracingOverlayId,
     selectedShapeIds,
     selectedStitchHoleId,
@@ -401,6 +422,13 @@ export function EditorApp() {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setLayerColorOverrides,
     setFrontLayerColor,
     setBackLayerColor,
@@ -428,6 +456,13 @@ export function EditorApp() {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setProjectMemo,
+    setStitchAlwaysShapeIds,
+    setStitchThreadColor,
+    setThreeTextureSource,
+    setThreeTextureShapeIds,
+    setShowCanvasRuler,
+    setShowDimensions,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
@@ -436,6 +471,34 @@ export function EditorApp() {
     setShowPrintAreas,
     setStatus,
   })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const url = new URL(window.location.href)
+    const token = url.searchParams.get('openDoc')
+    if (!token) {
+      return
+    }
+
+    const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) {
+      return
+    }
+
+    try {
+      const parsed = parseImportedJsonDocument(raw)
+      applyLoadedDocument(parsed.doc, 'Loaded project from new tab transfer')
+      window.localStorage.removeItem(storageKey)
+      url.searchParams.delete('openDoc')
+      window.history.replaceState(null, '', url.toString())
+    } catch (error) {
+      console.error('Open in new tab transfer failed', error)
+    }
+  }, [applyLoadedDocument])
 
   const gridLines = useGridLines()
   const previewElement = useDraftPreviewElement({
@@ -461,6 +524,13 @@ export function EditorApp() {
     handleCutSelection,
     handlePasteClipboard,
     handleDuplicateSelection,
+    handleSelectAllShapes,
+    handleGroupSelection,
+    handleUngroupSelection,
+    handleMoveSelectionByDistance,
+    handleCopySelectionByDistance,
+    handleRotateSelection,
+    handleScaleSelection,
     handleMoveSelectionForward,
     handleMoveSelectionBackward,
     handleBringSelectionToFront,
@@ -478,12 +548,33 @@ export function EditorApp() {
     setStitchHoles,
     setSeamAllowances,
     setConstraints,
+    setSketchGroups,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
     setHardwareMarkers,
     setStatus,
   })
+
+  const handleEnableStitchOnSelection = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first')
+      return
+    }
+    const selectedIds = Array.from(selectedShapeIdSet)
+    setStitchAlwaysShapeIds((previous) => Array.from(new Set([...previous, ...selectedIds])))
+    setStatus(`Enabled stitch simulator override for ${selectedIds.length} shape${selectedIds.length === 1 ? '' : 's'}`)
+  }
+
+  const handleDisableStitchOnSelection = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first')
+      return
+    }
+    const selectedIds = selectedShapeIdSet
+    setStitchAlwaysShapeIds((previous) => previous.filter((shapeId) => !selectedIds.has(shapeId)))
+    setStatus('Disabled stitch simulator override on selected shapes')
+  }
 
   const buildCurrentDocFile = (): DocFile => ({
     version: 1,
@@ -503,6 +594,13 @@ export function EditorApp() {
     snapSettings,
     showAnnotations,
     tracingOverlays,
+    projectMemo,
+    stitchAlwaysShapeIds: stitchAlwaysShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
+    stitchThreadColor,
+    threeTextureSource,
+    threeTextureShapeIds: threeTextureShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
+    showCanvasRuler,
+    showDimensions,
   })
   const {
     handleSaveTemplateToRepository,
@@ -557,6 +655,7 @@ export function EditorApp() {
   const {
     handleUpdateTracingOverlay,
     handleDeleteTracingOverlay,
+    handleSetPdfTracingPage,
     handleImportTracing,
   } = useTracingActions({
     setTracingOverlays,
@@ -596,6 +695,7 @@ export function EditorApp() {
     setHardwareMarkers,
     setLayerColorOverrides,
     tracingOverlays,
+    setThreeTextureShapeIds,
     setActiveTracingOverlayId,
     tracingObjectUrlsRef,
     templateRepository,
@@ -618,6 +718,7 @@ export function EditorApp() {
     handleCutSelection,
     handlePasteClipboard,
     handleDuplicateSelection,
+    handleSelectAllShapes,
   })
 
   const {
@@ -693,10 +794,11 @@ export function EditorApp() {
     exportForceSolidStrokes,
     dxfFlipY,
     dxfVersion,
+    exportUnit: displayUnit,
     setStatus,
   })
 
-  const { handleSaveJson, handleLoadJson, handleImportSvg, handleLoadPreset } = useFileActions({
+  const { handleSaveJson, handleLoadJson, handleImportSvg, handleLoadPreset, handleOpenInNewTab } = useFileActions({
     buildCurrentDocFile,
     applyLoadedDocument,
     selectedPresetId,
@@ -1168,6 +1270,12 @@ export function EditorApp() {
     handleSetThemeMode,
     themeMode,
     showZoomSection,
+    displayUnit,
+    setDisplayUnit,
+    showCanvasRuler,
+    setShowCanvasRuler,
+    showDimensions,
+    setShowDimensions,
     sketchWorkspaceMode,
     setSketchWorkspaceMode,
     handleZoomStep,
@@ -1181,9 +1289,18 @@ export function EditorApp() {
     handleCopySelection,
     handleCutSelection,
     handlePasteClipboard,
-    canPaste: Boolean(clipboardPayload && clipboardPayload.shapes.length > 0),
+    canPaste: true,
+    handleSelectAllShapes,
     handleDuplicateSelection,
     handleDeleteSelection,
+    handleGroupSelection,
+    handleUngroupSelection,
+    handleMoveSelectionByDistance,
+    handleCopySelectionByDistance,
+    handleRotateSelection,
+    handleScaleSelection,
+    handleEnableStitchOnSelection,
+    handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
     handleMoveSelectionForward,
     handleSendSelectionToBack,
@@ -1243,6 +1360,8 @@ export function EditorApp() {
     handleExportPdf,
     handleExportDxf,
     handleExportLaserSvg,
+    handleOpenInNewTab,
+    setShowExportModal,
     setShowExportOptionsModal,
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
@@ -1285,8 +1404,15 @@ export function EditorApp() {
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
     handleResetLayerColors,
+    showExportModal,
+    setShowExportModal,
     showExportOptionsModal,
     setShowExportOptionsModal,
+    handleSaveJson,
+    handleExportSvg,
+    handleExportPdf,
+    handleExportDxf,
+    handleExportLaserSvg,
     activeExportRoleCount,
     exportOnlySelectedShapes,
     setExportOnlySelectedShapes,
@@ -1398,6 +1524,7 @@ export function EditorApp() {
     handleDeleteTracingOverlay,
     setActiveTracingOverlayId,
     handleUpdateTracingOverlay,
+    handleSetPdfTracingPage,
     showPrintPreviewModal,
     setShowPrintPreviewModal,
     printPaper,
@@ -1436,7 +1563,14 @@ export function EditorApp() {
     isMobileLayout,
     mobileViewMode,
     shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
+    selectedShapeIds,
     stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
+    stitchThreadColor,
+    onSetStitchThreadColor: setStitchThreadColor,
+    threeTextureSource,
+    onSetThreeTextureSource: setThreeTextureSource,
+    threeTextureShapeIds,
+    onSetThreeTextureShapeIds: setThreeTextureShapeIds,
     foldLines,
     layers,
     lineTypes,
@@ -1446,6 +1580,7 @@ export function EditorApp() {
   const statusBarProps = useEditorStatusBarProps({
     toolLabel: toolLabel(tool),
     status,
+    displayUnit,
     zoomPercent: Math.round(viewport.scale * 100),
     visibleShapeCount: workspaceShapes.length,
     shapeCount: shapes.length,
@@ -1474,9 +1609,11 @@ export function EditorApp() {
           onPointerUp={handlePointerUp}
           onWheel={handleWheel}
           viewport={viewport}
+          displayUnit={displayUnit}
           gridLines={gridLines}
+          showCanvasRuler={showCanvasRuler}
+          showDimensions={showDimensions}
           tracingOverlays={tracingOverlays}
-          themeMode={resolvedThemeMode}
           showPrintAreas={showPrintAreas}
           printPlan={printPlan}
           seamGuides={seamGuides}
@@ -1525,6 +1662,19 @@ export function EditorApp() {
       </main>
 
       <EditorModalStack {...modalStackProps} />
+
+      <section className="project-memo-panel">
+        <label className="project-memo-label" htmlFor="project-memo-input">
+          Project Memo
+        </label>
+        <textarea
+          id="project-memo-input"
+          className="project-memo-input"
+          value={projectMemo}
+          onChange={(event) => setProjectMemo(event.target.value.slice(0, 8000))}
+          placeholder="Global project notes for this pattern..."
+        />
+      </section>
 
       <EditorStatusBar {...statusBarProps} />
 

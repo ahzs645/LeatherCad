@@ -27,7 +27,7 @@ const EPSILON = 1e-6
 const CUT_LINE_COLOR = '#38bdf8'
 const STITCH_LINE_COLOR = '#f97316'
 const FOLD_LINE_COLOR = '#fb7185'
-const STITCH_THREAD_COLOR = '#fb923c'
+const DEFAULT_STITCH_THREAD_COLOR = '#fb923c'
 const LAYER_STACK_STEP = 0.012
 const COLLISION_SEARCH_STEP_DEG = 1
 const COLLISION_CHECK_CUTOFF_DEG = 90
@@ -220,10 +220,26 @@ export class ThreeBridge {
     side: THREE.DoubleSide,
   })
 
+  private leftTextureMaterial = new THREE.MeshStandardMaterial({
+    color: '#8a6742',
+    roughness: 0.88,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  })
+
+  private rightTextureMaterial = new THREE.MeshStandardMaterial({
+    color: '#8a6742',
+    roughness: 0.88,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  })
+
   private textureLoader = new THREE.TextureLoader()
   private currentAlbedo: THREE.Texture | null = null
   private currentNormal: THREE.Texture | null = null
   private currentRoughness: THREE.Texture | null = null
+  private texturedShapeIdSet = new Set<string>()
+  private threadColor = DEFAULT_STITCH_THREAD_COLOR
 
   private layers: Layer[] = []
   private lineTypes: LineType[] = []
@@ -247,7 +263,12 @@ export class ThreeBridge {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.textureLoader.crossOrigin = 'anonymous'
-    this.preservedMaterials = new Set([this.leftMaterial, this.rightMaterial])
+    this.preservedMaterials = new Set([
+      this.leftMaterial,
+      this.rightMaterial,
+      this.leftTextureMaterial,
+      this.rightTextureMaterial,
+    ])
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
@@ -798,9 +819,13 @@ export class ThreeBridge {
       const stackLevel = layerStackLevels.get(layerSlice.layerId) ?? index
       const yOffset = stackLevel * dynamicLayerStep
       maxYOffset = Math.max(maxYOffset, yOffset)
+      const hasTexturedShape =
+        this.currentAlbedo !== null && layerSlice.shapes.some((shape) => this.texturedShapeIdSet.has(shape.id))
+      const staticMaterial = hasTexturedShape ? this.leftTextureMaterial : this.leftMaterial
+      const foldingMaterial = hasTexturedShape ? this.rightTextureMaterial : this.rightMaterial
 
       if (negativePolygon.length >= 3) {
-        const staticPanel = this.createPanelMesh(negativePolygon, this.leftMaterial, layerProjectedBounds, null, yOffset)
+        const staticPanel = this.createPanelMesh(negativePolygon, staticMaterial, layerProjectedBounds, null, yOffset)
         if (staticPanel) {
           this.staticPanels.push(staticPanel)
           this.staticSideGroup.add(staticPanel)
@@ -809,7 +834,7 @@ export class ThreeBridge {
       }
 
       if (positivePolygon.length >= 3) {
-        const foldingPanel = this.createPanelMesh(positivePolygon, this.rightMaterial, layerProjectedBounds, foldMid, yOffset)
+        const foldingPanel = this.createPanelMesh(positivePolygon, foldingMaterial, layerProjectedBounds, foldMid, yOffset)
         if (foldingPanel) {
           this.foldingPanels.push(foldingPanel)
           this.foldingSideGroup.add(foldingPanel)
@@ -842,9 +867,9 @@ export class ThreeBridge {
         const projectedPoints = ordered.map((stitchHole) => this.projectPoint(stitchHole.point))
         for (const projectedPoint of projectedPoints) {
           if (sideOfLine(projectedPoint, foldStart, foldEnd) > -EPSILON) {
-            this.addStitchPoint(this.foldingSideGroup, projectedPoint, STITCH_THREAD_COLOR, foldMid, yOffset)
+            this.addStitchPoint(this.foldingSideGroup, projectedPoint, this.threadColor, foldMid, yOffset)
           } else {
-            this.addStitchPoint(this.staticSideGroup, projectedPoint, STITCH_THREAD_COLOR, null, yOffset)
+            this.addStitchPoint(this.staticSideGroup, projectedPoint, this.threadColor, null, yOffset)
           }
         }
 
@@ -856,7 +881,7 @@ export class ThreeBridge {
               {
                 start: segment.start,
                 end: segment.end,
-                color: STITCH_THREAD_COLOR,
+                color: this.threadColor,
               },
               null,
               yOffset + 0.0015,
@@ -868,7 +893,7 @@ export class ThreeBridge {
               {
                 start: segment.start,
                 end: segment.end,
-                color: STITCH_THREAD_COLOR,
+                color: this.threadColor,
               },
               foldMid,
               yOffset + 0.0015,
@@ -922,7 +947,7 @@ export class ThreeBridge {
     this.currentNormal = normal
     this.currentRoughness = roughness
 
-    for (const material of [this.leftMaterial, this.rightMaterial]) {
+    for (const material of [this.leftTextureMaterial, this.rightTextureMaterial]) {
       material.map = albedo
       material.normalMap = normal
       material.roughnessMap = roughness
@@ -942,6 +967,8 @@ export class ThreeBridge {
     this.shapes = [...shapes]
     this.foldLines = [...foldLines]
     this.stitchHoles = [...stitchHoles]
+    const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
+    this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
     this.activeFoldBehavior = resolveFoldBehavior(this.foldLines[0] ?? null)
     this.activeFoldAngleDeg = this.activeFoldBehavior.targetAngleDeg
     this.rebuildModel()
@@ -954,6 +981,8 @@ export class ThreeBridge {
 
   setShapes(shapes: Shape[]) {
     this.shapes = [...shapes]
+    const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
+    this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
     this.rebuildModel()
   }
 
@@ -1035,10 +1064,27 @@ export class ThreeBridge {
     }
 
     this.applyTextureMaps(albedo, normal, roughness)
+    this.rebuildModel()
   }
 
   useDefaultTexture() {
+    this.texturedShapeIdSet.clear()
     this.applyTextureMaps(null, null, null)
+    this.rebuildModel()
+  }
+
+  setTextureAssignments(shapeIds: string[]) {
+    const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
+    this.texturedShapeIdSet = new Set(shapeIds.filter((shapeId) => shapeIdSet.has(shapeId)))
+    this.rebuildModel()
+  }
+
+  setThreadColor(color: string) {
+    if (typeof color !== 'string' || color.trim().length === 0) {
+      return
+    }
+    this.threadColor = color
+    this.rebuildModel()
   }
 
   resize(width: number, height: number) {
@@ -1064,6 +1110,8 @@ export class ThreeBridge {
     this.controls.dispose()
     this.leftMaterial.dispose()
     this.rightMaterial.dispose()
+    this.leftTextureMaterial.dispose()
+    this.rightTextureMaterial.dispose()
     this.renderer.dispose()
   }
 }

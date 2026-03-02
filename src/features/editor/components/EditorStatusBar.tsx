@@ -1,6 +1,7 @@
 type EditorStatusBarProps = {
   toolLabel: string
   status: string
+  displayUnit: 'mm' | 'in'
   zoomPercent: number
   visibleShapeCount: number
   shapeCount: number
@@ -20,6 +21,7 @@ type EditorStatusBarProps = {
 export function EditorStatusBar({
   toolLabel,
   status,
+  displayUnit,
   zoomPercent,
   visibleShapeCount,
   shapeCount,
@@ -39,6 +41,7 @@ export function EditorStatusBar({
     <footer className="statusbar">
       <span>Tool: {toolLabel}</span>
       <span>{status}</span>
+      <span className="statusbar-meta">Units: {displayUnit}</span>
       <span className="statusbar-meta">{zoomPercent}% zoom</span>
       <span className="statusbar-meta">
         {visibleShapeCount}/{shapeCount} visible shapes

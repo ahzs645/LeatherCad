@@ -1,6 +1,7 @@
 import type { ComponentProps, Dispatch, RefObject, SetStateAction } from 'react'
 import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
 import { EditorTopbar } from '../components/EditorTopbar'
+import type { DisplayUnit } from '../ops/unit-ops'
 import type {
   DesktopRibbonTab,
   MobileFileAction,
@@ -36,6 +37,12 @@ type UseEditorTopbarPropsParams = {
   handleSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode
   showZoomSection: boolean
+  displayUnit: DisplayUnit
+  setDisplayUnit: Dispatch<SetStateAction<DisplayUnit>>
+  showCanvasRuler: boolean
+  setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
+  showDimensions: boolean
+  setShowDimensions: Dispatch<SetStateAction<boolean>>
   sketchWorkspaceMode: SketchWorkspaceMode
   setSketchWorkspaceMode: Dispatch<SetStateAction<SketchWorkspaceMode>>
   handleZoomStep: (factor: number) => void
@@ -50,8 +57,17 @@ type UseEditorTopbarPropsParams = {
   handleCutSelection: () => void
   handlePasteClipboard: () => void
   canPaste: boolean
+  handleSelectAllShapes: () => void
   handleDuplicateSelection: () => void
   handleDeleteSelection: () => void
+  handleGroupSelection: () => void
+  handleUngroupSelection: () => void
+  handleMoveSelectionByDistance: () => void
+  handleCopySelectionByDistance: () => void
+  handleRotateSelection: (angleDeg: number) => void
+  handleScaleSelection: (factor: number) => void
+  handleEnableStitchOnSelection: () => void
+  handleDisableStitchOnSelection: () => void
   handleMoveSelectionBackward: () => void
   handleMoveSelectionForward: () => void
   handleSendSelectionToBack: () => void
@@ -111,6 +127,8 @@ type UseEditorTopbarPropsParams = {
   handleExportPdf: () => void
   handleExportDxf: () => void
   handleExportLaserSvg: () => void
+  handleOpenInNewTab: () => void
+  setShowExportModal: Dispatch<SetStateAction<boolean>>
   setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
   setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
@@ -149,6 +167,12 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleSetThemeMode,
     themeMode,
     showZoomSection,
+    displayUnit,
+    setDisplayUnit,
+    showCanvasRuler,
+    setShowCanvasRuler,
+    showDimensions,
+    setShowDimensions,
     sketchWorkspaceMode,
     setSketchWorkspaceMode,
     handleZoomStep,
@@ -163,8 +187,17 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleCutSelection,
     handlePasteClipboard,
     canPaste,
+    handleSelectAllShapes,
     handleDuplicateSelection,
     handleDeleteSelection,
+    handleGroupSelection,
+    handleUngroupSelection,
+    handleMoveSelectionByDistance,
+    handleCopySelectionByDistance,
+    handleRotateSelection,
+    handleScaleSelection,
+    handleEnableStitchOnSelection,
+    handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
     handleMoveSelectionForward,
     handleSendSelectionToBack,
@@ -224,6 +257,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleExportPdf,
     handleExportDxf,
     handleExportLaserSvg,
+    handleOpenInNewTab,
+    setShowExportModal,
     setShowExportOptionsModal,
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
@@ -268,6 +303,12 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onSetThemeMode: handleSetThemeMode,
     themeMode,
     showZoomSection,
+    displayUnit,
+    onSetDisplayUnit: setDisplayUnit,
+    showCanvasRuler,
+    onToggleCanvasRuler: () => setShowCanvasRuler((previous) => !previous),
+    showDimensions,
+    onToggleDimensions: () => setShowDimensions((previous) => !previous),
     sketchWorkspaceMode,
     onSetSketchWorkspaceMode: setSketchWorkspaceMode,
     onZoomOut: () => handleZoomStep(0.85),
@@ -283,8 +324,23 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onCutSelection: handleCutSelection,
     onPasteClipboard: handlePasteClipboard,
     canPaste,
+    onSelectAllShapes: handleSelectAllShapes,
     onDuplicateSelection: handleDuplicateSelection,
     onDeleteSelection: handleDeleteSelection,
+    onGroupSelection: handleGroupSelection,
+    onUngroupSelection: handleUngroupSelection,
+    onMoveSelectionByDistance: handleMoveSelectionByDistance,
+    onCopySelectionByDistance: handleCopySelectionByDistance,
+    onRotateSelectionCw1: () => handleRotateSelection(1),
+    onRotateSelectionCw5: () => handleRotateSelection(5),
+    onRotateSelectionCcw1: () => handleRotateSelection(-1),
+    onRotateSelectionCcw5: () => handleRotateSelection(-5),
+    onScaleSelectionUp1: () => handleScaleSelection(1.01),
+    onScaleSelectionDown1: () => handleScaleSelection(0.99),
+    onScaleSelectionUp5: () => handleScaleSelection(1.05),
+    onScaleSelectionDown5: () => handleScaleSelection(0.95),
+    onEnableStitchOnSelection: handleEnableStitchOnSelection,
+    onDisableStitchOnSelection: handleDisableStitchOnSelection,
     onMoveSelectionBackward: handleMoveSelectionBackward,
     onMoveSelectionForward: handleMoveSelectionForward,
     onSendSelectionToBack: handleSendSelectionToBack,
@@ -347,6 +403,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onExportPdf: handleExportPdf,
     onExportDxf: handleExportDxf,
     onExportLaserSvg: handleExportLaserSvg,
+    onOpenInNewTab: handleOpenInNewTab,
+    onOpenExportModal: () => setShowExportModal(true),
     onOpenExportOptionsModal: () => setShowExportOptionsModal(true),
     onOpenPatternToolsModal: () => setShowPatternToolsModal(true),
     onOpenTemplateRepositoryModal: () => setShowTemplateRepositoryModal(true),

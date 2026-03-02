@@ -7,6 +7,7 @@ import { buildDxfFromShapes } from '../io/io-dxf'
 import { buildPdfFromShapes } from '../io/io-pdf'
 import { downloadFile } from '../editor-utils'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
+import { MM_PER_INCH, type DisplayUnit } from '../ops/unit-ops'
 
 type UseExportActionsParams = {
   shapes: Shape[]
@@ -23,6 +24,7 @@ type UseExportActionsParams = {
   exportForceSolidStrokes: boolean
   dxfFlipY: boolean
   dxfVersion: DxfVersion
+  exportUnit: DisplayUnit
   setStatus: Dispatch<SetStateAction<string>>
 }
 
@@ -42,6 +44,7 @@ export function useExportActions(params: UseExportActionsParams) {
     exportForceSolidStrokes,
     dxfFlipY,
     dxfVersion,
+    exportUnit,
     setStatus,
   } = params
 
@@ -127,6 +130,8 @@ export function useExportActions(params: UseExportActionsParams) {
     }
 
     const bounds = getBounds(exportShapes)
+    const exportWidth = exportUnit === 'in' ? bounds.width / MM_PER_INCH : bounds.width
+    const exportHeight = exportUnit === 'in' ? bounds.height / MM_PER_INCH : bounds.height
     const objectMarkup = exportShapes.map(shapeToExportSvg).join('\n  ')
     const includeFoldLines = exportRoleFilters.fold
     const foldMarkup = includeFoldLines
@@ -138,7 +143,7 @@ export function useExportActions(params: UseExportActionsParams) {
           .join('\n  ')
       : ''
 
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${foldMarkup}\n</svg>`
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}" width="${round(exportWidth)}${exportUnit}" height="${round(exportHeight)}${exportUnit}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${foldMarkup}\n</svg>`
 
     downloadFile('leathercraft-export.svg', svg, 'image/svg+xml;charset=utf-8')
     setStatus(`Exported SVG (${exportShapes.length} shapes, ${includeFoldLines ? foldLines.length : 0} folds)`)
@@ -154,6 +159,7 @@ export function useExportActions(params: UseExportActionsParams) {
     const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
       flipY: dxfFlipY,
       version: dxfVersion,
+      unit: exportUnit,
       forceSolidLineStyle: exportForceSolidStrokes,
       lineTypeStyles: lineTypeStylesById,
     })

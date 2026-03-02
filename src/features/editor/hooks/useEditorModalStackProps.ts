@@ -52,8 +52,15 @@ type UseEditorModalStackPropsParams = {
   handleSetLayerColorOverride: (layerId: string, nextColor: string) => void
   handleClearLayerColorOverride: (layerId: string) => void
   handleResetLayerColors: () => void
+  showExportModal: boolean
+  setShowExportModal: Dispatch<SetStateAction<boolean>>
   showExportOptionsModal: boolean
   setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
+  handleSaveJson: () => void
+  handleExportSvg: () => void
+  handleExportPdf: () => void
+  handleExportDxf: () => void
+  handleExportLaserSvg: () => void
   activeExportRoleCount: number
   exportOnlySelectedShapes: boolean
   setExportOnlySelectedShapes: Dispatch<SetStateAction<boolean>>
@@ -174,6 +181,7 @@ type UseEditorModalStackPropsParams = {
   handleDeleteTracingOverlay: (overlayId: string) => void
   setActiveTracingOverlayId: Dispatch<SetStateAction<string | null>>
   handleUpdateTracingOverlay: (overlayId: string, patch: Partial<TracingOverlay>) => void
+  handleSetPdfTracingPage: (overlay: TracingOverlay, pageNumber: number) => void
   showPrintPreviewModal: boolean
   setShowPrintPreviewModal: Dispatch<SetStateAction<boolean>>
   printPaper: PrintPaper
@@ -239,8 +247,15 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
     handleResetLayerColors,
+    showExportModal,
+    setShowExportModal,
     showExportOptionsModal,
     setShowExportOptionsModal,
+    handleSaveJson,
+    handleExportSvg,
+    handleExportPdf,
+    handleExportDxf,
+    handleExportLaserSvg,
     activeExportRoleCount,
     exportOnlySelectedShapes,
     setExportOnlySelectedShapes,
@@ -352,6 +367,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleDeleteTracingOverlay,
     setActiveTracingOverlayId,
     handleUpdateTracingOverlay,
+    handleSetPdfTracingPage,
     showPrintPreviewModal,
     setShowPrintPreviewModal,
     printPaper,
@@ -431,6 +447,19 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onSetLayerColorOverride: handleSetLayerColorOverride,
       onClearLayerColorOverride: handleClearLayerColorOverride,
       onResetLayerColors: handleResetLayerColors,
+    },
+    exportModalProps: {
+      open: showExportModal,
+      onClose: () => setShowExportModal(false),
+      showPrintAreas,
+      onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),
+      onOpenExportOptions: () => setShowExportOptionsModal(true),
+      onOpenPrintPreview: () => setShowPrintPreviewModal(true),
+      onSaveJson: handleSaveJson,
+      onExportSvg: handleExportSvg,
+      onExportPdf: handleExportPdf,
+      onExportDxf: handleExportDxf,
+      onExportLaserSvg: handleExportLaserSvg,
     },
     exportOptionsModalProps: {
       open: showExportOptionsModal,
@@ -561,6 +590,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       },
       onSetActiveTracingOverlayId: setActiveTracingOverlayId,
       onUpdateTracingOverlay: handleUpdateTracingOverlay,
+      onSetPdfTracingPage: handleSetPdfTracingPage,
     },
     printPreviewModalProps: {
       open: showPrintPreviewModal,
