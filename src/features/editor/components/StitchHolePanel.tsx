@@ -1,4 +1,4 @@
-import type { StitchHoleType } from '../cad-types'
+import type { StitchHoleType } from '../cad/cad-types'
 
 type StitchHolePanelProps = {
   holeType: StitchHoleType

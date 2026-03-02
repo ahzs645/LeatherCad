@@ -1,4 +1,4 @@
-import { distance, round, sampleShapePoints } from './cad-geometry'
+import { distance, round, sampleShapePoints } from '../cad/cad-geometry'
 import type {
   ConstraintAnchor,
   FoldLine,
@@ -8,7 +8,7 @@ import type {
   Point,
   Shape,
   SnapSettings,
-} from './cad-types'
+} from '../cad/cad-types'
 
 type Bounds = {
   minX: number

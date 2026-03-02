@@ -1,5 +1,5 @@
-import { clamp } from './cad-geometry'
-import type { FoldDirection, FoldLine } from './cad-types'
+import { clamp } from '../cad/cad-geometry'
+import type { FoldDirection, FoldLine } from '../cad/cad-types'
 
 export const DEFAULT_FOLD_DIRECTION: FoldDirection = 'mountain'
 export const DEFAULT_FOLD_RADIUS_MM = 1.2

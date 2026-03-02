@@ -1,5 +1,5 @@
-import { sampleShapePoints } from './cad-geometry'
-import type { LineTypeStyle, Shape } from './cad-types'
+import { sampleShapePoints } from '../cad/cad-geometry'
+import type { LineTypeStyle, Shape } from '../cad/cad-types'
 
 const MM_TO_PT = 72 / 25.4
 const DEFAULT_MARGIN_MM = 10

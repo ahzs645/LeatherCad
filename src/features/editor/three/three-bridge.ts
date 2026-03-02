@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { sampleShapePoints } from './cad-geometry'
-import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from './cad-types'
-import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from './fold-line-ops'
+import { sampleShapePoints } from '../cad/cad-geometry'
+import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
+import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
 
 type ModelTransform = {
   scale: number

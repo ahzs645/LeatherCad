@@ -6,9 +6,9 @@ import type {
   LineType,
   Shape,
   StitchHole,
-} from './cad-types'
-import { uid } from './cad-geometry'
-import { normalizeLineTypes, resolveActiveLineTypeId, resolveShapeLineTypeId } from './line-types'
+} from '../cad/cad-types'
+import { uid } from '../cad/cad-geometry'
+import { normalizeLineTypes, resolveActiveLineTypeId, resolveShapeLineTypeId } from '../cad/line-types'
 
 const TEMPLATE_REPOSITORY_STORAGE_KEY = 'leathercraft-template-repository-v1'
 

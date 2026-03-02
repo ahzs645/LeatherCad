@@ -1,10 +1,10 @@
-import type { DocFile, FoldLine, Layer, Shape } from './cad-types'
+import type { DocFile, FoldLine, Layer, Shape } from '../cad/cad-types'
 import {
   CUT_LINE_TYPE_ID,
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
   createDefaultLineTypes,
-} from './line-types'
+} from '../cad/line-types'
 
 type PresetDefinition = {
   id: string

@@ -1,5 +1,5 @@
-import { sampleShapePoints, uid } from './cad-geometry'
-import type { LineType, Point, Shape, StitchHole, StitchHoleType } from './cad-types'
+import { sampleShapePoints, uid } from '../cad/cad-geometry'
+import type { LineType, Point, Shape, StitchHole, StitchHoleType } from '../cad/cad-types'
 
 const LINE_SAMPLE_SEGMENTS = 40
 

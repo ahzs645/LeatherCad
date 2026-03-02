@@ -1,4 +1,4 @@
-import type { LineType, LineTypeRole, LineTypeStyle } from '../cad-types'
+import type { LineType, LineTypeRole, LineTypeStyle } from '../cad/cad-types'
 
 type LineTypePaletteProps = {
   activeLineType: LineType | null

@@ -1,5 +1,5 @@
-import type { Shape } from './cad-types'
-import { getBounds, round } from './cad-geometry'
+import type { Shape } from '../cad/cad-types'
+import { getBounds, round } from '../cad/cad-geometry'
 
 export type PrintPaper = 'letter' | 'a4'
 

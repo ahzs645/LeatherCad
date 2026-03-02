@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad-types'
-import { ThreeBridge } from '../three-bridge'
+import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
+import { ThreeBridge } from '../three/three-bridge'
 import {
   DEFAULT_FOLD_CLEARANCE_MM,
   DEFAULT_FOLD_DIRECTION,
@@ -8,7 +8,7 @@ import {
   DEFAULT_FOLD_RADIUS_MM,
   DEFAULT_FOLD_STIFFNESS,
   DEFAULT_FOLD_THICKNESS_MM,
-} from '../fold-line-ops'
+} from '../ops/fold-line-ops'
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]

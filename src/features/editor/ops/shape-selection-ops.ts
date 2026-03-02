@@ -1,5 +1,5 @@
-import { uid } from './cad-geometry'
-import type { ArcShape, BezierShape, Shape, StitchHole } from './cad-types'
+import { uid } from '../cad/cad-geometry'
+import type { ArcShape, BezierShape, Shape, StitchHole } from '../cad/cad-types'
 
 export type ClipboardPayload = {
   shapes: Shape[]

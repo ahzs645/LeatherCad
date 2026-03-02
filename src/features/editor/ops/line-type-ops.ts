@@ -1,4 +1,4 @@
-import type { Shape } from './cad-types'
+import type { Shape } from '../cad/cad-types'
 
 export function countShapesByLineType(shapes: Shape[]) {
   const counts: Record<string, number> = {}

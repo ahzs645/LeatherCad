@@ -1,5 +1,5 @@
-import { sampleShapePoints, uid } from './cad-geometry'
-import type { Shape } from './cad-types'
+import { sampleShapePoints, uid } from '../cad/cad-geometry'
+import type { Shape } from '../cad/cad-types'
 
 type SvgImportOptions = {
   layerId: string

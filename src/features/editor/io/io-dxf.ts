@@ -1,5 +1,5 @@
-import { sampleShapePoints } from './cad-geometry'
-import type { LineTypeStyle, Shape } from './cad-types'
+import { sampleShapePoints } from '../cad/cad-geometry'
+import type { LineTypeStyle, Shape } from '../cad/cad-types'
 
 type DxfVersion = 'r12' | 'r14'
 type DxfExportOptions = {
