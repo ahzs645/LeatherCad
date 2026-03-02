@@ -42,7 +42,6 @@ export function useEditorLayoutFlags(params: UseEditorLayoutFlagsParams): Editor
   const hideCanvasPane = isMobileLayout && showThreePreview && mobileViewMode === 'preview'
   const hidePreviewPane = isMobileLayout && (mobileViewMode === 'editor' || !showThreePreview)
   const showViewOptions = showMobileMenu && mobileOptionsTab === 'view'
-  const showLayerOptions = showMobileMenu && mobileOptionsTab === 'layers'
   const showFileOptions = showMobileMenu && mobileOptionsTab === 'file'
   const showDesktopToolSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
   const showDesktopPresetSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'view'
@@ -54,7 +53,7 @@ export function useEditorLayoutFlags(params: UseEditorLayoutFlagsParams): Editor
     desktopRibbonTab === 'build' ||
     desktopRibbonTab === 'edit' ||
     desktopRibbonTab === 'stitch' ||
-    desktopRibbonTab === 'layers'
+    desktopRibbonTab === 'view'
   const showDesktopFileSection = desktopRibbonTab === 'output'
   const showToolSection = isMobileLayout || showDesktopToolSection
   const showPresetSection = isMobileLayout ? showViewOptions : showDesktopPresetSection
@@ -62,7 +61,7 @@ export function useEditorLayoutFlags(params: UseEditorLayoutFlagsParams): Editor
   const showEditSection = isMobileLayout ? showViewOptions : showDesktopEditSection
   const showLineTypeSection = isMobileLayout ? showViewOptions : showDesktopLineTypeSection
   const showStitchSection = isMobileLayout ? showViewOptions : showDesktopStitchSection
-  const showLayerSection = isMobileLayout ? showLayerOptions : showDesktopLayerSection
+  const showLayerSection = isMobileLayout ? showViewOptions : showDesktopLayerSection
   const showFileSection = isMobileLayout ? showFileOptions : showDesktopFileSection
   const showLayerLegend = !(isMobileLayout && mobileViewMode === 'split')
 

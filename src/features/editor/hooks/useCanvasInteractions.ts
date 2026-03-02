@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import type {
   Dispatch,
   PointerEvent as ReactPointerEvent,
@@ -134,6 +135,37 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
   } = params
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) {
+      return
+    }
+
+    // Safari/macOS pinch emits gesture events that can zoom the full page unless explicitly cancelled.
+    const preventGestureDefault = (event: Event) => {
+      event.preventDefault()
+    }
+    const preventMultiTouchDefault = (event: TouchEvent) => {
+      if (event.touches.length > 1) {
+        event.preventDefault()
+      }
+    }
+
+    svg.addEventListener('gesturestart', preventGestureDefault, { passive: false })
+    svg.addEventListener('gesturechange', preventGestureDefault, { passive: false })
+    svg.addEventListener('gestureend', preventGestureDefault, { passive: false })
+    svg.addEventListener('touchstart', preventMultiTouchDefault, { passive: false })
+    svg.addEventListener('touchmove', preventMultiTouchDefault, { passive: false })
+
+    return () => {
+      svg.removeEventListener('gesturestart', preventGestureDefault)
+      svg.removeEventListener('gesturechange', preventGestureDefault)
+      svg.removeEventListener('gestureend', preventGestureDefault)
+      svg.removeEventListener('touchstart', preventMultiTouchDefault)
+      svg.removeEventListener('touchmove', preventMultiTouchDefault)
+    }
+  }, [svgRef])
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current

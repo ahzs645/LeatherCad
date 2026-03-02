@@ -53,8 +53,7 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
 ]
 
 export const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
-  { value: 'view', label: 'View' },
-  { value: 'layers', label: 'Layers' },
+  { value: 'view', label: 'View + Layers' },
   { value: 'file', label: 'File' },
 ]
 
@@ -62,7 +61,6 @@ export const DESKTOP_RIBBON_TABS: Array<{ value: DesktopRibbonTab; label: string
   { value: 'build', label: 'Build' },
   { value: 'edit', label: 'Edit' },
   { value: 'stitch', label: 'Stitch' },
-  { value: 'layers', label: 'Layers' },
   { value: 'output', label: 'Output' },
-  { value: 'view', label: 'View' },
+  { value: 'view', label: 'View + Layers' },
 ]

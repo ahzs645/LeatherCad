@@ -39,6 +39,7 @@ type EditorCanvasPaneProps = {
   visibleShapes: Shape[]
   linkedShapes: Shape[]
   sketchWorkspaceMode: SketchWorkspaceMode
+  lineTypes: LineType[]
   lineTypesById: Record<string, LineType | undefined>
   selectedShapeIdSet: Set<string>
   stitchStrokeColor: string
@@ -83,6 +84,7 @@ export function EditorCanvasPane({
   visibleShapes,
   linkedShapes,
   sketchWorkspaceMode,
+  lineTypes,
   lineTypesById,
   selectedShapeIdSet,
   stitchStrokeColor,
@@ -108,6 +110,26 @@ export function EditorCanvasPane({
   fallbackLayerStroke,
   stackLegendEntries,
 }: EditorCanvasPaneProps) {
+  const resolveShapeStrokeColor = (shape: Shape) => {
+    const lineType = lineTypesById[shape.lineTypeId]
+    const lineTypeRole = lineType?.role ?? 'cut'
+    if (sketchWorkspaceMode === 'assembly') {
+      return displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
+    }
+    if (lineType?.color) {
+      return lineType.color
+    }
+    if (lineTypeRole === 'stitch') {
+      return stitchStrokeColor
+    }
+    if (lineTypeRole === 'fold') {
+      return foldStrokeColor
+    }
+    return lineType?.color ?? cutStrokeColor
+  }
+
+  const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
+
   return (
     <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`}>
       <svg
@@ -190,14 +212,7 @@ export function EditorCanvasPane({
 
           {linkedShapes.map((shape) => {
             const lineType = lineTypesById[shape.lineTypeId]
-            const lineTypeRole = lineType?.role ?? 'cut'
-            const layerStroke =
-              lineTypeRole === 'stitch'
-                ? stitchStrokeColor
-                : lineTypeRole === 'fold'
-                  ? foldStrokeColor
-                  : lineType?.color ??
-                    (lineTypeRole === 'cut' ? cutStrokeColor : displayLayerColorsById[shape.layerId] ?? cutStrokeColor)
+            const layerStroke = resolveShapeStrokeColor(shape)
             const strokeDasharray = sketchWorkspaceMode === 'sketch' ? '8 5' : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
             const linkedClassName = sketchWorkspaceMode === 'sketch' ? 'shape-line shape-linked-reference' : 'shape-line shape-linked-assembly'
 
@@ -210,7 +225,7 @@ export function EditorCanvasPane({
                   x2={shape.end.x}
                   y2={shape.end.y}
                   className={linkedClassName}
-                  style={{ stroke: layerStroke, strokeDasharray }}
+                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
                 />
               )
             }
@@ -221,7 +236,7 @@ export function EditorCanvasPane({
                   key={shape.id}
                   d={arcPath(shape.start, shape.mid, shape.end)}
                   className={linkedClassName}
-                  style={{ stroke: layerStroke, strokeDasharray }}
+                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
                 />
               )
             }
@@ -233,22 +248,15 @@ export function EditorCanvasPane({
                   shape.end.x,
                 )} ${round(shape.end.y)}`}
                 className={linkedClassName}
-                style={{ stroke: layerStroke, strokeDasharray }}
+                style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
               />
             )
           })}
 
           {visibleShapes.map((shape) => {
             const lineType = lineTypesById[shape.lineTypeId]
-            const lineTypeRole = lineType?.role ?? 'cut'
             const isSelected = selectedShapeIdSet.has(shape.id)
-            const layerStroke =
-              lineTypeRole === 'stitch'
-                ? stitchStrokeColor
-                : lineTypeRole === 'fold'
-                  ? foldStrokeColor
-                  : lineType?.color ??
-                    (lineTypeRole === 'cut' ? cutStrokeColor : displayLayerColorsById[shape.layerId] ?? cutStrokeColor)
+            const layerStroke = resolveShapeStrokeColor(shape)
             const strokeDasharray = lineTypeStrokeDasharray(lineType?.style ?? 'solid')
             if (shape.type === 'line') {
               return (
@@ -259,7 +267,7 @@ export function EditorCanvasPane({
                   x2={shape.end.x}
                   y2={shape.end.y}
                   className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
-                  style={{ stroke: layerStroke, strokeDasharray }}
+                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
                   onPointerDown={(event) => onShapePointerDown(event, shape.id)}
                 />
               )
@@ -271,7 +279,7 @@ export function EditorCanvasPane({
                   key={shape.id}
                   d={arcPath(shape.start, shape.mid, shape.end)}
                   className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
-                  style={{ stroke: layerStroke, strokeDasharray }}
+                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
                   onPointerDown={(event) => onShapePointerDown(event, shape.id)}
                 />
               )
@@ -284,7 +292,7 @@ export function EditorCanvasPane({
                   shape.end.x,
                 )} ${round(shape.end.y)}`}
                 className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
-                style={{ stroke: layerStroke, strokeDasharray }}
+                style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
                 onPointerDown={(event) => onShapePointerDown(event, shape.id)}
               />
             )
@@ -370,7 +378,9 @@ export function EditorCanvasPane({
         show={showLayerLegend}
         legendMode={legendMode}
         onSetLegendMode={onSetLegendMode}
+        sketchWorkspaceMode={sketchWorkspaceMode}
         layers={layers}
+        lineTypes={lineTypes}
         layerColorsById={layerColorsById}
         fallbackLayerStroke={fallbackLayerStroke}
         stackLegendEntries={stackLegendEntries}

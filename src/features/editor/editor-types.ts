@@ -15,12 +15,12 @@ import type {
 } from './cad/cad-types'
 
 export type MobileViewMode = 'editor' | 'preview' | 'split'
-export type MobileOptionsTab = 'view' | 'layers' | 'file'
+export type MobileOptionsTab = 'view' | 'file'
 export type ResolvedThemeMode = 'dark' | 'light'
 export type ThemeMode = ResolvedThemeMode | 'system'
 export type LegendMode = 'layer' | 'stack'
 export type DxfVersion = 'r12' | 'r14'
-export type DesktopRibbonTab = 'build' | 'edit' | 'stitch' | 'layers' | 'output' | 'view'
+export type DesktopRibbonTab = 'build' | 'edit' | 'stitch' | 'output' | 'view'
 export type SketchWorkspaceMode = 'assembly' | 'sketch'
 export type ExportRoleFilters = Record<LineTypeRole, boolean>
 

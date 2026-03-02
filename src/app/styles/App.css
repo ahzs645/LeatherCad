@@ -854,6 +854,22 @@ button:disabled {
   color: var(--text-subtle);
 }
 
+.legend-line-swatch {
+  width: 24px;
+  height: 14px;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+
+.legend-line-swatch line {
+  vector-effect: non-scaling-stroke;
+}
+
+.legend-empty-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .stack-legend-items {
   display: grid;
   gap: 6px;

@@ -1278,6 +1278,7 @@ export function EditorApp() {
           visibleShapes={workspaceEditableShapes}
           linkedShapes={workspaceLinkedShapes}
           sketchWorkspaceMode={sketchWorkspaceMode}
+          lineTypes={lineTypes}
           lineTypesById={lineTypesById}
           selectedShapeIdSet={selectedShapeIdSet}
           stitchStrokeColor={stitchStrokeColor}
