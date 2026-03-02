@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   ChangeEvent,
   PointerEvent as ReactPointerEvent,
@@ -26,6 +26,7 @@ import type {
   Shape,
   StitchHole,
   StitchHoleType,
+  TracingOverlay,
   Tool,
   Viewport,
 } from './cad-types'
@@ -58,6 +59,24 @@ import {
 import { importSvgAsShapes } from './io-svg'
 import { buildDxfFromShapes } from './io-dxf'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from './sample-doc'
+import { applyRedo, applyUndo, deepClone, pushHistorySnapshot, type HistoryState } from './history-ops'
+import { buildPrintPlan, type PrintPaper } from './print-preview'
+import {
+  createTemplateFromDoc,
+  insertTemplateDocIntoCurrent,
+  loadTemplateRepository,
+  parseTemplateRepositoryImport,
+  saveTemplateRepository,
+  serializeTemplateRepository,
+  type TemplateRepositoryEntry,
+} from './template-repository'
+import {
+  copySelectionToClipboard,
+  moveSelectionByOneStep,
+  moveSelectionToEdge,
+  pasteClipboardPayload,
+  type ClipboardPayload,
+} from './shape-selection-ops'
 
 const GRID_STEP = 100
 const GRID_EXTENT = 4000
@@ -95,8 +114,30 @@ type MobileFileAction =
   | 'export-svg'
   | 'export-dxf'
   | 'export-options'
+  | 'template-repository'
+  | 'import-tracing'
+  | 'print-preview'
+  | 'undo'
+  | 'redo'
+  | 'copy'
+  | 'paste'
+  | 'delete'
   | 'toggle-3d'
   | 'clear'
+
+type EditorSnapshot = {
+  layers: Layer[]
+  activeLayerId: string
+  lineTypes: LineType[]
+  activeLineTypeId: string
+  shapes: Shape[]
+  foldLines: FoldLine[]
+  stitchHoles: StitchHole[]
+  tracingOverlays: TracingOverlay[]
+  layerColorOverrides: Record<string, string>
+  frontLayerColor: string
+  backLayerColor: string
+}
 
 const DEFAULT_EXPORT_ROLE_FILTERS: ExportRoleFilters = {
   cut: true,
@@ -105,6 +146,9 @@ const DEFAULT_EXPORT_ROLE_FILTERS: ExportRoleFilters = {
   guide: true,
   mark: true,
 }
+
+const HISTORY_LIMIT = 120
+const CLIPBOARD_PASTE_OFFSET = 12
 
 const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'pan', label: 'Move' },
@@ -219,8 +263,59 @@ function parseLayer(value: unknown): Layer | null {
   }
 }
 
+function parseTracingOverlay(value: unknown): TracingOverlay | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<TracingOverlay>
+  if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
+    return null
+  }
+  if (typeof candidate.name !== 'string' || candidate.name.length === 0) {
+    return null
+  }
+  if (candidate.kind !== 'image' && candidate.kind !== 'pdf') {
+    return null
+  }
+  if (typeof candidate.sourceUrl !== 'string' || candidate.sourceUrl.length === 0) {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    kind: candidate.kind,
+    sourceUrl: candidate.sourceUrl,
+    visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
+    locked: typeof candidate.locked === 'boolean' ? candidate.locked : true,
+    opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0.05, 1) : 0.75,
+    scale: typeof candidate.scale === 'number' ? clamp(candidate.scale, 0.05, 20) : 1,
+    rotationDeg: typeof candidate.rotationDeg === 'number' ? candidate.rotationDeg : 0,
+    offsetX: typeof candidate.offsetX === 'number' ? candidate.offsetX : 0,
+    offsetY: typeof candidate.offsetY === 'number' ? candidate.offsetY : 0,
+    width: typeof candidate.width === 'number' && candidate.width > 0 ? candidate.width : 800,
+    height: typeof candidate.height === 'number' && candidate.height > 0 ? candidate.height : 800,
+    isObjectUrl: false,
+  }
+}
+
 function newLayerName(index: number) {
   return `Layer ${index + 1}`
+}
+
+function createDefaultLayer(id: string): Layer {
+  return {
+    id,
+    name: 'Layer 1',
+    visible: true,
+    locked: false,
+    stackLevel: 0,
+  }
+}
+
+function buildDocSnapshotSignature(snapshot: EditorSnapshot) {
+  return JSON.stringify(snapshot)
 }
 
 function App() {
@@ -273,11 +368,38 @@ function App() {
   const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
   const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
+  const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
+  const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
+  const [showTracingModal, setShowTracingModal] = useState(false)
+  const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => loadTemplateRepository())
+  const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
+  const [showTemplateRepositoryModal, setShowTemplateRepositoryModal] = useState(false)
+  const [printPaper, setPrintPaper] = useState<PrintPaper>('letter')
+  const [printTileX, setPrintTileX] = useState(1)
+  const [printTileY, setPrintTileY] = useState(1)
+  const [printOverlapMm, setPrintOverlapMm] = useState(4)
+  const [printMarginMm, setPrintMarginMm] = useState(8)
+  const [printScalePercent, setPrintScalePercent] = useState(100)
+  const [printSelectedOnly, setPrintSelectedOnly] = useState(false)
+  const [printRulerInside, setPrintRulerInside] = useState(false)
+  const [printInColor, setPrintInColor] = useState(true)
+  const [printStitchAsDots, setPrintStitchAsDots] = useState(false)
+  const [showPrintAreas, setShowPrintAreas] = useState(false)
+  const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false)
+  const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
+  const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const svgInputRef = useRef<HTMLInputElement | null>(null)
+  const tracingInputRef = useRef<HTMLInputElement | null>(null)
+  const templateImportInputRef = useRef<HTMLInputElement | null>(null)
+  const lastSnapshotRef = useRef<EditorSnapshot | null>(null)
+  const lastSnapshotSignatureRef = useRef<string | null>(null)
+  const applyingHistoryRef = useRef(false)
+  const pasteCountRef = useRef(0)
+  const tracingObjectUrlsRef = useRef<Set<string>>(new Set())
   const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
     null,
   )
@@ -307,6 +429,16 @@ function App() {
     () => stitchHoles.find((stitchHole) => stitchHole.id === selectedStitchHoleId) ?? null,
     [stitchHoles, selectedStitchHoleId],
   )
+  const activeTracingOverlay = useMemo(
+    () => tracingOverlays.find((overlay) => overlay.id === activeTracingOverlayId) ?? null,
+    [tracingOverlays, activeTracingOverlayId],
+  )
+  const selectedTemplateEntry = useMemo(
+    () => templateRepository.find((entry) => entry.id === selectedTemplateEntryId) ?? null,
+    [templateRepository, selectedTemplateEntryId],
+  )
+  const canUndo = historyState.past.length > 0
+  const canRedo = historyState.future.length > 0
   const visibleShapes = useMemo(() => {
     const visibleLayerIds = new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id))
     const visibleLineTypeIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
@@ -332,6 +464,24 @@ function App() {
         lineTypes.map((lineType) => [lineType.id, lineType.style] as const),
       ),
     [lineTypes],
+  )
+  const printableShapes = useMemo(() => {
+    if (!printSelectedOnly) {
+      return visibleShapes
+    }
+    return visibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+  }, [printSelectedOnly, visibleShapes, selectedShapeIdSet])
+  const printPlan = useMemo(
+    () =>
+      buildPrintPlan(printableShapes, {
+        paper: printPaper,
+        marginMm: printMarginMm,
+        overlapMm: printOverlapMm,
+        tileX: printTileX,
+        tileY: printTileY,
+        scalePercent: printScalePercent,
+      }),
+    [printableShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
   )
   const activeExportRoleCount = useMemo(
     () => Object.values(exportRoleFilters).filter((value) => value).length,
@@ -410,6 +560,54 @@ function App() {
         ? foldStrokeColor
         : activeLineType?.color ?? activeLayerColor
   const activeLineTypeDasharray = lineTypeStrokeDasharray(activeLineType?.style ?? 'solid')
+  const currentSnapshot = useMemo<EditorSnapshot>(
+    () => ({
+      layers: deepClone(layers),
+      activeLayerId,
+      lineTypes: deepClone(lineTypes),
+      activeLineTypeId,
+      shapes: deepClone(shapes),
+      foldLines: deepClone(foldLines),
+      stitchHoles: deepClone(stitchHoles),
+      tracingOverlays: deepClone(tracingOverlays),
+      layerColorOverrides: deepClone(layerColorOverrides),
+      frontLayerColor,
+      backLayerColor,
+    }),
+    [
+      layers,
+      activeLayerId,
+      lineTypes,
+      activeLineTypeId,
+      shapes,
+      foldLines,
+      stitchHoles,
+      tracingOverlays,
+      layerColorOverrides,
+      frontLayerColor,
+      backLayerColor,
+    ],
+  )
+  const currentSnapshotSignature = useMemo(
+    () => buildDocSnapshotSignature(currentSnapshot),
+    [currentSnapshot],
+  )
+
+  const applyEditorSnapshot = (snapshot: EditorSnapshot) => {
+    setLayers(snapshot.layers)
+    setActiveLayerId(snapshot.activeLayerId)
+    setLineTypes(snapshot.lineTypes)
+    setActiveLineTypeId(snapshot.activeLineTypeId)
+    setShapes(snapshot.shapes)
+    setFoldLines(snapshot.foldLines)
+    setStitchHoles(snapshot.stitchHoles)
+    setTracingOverlays(snapshot.tracingOverlays)
+    setLayerColorOverrides(snapshot.layerColorOverrides)
+    setFrontLayerColor(snapshot.frontLayerColor)
+    setBackLayerColor(snapshot.backLayerColor)
+    setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
+  }
 
   const gridLines = useMemo(() => {
     const lines: ReactElement[] = []
@@ -613,6 +811,363 @@ function App() {
     return true
   }
 
+  const resetDocument = (statusMessage = 'Document cleared and reset to Layer 1') => {
+    const baseLayerId = uid()
+    const defaultLineTypes = createDefaultLineTypes()
+    setLayers([createDefaultLayer(baseLayerId)])
+    setActiveLayerId(baseLayerId)
+    setLineTypes(defaultLineTypes)
+    setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
+    setShapes([])
+    setFoldLines([])
+    setStitchHoles([])
+    setTracingOverlays([])
+    setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
+    setLayerColorOverrides({})
+    setShowPrintAreas(false)
+    clearDraft()
+    setStatus(statusMessage)
+  }
+
+  const applyLoadedDocument = (doc: DocFile, statusMessage: string) => {
+    const normalizedLayers = doc.layers.length > 0 ? doc.layers : [createDefaultLayer(uid())]
+    const normalizedActiveLayerId = normalizedLayers.some((layer) => layer.id === doc.activeLayerId)
+      ? doc.activeLayerId
+      : normalizedLayers[0].id
+    const nextLineTypes = normalizeLineTypes(doc.lineTypes ?? [])
+    setLayers(normalizedLayers)
+    setActiveLayerId(normalizedActiveLayerId)
+    setLineTypes(nextLineTypes)
+    setActiveLineTypeId(resolveActiveLineTypeId(nextLineTypes, doc.activeLineTypeId))
+    setShapes(doc.objects)
+    setFoldLines(doc.foldLines)
+    setStitchHoles(normalizeStitchHoleSequences(doc.stitchHoles ?? []))
+    setTracingOverlays(doc.tracingOverlays ?? [])
+    setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
+    setLayerColorOverrides({})
+    setTool('pan')
+    setShowPrintAreas(false)
+    clearDraft()
+    setStatus(statusMessage)
+  }
+
+  const handleUndo = useCallback(() => {
+    const result = applyUndo(historyState, currentSnapshot)
+    if (!result.snapshot) {
+      setStatus('Nothing to undo')
+      return
+    }
+    applyingHistoryRef.current = true
+    setHistoryState(result.history)
+    applyEditorSnapshot(result.snapshot)
+    setStatus('Undo applied')
+  }, [historyState, currentSnapshot])
+
+  const handleRedo = useCallback(() => {
+    const result = applyRedo(historyState, currentSnapshot)
+    if (!result.snapshot) {
+      setStatus('Nothing to redo')
+      return
+    }
+    applyingHistoryRef.current = true
+    setHistoryState(result.history)
+    applyEditorSnapshot(result.snapshot)
+    setStatus('Redo applied')
+  }, [historyState, currentSnapshot])
+
+  const handleCopySelection = useCallback(() => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to copy')
+      return
+    }
+    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
+    setClipboardPayload(payload)
+    setStatus(`Copied ${payload.shapes.length} shape${payload.shapes.length === 1 ? '' : 's'} to clipboard`)
+  }, [selectedShapeIdSet, shapes, stitchHoles])
+
+  const handleDeleteSelection = useCallback(() => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to delete')
+      return
+    }
+    const deleteCount = selectedShapeIdSet.size
+    setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
+    setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
+    setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
+    setStatus(`Deleted ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
+  }, [selectedShapeIdSet])
+
+  const handleCutSelection = useCallback(() => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to cut')
+      return
+    }
+    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
+    setClipboardPayload(payload)
+    const deleteCount = selectedShapeIdSet.size
+    setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
+    setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
+    setSelectedShapeIds([])
+    setSelectedStitchHoleId(null)
+    setStatus(`Cut ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
+  }, [selectedShapeIdSet, shapes, stitchHoles])
+
+  const handlePasteClipboard = useCallback(() => {
+    if (!clipboardPayload || clipboardPayload.shapes.length === 0) {
+      setStatus('Clipboard is empty')
+      return
+    }
+
+    pasteCountRef.current += 1
+    const offset = {
+      x: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
+      y: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
+    }
+    const pasted = pasteClipboardPayload(clipboardPayload, offset, activeLayer?.id ?? null)
+    setShapes((previous) => [...previous, ...pasted.shapes])
+    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
+    setSelectedShapeIds(pasted.shapeIds)
+    setSelectedStitchHoleId(null)
+    setStatus(`Pasted ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'}`)
+  }, [clipboardPayload, activeLayer])
+
+  const handleDuplicateSelection = useCallback(() => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to duplicate')
+      return
+    }
+    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
+    setClipboardPayload(payload)
+    pasteCountRef.current += 1
+    const offset = {
+      x: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
+      y: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
+    }
+    const pasted = pasteClipboardPayload(payload, offset, activeLayer?.id ?? null)
+    setShapes((previous) => [...previous, ...pasted.shapes])
+    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
+    setSelectedShapeIds(pasted.shapeIds)
+    setSelectedStitchHoleId(null)
+    setStatus(`Duplicated ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'}`)
+  }, [selectedShapeIdSet, shapes, stitchHoles, activeLayer])
+
+  const handleMoveSelectionForward = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to reorder')
+      return
+    }
+    setShapes((previous) => moveSelectionByOneStep(previous, selectedShapeIdSet, 'forward'))
+    setStatus('Moved selected shapes forward')
+  }
+
+  const handleMoveSelectionBackward = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to reorder')
+      return
+    }
+    setShapes((previous) => moveSelectionByOneStep(previous, selectedShapeIdSet, 'backward'))
+    setStatus('Moved selected shapes backward')
+  }
+
+  const handleBringSelectionToFront = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to reorder')
+      return
+    }
+    setShapes((previous) => moveSelectionToEdge(previous, selectedShapeIdSet, 'front'))
+    setStatus('Brought selected shapes to front')
+  }
+
+  const handleSendSelectionToBack = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('No selected shapes to reorder')
+      return
+    }
+    setShapes((previous) => moveSelectionToEdge(previous, selectedShapeIdSet, 'back'))
+    setStatus('Sent selected shapes to back')
+  }
+
+  const buildCurrentDocFile = (): DocFile => ({
+    version: 1,
+    units: 'mm',
+    layers,
+    activeLayerId,
+    lineTypes,
+    activeLineTypeId,
+    objects: shapes,
+    foldLines,
+    stitchHoles,
+    tracingOverlays,
+  })
+
+  const handleSaveTemplateToRepository = () => {
+    const defaultName = `Template ${templateRepository.length + 1}`
+    const inputName = window.prompt('Template name', defaultName)?.trim()
+    if (!inputName) {
+      return
+    }
+    const entry = createTemplateFromDoc(inputName, buildCurrentDocFile())
+    setTemplateRepository((previous) => [entry, ...previous])
+    setSelectedTemplateEntryId(entry.id)
+    setStatus(`Saved template "${entry.name}"`)
+  }
+
+  const handleDeleteTemplateFromRepository = (entryId: string) => {
+    setTemplateRepository((previous) => previous.filter((entry) => entry.id !== entryId))
+    if (selectedTemplateEntryId === entryId) {
+      setSelectedTemplateEntryId(null)
+    }
+    setStatus('Template deleted')
+  }
+
+  const handleLoadTemplateAsDocument = () => {
+    if (!selectedTemplateEntry) {
+      setStatus('Select a template first')
+      return
+    }
+    applyLoadedDocument(selectedTemplateEntry.doc, `Loaded template: ${selectedTemplateEntry.name}`)
+  }
+
+  const handleInsertTemplateIntoDocument = () => {
+    if (!selectedTemplateEntry) {
+      setStatus('Select a template first')
+      return
+    }
+    const inserted = insertTemplateDocIntoCurrent(
+      selectedTemplateEntry.doc,
+      layers,
+      lineTypes,
+      shapes,
+      foldLines,
+      stitchHoles,
+    )
+    setLayers(inserted.layers)
+    setLineTypes(inserted.lineTypes)
+    setActiveLineTypeId(inserted.activeLineTypeId)
+    setShapes(inserted.shapes)
+    setFoldLines(inserted.foldLines)
+    setStitchHoles(normalizeStitchHoleSequences(inserted.stitchHoles))
+    setSelectedShapeIds(inserted.insertedShapeIds)
+    if (inserted.insertedLayerIds.length > 0) {
+      setActiveLayerId(inserted.insertedLayerIds[0])
+    }
+    clearDraft()
+    setStatus(`Inserted template: ${selectedTemplateEntry.name}`)
+  }
+
+  const handleExportTemplateRepository = () => {
+    if (templateRepository.length === 0) {
+      setStatus('Template repository is empty')
+      return
+    }
+    const payload = serializeTemplateRepository(templateRepository)
+    downloadFile('leathercraft-template-repository.json', payload, 'application/json;charset=utf-8')
+    setStatus(`Exported ${templateRepository.length} template${templateRepository.length === 1 ? '' : 's'}`)
+  }
+
+  const handleImportTemplateRepositoryFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+    try {
+      const raw = await file.text()
+      const importedEntries = parseTemplateRepositoryImport(raw)
+      setTemplateRepository((previous) => {
+        const existingById = new Map(previous.map((entry) => [entry.id, entry]))
+        importedEntries.forEach((entry) => existingById.set(entry.id, entry))
+        return Array.from(existingById.values()).sort((left, right) =>
+          left.updatedAt > right.updatedAt ? -1 : 1,
+        )
+      })
+      setStatus(`Imported ${importedEntries.length} template${importedEntries.length === 1 ? '' : 's'}`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      setStatus(`Template import failed: ${message}`)
+    }
+  }
+
+  const handleUpdateTracingOverlay = (overlayId: string, patch: Partial<TracingOverlay>) => {
+    setTracingOverlays((previous) =>
+      previous.map((overlay) =>
+        overlay.id === overlayId
+          ? {
+              ...overlay,
+              ...patch,
+            }
+          : overlay,
+      ),
+    )
+  }
+
+  const handleDeleteTracingOverlay = (overlayId: string) => {
+    setTracingOverlays((previous) => previous.filter((overlay) => overlay.id !== overlayId))
+    setStatus('Tracing overlay removed')
+  }
+
+  const handleImportTracing = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    const isImage = file.type.startsWith('image/')
+    if (!isPdf && !isImage) {
+      setStatus('Tracing import supports image files and PDFs only')
+      return
+    }
+
+    const sourceUrl = URL.createObjectURL(file)
+    const overlayId = uid()
+    const nextOverlay: TracingOverlay = {
+      id: overlayId,
+      name: file.name,
+      kind: isPdf ? 'pdf' : 'image',
+      sourceUrl,
+      visible: true,
+      locked: true,
+      opacity: isPdf ? 0.6 : 0.75,
+      scale: 1,
+      rotationDeg: 0,
+      offsetX: 0,
+      offsetY: 0,
+      width: 800,
+      height: 800,
+      isObjectUrl: true,
+    }
+
+    if (isImage) {
+      try {
+        const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+          const image = new Image()
+          image.onload = () => {
+            resolve({
+              width: image.naturalWidth || 800,
+              height: image.naturalHeight || 800,
+            })
+          }
+          image.onerror = () => reject(new Error('Could not read image'))
+          image.src = sourceUrl
+        })
+        nextOverlay.width = size.width
+        nextOverlay.height = size.height
+      } catch {
+        // Keep fallback dimensions for failed metadata reads.
+      }
+    }
+
+    setTracingOverlays((previous) => [nextOverlay, ...previous])
+    setActiveTracingOverlayId(overlayId)
+    setShowTracingModal(true)
+    setStatus(isPdf ? 'PDF tracing imported (vector preview box)' : 'Tracing image imported')
+  }
+
   useEffect(() => {
     const media = window.matchMedia(MOBILE_MEDIA_QUERY)
     const sync = () => {
@@ -703,16 +1258,143 @@ function App() {
   }, [layers])
 
   useEffect(() => {
+    setActiveTracingOverlayId((previous) => {
+      if (!previous) {
+        return tracingOverlays[0]?.id ?? null
+      }
+      return tracingOverlays.some((overlay) => overlay.id === previous) ? previous : tracingOverlays[0]?.id ?? null
+    })
+  }, [tracingOverlays])
+
+  useEffect(() => {
+    setSelectedTemplateEntryId((previous) => {
+      if (!previous) {
+        return templateRepository[0]?.id ?? null
+      }
+      return templateRepository.some((entry) => entry.id === previous) ? previous : templateRepository[0]?.id ?? null
+    })
+  }, [templateRepository])
+
+  useEffect(() => {
+    saveTemplateRepository(templateRepository)
+  }, [templateRepository])
+
+  useEffect(() => {
+    const objectUrls = new Set(
+      tracingOverlays
+        .filter((overlay) => overlay.isObjectUrl)
+        .map((overlay) => overlay.sourceUrl),
+    )
+
+    tracingObjectUrlsRef.current.forEach((url) => {
+      if (!objectUrls.has(url)) {
+        URL.revokeObjectURL(url)
+      }
+    })
+    tracingObjectUrlsRef.current = objectUrls
+  }, [tracingOverlays])
+
+  useEffect(
+    () => () => {
+      tracingObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+      tracingObjectUrlsRef.current.clear()
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (applyingHistoryRef.current) {
+      applyingHistoryRef.current = false
+      lastSnapshotRef.current = deepClone(currentSnapshot)
+      lastSnapshotSignatureRef.current = currentSnapshotSignature
+      return
+    }
+
+    if (!lastSnapshotSignatureRef.current || !lastSnapshotRef.current) {
+      lastSnapshotRef.current = deepClone(currentSnapshot)
+      lastSnapshotSignatureRef.current = currentSnapshotSignature
+      return
+    }
+
+    if (lastSnapshotSignatureRef.current === currentSnapshotSignature) {
+      return
+    }
+
+    setHistoryState((previousHistory) =>
+      pushHistorySnapshot(previousHistory, lastSnapshotRef.current as EditorSnapshot, HISTORY_LIMIT),
+    )
+    lastSnapshotRef.current = deepClone(currentSnapshot)
+    lastSnapshotSignatureRef.current = currentSnapshotSignature
+  }, [currentSnapshot, currentSnapshotSignature])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         clearDraft()
         setStatus('Draft cancelled')
+        return
+      }
+
+      const isMeta = event.ctrlKey || event.metaKey
+      if (!isMeta) {
+        if (event.key === 'Delete' || event.key === 'Backspace') {
+          const target = event.target as HTMLElement | null
+          if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA')) {
+            event.preventDefault()
+            handleDeleteSelection()
+          }
+        }
+        return
+      }
+
+      const key = event.key.toLowerCase()
+      if (key === 'z' && event.shiftKey) {
+        event.preventDefault()
+        handleRedo()
+        return
+      }
+      if (key === 'z') {
+        event.preventDefault()
+        handleUndo()
+        return
+      }
+      if (key === 'y') {
+        event.preventDefault()
+        handleRedo()
+        return
+      }
+      if (key === 'c') {
+        event.preventDefault()
+        handleCopySelection()
+        return
+      }
+      if (key === 'x') {
+        event.preventDefault()
+        handleCutSelection()
+        return
+      }
+      if (key === 'v') {
+        event.preventDefault()
+        handlePasteClipboard()
+        return
+      }
+      if (key === 'd') {
+        event.preventDefault()
+        handleDuplicateSelection()
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [
+    handleUndo,
+    handleRedo,
+    handleCopySelection,
+    handleCutSelection,
+    handlePasteClipboard,
+    handleDuplicateSelection,
+    handleDeleteSelection,
+  ])
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (event.pointerType !== 'touch' && event.button !== 0 && !(event.button === 1 || event.button === 2)) {
@@ -1093,18 +1775,7 @@ function App() {
   }
 
   const handleSaveJson = () => {
-    const doc: DocFile = {
-      version: 1,
-      units: 'mm',
-      layers,
-      activeLayerId,
-      lineTypes,
-      activeLineTypeId,
-      objects: shapes,
-      foldLines,
-      stitchHoles,
-    }
-
+    const doc = buildCurrentDocFile()
     downloadFile('leathercraft-doc.json', JSON.stringify(doc, null, 2), 'application/json;charset=utf-8')
     setStatus('Document JSON saved')
   }
@@ -1123,6 +1794,7 @@ function App() {
         objects?: unknown[]
         foldLines?: unknown[]
         stitchHoles?: unknown[]
+        tracingOverlays?: unknown[]
         layers?: unknown[]
         activeLayerId?: unknown
         lineTypes?: unknown[]
@@ -1163,6 +1835,7 @@ function App() {
       const nextActiveLineTypeId = resolveActiveLineTypeId(nextLineTypes, parsed.activeLineTypeId)
 
       const nextShapes: Shape[] = []
+      const shapeIdMap = new Map<string, string>()
       for (const candidate of parsed.objects) {
         if (!isShapeLike(candidate)) {
           throw new Error('Invalid shape in objects array')
@@ -1179,9 +1852,16 @@ function App() {
           nextActiveLineTypeId,
         )
 
+        const sourceShapeId =
+          typeof (candidate as { id?: unknown }).id === 'string' && (candidate as { id: string }).id.length > 0
+            ? (candidate as { id: string }).id
+            : uid()
+        const nextShapeId = uid()
+        shapeIdMap.set(sourceShapeId, nextShapeId)
+
         if (candidate.type === 'line') {
           nextShapes.push({
-            id: uid(),
+            id: nextShapeId,
             type: 'line',
             layerId,
             lineTypeId,
@@ -1190,7 +1870,7 @@ function App() {
           })
         } else if (candidate.type === 'arc') {
           nextShapes.push({
-            id: uid(),
+            id: nextShapeId,
             type: 'arc',
             layerId,
             lineTypeId,
@@ -1200,7 +1880,7 @@ function App() {
           })
         } else {
           nextShapes.push({
-            id: uid(),
+            id: nextShapeId,
             type: 'bezier',
             layerId,
             lineTypeId,
@@ -1221,30 +1901,39 @@ function App() {
         }
       }
 
-      const validShapeIds = new Set(nextShapes.map((shape) => shape.id))
       const nextStitchHoles: StitchHole[] = []
       if (Array.isArray(parsed.stitchHoles)) {
         for (const stitchHoleCandidate of parsed.stitchHoles) {
           const stitchHole = parseStitchHole(stitchHoleCandidate)
-          if (stitchHole && validShapeIds.has(stitchHole.shapeId)) {
-            nextStitchHoles.push(stitchHole)
+          const mappedShapeId = stitchHole ? shapeIdMap.get(stitchHole.shapeId) : null
+          if (stitchHole && mappedShapeId) {
+            nextStitchHoles.push({
+              ...stitchHole,
+              shapeId: mappedShapeId,
+            })
           }
         }
       }
       const normalizedStitchHoles = normalizeStitchHoleSequences(nextStitchHoles)
+      const nextTracingOverlays = Array.isArray(parsed.tracingOverlays)
+        ? parsed.tracingOverlays
+            .map(parseTracingOverlay)
+            .filter((overlay): overlay is TracingOverlay => overlay !== null)
+        : []
 
-      setLayers(nextLayers)
-      setActiveLayerId(nextActiveLayerId)
-      setLineTypes(nextLineTypes)
-      setActiveLineTypeId(nextActiveLineTypeId)
-      setShapes(nextShapes)
-      setFoldLines(nextFoldLines)
-      setStitchHoles(normalizedStitchHoles)
-      setSelectedShapeIds([])
-      setSelectedStitchHoleId(null)
-      setLayerColorOverrides({})
-      clearDraft()
-      setStatus(
+      applyLoadedDocument(
+        {
+          version: 1,
+          units: 'mm',
+          layers: nextLayers,
+          activeLayerId: nextActiveLayerId,
+          lineTypes: nextLineTypes,
+          activeLineTypeId: nextActiveLineTypeId,
+          objects: nextShapes,
+          foldLines: nextFoldLines,
+          stitchHoles: normalizedStitchHoles,
+          tracingOverlays: nextTracingOverlays,
+        },
         `Loaded JSON (${nextShapes.length} shapes, ${nextFoldLines.length} folds, ${normalizedStitchHoles.length} holes, ${nextLayers.length} layers)`,
       )
     } catch (error) {
@@ -1300,27 +1989,12 @@ function App() {
         ? structuredClone(preset.doc)
         : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
 
-    setLayers(sample.layers)
-    setActiveLayerId(sample.activeLayerId)
-    const presetLineTypes = normalizeLineTypes(sample.lineTypes ?? [])
-    setLineTypes(presetLineTypes)
-    setActiveLineTypeId(resolveActiveLineTypeId(presetLineTypes, sample.activeLineTypeId))
-    setShapes(sample.objects)
-    setFoldLines(sample.foldLines)
-    setStitchHoles(normalizeStitchHoleSequences(sample.stitchHoles ?? []))
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setLayerColorOverrides({})
-    setTool('pan')
+    applyLoadedDocument(sample, `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`)
     setShowThreePreview(true)
     if (isMobileLayout) {
       setMobileViewMode('editor')
       setShowMobileMenu(false)
     }
-    clearDraft()
-    setStatus(
-      `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`,
-    )
   }
 
   const handleAddLayer = () => {
@@ -1888,33 +2562,52 @@ function App() {
       return
     }
 
+    if (mobileFileAction === 'template-repository') {
+      setShowTemplateRepositoryModal(true)
+      return
+    }
+
+    if (mobileFileAction === 'import-tracing') {
+      tracingInputRef.current?.click()
+      return
+    }
+
+    if (mobileFileAction === 'print-preview') {
+      setShowPrintPreviewModal(true)
+      return
+    }
+
+    if (mobileFileAction === 'undo') {
+      handleUndo()
+      return
+    }
+
+    if (mobileFileAction === 'redo') {
+      handleRedo()
+      return
+    }
+
+    if (mobileFileAction === 'copy') {
+      handleCopySelection()
+      return
+    }
+
+    if (mobileFileAction === 'paste') {
+      handlePasteClipboard()
+      return
+    }
+
+    if (mobileFileAction === 'delete') {
+      handleDeleteSelection()
+      return
+    }
+
     if (mobileFileAction === 'toggle-3d') {
       setShowThreePreview((previous) => !previous)
       return
     }
 
-    const baseLayerId = uid()
-    const defaultLineTypes = createDefaultLineTypes()
-    setLayers([
-      {
-        id: baseLayerId,
-        name: 'Layer 1',
-        visible: true,
-        locked: false,
-        stackLevel: 0,
-      },
-    ])
-    setActiveLayerId(baseLayerId)
-    setLineTypes(defaultLineTypes)
-    setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
-    setShapes([])
-    setFoldLines([])
-    setStitchHoles([])
-    setSelectedShapeIds([])
-    setSelectedStitchHoleId(null)
-    setLayerColorOverrides({})
-    clearDraft()
-    setStatus('Document cleared and reset to Layer 1')
+    resetDocument()
   }
 
   const handleToggleTheme = () => {
@@ -2061,6 +2754,42 @@ function App() {
           <button onClick={handleResetView}>Reset</button>
         </div>
 
+        <div className={`group edit-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
+          <button onClick={handleUndo} disabled={!canUndo}>
+            Undo
+          </button>
+          <button onClick={handleRedo} disabled={!canRedo}>
+            Redo
+          </button>
+          <button onClick={handleCopySelection} disabled={selectedShapeCount === 0}>
+            Copy
+          </button>
+          <button onClick={handleCutSelection} disabled={selectedShapeCount === 0}>
+            Cut
+          </button>
+          <button onClick={handlePasteClipboard} disabled={!clipboardPayload || clipboardPayload.shapes.length === 0}>
+            Paste
+          </button>
+          <button onClick={handleDuplicateSelection} disabled={selectedShapeCount === 0}>
+            Duplicate
+          </button>
+          <button onClick={handleDeleteSelection} disabled={selectedShapeCount === 0}>
+            Delete
+          </button>
+          <button onClick={handleMoveSelectionBackward} disabled={selectedShapeCount === 0}>
+            Send Back
+          </button>
+          <button onClick={handleMoveSelectionForward} disabled={selectedShapeCount === 0}>
+            Bring Forward
+          </button>
+          <button onClick={handleSendSelectionToBack} disabled={selectedShapeCount === 0}>
+            To Back
+          </button>
+          <button onClick={handleBringSelectionToFront} disabled={selectedShapeCount === 0}>
+            To Front
+          </button>
+        </div>
+
         <div className={`group line-type-controls ${showViewOptions ? '' : 'mobile-hidden'}`}>
           <span className="line-type-label">Line Type</span>
           <select
@@ -2193,6 +2922,14 @@ function App() {
                 <option value="export-svg">Export SVG</option>
                 <option value="export-dxf">Export DXF</option>
                 <option value="export-options">Export Options</option>
+                <option value="template-repository">Template Repository</option>
+                <option value="import-tracing">Import Tracing</option>
+                <option value="print-preview">Print Preview</option>
+                <option value="undo">Undo</option>
+                <option value="redo">Redo</option>
+                <option value="copy">Copy Selection</option>
+                <option value="paste">Paste</option>
+                <option value="delete">Delete Selection</option>
                 <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
                 <option value="clear">Clear Document</option>
               </select>
@@ -2207,35 +2944,19 @@ function App() {
               <button onClick={handleExportSvg}>Export SVG</button>
               <button onClick={handleExportDxf}>Export DXF</button>
               <button onClick={() => setShowExportOptionsModal(true)}>Export Options</button>
+              <button onClick={() => setShowTemplateRepositoryModal(true)}>Templates</button>
+              <button onClick={() => tracingInputRef.current?.click()}>Tracing</button>
+              <button onClick={() => setShowTracingModal(true)} disabled={tracingOverlays.length === 0}>
+                Tracing Controls
+              </button>
+              <button onClick={() => setShowPrintPreviewModal(true)}>Print Preview</button>
+              <button onClick={() => setShowPrintAreas((previous) => !previous)}>
+                {showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}
+              </button>
               <button onClick={() => setShowThreePreview((previous) => !previous)}>
                 {showThreePreview ? 'Hide 3D' : 'Show 3D'}
               </button>
-              <button
-                onClick={() => {
-                  const baseLayerId = uid()
-                  const defaultLineTypes = createDefaultLineTypes()
-                  setLayers([
-                    {
-                      id: baseLayerId,
-                      name: 'Layer 1',
-                      visible: true,
-                      locked: false,
-                      stackLevel: 0,
-                    },
-                  ])
-                  setActiveLayerId(baseLayerId)
-                  setLineTypes(defaultLineTypes)
-                  setActiveLineTypeId(DEFAULT_ACTIVE_LINE_TYPE_ID)
-                  setShapes([])
-                  setFoldLines([])
-                  setStitchHoles([])
-                  setSelectedShapeIds([])
-                  setSelectedStitchHoleId(null)
-                  setLayerColorOverrides({})
-                  clearDraft()
-                  setStatus('Document cleared and reset to Layer 1')
-                }}
-              >
+              <button onClick={() => resetDocument()}>
                 Clear
               </button>
             </>
@@ -2249,6 +2970,8 @@ function App() {
           <span>{lineTypes.filter((lineType) => lineType.visible).length}/{lineTypes.length} line types</span>
           <span>{foldLines.length} bends</span>
           <span>{stitchHoles.length} stitch holes</span>
+          <span>{tracingOverlays.length} traces</span>
+          <span>{templateRepository.length} templates</span>
         </div>
       </header>
 
@@ -2266,6 +2989,71 @@ function App() {
           >
             <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
               {gridLines}
+
+              {tracingOverlays
+                .filter((overlay) => overlay.visible)
+                .map((overlay) => {
+                  const scale = Number(overlay.scale.toFixed(4))
+                  const transform = `translate(${round(overlay.offsetX)} ${round(overlay.offsetY)}) rotate(${round(
+                    overlay.rotationDeg,
+                  )}) scale(${scale})`
+                  const x = round(-overlay.width / 2)
+                  const y = round(-overlay.height / 2)
+                  if (overlay.kind === 'image') {
+                    return (
+                      <g key={overlay.id} transform={transform} opacity={overlay.opacity}>
+                        <image
+                          href={overlay.sourceUrl}
+                          x={x}
+                          y={y}
+                          width={round(overlay.width)}
+                          height={round(overlay.height)}
+                          preserveAspectRatio="xMidYMid meet"
+                        />
+                      </g>
+                    )
+                  }
+
+                  return (
+                    <g key={overlay.id} transform={transform} opacity={overlay.opacity}>
+                      <rect
+                        x={x}
+                        y={y}
+                        width={round(overlay.width)}
+                        height={round(overlay.height)}
+                        fill={themeMode === 'light' ? '#dbeafe' : '#1e293b'}
+                        stroke={themeMode === 'light' ? '#1d4ed8' : '#93c5fd'}
+                        strokeWidth={2}
+                        strokeDasharray="8 4"
+                      />
+                      <text
+                        x={round(0)}
+                        y={round(0)}
+                        textAnchor="middle"
+                        className="tracing-pdf-label"
+                      >
+                        PDF Trace
+                      </text>
+                    </g>
+                  )
+                })}
+
+              {showPrintAreas &&
+                printPlan &&
+                printPlan.tiles.map((tile) => (
+                  <g key={tile.id} className="print-area-group">
+                    <rect
+                      x={tile.minX}
+                      y={tile.minY}
+                      width={tile.width}
+                      height={tile.height}
+                      className="print-area-rect"
+                    />
+                    <text x={tile.minX + 8} y={tile.minY + 16} className="print-area-label">
+                      {`P${tile.row + 1}-${tile.col + 1}`}
+                    </text>
+                  </g>
+                ))}
 
               {visibleShapes.map((shape) => {
                 const lineType = lineTypesById[shape.lineTypeId]
@@ -2683,10 +3471,358 @@ function App() {
         </div>
       )}
 
+      {showTemplateRepositoryModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowTemplateRepositoryModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowTemplateRepositoryModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div className="line-type-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="line-type-modal-header">
+              <h2>Template Repository</h2>
+              <button onClick={() => setShowTemplateRepositoryModal(false)}>Done</button>
+            </div>
+            <p className="hint">Save reusable patterns, import/export catalogs, or insert template pieces into the current document.</p>
+            <div className="line-type-modal-actions">
+              <button onClick={handleSaveTemplateToRepository}>Save Current as Template</button>
+              <button onClick={handleExportTemplateRepository} disabled={templateRepository.length === 0}>
+                Export Repository
+              </button>
+              <button onClick={() => templateImportInputRef.current?.click()}>Import Repository</button>
+            </div>
+
+            <div className="template-list">
+              {templateRepository.length === 0 ? (
+                <p className="hint">No templates saved yet.</p>
+              ) : (
+                templateRepository.map((entry) => (
+                  <label key={entry.id} className="template-item">
+                    <input
+                      type="radio"
+                      name="template-entry"
+                      checked={selectedTemplateEntryId === entry.id}
+                      onChange={() => setSelectedTemplateEntryId(entry.id)}
+                    />
+                    <span className="template-item-name">{entry.name}</span>
+                    <span className="template-item-meta">
+                      {entry.doc.objects.length} shapes, {entry.doc.layers.length} layers
+                    </span>
+                  </label>
+                ))
+              )}
+            </div>
+
+            <div className="line-type-modal-actions">
+              <button onClick={handleLoadTemplateAsDocument} disabled={!selectedTemplateEntry}>
+                Load as Document
+              </button>
+              <button onClick={handleInsertTemplateIntoDocument} disabled={!selectedTemplateEntry}>
+                Insert into Current
+              </button>
+              <button
+                onClick={() => selectedTemplateEntry && handleDeleteTemplateFromRepository(selectedTemplateEntry.id)}
+                disabled={!selectedTemplateEntry}
+              >
+                Delete Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTracingModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowTracingModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowTracingModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="layer-color-modal-header">
+              <h2>Tracing Overlays</h2>
+              <button onClick={() => setShowTracingModal(false)}>Done</button>
+            </div>
+            <div className="line-type-modal-actions">
+              <button onClick={() => tracingInputRef.current?.click()}>Import Image/PDF</button>
+              <button
+                onClick={() => activeTracingOverlay && handleDeleteTracingOverlay(activeTracingOverlay.id)}
+                disabled={!activeTracingOverlay}
+              >
+                Delete Active
+              </button>
+            </div>
+
+            <label className="field-row">
+              <span>Active tracing</span>
+              <select
+                className="action-select"
+                value={activeTracingOverlay?.id ?? ''}
+                onChange={(event) => setActiveTracingOverlayId(event.target.value || null)}
+              >
+                {tracingOverlays.map((overlay) => (
+                  <option key={overlay.id} value={overlay.id}>
+                    {overlay.name} [{overlay.kind}]
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {activeTracingOverlay ? (
+              <div className="control-block">
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={activeTracingOverlay.visible}
+                    onChange={(event) =>
+                      handleUpdateTracingOverlay(activeTracingOverlay.id, { visible: event.target.checked })
+                    }
+                  />
+                  <span>Visible</span>
+                </label>
+                <label className="layer-toggle-item">
+                  <input
+                    type="checkbox"
+                    checked={activeTracingOverlay.locked}
+                    onChange={(event) =>
+                      handleUpdateTracingOverlay(activeTracingOverlay.id, { locked: event.target.checked })
+                    }
+                  />
+                  <span>Lock editing</span>
+                </label>
+                <label className="field-row">
+                  <span>Opacity</span>
+                  <input
+                    type="range"
+                    min={0.05}
+                    max={1}
+                    step={0.05}
+                    value={activeTracingOverlay.opacity}
+                    onChange={(event) =>
+                      handleUpdateTracingOverlay(activeTracingOverlay.id, {
+                        opacity: clamp(Number(event.target.value), 0.05, 1),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field-row">
+                  <span>Scale</span>
+                  <input
+                    type="number"
+                    min={0.05}
+                    max={20}
+                    step={0.05}
+                    value={activeTracingOverlay.scale}
+                    onChange={(event) =>
+                      handleUpdateTracingOverlay(activeTracingOverlay.id, {
+                        scale: clamp(Number(event.target.value) || 1, 0.05, 20),
+                      })
+                    }
+                  />
+                </label>
+                <label className="field-row">
+                  <span>Rotation (deg)</span>
+                  <input
+                    type="number"
+                    step={1}
+                    value={activeTracingOverlay.rotationDeg}
+                    onChange={(event) =>
+                      handleUpdateTracingOverlay(activeTracingOverlay.id, {
+                        rotationDeg: Number(event.target.value) || 0,
+                      })
+                    }
+                  />
+                </label>
+                <div className="line-type-edit-grid">
+                  <label className="field-row">
+                    <span>Offset X</span>
+                    <input
+                      type="number"
+                      step={1}
+                      value={activeTracingOverlay.offsetX}
+                      disabled={activeTracingOverlay.locked}
+                      onChange={(event) =>
+                        handleUpdateTracingOverlay(activeTracingOverlay.id, {
+                          offsetX: Number(event.target.value) || 0,
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Offset Y</span>
+                    <input
+                      type="number"
+                      step={1}
+                      value={activeTracingOverlay.offsetY}
+                      disabled={activeTracingOverlay.locked}
+                      onChange={(event) =>
+                        handleUpdateTracingOverlay(activeTracingOverlay.id, {
+                          offsetY: Number(event.target.value) || 0,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : (
+              <p className="hint">Import a tracing file to begin.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showPrintPreviewModal && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setShowPrintPreviewModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setShowPrintPreviewModal(false)
+            }
+          }}
+          role="presentation"
+        >
+          <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="layer-color-modal-header">
+              <h2>Print Preview + Tiling</h2>
+              <button onClick={() => setShowPrintPreviewModal(false)}>Done</button>
+            </div>
+            <p className="hint">Matches source-style preview settings: tiling, overlap, calibration scale, selection-only, rulers, and color controls.</p>
+
+            <div className="line-type-edit-grid">
+              <label className="field-row">
+                <span>Paper</span>
+                <select
+                  className="action-select"
+                  value={printPaper}
+                  onChange={(event) => setPrintPaper(event.target.value as PrintPaper)}
+                >
+                  <option value="letter">Letter (216 x 279mm)</option>
+                  <option value="a4">A4 (210 x 297mm)</option>
+                </select>
+              </label>
+              <label className="field-row">
+                <span>Scale (%)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={400}
+                  value={printScalePercent}
+                  onChange={(event) => setPrintScalePercent(clamp(Number(event.target.value) || 100, 1, 400))}
+                />
+              </label>
+              <label className="field-row">
+                <span>Tile X</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={25}
+                  value={printTileX}
+                  onChange={(event) => setPrintTileX(clamp(Number(event.target.value) || 1, 1, 25))}
+                />
+              </label>
+              <label className="field-row">
+                <span>Tile Y</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={25}
+                  value={printTileY}
+                  onChange={(event) => setPrintTileY(clamp(Number(event.target.value) || 1, 1, 25))}
+                />
+              </label>
+              <label className="field-row">
+                <span>Overlap (mm)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  step={0.5}
+                  value={printOverlapMm}
+                  onChange={(event) => setPrintOverlapMm(clamp(Number(event.target.value) || 0, 0, 30))}
+                />
+              </label>
+              <label className="field-row">
+                <span>Margin (mm)</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={30}
+                  step={0.5}
+                  value={printMarginMm}
+                  onChange={(event) => setPrintMarginMm(clamp(Number(event.target.value) || 0, 0, 30))}
+                />
+              </label>
+            </div>
+
+            <div className="control-block">
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={printSelectedOnly}
+                  onChange={(event) => setPrintSelectedOnly(event.target.checked)}
+                />
+                <span>Print selected shapes only</span>
+              </label>
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={printRulerInside}
+                  onChange={(event) => setPrintRulerInside(event.target.checked)}
+                />
+                <span>Ruler inside page</span>
+              </label>
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={printInColor}
+                  onChange={(event) => setPrintInColor(event.target.checked)}
+                />
+                <span>Print in color</span>
+              </label>
+              <label className="layer-toggle-item">
+                <input
+                  type="checkbox"
+                  checked={printStitchAsDots}
+                  onChange={(event) => setPrintStitchAsDots(event.target.checked)}
+                />
+                <span>Render stitch holes as dots</span>
+              </label>
+            </div>
+
+            {printPlan ? (
+              <div className="print-preview-summary">
+                <div>Source bounds: {printPlan.sourceBounds.width} x {printPlan.sourceBounds.height} mm</div>
+                <div>Coverage: {printPlan.contentWidthMm} x {printPlan.contentHeightMm} mm</div>
+                <div>Pages: {printPlan.tiles.length}</div>
+                <div>Color: {printInColor ? 'On' : 'Off'} | Ruler: {printRulerInside ? 'Inside' : 'Outside'}</div>
+              </div>
+            ) : (
+              <p className="hint">No shapes available for print preview with current filters.</p>
+            )}
+
+            <div className="line-type-modal-actions">
+              <button onClick={() => setShowPrintAreas((previous) => !previous)}>
+                {showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}
+              </button>
+              <button onClick={handleFitView}>Fit to Content</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="statusbar">
         <span>Tool: {toolLabel(tool)}</span>
         <span>{status}</span>
-        <span>Tip: wheel/zoom buttons for zoom, Move tool to pan, Fold tool assigns bend lines, Stitch Hole tool drops holes on stitch paths.</span>
+        <span>Tip: Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo, Cmd/Ctrl+C/X/V clipboard, Delete removes selection.</span>
         <span>Mobile: use 2D / 3D / Split buttons to focus workspace.</span>
       </footer>
 
@@ -2703,6 +3839,20 @@ function App() {
         accept=".svg,image/svg+xml"
         className="hidden-input"
         onChange={handleImportSvg}
+      />
+      <input
+        ref={tracingInputRef}
+        type="file"
+        accept="image/*,.pdf,application/pdf"
+        className="hidden-input"
+        onChange={handleImportTracing}
+      />
+      <input
+        ref={templateImportInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden-input"
+        onChange={handleImportTemplateRepositoryFile}
       />
     </div>
   )

@@ -149,6 +149,17 @@
   flex-wrap: nowrap;
 }
 
+.edit-controls {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.edit-controls button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
 .layer-label,
 .line-type-label {
   font-size: 12px;
@@ -339,6 +350,32 @@ button:disabled {
 
 .shape-selected {
   stroke-width: 3.25;
+}
+
+.tracing-pdf-label {
+  fill: var(--text-muted-strong);
+  font-size: 42px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+}
+
+.print-area-rect {
+  fill: rgba(59, 130, 246, 0.08);
+  stroke: #60a5fa;
+  stroke-width: 1.6;
+  stroke-dasharray: 10 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.print-area-label {
+  fill: #60a5fa;
+  font-size: 12px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: rgba(15, 23, 42, 0.8);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
 }
 
 .fold-line {
@@ -667,6 +704,53 @@ button:disabled {
   gap: 8px;
 }
 
+.template-list {
+  display: grid;
+  gap: 8px;
+  max-height: 36vh;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.template-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface-input);
+}
+
+.template-item input {
+  margin: 0;
+}
+
+.template-item-name {
+  font-size: 13px;
+  color: var(--app-text);
+}
+
+.template-item-meta {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.print-preview-summary {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 12px;
+  color: var(--text-muted-strong);
+  background: var(--surface-input);
+}
+
 .line-type-modal-list {
   display: grid;
   gap: 8px;
@@ -849,7 +933,8 @@ button:disabled {
   }
 
   .preset-controls,
-  .zoom-controls {
+  .zoom-controls,
+  .edit-controls {
     width: 100%;
     overflow-x: auto;
     flex-wrap: nowrap;
@@ -857,7 +942,8 @@ button:disabled {
   }
 
   .preset-controls button,
-  .zoom-controls button {
+  .zoom-controls button,
+  .edit-controls button {
     flex: 0 0 auto;
   }
 

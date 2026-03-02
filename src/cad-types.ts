@@ -83,6 +83,25 @@ export type StitchHole = {
   sequence: number
 }
 
+export type TracingOverlayKind = 'image' | 'pdf'
+
+export type TracingOverlay = {
+  id: string
+  name: string
+  kind: TracingOverlayKind
+  sourceUrl: string
+  visible: boolean
+  locked: boolean
+  opacity: number
+  scale: number
+  rotationDeg: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+  isObjectUrl?: boolean
+}
+
 export type DocFile = {
   version: 1
   units: 'mm'
@@ -93,6 +112,7 @@ export type DocFile = {
   objects: Shape[]
   foldLines: FoldLine[]
   stitchHoles?: StitchHole[]
+  tracingOverlays?: TracingOverlay[]
 }
 
 export type Viewport = {

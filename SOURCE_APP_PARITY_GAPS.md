@@ -143,5 +143,21 @@ Recommended scope:
   - Added dashed/dotted-to-solid export toggle.
   - Added DXF option surface: `Flip Y`, `R12/R14` version selector.
   - Added DXF linetype table output (`CONTINUOUS`, `DASHED`, `DOTTED`) with per-shape line-type style mapping.
+- `LC-MVP-006` undo/redo + clipboard baseline integrated:
+  - Added document-level undo/redo history tracking with keyboard shortcuts (`Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, `Cmd/Ctrl+Y`).
+  - Added shape clipboard flow: copy/cut/paste/duplicate/delete with stitch-hole linkage preservation.
+  - Added selection ordering actions (step forward/back, to front/back) to match source selection/order family.
+- `LC-MVP-010` template repository baseline integrated:
+  - Added local repository catalog (save/load/delete templates, insert template into current document).
+  - Added repository JSON import/export for portability.
+  - Insert flow now remaps layer/line-type IDs and preserves stitch-hole references.
+- `LC-P2-012` tracing overlay baseline integrated:
+  - Added tracing import for image + PDF files with overlay controls (visibility, lock, opacity, scale, rotation, offset).
+  - Added 2D overlay rendering as reference backdrop and PDF trace placeholder coverage box.
+- `LC-P2-014` print workflow baseline integrated:
+  - Added print preview modal with tile/grid controls (`tileX`, `tileY`, overlap, margins, paper size, scale).
+  - Added print option toggles (`selected only`, `ruler inside`, `print in color`, `stitch holes as dots`) and page-plan summary.
+  - Added show/hide print areas overlay in the 2D canvas.
 - Next implementation target:
   - `EX-03` SVG/DXF option-depth parity: export selected-only, template/text toggles, and dot-radius/options alignment to recovered `TfrmSVGExportOptions` controls.
+  - `LC-P2-012` tracing depth pass: true PDF page raster preview + interactive drag handles.
