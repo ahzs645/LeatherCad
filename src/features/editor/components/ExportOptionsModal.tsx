@@ -86,7 +86,7 @@ export function ExportOptionsModal({
               checked={exportForceSolidStrokes}
               onChange={(event) => onExportForceSolidStrokesChange(event.target.checked)}
             />
-            <span>Convert dashed/dotted to solid on export</span>
+            <span>Convert dashed/dotted/dash-dot-dot to solid on export</span>
           </label>
         </div>
 

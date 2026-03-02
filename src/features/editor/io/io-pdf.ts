@@ -47,6 +47,9 @@ function hexToRgbUnit(hex: string) {
 }
 
 function dashPattern(style: LineTypeStyle) {
+  if (style === 'dash-dot-dot') {
+    return '[9 4 1.2 3 1.2 3] 0 d'
+  }
   if (style === 'dashed') {
     return '[8 5] 0 d'
   }

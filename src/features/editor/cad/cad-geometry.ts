@@ -1,4 +1,5 @@
-import type { Point, Shape } from './cad-types'
+import type { Point, Shape, TextShape } from './cad-types'
+import { normalizeTextShape, sampleTextShapePoints } from '../ops/text-shape-ops'
 
 const TAU = Math.PI * 2
 
@@ -93,7 +94,12 @@ export function shapeToSvg(shape: Shape) {
     return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="#0f172a" stroke-width="2" fill="none" />`
   }
 
-  return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="#0f172a" stroke-width="2" fill="none" />`
+  if (shape.type === 'bezier') {
+    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="#0f172a" stroke-width="2" fill="none" />`
+  }
+
+  const textShape = normalizeTextShape(shape as TextShape)
+  return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="#0f172a" font-size="${round(textShape.fontSizeMm)}" font-family="${textShape.fontFamily.replace(/"/g, '&quot;')}">${textShape.text.replace(/[<>&]/g, (char) => (char === '<' ? '&lt;' : char === '>' ? '&gt;' : '&amp;'))}</text>`
 }
 
 export function getShapePoints(shape: Shape) {
@@ -103,7 +109,10 @@ export function getShapePoints(shape: Shape) {
   if (shape.type === 'arc') {
     return [shape.start, shape.mid, shape.end]
   }
-  return [shape.start, shape.control, shape.end]
+  if (shape.type === 'bezier') {
+    return [shape.start, shape.control, shape.end]
+  }
+  return sampleTextShapePoints(shape)
 }
 
 export function getBounds(shapes: Shape[]) {
@@ -142,6 +151,10 @@ export function getBounds(shapes: Shape[]) {
 export function sampleShapePoints(shape: Shape, segments = 20) {
   if (shape.type === 'line') {
     return [shape.start, shape.end]
+  }
+
+  if (shape.type === 'text') {
+    return sampleTextShapePoints(shape, segments)
   }
 
   if (shape.type === 'bezier') {
@@ -205,7 +218,19 @@ export function isShapeLike(value: unknown): value is Shape {
     return false
   }
 
-  const shape = value as { type: unknown; start?: unknown; end?: unknown; mid?: unknown; control?: unknown }
+  const shape = value as {
+    type: unknown
+    start?: unknown
+    end?: unknown
+    mid?: unknown
+    control?: unknown
+    text?: unknown
+    fontFamily?: unknown
+    fontSizeMm?: unknown
+    transform?: unknown
+    radiusMm?: unknown
+    sweepDeg?: unknown
+  }
   if (shape.type === 'line') {
     return isPointLike(shape.start) && isPointLike(shape.end)
   }
@@ -214,6 +239,18 @@ export function isShapeLike(value: unknown): value is Shape {
   }
   if (shape.type === 'bezier') {
     return isPointLike(shape.start) && isPointLike(shape.control) && isPointLike(shape.end)
+  }
+  if (shape.type === 'text') {
+    return (
+      isPointLike(shape.start) &&
+      isPointLike(shape.end) &&
+      typeof shape.text === 'string' &&
+      typeof shape.fontFamily === 'string' &&
+      typeof shape.fontSizeMm === 'number' &&
+      (shape.transform === 'none' || shape.transform === 'arch' || shape.transform === 'ring') &&
+      typeof shape.radiusMm === 'number' &&
+      typeof shape.sweepDeg === 'number'
+    )
   }
   return false
 }

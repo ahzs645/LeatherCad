@@ -50,6 +50,7 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'fold', label: 'Fold' },
   { value: 'stitch-hole', label: 'Stitch Hole' },
   { value: 'hardware', label: 'Hardware' },
+  { value: 'text', label: 'Text' },
 ]
 
 export const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [

@@ -24,6 +24,7 @@ import type {
   SnapSettings,
   StitchHole,
   StitchHoleType,
+  TextTransformMode,
   Tool,
   Viewport,
 } from '../cad/cad-types'
@@ -73,6 +74,12 @@ type UseCanvasInteractionsParams = {
   customHardwareDiameterMm: number
   customHardwareSpacingMm: number
   stitchHoleType: StitchHoleType
+  textDraftValue: string
+  textFontFamily: string
+  textFontSizeMm: number
+  textTransformMode: TextTransformMode
+  textRadiusMm: number
+  textSweepDeg: number
   stitchHoles: StitchHole[]
   hardwareMarkers: HardwareMarker[]
   selectedStitchHoleId: string | null
@@ -116,6 +123,12 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     customHardwareDiameterMm,
     customHardwareSpacingMm,
     stitchHoleType,
+    textDraftValue,
+    textFontFamily,
+    textFontSizeMm,
+    textTransformMode,
+    textRadiusMm,
+    textSweepDeg,
     stitchHoles,
     hardwareMarkers,
     selectedStitchHoleId,
@@ -361,6 +374,37 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       })
       setSelectedStitchHoleId(createdHoleId)
       setStatus(`Stitch hole placed (${stitchHoleType})`)
+      return
+    }
+
+    if (tool === 'text') {
+      if (!ensureActiveLayerWritable() || !ensureActiveLineTypeWritable()) {
+        return
+      }
+
+      const safeText = textDraftValue.trim().length > 0 ? textDraftValue.trim() : 'Text'
+      const safeFontSize = clamp(textFontSizeMm || 12, 2, 120)
+      const baseLength = Math.max(safeFontSize * 0.8, safeText.length * safeFontSize * 0.62)
+      setShapes((previous) => [
+        ...previous,
+        {
+          id: uid(),
+          type: 'text',
+          layerId: activeLayerId,
+          lineTypeId: activeLineTypeId,
+          groupId: activeSketchGroup?.id,
+          start: point,
+          end: { x: point.x + baseLength, y: point.y },
+          text: safeText,
+          fontFamily: textFontFamily,
+          fontSizeMm: safeFontSize,
+          transform: textTransformMode,
+          radiusMm: clamp(textRadiusMm || 40, 2, 2000),
+          sweepDeg: clamp(textSweepDeg || 140, -1080, 1080),
+        },
+      ])
+      clearDraft()
+      setStatus(`Text placed: ${safeText}`)
       return
     }
 

@@ -79,6 +79,19 @@ function projectShape(
     }
   }
 
+  if (shape.type === 'text') {
+    return {
+      ...shape,
+      id: toLinkedShapeId(group.id, shape.id),
+      type: 'text',
+      layerId: group.layerId,
+      lineTypeId: shape.lineTypeId,
+      groupId: group.id,
+      start: transformPoint(shape.start, bounds, mode, offsetX, offsetY),
+      end: transformPoint(shape.end, bounds, mode, offsetX, offsetY),
+    }
+  }
+
   return {
     id: toLinkedShapeId(group.id, shape.id),
     type: 'bezier',

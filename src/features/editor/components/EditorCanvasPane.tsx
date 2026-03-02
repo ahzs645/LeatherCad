@@ -7,10 +7,12 @@ import type {
   LineType,
   Shape,
   StitchHole,
+  TextShape,
   TracingOverlay,
   Viewport,
 } from '../cad/cad-types'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
+import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import type { AnnotationLabel, LegendMode, ResolvedThemeMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
 import type { PrintPlan } from '../preview/print-preview'
 import { LayerLegendPanel } from './LayerLegendPanel'
@@ -130,6 +132,73 @@ export function EditorCanvasPane({
 
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
 
+  const renderTextShape = (shape: TextShape, options: { key: string; color: string; selected: boolean; linked: boolean }) => {
+    const normalized = normalizeTextShape(shape)
+    const fontSize = Math.max(4, round(normalized.fontSizeMm))
+    const className = options.selected ? 'annotation-label text-shape text-shape-selected' : 'annotation-label text-shape'
+
+    if (normalized.transform === 'none') {
+      const baselineAngle = textBaselineAngleDeg(normalized)
+      return (
+        <text
+          key={options.key}
+          x={round(normalized.start.x)}
+          y={round(normalized.start.y)}
+          className={className}
+          style={{
+            fill: options.color,
+            fontFamily: normalized.fontFamily,
+            fontSize: `${fontSize}px`,
+            opacity: options.linked ? 0.7 : shapeStrokeOpacity,
+            pointerEvents: options.linked ? 'none' : 'auto',
+          }}
+          transform={`rotate(${round(baselineAngle)} ${round(normalized.start.x)} ${round(normalized.start.y)})`}
+          onPointerDown={
+            options.linked
+              ? undefined
+              : (event) => {
+                  onShapePointerDown(event, shape.id)
+                }
+          }
+        >
+          {normalized.text}
+        </text>
+      )
+    }
+
+    const glyphs = buildTextGlyphPlacements(normalized)
+    return (
+      <g key={options.key} style={{ pointerEvents: options.linked ? 'none' : 'auto' }}>
+        {glyphs.map((glyph, index) => (
+          <text
+            key={`${shape.id}-glyph-${index}`}
+            x={round(glyph.x)}
+            y={round(glyph.y)}
+            className={className}
+            style={{
+              fill: options.color,
+              fontFamily: normalized.fontFamily,
+              fontSize: `${fontSize}px`,
+              opacity: options.linked ? 0.7 : shapeStrokeOpacity,
+            }}
+            transform={`rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})`}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            onPointerDown={
+              options.linked
+                ? undefined
+                : (event) => {
+                    onShapePointerDown(event, shape.id)
+                  }
+            }
+          >
+            {glyph.char}
+          </text>
+        ))}
+      </g>
+    )
+  }
+
   return (
     <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`}>
       <svg
@@ -241,6 +310,15 @@ export function EditorCanvasPane({
               )
             }
 
+            if (shape.type === 'text') {
+              return renderTextShape(shape, {
+                key: shape.id,
+                color: layerStroke,
+                selected: false,
+                linked: true,
+              })
+            }
+
             return (
               <path
                 key={shape.id}
@@ -283,6 +361,15 @@ export function EditorCanvasPane({
                   onPointerDown={(event) => onShapePointerDown(event, shape.id)}
                 />
               )
+            }
+
+            if (shape.type === 'text') {
+              return renderTextShape(shape, {
+                key: shape.id,
+                color: layerStroke,
+                selected: isSelected,
+                linked: false,
+              })
             }
 
             return (

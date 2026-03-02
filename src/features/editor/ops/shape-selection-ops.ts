@@ -24,6 +24,14 @@ function cloneShape(shape: Shape): Shape {
     }
   }
 
+  if (shape.type === 'text') {
+    return {
+      ...shape,
+      start: { ...shape.start },
+      end: { ...shape.end },
+    }
+  }
+
   const bezier = shape as BezierShape
   return {
     ...bezier,
@@ -65,6 +73,14 @@ function shiftShape(shape: Shape, dx: number, dy: number): Shape {
       start: { x: arc.start.x + dx, y: arc.start.y + dy },
       mid: { x: arc.mid.x + dx, y: arc.mid.y + dy },
       end: { x: arc.end.x + dx, y: arc.end.y + dy },
+    }
+  }
+
+  if (shape.type === 'text') {
+    return {
+      ...shape,
+      start: { x: shape.start.x + dx, y: shape.start.y + dy },
+      end: { x: shape.end.x + dx, y: shape.end.y + dy },
     }
   }
 

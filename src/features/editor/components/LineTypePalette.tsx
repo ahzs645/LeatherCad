@@ -31,6 +31,7 @@ const STYLE_OPTIONS: Array<{ value: LineTypeStyle; label: string }> = [
   { value: 'solid', label: 'Solid' },
   { value: 'dashed', label: 'Dashed' },
   { value: 'dotted', label: 'Dotted' },
+  { value: 'dash-dot-dot', label: 'Dash Dot Dot' },
 ]
 
 export function LineTypePalette({
@@ -170,4 +171,3 @@ export function LineTypePalette({
     </div>
   )
 }
-

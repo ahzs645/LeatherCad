@@ -138,6 +138,17 @@ function cloneShapeWithMap(shape: Shape, layerId: string, lineTypeId: string): S
     }
   }
 
+  if (shape.type === 'text') {
+    return {
+      ...shape,
+      id: uid(),
+      layerId,
+      lineTypeId,
+      start: { ...shape.start },
+      end: { ...shape.end },
+    }
+  }
+
   const bezier = shape as BezierShape
   return {
     ...bezier,

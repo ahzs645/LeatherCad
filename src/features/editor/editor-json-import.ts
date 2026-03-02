@@ -170,7 +170,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         mid: candidate.mid,
         end: candidate.end,
       })
-    } else {
+    } else if (candidate.type === 'bezier') {
       nextShapes.push({
         id: nextShapeId,
         type: 'bezier',
@@ -180,6 +180,22 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         start: candidate.start,
         control: candidate.control,
         end: candidate.end,
+      })
+    } else {
+      nextShapes.push({
+        id: nextShapeId,
+        type: 'text',
+        layerId,
+        lineTypeId,
+        groupId,
+        start: candidate.start,
+        end: candidate.end,
+        text: candidate.text,
+        fontFamily: candidate.fontFamily,
+        fontSizeMm: candidate.fontSizeMm,
+        transform: candidate.transform,
+        radiusMm: candidate.radiusMm,
+        sweepDeg: candidate.sweepDeg,
       })
     }
   }

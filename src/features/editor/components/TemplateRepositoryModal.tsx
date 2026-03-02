@@ -1,37 +1,50 @@
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
+import { getCatalogItemCount, type CatalogRepositoryShop } from '../templates/catalog-repository'
 
 type TemplateRepositoryModalProps = {
   open: boolean
   onClose: () => void
   templateRepository: TemplateRepositoryEntry[]
+  catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntryId: string | null
   selectedTemplateEntry: TemplateRepositoryEntry | null
+  selectedCatalogShopId: string | null
   onSelectTemplateEntry: (entryId: string) => void
+  onSelectCatalogShop: (shopId: string) => void
   onSaveTemplate: () => void
   onExportRepository: () => void
   onImportRepository: () => void
+  onImportCatalog: () => void
   onLoadAsDocument: () => void
   onInsertIntoDocument: () => void
   onDeleteTemplate: (entryId: string) => void
+  onDeleteCatalogShop: (shopId: string) => void
 }
 
 export function TemplateRepositoryModal({
   open,
   onClose,
   templateRepository,
+  catalogRepository,
   selectedTemplateEntryId,
   selectedTemplateEntry,
+  selectedCatalogShopId,
   onSelectTemplateEntry,
+  onSelectCatalogShop,
   onSaveTemplate,
   onExportRepository,
   onImportRepository,
+  onImportCatalog,
   onLoadAsDocument,
   onInsertIntoDocument,
   onDeleteTemplate,
+  onDeleteCatalogShop,
 }: TemplateRepositoryModalProps) {
   if (!open) {
     return null
   }
+
+  const selectedCatalogShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
 
   return (
     <div
@@ -96,6 +109,45 @@ export function TemplateRepositoryModal({
           >
             Delete Template
           </button>
+        </div>
+
+        <h3 className="line-type-modal-subtitle">Leather Catalog (.ctlg)</h3>
+        <div className="line-type-modal-actions">
+          <button onClick={onImportCatalog}>Import Catalog</button>
+          <button
+            onClick={() => {
+              if (selectedCatalogShop) {
+                onDeleteCatalogShop(selectedCatalogShop.id)
+              }
+            }}
+            disabled={!selectedCatalogShop}
+          >
+            Delete Catalog
+          </button>
+        </div>
+        <div className="template-list">
+          {catalogRepository.length === 0 ? (
+            <p className="hint">No catalogs imported yet.</p>
+          ) : (
+            catalogRepository.map((shop) => {
+              const itemCount = getCatalogItemCount(shop)
+              return (
+                <label key={shop.id} className="template-item">
+                  <input
+                    type="radio"
+                    name="catalog-shop"
+                    checked={selectedCatalogShopId === shop.id}
+                    onChange={() => onSelectCatalogShop(shop.id)}
+                  />
+                  <span className="template-item-name">{shop.name}</span>
+                  <span className="template-item-meta">
+                    {shop.groups.length} groups, {itemCount} items
+                    {shop.sourceFileName ? ` - ${shop.sourceFileName}` : ''}
+                  </span>
+                </label>
+              )
+            })
+          )}
         </div>
       </div>
     </div>

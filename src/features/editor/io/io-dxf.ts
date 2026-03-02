@@ -11,7 +11,7 @@ type DxfExportOptions = {
 
 type Segment = {
   layerName: string
-  lineTypeName: 'CONTINUOUS' | 'DASHED' | 'DOTTED'
+  lineTypeName: 'CONTINUOUS' | 'DASHED' | 'DOTTED' | 'DASHDOTDOT'
   x1: number
   y1: number
   x2: number
@@ -27,6 +27,9 @@ function sanitizeLayerName(value: string) {
 }
 
 function dxfLineTypeFromStyle(style: LineTypeStyle) {
+  if (style === 'dash-dot-dot') {
+    return 'DASHDOTDOT' as const
+  }
   if (style === 'dashed') {
     return 'DASHED' as const
   }
@@ -88,6 +91,49 @@ function encodeLineEntity(segment: Segment) {
 }
 
 function encodeLtypeEntry(name: Segment['lineTypeName']) {
+  if (name === 'DASHDOTDOT') {
+    return [
+      '0',
+      'LTYPE',
+      '2',
+      'DASHDOTDOT',
+      '70',
+      '0',
+      '3',
+      'Dash dot dot',
+      '72',
+      '65',
+      '73',
+      '6',
+      '40',
+      '1.9',
+      '49',
+      '1.0',
+      '74',
+      '0',
+      '49',
+      '-0.3',
+      '74',
+      '0',
+      '49',
+      '0.0',
+      '74',
+      '0',
+      '49',
+      '-0.3',
+      '74',
+      '0',
+      '49',
+      '0.0',
+      '74',
+      '0',
+      '49',
+      '-0.3',
+      '74',
+      '0',
+    ]
+  }
+
   if (name === 'DASHED') {
     return [
       '0',

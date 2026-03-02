@@ -24,6 +24,8 @@ export function useEditorPanelState() {
   const [printOverlapMm, setPrintOverlapMm] = useState(4)
   const [printMarginMm, setPrintMarginMm] = useState(8)
   const [printScalePercent, setPrintScalePercent] = useState(100)
+  const [printCalibrationXPercent, setPrintCalibrationXPercent] = useState(100)
+  const [printCalibrationYPercent, setPrintCalibrationYPercent] = useState(100)
   const [printSelectedOnly, setPrintSelectedOnly] = useState(false)
   const [printRulerInside, setPrintRulerInside] = useState(false)
   const [printInColor, setPrintInColor] = useState(true)
@@ -77,6 +79,10 @@ export function useEditorPanelState() {
     setPrintMarginMm,
     printScalePercent,
     setPrintScalePercent,
+    printCalibrationXPercent,
+    setPrintCalibrationXPercent,
+    printCalibrationYPercent,
+    setPrintCalibrationYPercent,
     printSelectedOnly,
     setPrintSelectedOnly,
     printRulerInside,

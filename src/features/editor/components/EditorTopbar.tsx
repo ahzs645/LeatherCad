@@ -116,6 +116,7 @@ type EditorTopbarProps = {
   onExportSvg: () => void
   onExportPdf: () => void
   onExportDxf: () => void
+  onExportLaserSvg: () => void
   onOpenExportOptionsModal: () => void
   onOpenPatternToolsModal: () => void
   onOpenTemplateRepositoryModal: () => void
@@ -272,6 +273,7 @@ export function EditorTopbar({
   onExportSvg,
   onExportPdf,
   onExportDxf,
+  onExportLaserSvg,
   onOpenExportOptionsModal,
   onOpenPatternToolsModal,
   onOpenTemplateRepositoryModal,
@@ -396,6 +398,9 @@ export function EditorTopbar({
                 </button>
                 <button className={tool === 'hardware' ? 'active' : ''} onClick={() => onSetActiveTool('hardware')}>
                   Hardware
+                </button>
+                <button className={tool === 'text' ? 'active' : ''} onClick={() => onSetActiveTool('text')}>
+                  Text
                 </button>
               </>
             )}
@@ -668,6 +673,7 @@ export function EditorTopbar({
                 <button onClick={onExportSvg}>Export SVG</button>
                 <button onClick={onExportPdf}>Export PDF</button>
                 <button onClick={onExportDxf}>Export DXF</button>
+                <button onClick={onExportLaserSvg}>Export Laser SVG</button>
                 <button onClick={onOpenExportOptionsModal}>Export Options</button>
                 <button onClick={onOpenPatternToolsModal}>Pattern Tools</button>
                 <button onClick={onOpenTemplateRepositoryModal}>Templates</button>

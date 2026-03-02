@@ -10,6 +10,11 @@ import type {
   SnapSettings,
 } from '../cad/cad-types'
 import {
+  applyCornerOnSelectedLines,
+  createBoxStitchFromSelection,
+  createOffsetGeometryForSelection,
+} from '../ops/advanced-pattern-ops'
+import {
   alignSelectedShapes,
   alignSelectedShapesToGrid,
   applyParametricConstraints,
@@ -17,7 +22,11 @@ import {
 
 type UseConstraintActionsParams = {
   activeLayer: Layer | null
+  activeLayerId: string | null
+  activeLineTypeId: string
+  stitchLineTypeId: string
   layers: Layer[]
+  shapes: Shape[]
   selectedShapeIds: string[]
   selectedShapeIdSet: Set<string>
   constraintEdge: ConstraintEdge
@@ -28,6 +37,7 @@ type UseConstraintActionsParams = {
   seamAllowances: SeamAllowance[]
   snapSettings: SnapSettings
   setShapes: Dispatch<SetStateAction<Shape[]>>
+  setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
   setStatus: Dispatch<SetStateAction<string>>
@@ -36,7 +46,11 @@ type UseConstraintActionsParams = {
 export function useConstraintActions(params: UseConstraintActionsParams) {
   const {
     activeLayer,
+    activeLayerId,
+    activeLineTypeId,
+    stitchLineTypeId,
     layers,
+    shapes,
     selectedShapeIds,
     selectedShapeIdSet,
     constraintEdge,
@@ -47,6 +61,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     seamAllowances,
     snapSettings,
     setShapes,
+    setSelectedShapeIds,
     setConstraints,
     setSeamAllowances,
     setStatus,
@@ -186,6 +201,80 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     setConstraints((previous) => previous.filter((entry) => entry.id !== constraintId))
   }
 
+  const handleBevelSelectedCorner = () => {
+    const input = Number(window.prompt('Bevel distance (mm)', '4'))
+    if (!Number.isFinite(input) || input <= 0) {
+      setStatus('Bevel cancelled')
+      return
+    }
+    const result = applyCornerOnSelectedLines(shapes, selectedShapeIdSet, 'bevel', input, activeLineTypeId)
+    if (!result.ok) {
+      setStatus(result.message)
+      return
+    }
+    setShapes(result.nextShapes)
+    if (result.createdShapeIds.length > 0) {
+      setSelectedShapeIds(result.createdShapeIds)
+    }
+    setStatus(result.message)
+  }
+
+  const handleRoundSelectedCorner = () => {
+    const input = Number(window.prompt('Round distance (mm)', '4'))
+    if (!Number.isFinite(input) || input <= 0) {
+      setStatus('Round cancelled')
+      return
+    }
+    const result = applyCornerOnSelectedLines(shapes, selectedShapeIdSet, 'round', input, activeLineTypeId)
+    if (!result.ok) {
+      setStatus(result.message)
+      return
+    }
+    setShapes(result.nextShapes)
+    if (result.createdShapeIds.length > 0) {
+      setSelectedShapeIds(result.createdShapeIds)
+    }
+    setStatus(result.message)
+  }
+
+  const handleCreateOffsetGeometryFromSelection = () => {
+    const input = Number(window.prompt('Offset distance (mm). Negative values offset the opposite side.', '4'))
+    if (!Number.isFinite(input) || Math.abs(input) < 0.001) {
+      setStatus('Offset cancelled')
+      return
+    }
+    const result = createOffsetGeometryForSelection(shapes, selectedShapeIdSet, input, activeLineTypeId)
+    if (!result.ok) {
+      setStatus(result.message)
+      return
+    }
+    setShapes((previous) => [...previous, ...result.created])
+    setSelectedShapeIds(result.created.map((shape) => shape.id))
+    setStatus(result.message)
+  }
+
+  const handleCreateBoxStitchFromSelection = () => {
+    const input = Number(window.prompt('Inset distance for box stitch (mm)', '6'))
+    if (!Number.isFinite(input) || input <= 0) {
+      setStatus('Box stitch cancelled')
+      return
+    }
+    const result = createBoxStitchFromSelection(
+      shapes,
+      selectedShapeIdSet,
+      input,
+      stitchLineTypeId,
+      activeLayerId,
+    )
+    if (!result.ok) {
+      setStatus(result.message)
+      return
+    }
+    setShapes((previous) => [...previous, ...result.created])
+    setSelectedShapeIds(result.created.map((shape) => shape.id))
+    setStatus(result.message)
+  }
+
   return {
     handleAddEdgeConstraintFromSelection,
     handleAddAlignConstraintsFromSelection,
@@ -197,5 +286,9 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     handleClearAllSeamAllowances,
     handleToggleConstraintEnabled,
     handleDeleteConstraint,
+    handleBevelSelectedCorner,
+    handleRoundSelectedCorner,
+    handleCreateOffsetGeometryFromSelection,
+    handleCreateBoxStitchFromSelection,
   }
 }

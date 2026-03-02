@@ -110,6 +110,7 @@ type UseEditorTopbarPropsParams = {
   handleExportSvg: () => void
   handleExportPdf: () => void
   handleExportDxf: () => void
+  handleExportLaserSvg: () => void
   setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
   setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
@@ -222,6 +223,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
+    handleExportLaserSvg,
     setShowExportOptionsModal,
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
@@ -344,6 +346,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onExportSvg: handleExportSvg,
     onExportPdf: handleExportPdf,
     onExportDxf: handleExportDxf,
+    onExportLaserSvg: handleExportLaserSvg,
     onOpenExportOptionsModal: () => setShowExportOptionsModal(true),
     onOpenPatternToolsModal: () => setShowPatternToolsModal(true),
     onOpenTemplateRepositoryModal: () => setShowTemplateRepositoryModal(true),

@@ -6,8 +6,10 @@ import type {
   HardwareMarker,
   Layer,
   ParametricConstraint,
+  Shape,
   SketchGroup,
   SnapSettings,
+  TextTransformMode,
 } from '../cad/cad-types'
 
 type SketchLinkMode = NonNullable<SketchGroup['linkMode']>
@@ -62,13 +64,36 @@ type PatternToolsModalProps = {
   onClearSeamAllowanceOnSelection: () => void
   onClearAllSeamAllowances: () => void
   seamAllowanceCount: number
+  onBevelSelectedCorner: () => void
+  onRoundSelectedCorner: () => void
+  onCreateOffsetGeometryFromSelection: () => void
+  onCreateBoxStitchFromSelection: () => void
+  selectedEditableShape: Shape | null
+  onUpdateSelectedShapePoint: (
+    pointKey: 'start' | 'mid' | 'control' | 'end',
+    axis: 'x' | 'y',
+    value: number,
+  ) => void
+  textDraftValue: string
+  onSetTextDraftValue: (value: string) => void
+  textFontFamily: string
+  onSetTextFontFamily: (value: string) => void
+  textFontSizeMm: number
+  onSetTextFontSizeMm: (value: number) => void
+  textTransformMode: TextTransformMode
+  onSetTextTransformMode: (value: TextTransformMode) => void
+  textRadiusMm: number
+  onSetTextRadiusMm: (value: number) => void
+  textSweepDeg: number
+  onSetTextSweepDeg: (value: number) => void
+  onApplyTextDefaultsToSelection: () => void
   hardwarePreset: HardwareKind
   onSetHardwarePreset: (preset: HardwareKind) => void
   customHardwareDiameterMm: number
   onSetCustomHardwareDiameterMm: (value: number) => void
   customHardwareSpacingMm: number
   onSetCustomHardwareSpacingMm: (value: number) => void
-  onSetActiveTool: (tool: 'hardware' | 'pan') => void
+  onSetActiveTool: (tool: 'hardware' | 'pan' | 'text') => void
   selectedHardwareMarker: HardwareMarker | null
   onUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
   onDeleteSelectedHardwareMarker: () => void
@@ -119,6 +144,25 @@ export function PatternToolsModal({
   onClearSeamAllowanceOnSelection,
   onClearAllSeamAllowances,
   seamAllowanceCount,
+  onBevelSelectedCorner,
+  onRoundSelectedCorner,
+  onCreateOffsetGeometryFromSelection,
+  onCreateBoxStitchFromSelection,
+  selectedEditableShape,
+  onUpdateSelectedShapePoint,
+  textDraftValue,
+  onSetTextDraftValue,
+  textFontFamily,
+  onSetTextFontFamily,
+  textFontSizeMm,
+  onSetTextFontSizeMm,
+  textTransformMode,
+  onSetTextTransformMode,
+  textRadiusMm,
+  onSetTextRadiusMm,
+  textSweepDeg,
+  onSetTextSweepDeg,
+  onApplyTextDefaultsToSelection,
   hardwarePreset,
   onSetHardwarePreset,
   customHardwareDiameterMm,
@@ -500,6 +544,182 @@ export function PatternToolsModal({
             <button onClick={onClearAllSeamAllowances} disabled={seamAllowanceCount === 0}>
               Clear All
             </button>
+          </div>
+        </div>
+
+        <div className="control-block">
+          <h3>Corners + Geometry</h3>
+          <p className="hint">Use two connected lines for bevel/round. Offset and box stitch use current selection.</p>
+          <div className="line-type-modal-actions">
+            <button onClick={onBevelSelectedCorner} disabled={selectedShapeCount < 2}>
+              Bevel Corner
+            </button>
+            <button onClick={onRoundSelectedCorner} disabled={selectedShapeCount < 2}>
+              Round Corner
+            </button>
+            <button onClick={onCreateOffsetGeometryFromSelection} disabled={selectedShapeCount === 0}>
+              Create Offset Geometry
+            </button>
+            <button onClick={onCreateBoxStitchFromSelection} disabled={selectedShapeCount === 0}>
+              Create Box Stitch
+            </button>
+          </div>
+        </div>
+
+        <div className="control-block">
+          <h3>Shape Node Editor</h3>
+          {selectedEditableShape ? (
+            <div className="line-type-edit-grid">
+              <label className="field-row">
+                <span>Start X</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  value={selectedEditableShape.start.x}
+                  onChange={(event) => onUpdateSelectedShapePoint('start', 'x', Number(event.target.value) || 0)}
+                />
+              </label>
+              <label className="field-row">
+                <span>Start Y</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  value={selectedEditableShape.start.y}
+                  onChange={(event) => onUpdateSelectedShapePoint('start', 'y', Number(event.target.value) || 0)}
+                />
+              </label>
+              {selectedEditableShape.type === 'arc' && (
+                <>
+                  <label className="field-row">
+                    <span>Mid X</span>
+                    <input
+                      type="number"
+                      step={0.1}
+                      value={selectedEditableShape.mid.x}
+                      onChange={(event) => onUpdateSelectedShapePoint('mid', 'x', Number(event.target.value) || 0)}
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Mid Y</span>
+                    <input
+                      type="number"
+                      step={0.1}
+                      value={selectedEditableShape.mid.y}
+                      onChange={(event) => onUpdateSelectedShapePoint('mid', 'y', Number(event.target.value) || 0)}
+                    />
+                  </label>
+                </>
+              )}
+              {selectedEditableShape.type === 'bezier' && (
+                <>
+                  <label className="field-row">
+                    <span>Control X</span>
+                    <input
+                      type="number"
+                      step={0.1}
+                      value={selectedEditableShape.control.x}
+                      onChange={(event) => onUpdateSelectedShapePoint('control', 'x', Number(event.target.value) || 0)}
+                    />
+                  </label>
+                  <label className="field-row">
+                    <span>Control Y</span>
+                    <input
+                      type="number"
+                      step={0.1}
+                      value={selectedEditableShape.control.y}
+                      onChange={(event) => onUpdateSelectedShapePoint('control', 'y', Number(event.target.value) || 0)}
+                    />
+                  </label>
+                </>
+              )}
+              <label className="field-row">
+                <span>End X</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  value={selectedEditableShape.end.x}
+                  onChange={(event) => onUpdateSelectedShapePoint('end', 'x', Number(event.target.value) || 0)}
+                />
+              </label>
+              <label className="field-row">
+                <span>End Y</span>
+                <input
+                  type="number"
+                  step={0.1}
+                  value={selectedEditableShape.end.y}
+                  onChange={(event) => onUpdateSelectedShapePoint('end', 'y', Number(event.target.value) || 0)}
+                />
+              </label>
+            </div>
+          ) : (
+            <p className="hint">Select exactly one shape in Move tool to edit points.</p>
+          )}
+        </div>
+
+        <div className="control-block">
+          <h3>Text + Fonts</h3>
+          <div className="line-type-edit-grid">
+            <label className="field-row">
+              <span>Text</span>
+              <input value={textDraftValue} onChange={(event) => onSetTextDraftValue(event.target.value)} />
+            </label>
+            <label className="field-row">
+              <span>Font</span>
+              <select className="action-select" value={textFontFamily} onChange={(event) => onSetTextFontFamily(event.target.value)}>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="Arial, sans-serif">Arial</option>
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Size (mm)</span>
+              <input
+                type="number"
+                min={2}
+                max={120}
+                step={0.5}
+                value={textFontSizeMm}
+                onChange={(event) => onSetTextFontSizeMm(clamp(Number(event.target.value) || 2, 2, 120))}
+              />
+            </label>
+            <label className="field-row">
+              <span>Transform</span>
+              <select className="action-select" value={textTransformMode} onChange={(event) => onSetTextTransformMode(event.target.value as TextTransformMode)}>
+                <option value="none">None</option>
+                <option value="arch">Arch</option>
+                <option value="ring">Ring</option>
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Radius (mm)</span>
+              <input
+                type="number"
+                min={2}
+                max={2000}
+                step={1}
+                value={textRadiusMm}
+                onChange={(event) => onSetTextRadiusMm(clamp(Number(event.target.value) || 2, 2, 2000))}
+              />
+            </label>
+            <label className="field-row">
+              <span>Sweep (deg)</span>
+              <input
+                type="number"
+                min={-1080}
+                max={1080}
+                step={1}
+                value={textSweepDeg}
+                onChange={(event) => onSetTextSweepDeg(clamp(Number(event.target.value) || 0, -1080, 1080))}
+              />
+            </label>
+          </div>
+          <div className="line-type-modal-actions">
+            <button onClick={() => onSetActiveTool('text')}>Use Text Tool</button>
+            <button onClick={onApplyTextDefaultsToSelection} disabled={selectedShapeCount === 0}>
+              Apply To Selected Text
+            </button>
+            <button onClick={() => onSetActiveTool('pan')}>Back to Move Tool</button>
           </div>
         </div>
 

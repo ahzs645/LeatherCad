@@ -1,4 +1,14 @@
+import { useMemo, useState } from 'react'
 import type { StitchHoleType } from '../cad/cad-types'
+import {
+  createBuiltinPrickingIrons,
+  createCustomPrickingIron,
+  loadCustomPrickingIrons,
+  parsePrickingIronShape,
+  prickingIronToHoleType,
+  saveCustomPrickingIrons,
+  type PrickingIronPreset,
+} from '../ops/pricking-iron-ops'
 
 type StitchHolePanelProps = {
   holeType: StitchHoleType
@@ -53,9 +63,89 @@ export function StitchHolePanel({
   totalHoleCount,
   hasSelectedHole,
 }: StitchHolePanelProps) {
+  const [customPrickingIrons, setCustomPrickingIrons] = useState<PrickingIronPreset[]>(() => loadCustomPrickingIrons())
+  const [selectedPrickingIronId, setSelectedPrickingIronId] = useState<string>(() => createBuiltinPrickingIrons()[0]?.id ?? '')
+
+  const builtinPrickingIrons = useMemo(() => createBuiltinPrickingIrons(), [])
+  const allPrickingIrons = useMemo(
+    () => [...builtinPrickingIrons, ...customPrickingIrons],
+    [builtinPrickingIrons, customPrickingIrons],
+  )
+  const selectedPrickingIron = allPrickingIrons.find((entry) => entry.id === selectedPrickingIronId) ?? allPrickingIrons[0] ?? null
+
+  const applyPrickingIron = () => {
+    if (!selectedPrickingIron) {
+      return
+    }
+    const holeTypeFromIron = prickingIronToHoleType(selectedPrickingIron.shape)
+    onChangeHoleType(holeTypeFromIron)
+    onChangePitchMm(selectedPrickingIron.pitchMm)
+    onChangeVariablePitchStartMm(selectedPrickingIron.pitchMm)
+    onChangeVariablePitchEndMm(selectedPrickingIron.pitchMm)
+  }
+
+  const handleRegisterCustomIron = () => {
+    const name = window.prompt('Pricking iron name', `Custom Iron ${customPrickingIrons.length + 1}`)?.trim()
+    if (!name) {
+      return
+    }
+
+    const shapeInput = window.prompt('Shape: diamond / french / flat / round', 'diamond')
+    const shape = parsePrickingIronShape(shapeInput?.trim().toLowerCase())
+    const pitchInput = Number(window.prompt('Pitch in mm', pitchMm.toFixed(2)))
+    if (!Number.isFinite(pitchInput) || pitchInput <= 0) {
+      return
+    }
+
+    const customIron = createCustomPrickingIron({
+      name,
+      shape,
+      pitchMm: pitchInput,
+    })
+    const nextCustom = [customIron, ...customPrickingIrons]
+    setCustomPrickingIrons(nextCustom)
+    saveCustomPrickingIrons(nextCustom)
+    setSelectedPrickingIronId(customIron.id)
+    onChangeHoleType(prickingIronToHoleType(customIron.shape))
+    onChangePitchMm(customIron.pitchMm)
+    onChangeVariablePitchStartMm(customIron.pitchMm)
+    onChangeVariablePitchEndMm(customIron.pitchMm)
+  }
+
+  const handleDeleteCustomIron = () => {
+    if (!selectedPrickingIron || !selectedPrickingIron.id.startsWith('custom-')) {
+      return
+    }
+    const nextCustom = customPrickingIrons.filter((entry) => entry.id !== selectedPrickingIron.id)
+    setCustomPrickingIrons(nextCustom)
+    saveCustomPrickingIrons(nextCustom)
+    setSelectedPrickingIronId(builtinPrickingIrons[0]?.id ?? '')
+  }
+
   return (
     <div className="group stitch-controls">
       <span className="line-type-label">Stitch Holes</span>
+      <label className="stitch-pitch-inline">
+        <span>Pricking Iron</span>
+        <select
+          className="line-type-select"
+          value={selectedPrickingIron?.id ?? ''}
+          onChange={(event) => setSelectedPrickingIronId(event.target.value)}
+        >
+          {allPrickingIrons.map((entry) => (
+            <option key={entry.id} value={entry.id}>
+              {entry.name} ({entry.pitchMm.toFixed(2)}mm)
+            </option>
+          ))}
+        </select>
+      </label>
+      <button onClick={applyPrickingIron} disabled={!selectedPrickingIron}>
+        Apply Iron
+      </button>
+      <button onClick={handleRegisterCustomIron}>Register Custom</button>
+      <button onClick={handleDeleteCustomIron} disabled={!selectedPrickingIron || !selectedPrickingIron.id.startsWith('custom-')}>
+        Delete Custom
+      </button>
       <select
         className="line-type-select"
         value={holeType}

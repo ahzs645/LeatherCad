@@ -500,12 +500,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const cutStrokeColor = lineTypes.find((lineType) => lineType.role === 'cut')?.color ?? fallbackLayerStroke
   const stitchStrokeColor = themeMode === 'light' ? STITCH_COLOR_LIGHT : STITCH_COLOR_DARK
   const foldStrokeColor = themeMode === 'light' ? FOLD_COLOR_LIGHT : FOLD_COLOR_DARK
-  const activeLineTypeStrokeColor =
-    activeLineType?.role === 'stitch'
-      ? stitchStrokeColor
-      : activeLineType?.role === 'fold'
-        ? foldStrokeColor
-        : activeLineType?.color ?? activeLayerColor
+  const activeLineTypeStrokeColor = activeLineType?.color ?? activeLayerColor
   const activeLineTypeDasharray = lineTypeStrokeDasharray(activeLineType?.style ?? 'solid')
 
   const currentSnapshot = useMemo<EditorSnapshot>(

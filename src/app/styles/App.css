@@ -1052,6 +1052,14 @@ button:disabled {
   color: var(--app-text);
 }
 
+.line-type-modal-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-muted-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .line-type-modal-actions {
   display: flex;
   flex-wrap: wrap;

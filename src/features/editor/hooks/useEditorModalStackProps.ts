@@ -7,8 +7,10 @@ import type {
   Layer,
   LineType,
   ParametricConstraint,
+  Shape,
   SketchGroup,
   SnapSettings,
+  TextTransformMode,
   TracingOverlay,
 } from '../cad/cad-types'
 import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-constants'
@@ -16,6 +18,7 @@ import type { DxfVersion, ExportRoleFilters } from '../editor-types'
 import { normalizeHexColor } from '../editor-utils'
 import { EditorModalStack } from '../components/EditorModalStack'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
+import type { CatalogRepositoryShop } from '../templates/catalog-repository'
 import type { PrintPaper, PrintPlan } from '../preview/print-preview'
 
 type UseEditorModalStackPropsParams = {
@@ -68,15 +71,20 @@ type UseEditorModalStackPropsParams = {
   showTemplateRepositoryModal: boolean
   setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
   templateRepository: TemplateRepositoryEntry[]
+  catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntryId: string | null
   selectedTemplateEntry: TemplateRepositoryEntry | null
+  selectedCatalogShopId: string | null
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
+  setSelectedCatalogShopId: Dispatch<SetStateAction<string | null>>
   handleSaveTemplateToRepository: () => void
   handleExportTemplateRepository: () => void
   templateImportInputRef: RefObject<HTMLInputElement | null>
+  catalogImportInputRef: RefObject<HTMLInputElement | null>
   handleLoadTemplateAsDocument: () => void
   handleInsertTemplateIntoDocument: () => void
   handleDeleteTemplateFromRepository: (entryId: string) => void
+  handleDeleteCatalogShop: (shopId: string) => void
   showPatternToolsModal: boolean
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
   snapSettings: SnapSettings
@@ -125,6 +133,29 @@ type UseEditorModalStackPropsParams = {
   handleClearSeamAllowanceOnSelection: () => void
   handleClearAllSeamAllowances: () => void
   seamAllowancesLength: number
+  handleBevelSelectedCorner: () => void
+  handleRoundSelectedCorner: () => void
+  handleCreateOffsetGeometryFromSelection: () => void
+  handleCreateBoxStitchFromSelection: () => void
+  selectedEditableShape: Shape | null
+  handleUpdateSelectedShapePoint: (
+    pointKey: 'start' | 'mid' | 'control' | 'end',
+    axis: 'x' | 'y',
+    value: number,
+  ) => void
+  textDraftValue: string
+  setTextDraftValue: Dispatch<SetStateAction<string>>
+  textFontFamily: string
+  setTextFontFamily: Dispatch<SetStateAction<string>>
+  textFontSizeMm: number
+  setTextFontSizeMm: Dispatch<SetStateAction<number>>
+  textTransformMode: TextTransformMode
+  setTextTransformMode: Dispatch<SetStateAction<TextTransformMode>>
+  textRadiusMm: number
+  setTextRadiusMm: Dispatch<SetStateAction<number>>
+  textSweepDeg: number
+  setTextSweepDeg: Dispatch<SetStateAction<number>>
+  handleApplyTextDefaultsToSelection: () => void
   hardwarePreset: HardwareKind
   setHardwarePreset: Dispatch<SetStateAction<HardwareKind>>
   customHardwareDiameterMm: number
@@ -149,6 +180,10 @@ type UseEditorModalStackPropsParams = {
   setPrintPaper: Dispatch<SetStateAction<PrintPaper>>
   printScalePercent: number
   setPrintScalePercent: Dispatch<SetStateAction<number>>
+  printCalibrationXPercent: number
+  setPrintCalibrationXPercent: Dispatch<SetStateAction<number>>
+  printCalibrationYPercent: number
+  setPrintCalibrationYPercent: Dispatch<SetStateAction<number>>
   printTileX: number
   setPrintTileX: Dispatch<SetStateAction<number>>
   printTileY: number
@@ -169,6 +204,7 @@ type UseEditorModalStackPropsParams = {
   showPrintAreas: boolean
   setShowPrintAreas: Dispatch<SetStateAction<boolean>>
   handleFitView: () => void
+  handleOpenPrintTiles: () => void
 }
 
 export function useEditorModalStackProps(params: UseEditorModalStackPropsParams): ComponentProps<typeof EditorModalStack> {
@@ -222,15 +258,20 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showTemplateRepositoryModal,
     setShowTemplateRepositoryModal,
     templateRepository,
+    catalogRepository,
     selectedTemplateEntryId,
     selectedTemplateEntry,
+    selectedCatalogShopId,
     setSelectedTemplateEntryId,
+    setSelectedCatalogShopId,
     handleSaveTemplateToRepository,
     handleExportTemplateRepository,
     templateImportInputRef,
+    catalogImportInputRef,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleDeleteTemplateFromRepository,
+    handleDeleteCatalogShop,
     showPatternToolsModal,
     setShowPatternToolsModal,
     snapSettings,
@@ -274,6 +315,25 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleClearSeamAllowanceOnSelection,
     handleClearAllSeamAllowances,
     seamAllowancesLength,
+    handleBevelSelectedCorner,
+    handleRoundSelectedCorner,
+    handleCreateOffsetGeometryFromSelection,
+    handleCreateBoxStitchFromSelection,
+    selectedEditableShape,
+    handleUpdateSelectedShapePoint,
+    textDraftValue,
+    setTextDraftValue,
+    textFontFamily,
+    setTextFontFamily,
+    textFontSizeMm,
+    setTextFontSizeMm,
+    textTransformMode,
+    setTextTransformMode,
+    textRadiusMm,
+    setTextRadiusMm,
+    textSweepDeg,
+    setTextSweepDeg,
+    handleApplyTextDefaultsToSelection,
     hardwarePreset,
     setHardwarePreset,
     customHardwareDiameterMm,
@@ -298,6 +358,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setPrintPaper,
     printScalePercent,
     setPrintScalePercent,
+    printCalibrationXPercent,
+    setPrintCalibrationXPercent,
+    printCalibrationYPercent,
+    setPrintCalibrationYPercent,
     printTileX,
     setPrintTileX,
     printTileY,
@@ -318,6 +382,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showPrintAreas,
     setShowPrintAreas,
     handleFitView,
+    handleOpenPrintTiles,
   } = params
 
   return {
@@ -393,15 +458,20 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       open: showTemplateRepositoryModal,
       onClose: () => setShowTemplateRepositoryModal(false),
       templateRepository,
+      catalogRepository,
       selectedTemplateEntryId,
       selectedTemplateEntry,
+      selectedCatalogShopId,
       onSelectTemplateEntry: setSelectedTemplateEntryId,
+      onSelectCatalogShop: setSelectedCatalogShopId,
       onSaveTemplate: handleSaveTemplateToRepository,
       onExportRepository: handleExportTemplateRepository,
       onImportRepository: () => templateImportInputRef.current?.click(),
+      onImportCatalog: () => catalogImportInputRef.current?.click(),
       onLoadAsDocument: handleLoadAsDocument,
       onInsertIntoDocument: handleInsertIntoDocument,
       onDeleteTemplate: handleDeleteTemplate,
+      onDeleteCatalogShop: handleDeleteCatalogShop,
     },
     patternToolsModalProps: {
       open: showPatternToolsModal,
@@ -448,6 +518,25 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onClearSeamAllowanceOnSelection: handleClearSeamAllowanceOnSelection,
       onClearAllSeamAllowances: handleClearAllSeamAllowances,
       seamAllowanceCount: seamAllowancesLength,
+      onBevelSelectedCorner: handleBevelSelectedCorner,
+      onRoundSelectedCorner: handleRoundSelectedCorner,
+      onCreateOffsetGeometryFromSelection: handleCreateOffsetGeometryFromSelection,
+      onCreateBoxStitchFromSelection: handleCreateBoxStitchFromSelection,
+      selectedEditableShape,
+      onUpdateSelectedShapePoint: handleUpdateSelectedShapePoint,
+      textDraftValue,
+      onSetTextDraftValue: setTextDraftValue,
+      textFontFamily,
+      onSetTextFontFamily: setTextFontFamily,
+      textFontSizeMm,
+      onSetTextFontSizeMm: setTextFontSizeMm,
+      textTransformMode,
+      onSetTextTransformMode: setTextTransformMode,
+      textRadiusMm,
+      onSetTextRadiusMm: setTextRadiusMm,
+      textSweepDeg,
+      onSetTextSweepDeg: setTextSweepDeg,
+      onApplyTextDefaultsToSelection: handleApplyTextDefaultsToSelection,
       hardwarePreset,
       onSetHardwarePreset: setHardwarePreset,
       customHardwareDiameterMm,
@@ -480,6 +569,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onSetPrintPaper: setPrintPaper,
       printScalePercent,
       onSetPrintScalePercent: setPrintScalePercent,
+      printCalibrationXPercent,
+      onSetPrintCalibrationXPercent: setPrintCalibrationXPercent,
+      printCalibrationYPercent,
+      onSetPrintCalibrationYPercent: setPrintCalibrationYPercent,
       printTileX,
       onSetPrintTileX: setPrintTileX,
       printTileY,
@@ -500,6 +593,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       showPrintAreas,
       onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),
       onFitView: handleFitView,
+      onOpenPrintTiles: handleOpenPrintTiles,
     },
   }
 

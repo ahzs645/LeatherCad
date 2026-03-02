@@ -8,6 +8,10 @@ type PrintPreviewModalProps = {
   onSetPrintPaper: (paper: PrintPaper) => void
   printScalePercent: number
   onSetPrintScalePercent: (scalePercent: number) => void
+  printCalibrationXPercent: number
+  onSetPrintCalibrationXPercent: (scalePercent: number) => void
+  printCalibrationYPercent: number
+  onSetPrintCalibrationYPercent: (scalePercent: number) => void
   printTileX: number
   onSetPrintTileX: (tileX: number) => void
   printTileY: number
@@ -28,6 +32,7 @@ type PrintPreviewModalProps = {
   showPrintAreas: boolean
   onTogglePrintAreas: () => void
   onFitView: () => void
+  onOpenPrintTiles: () => void
 }
 
 export function PrintPreviewModal({
@@ -37,6 +42,10 @@ export function PrintPreviewModal({
   onSetPrintPaper,
   printScalePercent,
   onSetPrintScalePercent,
+  printCalibrationXPercent,
+  onSetPrintCalibrationXPercent,
+  printCalibrationYPercent,
+  onSetPrintCalibrationYPercent,
   printTileX,
   onSetPrintTileX,
   printTileY,
@@ -57,6 +66,7 @@ export function PrintPreviewModal({
   showPrintAreas,
   onTogglePrintAreas,
   onFitView,
+  onOpenPrintTiles,
 }: PrintPreviewModalProps) {
   if (!open) {
     return null
@@ -96,6 +106,28 @@ export function PrintPreviewModal({
               max={400}
               value={printScalePercent}
               onChange={(event) => onSetPrintScalePercent(clamp(Number(event.target.value) || 100, 1, 400))}
+            />
+          </label>
+          <label className="field-row">
+            <span>Calibration X (%)</span>
+            <input
+              type="number"
+              min={50}
+              max={200}
+              step={0.1}
+              value={printCalibrationXPercent}
+              onChange={(event) => onSetPrintCalibrationXPercent(clamp(Number(event.target.value) || 100, 50, 200))}
+            />
+          </label>
+          <label className="field-row">
+            <span>Calibration Y (%)</span>
+            <input
+              type="number"
+              min={50}
+              max={200}
+              step={0.1}
+              value={printCalibrationYPercent}
+              onChange={(event) => onSetPrintCalibrationYPercent(clamp(Number(event.target.value) || 100, 50, 200))}
             />
           </label>
           <label className="field-row">
@@ -180,6 +212,9 @@ export function PrintPreviewModal({
 
         <div className="line-type-modal-actions">
           <button onClick={onTogglePrintAreas}>{showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}</button>
+          <button onClick={onOpenPrintTiles} disabled={!printPlan}>
+            Open Printable Tiles
+          </button>
           <button onClick={onFitView}>Fit to Content</button>
         </div>
       </div>

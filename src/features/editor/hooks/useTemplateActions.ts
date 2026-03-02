@@ -15,12 +15,19 @@ import {
   serializeTemplateRepository,
   type TemplateRepositoryEntry,
 } from '../templates/template-repository'
+import {
+  getCatalogItemCount,
+  mergeCatalogShopImport,
+  parseCatalogShopImport,
+  type CatalogRepositoryShop,
+} from '../templates/catalog-repository'
 import { downloadFile } from '../editor-utils'
 
 type UseTemplateActionsParams = {
   templateRepository: TemplateRepositoryEntry[]
   selectedTemplateEntry: TemplateRepositoryEntry | null
   selectedTemplateEntryId: string | null
+  selectedCatalogShopId: string | null
   buildCurrentDocFile: () => DocFile
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
   layers: Layer[]
@@ -30,7 +37,9 @@ type UseTemplateActionsParams = {
   stitchHoles: StitchHole[]
   clearDraft: () => void
   setTemplateRepository: Dispatch<SetStateAction<TemplateRepositoryEntry[]>>
+  setCatalogRepository: Dispatch<SetStateAction<CatalogRepositoryShop[]>>
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
+  setSelectedCatalogShopId: Dispatch<SetStateAction<string | null>>
   setLayers: Dispatch<SetStateAction<Layer[]>>
   setLineTypes: Dispatch<SetStateAction<LineType[]>>
   setActiveLineTypeId: Dispatch<SetStateAction<string>>
@@ -47,6 +56,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     templateRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
+    selectedCatalogShopId,
     buildCurrentDocFile,
     applyLoadedDocument,
     layers,
@@ -56,7 +66,9 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     stitchHoles,
     clearDraft,
     setTemplateRepository,
+    setCatalogRepository,
     setSelectedTemplateEntryId,
+    setSelectedCatalogShopId,
     setLayers,
     setLineTypes,
     setActiveLineTypeId,
@@ -156,6 +168,37 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     }
   }
 
+  const handleImportCatalogFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+    try {
+      const raw = await file.text()
+      const importedShop = parseCatalogShopImport(raw, file.name)
+      const importedItemCount = getCatalogItemCount(importedShop)
+      setCatalogRepository((previous) => mergeCatalogShopImport(previous, importedShop))
+      setSelectedCatalogShopId(importedShop.id)
+      setStatus(
+        `Imported catalog "${importedShop.name}" (${importedShop.groups.length} group${
+          importedShop.groups.length === 1 ? '' : 's'
+        }, ${importedItemCount} item${importedItemCount === 1 ? '' : 's'})`,
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      setStatus(`Catalog import failed: ${message}`)
+    }
+  }
+
+  const handleDeleteCatalogShop = (shopId: string) => {
+    setCatalogRepository((previous) => previous.filter((shop) => shop.id !== shopId))
+    if (selectedCatalogShopId === shopId) {
+      setSelectedCatalogShopId(null)
+    }
+    setStatus('Catalog removed')
+  }
+
   return {
     handleSaveTemplateToRepository,
     handleDeleteTemplateFromRepository,
@@ -163,5 +206,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleInsertTemplateIntoDocument,
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
+    handleImportCatalogFile,
+    handleDeleteCatalogShop,
   }
 }

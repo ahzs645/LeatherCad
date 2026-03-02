@@ -1,4 +1,4 @@
-export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold' | 'stitch-hole' | 'hardware'
+export type Tool = 'pan' | 'line' | 'arc' | 'bezier' | 'fold' | 'stitch-hole' | 'hardware' | 'text'
 
 export type Point = {
   x: number
@@ -7,7 +7,7 @@ export type Point = {
 
 export type LineTypeRole = 'cut' | 'stitch' | 'fold' | 'guide' | 'mark'
 
-export type LineTypeStyle = 'solid' | 'dashed' | 'dotted'
+export type LineTypeStyle = 'solid' | 'dashed' | 'dotted' | 'dash-dot-dot'
 
 export type LineType = {
   id: string
@@ -57,7 +57,25 @@ export type BezierShape = {
   end: Point
 }
 
-export type Shape = LineShape | ArcShape | BezierShape
+export type TextTransformMode = 'none' | 'arch' | 'ring'
+
+export type TextShape = {
+  id: BaseShape['id']
+  type: 'text'
+  layerId: BaseShape['layerId']
+  lineTypeId: BaseShape['lineTypeId']
+  groupId?: BaseShape['groupId']
+  start: Point
+  end: Point
+  text: string
+  fontFamily: string
+  fontSizeMm: number
+  transform: TextTransformMode
+  radiusMm: number
+  sweepDeg: number
+}
+
+export type Shape = LineShape | ArcShape | BezierShape | TextShape
 
 export type Layer = {
   id: string

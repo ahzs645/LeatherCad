@@ -50,7 +50,13 @@ export function getShapeAnchorPoint(shape: Shape, anchor: ConstraintAnchor): Poi
     if (shape.type === 'arc') {
       return { ...shape.mid }
     }
-    return { ...shape.control }
+    if (shape.type === 'bezier') {
+      return { ...shape.control }
+    }
+    return {
+      x: (shape.start.x + shape.end.x) / 2,
+      y: (shape.start.y + shape.end.y) / 2,
+    }
   }
 
   const sampled = sampleShapePoints(shape, 24)
@@ -90,10 +96,18 @@ export function translateShape(shape: Shape, dx: number, dy: number): Shape {
     }
   }
 
+  if (shape.type === 'bezier') {
+    return {
+      ...shape,
+      start: { x: shape.start.x + dx, y: shape.start.y + dy },
+      control: { x: shape.control.x + dx, y: shape.control.y + dy },
+      end: { x: shape.end.x + dx, y: shape.end.y + dy },
+    }
+  }
+
   return {
     ...shape,
     start: { x: shape.start.x + dx, y: shape.start.y + dy },
-    control: { x: shape.control.x + dx, y: shape.control.y + dy },
     end: { x: shape.end.x + dx, y: shape.end.y + dy },
   }
 }
@@ -291,8 +305,16 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
         )
       } else if (shape.type === 'arc') {
         registerCandidate(shape.mid, 'midpoint')
-      } else {
+      } else if (shape.type === 'bezier') {
         registerCandidate(shape.control, 'midpoint')
+      } else {
+        registerCandidate(
+          {
+            x: (shape.start.x + shape.end.x) / 2,
+            y: (shape.start.y + shape.end.y) / 2,
+          },
+          'midpoint',
+        )
       }
     }
   }

@@ -17,6 +17,7 @@ import type {
   SnapSettings,
   StitchHole,
   StitchHoleType,
+  TextTransformMode,
   TracingOverlay,
   Tool,
   Viewport,
@@ -29,6 +30,7 @@ import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
+  STITCH_LINE_TYPE_ID,
   createDefaultLineTypes,
 } from './cad/line-types'
 import { DEFAULT_PRESET_ID } from './data/sample-doc'
@@ -37,6 +39,11 @@ import {
   loadTemplateRepository,
   type TemplateRepositoryEntry,
 } from './templates/template-repository'
+import {
+  loadCatalogRepository,
+  saveCatalogRepository,
+  type CatalogRepositoryShop,
+} from './templates/catalog-repository'
 import type { ClipboardPayload } from './ops/shape-selection-ops'
 
 import {
@@ -45,6 +52,7 @@ import {
   DEFAULT_FRONT_LAYER_COLOR,
   DEFAULT_SNAP_SETTINGS,
 } from './editor-constants'
+import { openPrintTilesWindow } from './preview/print-output'
 import type {
   DesktopRibbonTab,
   EditorSnapshot,
@@ -109,6 +117,12 @@ export function EditorApp() {
   const [stitchPitchMm, setStitchPitchMm] = useState(4)
   const [stitchVariablePitchStartMm, setStitchVariablePitchStartMm] = useState(3)
   const [stitchVariablePitchEndMm, setStitchVariablePitchEndMm] = useState(5)
+  const [textDraftValue, setTextDraftValue] = useState('Leathercraft CAD')
+  const [textFontFamily, setTextFontFamily] = useState('Georgia, serif')
+  const [textFontSizeMm, setTextFontSizeMm] = useState(14)
+  const [textTransformMode, setTextTransformMode] = useState<TextTransformMode>('none')
+  const [textRadiusMm, setTextRadiusMm] = useState(40)
+  const [textSweepDeg, setTextSweepDeg] = useState(140)
   const [showStitchSequenceLabels, setShowStitchSequenceLabels] = useState(false)
   const [tool, setTool] = useState<Tool>('pan')
   const [shapes, setShapes] = useState<Shape[]>([])
@@ -183,6 +197,10 @@ export function EditorApp() {
     setPrintMarginMm,
     printScalePercent,
     setPrintScalePercent,
+    printCalibrationXPercent,
+    setPrintCalibrationXPercent,
+    printCalibrationYPercent,
+    setPrintCalibrationYPercent,
     printSelectedOnly,
     setPrintSelectedOnly,
     printRulerInside,
@@ -225,6 +243,8 @@ export function EditorApp() {
   const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
   const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => loadTemplateRepository())
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
+  const [catalogRepository, setCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadCatalogRepository())
+  const [selectedCatalogShopId, setSelectedCatalogShopId] = useState<string | null>(null)
   const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
   const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
   const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
@@ -251,6 +271,7 @@ export function EditorApp() {
   const svgInputRef = useRef<HTMLInputElement | null>(null)
   const tracingInputRef = useRef<HTMLInputElement | null>(null)
   const templateImportInputRef = useRef<HTMLInputElement | null>(null)
+  const catalogImportInputRef = useRef<HTMLInputElement | null>(null)
   const workspaceRef = useRef<HTMLElement | null>(null)
   const lastSnapshotRef = useRef<EditorSnapshot | null>(null)
   const lastSnapshotSignatureRef = useRef<string | null>(null)
@@ -289,6 +310,7 @@ export function EditorApp() {
     seamGuides,
     annotationLabels,
     lineTypeStylesById,
+    printableShapes,
     printPlan,
     activeExportRoleCount,
     layerColorsById,
@@ -481,10 +503,13 @@ export function EditorApp() {
     handleInsertTemplateIntoDocument,
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
+    handleImportCatalogFile,
+    handleDeleteCatalogShop,
   } = useTemplateActions({
     templateRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
+    selectedCatalogShopId,
     buildCurrentDocFile,
     applyLoadedDocument,
     layers,
@@ -494,7 +519,9 @@ export function EditorApp() {
     stitchHoles,
     clearDraft,
     setTemplateRepository,
+    setCatalogRepository,
     setSelectedTemplateEntryId,
+    setSelectedCatalogShopId,
     setLayers,
     setLineTypes,
     setActiveLineTypeId,
@@ -505,6 +532,19 @@ export function EditorApp() {
     setActiveLayerId,
     setStatus,
   })
+
+  useEffect(() => {
+    setSelectedCatalogShopId((previous) => {
+      if (!previous) {
+        return catalogRepository[0]?.id ?? null
+      }
+      return catalogRepository.some((shop) => shop.id === previous) ? previous : catalogRepository[0]?.id ?? null
+    })
+  }, [catalogRepository])
+
+  useEffect(() => {
+    saveCatalogRepository(catalogRepository)
+  }, [catalogRepository])
 
   const {
     handleUpdateTracingOverlay,
@@ -605,6 +645,12 @@ export function EditorApp() {
     customHardwareDiameterMm,
     customHardwareSpacingMm,
     stitchHoleType,
+    textDraftValue,
+    textFontFamily,
+    textFontSizeMm,
+    textTransformMode,
+    textRadiusMm,
+    textSweepDeg,
     stitchHoles,
     hardwareMarkers,
     selectedStitchHoleId,
@@ -624,7 +670,7 @@ export function EditorApp() {
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
   })
-  const { handleExportSvg, handleExportDxf, handleExportPdf } = useExportActions({
+  const { handleExportSvg, handleExportDxf, handleExportPdf, handleExportLaserSvg } = useExportActions({
     shapes: assemblyShapes,
     foldLines,
     lineTypes,
@@ -752,9 +798,17 @@ export function EditorApp() {
     handleClearAllSeamAllowances,
     handleToggleConstraintEnabled,
     handleDeleteConstraint,
+    handleBevelSelectedCorner,
+    handleRoundSelectedCorner,
+    handleCreateOffsetGeometryFromSelection,
+    handleCreateBoxStitchFromSelection,
   } = useConstraintActions({
     activeLayer,
+    activeLayerId: activeLayer?.id ?? null,
+    activeLineTypeId,
+    stitchLineTypeId: STITCH_LINE_TYPE_ID,
     layers,
+    shapes,
     selectedShapeIds,
     selectedShapeIdSet,
     constraintEdge,
@@ -765,10 +819,98 @@ export function EditorApp() {
     seamAllowances,
     snapSettings,
     setShapes,
+    setSelectedShapeIds,
     setConstraints,
     setSeamAllowances,
     setStatus,
   })
+
+  const selectedEditableShape =
+    selectedShapeIds.length === 1 ? (shapesById[selectedShapeIds[0]] ?? null) : null
+
+  const handleUpdateSelectedShapePoint = (
+    pointKey: 'start' | 'mid' | 'control' | 'end',
+    axis: 'x' | 'y',
+    value: number,
+  ) => {
+    const targetShapeId = selectedEditableShape?.id
+    if (!targetShapeId || !Number.isFinite(value)) {
+      return
+    }
+
+    setShapes((previous) =>
+      previous.map((shape) => {
+        if (shape.id !== targetShapeId) {
+          return shape
+        }
+
+        if ((shape.type === 'line' || shape.type === 'text') && (pointKey === 'start' || pointKey === 'end')) {
+          return {
+            ...shape,
+            [pointKey]: {
+              ...shape[pointKey],
+              [axis]: value,
+            },
+          }
+        }
+
+        if (shape.type === 'arc' && (pointKey === 'start' || pointKey === 'mid' || pointKey === 'end')) {
+          return {
+            ...shape,
+            [pointKey]: {
+              ...shape[pointKey],
+              [axis]: value,
+            },
+          }
+        }
+
+        if (shape.type === 'bezier' && (pointKey === 'start' || pointKey === 'control' || pointKey === 'end')) {
+          return {
+            ...shape,
+            [pointKey]: {
+              ...shape[pointKey],
+              [axis]: value,
+            },
+          }
+        }
+
+        return shape
+      }),
+    )
+  }
+
+  const handleApplyTextDefaultsToSelection = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more text shapes first')
+      return
+    }
+
+    let updatedCount = 0
+    setShapes((previous) =>
+      previous.map((shape) => {
+        if (!selectedShapeIdSet.has(shape.id) || shape.type !== 'text') {
+          return shape
+        }
+        updatedCount += 1
+        return {
+          ...shape,
+          text: textDraftValue.trim().length > 0 ? textDraftValue.trim() : shape.text,
+          fontFamily: textFontFamily,
+          fontSizeMm: Math.max(2, Math.min(120, textFontSizeMm)),
+          transform: textTransformMode,
+          radiusMm: Math.max(2, Math.min(2000, textRadiusMm)),
+          sweepDeg: Math.max(-1080, Math.min(1080, textSweepDeg)),
+        }
+      }),
+    )
+
+    if (updatedCount === 0) {
+      setStatus('Selected shapes do not include text')
+      return
+    }
+    setStatus(`Updated ${updatedCount} text shape${updatedCount === 1 ? '' : 's'}`)
+  }
+
   const { handleDeleteSelectedHardwareMarker, handleUpdateSelectedHardwareMarker } = useHardwareMarkerActions({
     selectedHardwareMarker,
     setHardwareMarkers,
@@ -846,6 +988,32 @@ export function EditorApp() {
     setExportForceSolidStrokes(false)
     setDxfFlipY(false)
     setDxfVersion('r12')
+  }
+
+  const handleOpenPrintTiles = () => {
+    if (!printPlan || printableShapes.length === 0) {
+      setStatus('No printable content available')
+      return
+    }
+
+    const opened = openPrintTilesWindow({
+      shapes: printableShapes,
+      foldLines,
+      lineTypesById,
+      printPlan,
+      printInColor,
+      printStitchAsDots,
+      printRulerInside,
+      calibrationXPercent: printCalibrationXPercent,
+      calibrationYPercent: printCalibrationYPercent,
+    })
+
+    if (!opened) {
+      setStatus('Could not open print window (popup may be blocked)')
+      return
+    }
+
+    setStatus(`Opened printable tiles (${printPlan.tiles.length} page${printPlan.tiles.length === 1 ? '' : 's'})`)
   }
 
   const setActiveTool = (nextTool: Tool) => {
@@ -1066,6 +1234,7 @@ export function EditorApp() {
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
+    handleExportLaserSvg,
     setShowExportOptionsModal,
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
@@ -1127,15 +1296,20 @@ export function EditorApp() {
     showTemplateRepositoryModal,
     setShowTemplateRepositoryModal,
     templateRepository,
+    catalogRepository,
     selectedTemplateEntryId,
     selectedTemplateEntry,
+    selectedCatalogShopId,
     setSelectedTemplateEntryId,
+    setSelectedCatalogShopId,
     handleSaveTemplateToRepository,
     handleExportTemplateRepository,
     templateImportInputRef,
+    catalogImportInputRef,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleDeleteTemplateFromRepository,
+    handleDeleteCatalogShop,
     showPatternToolsModal,
     setShowPatternToolsModal,
     snapSettings,
@@ -1179,6 +1353,25 @@ export function EditorApp() {
     handleClearSeamAllowanceOnSelection,
     handleClearAllSeamAllowances,
     seamAllowancesLength: seamAllowances.length,
+    handleBevelSelectedCorner,
+    handleRoundSelectedCorner,
+    handleCreateOffsetGeometryFromSelection,
+    handleCreateBoxStitchFromSelection,
+    selectedEditableShape,
+    handleUpdateSelectedShapePoint,
+    textDraftValue,
+    setTextDraftValue,
+    textFontFamily,
+    setTextFontFamily,
+    textFontSizeMm,
+    setTextFontSizeMm,
+    textTransformMode,
+    setTextTransformMode,
+    textRadiusMm,
+    setTextRadiusMm,
+    textSweepDeg,
+    setTextSweepDeg,
+    handleApplyTextDefaultsToSelection,
     hardwarePreset,
     setHardwarePreset,
     customHardwareDiameterMm,
@@ -1203,6 +1396,10 @@ export function EditorApp() {
     setPrintPaper,
     printScalePercent,
     setPrintScalePercent,
+    printCalibrationXPercent,
+    setPrintCalibrationXPercent,
+    printCalibrationYPercent,
+    setPrintCalibrationYPercent,
     printTileX,
     setPrintTileX,
     printTileY,
@@ -1223,6 +1420,7 @@ export function EditorApp() {
     showPrintAreas,
     setShowPrintAreas,
     handleFitView,
+    handleOpenPrintTiles,
   })
   const previewPaneProps = useEditorPreviewPaneProps({
     showThreePreview,
@@ -1327,10 +1525,12 @@ export function EditorApp() {
         svgInputRef={svgInputRef}
         tracingInputRef={tracingInputRef}
         templateImportInputRef={templateImportInputRef}
+        catalogImportInputRef={catalogImportInputRef}
         onLoadJson={handleLoadJson}
         onImportSvg={handleImportSvg}
         onImportTracing={handleImportTracing}
         onImportTemplateRepositoryFile={handleImportTemplateRepositoryFile}
+        onImportCatalogFile={handleImportCatalogFile}
       />
     </div>
   )

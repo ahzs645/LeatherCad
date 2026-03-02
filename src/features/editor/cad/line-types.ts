@@ -7,48 +7,93 @@ export const STITCH_LINE_TYPE_ID = 'type-stitch'
 export const FOLD_LINE_TYPE_ID = 'type-fold'
 export const GUIDE_LINE_TYPE_ID = 'type-guide'
 export const MARK_LINE_TYPE_ID = 'type-mark'
+export const STITCH_WHITE_DASH_DOT_DOT_LINE_TYPE_ID = 'type-stitch-white-dash-dot-dot'
+export const STITCH_GRAY_DOTTED_LINE_TYPE_ID = 'type-stitch-gray-dotted'
+export const STITCH_ORANGE_SOLID_LINE_TYPE_ID = 'type-stitch-orange-solid'
+export const STITCH_RED_DASHED_LINE_TYPE_ID = 'type-stitch-red-dashed'
+export const STITCH_PINK_DASHED_LINE_TYPE_ID = 'type-stitch-pink-dashed'
 
 export const DEFAULT_ACTIVE_LINE_TYPE_ID = CUT_LINE_TYPE_ID
 
 const BASE_LINE_TYPES: LineType[] = [
   {
     id: CUT_LINE_TYPE_ID,
-    name: 'Cut',
+    name: '1 - Cyan Solid',
     role: 'cut',
     style: 'solid',
-    color: '#e2e8f0',
+    color: '#22d3ee',
     visible: true,
   },
   {
     id: STITCH_LINE_TYPE_ID,
-    name: 'Stitch',
+    name: '2 - Green Solid',
     role: 'stitch',
-    style: 'dotted',
-    color: '#f59e0b',
+    style: 'solid',
+    color: '#22c55e',
     visible: true,
   },
   {
     id: FOLD_LINE_TYPE_ID,
-    name: 'Fold Guide',
+    name: '3 - White Solid',
     role: 'fold',
+    style: 'solid',
+    color: '#f8fafc',
+    visible: true,
+  },
+  {
+    id: GUIDE_LINE_TYPE_ID,
+    name: '4 - Yellow Dashed',
+    role: 'guide',
+    style: 'dashed',
+    color: '#eab308',
+    visible: true,
+  },
+  {
+    id: MARK_LINE_TYPE_ID,
+    name: '5 - Magenta Dotted',
+    role: 'mark',
+    style: 'dotted',
+    color: '#d946ef',
+    visible: true,
+  },
+  {
+    id: STITCH_WHITE_DASH_DOT_DOT_LINE_TYPE_ID,
+    name: '6 - White Dash Dot Dot',
+    role: 'stitch',
+    style: 'dash-dot-dot',
+    color: '#f8fafc',
+    visible: true,
+  },
+  {
+    id: STITCH_GRAY_DOTTED_LINE_TYPE_ID,
+    name: '7 - Gray Dotted',
+    role: 'stitch',
+    style: 'dotted',
+    color: '#d4d4d8',
+    visible: true,
+  },
+  {
+    id: STITCH_ORANGE_SOLID_LINE_TYPE_ID,
+    name: '8 - Orange Solid',
+    role: 'stitch',
+    style: 'solid',
+    color: '#f59e0b',
+    visible: true,
+  },
+  {
+    id: STITCH_RED_DASHED_LINE_TYPE_ID,
+    name: '9 - Red Dashed',
+    role: 'stitch',
     style: 'dashed',
     color: '#ef4444',
     visible: true,
   },
   {
-    id: GUIDE_LINE_TYPE_ID,
-    name: 'Guide',
-    role: 'guide',
+    id: STITCH_PINK_DASHED_LINE_TYPE_ID,
+    name: '0 - Pink Dashed',
+    role: 'stitch',
     style: 'dashed',
-    color: '#22d3ee',
-    visible: true,
-  },
-  {
-    id: MARK_LINE_TYPE_ID,
-    name: 'Mark',
-    role: 'mark',
-    style: 'dotted',
-    color: '#a78bfa',
+    color: '#f9a8d4',
     visible: true,
   },
 ]
@@ -75,7 +120,7 @@ function isLineTypeRole(value: unknown): value is LineTypeRole {
 }
 
 function isLineTypeStyle(value: unknown): value is LineTypeStyle {
-  return value === 'solid' || value === 'dashed' || value === 'dotted'
+  return value === 'solid' || value === 'dashed' || value === 'dotted' || value === 'dash-dot-dot'
 }
 
 function fallbackLineTypeAt(index: number) {
@@ -156,6 +201,9 @@ export function resolveShapeLineTypeId(
 }
 
 export function lineTypeStrokeDasharray(style: LineTypeStyle) {
+  if (style === 'dash-dot-dot') {
+    return '12 5 2 5 2 5'
+  }
   if (style === 'dashed') {
     return '10 6'
   }
@@ -164,4 +212,3 @@ export function lineTypeStrokeDasharray(style: LineTypeStyle) {
   }
   return undefined
 }
-
