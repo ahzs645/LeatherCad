@@ -1,5 +1,5 @@
 import { arcPath, round } from '../cad/cad-geometry'
-import type { FoldLine, LineType, Shape, TextShape } from '../cad/cad-types'
+import type { FoldLine, LineType, Shape } from '../cad/cad-types'
 import type { PrintPlan } from './print-preview'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 
@@ -69,7 +69,7 @@ function shapeToSvgMarkup(shape: Shape, lineTypesById: Record<string, LineType>,
     return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr} />`
   }
 
-  const textShape = normalizeTextShape(shape as TextShape)
+  const textShape = normalizeTextShape(shape)
   const fontFamily = escapeXml(textShape.fontFamily)
   const textValue = escapeXml(textShape.text)
   const fontSize = Math.max(4, round(textShape.fontSizeMm))

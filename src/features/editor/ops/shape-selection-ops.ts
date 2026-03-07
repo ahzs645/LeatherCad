@@ -1,5 +1,5 @@
 import { uid } from '../cad/cad-geometry'
-import type { ArcShape, BezierShape, Shape, StitchHole } from '../cad/cad-types'
+import type { Shape, StitchHole } from '../cad/cad-types'
 
 export type ClipboardPayload = {
   shapes: Shape[]
@@ -40,7 +40,7 @@ function cloneShape(shape: Shape): Shape {
     }
   }
 
-  const bezier = shape as BezierShape
+  const bezier = shape
   return {
     ...bezier,
     start: { ...bezier.start },
@@ -105,7 +105,7 @@ function shiftShape(shape: Shape, dx: number, dy: number): Shape {
   }
 
   if (shape.type === 'arc') {
-    const arc = shape as ArcShape
+    const arc = shape
     return {
       ...arc,
       start: { x: arc.start.x + dx, y: arc.start.y + dy },
@@ -122,7 +122,7 @@ function shiftShape(shape: Shape, dx: number, dy: number): Shape {
     }
   }
 
-  const bezier = shape as BezierShape
+  const bezier = shape
   return {
     ...bezier,
     start: { x: bezier.start.x + dx, y: bezier.start.y + dy },

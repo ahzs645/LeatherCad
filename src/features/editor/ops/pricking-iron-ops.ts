@@ -1,4 +1,5 @@
 import type { StitchHoleType } from '../cad/cad-types'
+import { safeLocalStorageGet, safeLocalStorageSet } from './safe-storage'
 
 export type PrickingIronShape = 'diamond' | 'french' | 'flat' | 'round' | 'custom'
 
@@ -102,7 +103,7 @@ export function loadCustomPrickingIrons(storageKey = CUSTOM_PRICKING_IRON_STORAG
   }
 
   try {
-    const raw = window.localStorage.getItem(storageKey)
+    const raw = safeLocalStorageGet(storageKey)
     if (!raw) {
       return []
     }
@@ -125,7 +126,7 @@ export function saveCustomPrickingIrons(
   if (typeof window === 'undefined') {
     return
   }
-  window.localStorage.setItem(storageKey, JSON.stringify(presets))
+  safeLocalStorageSet(storageKey, JSON.stringify(presets))
 }
 
 export function createCustomPrickingIron(params: {

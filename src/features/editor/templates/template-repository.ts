@@ -1,5 +1,4 @@
 import type {
-  BezierShape,
   DocFile,
   FoldLine,
   Layer,
@@ -9,6 +8,7 @@ import type {
 } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
 import { normalizeLineTypes, resolveActiveLineTypeId, resolveShapeLineTypeId } from '../cad/line-types'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
 const TEMPLATE_REPOSITORY_STORAGE_KEY = 'leathercraft-template-repository-v1'
 
@@ -46,7 +46,7 @@ function parseTemplateEntry(candidate: unknown): TemplateRepositoryEntry | null 
     name: maybe.name,
     createdAt: maybe.createdAt,
     updatedAt: maybe.updatedAt,
-    doc: cloneDoc(maybe.doc as DocFile),
+    doc: cloneDoc(maybe.doc),
   }
 }
 
@@ -55,7 +55,7 @@ export function loadTemplateRepository(): TemplateRepositoryEntry[] {
     return []
   }
   try {
-    const raw = window.localStorage.getItem(TEMPLATE_REPOSITORY_STORAGE_KEY)
+    const raw = safeLocalStorageGet(TEMPLATE_REPOSITORY_STORAGE_KEY)
     if (!raw) {
       return []
     }
@@ -74,7 +74,7 @@ export function hasTemplateRepositoryStorage() {
     return false
   }
   try {
-    return window.localStorage.getItem(TEMPLATE_REPOSITORY_STORAGE_KEY) !== null
+    return safeLocalStorageGet(TEMPLATE_REPOSITORY_STORAGE_KEY) !== null
   } catch {
     return false
   }
@@ -84,7 +84,7 @@ export function saveTemplateRepository(entries: TemplateRepositoryEntry[]) {
   if (typeof window === 'undefined') {
     return
   }
-  window.localStorage.setItem(TEMPLATE_REPOSITORY_STORAGE_KEY, JSON.stringify(entries))
+  safeLocalStorageSet(TEMPLATE_REPOSITORY_STORAGE_KEY, JSON.stringify(entries))
 }
 
 export function createTemplateFromDoc(name: string, doc: DocFile): TemplateRepositoryEntry {
@@ -160,7 +160,7 @@ function cloneShapeWithMap(shape: Shape, layerId: string, lineTypeId: string): S
     }
   }
 
-  const bezier = shape as BezierShape
+  const bezier = shape
   return {
     ...bezier,
     id: uid(),

@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { uid } from '../cad/cad-geometry'
 import type { HardwareMarker, ParametricConstraint, SeamAllowance, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
@@ -71,7 +72,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
   const writeClipboard = useCallback(async (payload: ClipboardPayload) => {
     const serialized = serializeClipboardPayload(payload)
     try {
-      window.localStorage.setItem(SYSTEM_CLIPBOARD_STORAGE_KEY, serialized)
+      safeLocalStorageSet(SYSTEM_CLIPBOARD_STORAGE_KEY, serialized)
     } catch {
       // Ignore local storage failures.
     }
@@ -101,7 +102,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     }
 
     try {
-      const raw = window.localStorage.getItem(SYSTEM_CLIPBOARD_STORAGE_KEY)
+      const raw = safeLocalStorageGet(SYSTEM_CLIPBOARD_STORAGE_KEY)
       if (!raw) {
         return null
       }

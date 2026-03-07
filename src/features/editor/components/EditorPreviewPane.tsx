@@ -1,6 +1,10 @@
+import { lazy, Suspense } from 'react'
 import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
 import type { ResolvedThemeMode } from '../editor-types'
-import { ThreePreviewPanel } from './ThreePreviewPanel'
+
+const ThreePreviewPanel = lazy(() =>
+  import('./ThreePreviewPanel').then((mod) => ({ default: mod.ThreePreviewPanel })),
+)
 
 type EditorPreviewPaneProps = {
   showThreePreview: boolean
@@ -53,24 +57,26 @@ export function EditorPreviewPane({
         isMobileLayout && mobileViewMode === 'split' ? 'preview-pane-mobile-split' : ''
       }`}
     >
-      <ThreePreviewPanel
-        key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
-        shapes={shapes}
-        selectedShapeIds={selectedShapeIds}
-        stitchHoles={stitchHoles}
-        stitchThreadColor={stitchThreadColor}
-        onSetStitchThreadColor={onSetStitchThreadColor}
-        threeTextureSource={threeTextureSource}
-        onSetThreeTextureSource={onSetThreeTextureSource}
-        threeTextureShapeIds={threeTextureShapeIds}
-        onSetThreeTextureShapeIds={onSetThreeTextureShapeIds}
-        foldLines={foldLines}
-        layers={layers}
-        lineTypes={lineTypes}
-        themeMode={themeMode}
-        isMobileLayout={isMobileLayout}
-        onUpdateFoldLine={onUpdateFoldLine}
-      />
+      <Suspense fallback={<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#888' }}>Loading 3D preview...</div>}>
+        <ThreePreviewPanel
+          key={isMobileLayout ? 'mobile-preview' : 'desktop-preview'}
+          shapes={shapes}
+          selectedShapeIds={selectedShapeIds}
+          stitchHoles={stitchHoles}
+          stitchThreadColor={stitchThreadColor}
+          onSetStitchThreadColor={onSetStitchThreadColor}
+          threeTextureSource={threeTextureSource}
+          onSetThreeTextureSource={onSetThreeTextureSource}
+          threeTextureShapeIds={threeTextureShapeIds}
+          onSetThreeTextureShapeIds={onSetThreeTextureShapeIds}
+          foldLines={foldLines}
+          layers={layers}
+          lineTypes={lineTypes}
+          themeMode={themeMode}
+          isMobileLayout={isMobileLayout}
+          onUpdateFoldLine={onUpdateFoldLine}
+        />
+      </Suspense>
     </aside>
   )
 }

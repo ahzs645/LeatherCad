@@ -1,29 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import '../../app/styles/App.css'
-import {
-  uid,
-} from './cad/cad-geometry'
 import type {
   DocFile,
   FoldLine,
   HardwareMarker,
-  Layer,
   LineType,
   ParametricConstraint,
-  Point,
   SeamAllowance,
   Shape,
   SketchGroup,
   SnapSettings,
   StitchHole,
-  StitchHoleType,
   TextureSource,
-  TextTransformMode,
   TracingOverlay,
-  Tool,
-  Viewport,
 } from './cad/cad-types'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { EditorHiddenInputs } from './components/EditorHiddenInputs'
 import { EditorModalStack } from './components/EditorModalStack'
 import { EditorPreviewPane } from './components/EditorPreviewPane'
@@ -31,14 +23,16 @@ import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
 import { ContextualActionsPanel } from './components/ContextualActionsPanel'
 import { PrecisionCommandPanel } from './components/PrecisionCommandPanel'
-import { ProjectMemoModal } from './components/ProjectMemoModal'
+const ProjectMemoModal = lazy(() =>
+  import('./components/ProjectMemoModal').then((mod) => ({ default: mod.ProjectMemoModal })),
+)
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
   createDefaultLineTypes,
 } from './cad/line-types'
 import { DEFAULT_PRESET_ID } from './data/sample-doc'
-import { type HistoryState } from './ops/history-ops'
+import { safeLocalStorageGet, safeLocalStorageRemove } from './ops/safe-storage'
 import { parseImportedJsonDocument } from './editor-json-import'
 import {
   hasTemplateRepositoryStorage,
@@ -56,15 +50,12 @@ import type { ClipboardPayload } from './ops/shape-selection-ops'
 
 import {
   DESKTOP_TOOL_ICON_ITEMS,
-  DEFAULT_BACK_LAYER_COLOR,
   DEFAULT_EXPORT_ROLE_FILTERS,
-  DEFAULT_FRONT_LAYER_COLOR,
   DEFAULT_SNAP_SETTINGS,
 } from './editor-constants'
 import { openPrintTilesWindow } from './preview/print-output'
 import type {
   DesktopRibbonTab,
-  EditorSnapshot,
   LegendMode,
   MobileFileAction,
   MobileLayerAction,
@@ -106,11 +97,12 @@ import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
+import { useEditorViewport, DESKTOP_SPLITTER_WIDTH_PX } from './hooks/useEditorViewport'
+import { useEditorLayers } from './hooks/useEditorLayers'
+import { useEditorTools } from './hooks/useEditorTools'
+import { useEditorHistory } from './hooks/useEditorHistory'
 import type { DisplayUnit } from './ops/unit-ops'
 
-const DESKTOP_PREVIEW_MIN_WIDTH_PX = 300
-const DESKTOP_CANVAS_MIN_WIDTH_PX = 420
-const DESKTOP_SPLITTER_WIDTH_PX = 12
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
 const getSystemThemeMode = (): ResolvedThemeMode => {
@@ -121,21 +113,8 @@ const getSystemThemeMode = (): ResolvedThemeMode => {
 }
 
 export function EditorApp() {
-  const [initialLayerId] = useState(() => uid())
   const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
   const [activeLineTypeId, setActiveLineTypeId] = useState(DEFAULT_ACTIVE_LINE_TYPE_ID)
-  const [stitchHoleType, setStitchHoleType] = useState<StitchHoleType>('round')
-  const [stitchPitchMm, setStitchPitchMm] = useState(4)
-  const [stitchVariablePitchStartMm, setStitchVariablePitchStartMm] = useState(3)
-  const [stitchVariablePitchEndMm, setStitchVariablePitchEndMm] = useState(5)
-  const [textDraftValue, setTextDraftValue] = useState('Leathercraft CAD')
-  const [textFontFamily, setTextFontFamily] = useState('Georgia, serif')
-  const [textFontSizeMm, setTextFontSizeMm] = useState(14)
-  const [textTransformMode, setTextTransformMode] = useState<TextTransformMode>('none')
-  const [textRadiusMm, setTextRadiusMm] = useState(40)
-  const [textSweepDeg, setTextSweepDeg] = useState(140)
-  const [showStitchSequenceLabels, setShowStitchSequenceLabels] = useState(false)
-  const [tool, setTool] = useState<Tool>('pan')
   const [shapes, setShapes] = useState<Shape[]>([])
   const [foldLines, setFoldLines] = useState<FoldLine[]>([])
   const [stitchHoles, setStitchHoles] = useState<StitchHole[]>([])
@@ -146,22 +125,8 @@ export function EditorApp() {
   const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
   const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS)
   const [showAnnotations, setShowAnnotations] = useState(true)
-  const [layers, setLayers] = useState<Layer[]>(() => [
-    {
-      id: initialLayerId,
-      name: 'Layer 1',
-      visible: true,
-      locked: false,
-      stackLevel: 0,
-    },
-  ])
-  const [activeLayerId, setActiveLayerId] = useState<string>(initialLayerId)
-  const [draftPoints, setDraftPoints] = useState<Point[]>([])
-  const [cursorPoint, setCursorPoint] = useState<Point | null>(null)
   const [status, setStatus] = useState('Ready')
   const [showThreePreview, setShowThreePreview] = useState(true)
-  const [desktopPreviewWidthPx, setDesktopPreviewWidthPx] = useState(420)
-  const [isDesktopPreviewResizing, setIsDesktopPreviewResizing] = useState(false)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -251,9 +216,6 @@ export function EditorApp() {
   const [systemThemeMode, setSystemThemeMode] = useState<ResolvedThemeMode>(() => getSystemThemeMode())
   const [legendMode, setLegendMode] = useState<LegendMode>('layer')
   const [sketchWorkspaceMode, setSketchWorkspaceMode] = useState<SketchWorkspaceMode>('assembly')
-  const [frontLayerColor, setFrontLayerColor] = useState(DEFAULT_FRONT_LAYER_COLOR)
-  const [backLayerColor, setBackLayerColor] = useState(DEFAULT_BACK_LAYER_COLOR)
-  const [layerColorOverrides, setLayerColorOverrides] = useState<Record<string, string>>({})
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
   const [projectMemo, setProjectMemo] = useState('')
   const [stitchAlwaysShapeIds, setStitchAlwaysShapeIds] = useState<string[]>([])
@@ -278,8 +240,69 @@ export function EditorApp() {
     () => catalogRepository[0]?.id ?? bundledCatalogRepository[0]?.id ?? null,
   )
   const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
-  const [historyState, setHistoryState] = useState<HistoryState<EditorSnapshot>>({ past: [], future: [] })
-  const [viewport, setViewport] = useState<Viewport>({ x: 560, y: 360, scale: 1 })
+  const {
+    layers,
+    setLayers,
+    activeLayerId,
+    setActiveLayerId,
+    frontLayerColor,
+    setFrontLayerColor,
+    backLayerColor,
+    setBackLayerColor,
+    layerColorOverrides,
+    setLayerColorOverrides,
+  } = useEditorLayers()
+
+  const {
+    tool,
+    setTool,
+    draftPoints,
+    setDraftPoints,
+    cursorPoint,
+    setCursorPoint,
+    clearDraft,
+    setActiveTool,
+    textDraftValue,
+    setTextDraftValue,
+    textFontFamily,
+    setTextFontFamily,
+    textFontSizeMm,
+    setTextFontSizeMm,
+    textTransformMode,
+    setTextTransformMode,
+    textRadiusMm,
+    setTextRadiusMm,
+    textSweepDeg,
+    setTextSweepDeg,
+    stitchHoleType,
+    setStitchHoleType,
+    stitchPitchMm,
+    setStitchPitchMm,
+    stitchVariablePitchStartMm,
+    setStitchVariablePitchStartMm,
+    stitchVariablePitchEndMm,
+    setStitchVariablePitchEndMm,
+    showStitchSequenceLabels,
+    setShowStitchSequenceLabels,
+  } = useEditorTools({ setStatus })
+
+  const {
+    historyState,
+    setHistoryState,
+    lastSnapshotRef,
+    lastSnapshotSignatureRef,
+    applyingHistoryRef,
+  } = useEditorHistory()
+
+  const {
+    viewport,
+    setViewport,
+    desktopPreviewWidthPx,
+    isDesktopPreviewResizing,
+    workspaceRef,
+    handleDesktopSplitterPointerDown,
+  } = useEditorViewport({ isMobileLayout, showThreePreview })
+
   const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
   const mergedCatalogRepository = useMemo(() => {
     if (bundledCatalogRepository.length === 0) {
@@ -313,10 +336,6 @@ export function EditorApp() {
   const tracingInputRef = useRef<HTMLInputElement | null>(null)
   const templateImportInputRef = useRef<HTMLInputElement | null>(null)
   const catalogImportInputRef = useRef<HTMLInputElement | null>(null)
-  const workspaceRef = useRef<HTMLElement | null>(null)
-  const lastSnapshotRef = useRef<EditorSnapshot | null>(null)
-  const lastSnapshotSignatureRef = useRef<string | null>(null)
-  const applyingHistoryRef = useRef(false)
   const pasteCountRef = useRef(0)
   const tracingObjectUrlsRef = useRef<Set<string>>(new Set())
   const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
@@ -412,10 +431,6 @@ export function EditorApp() {
     themeMode: resolvedThemeMode,
   })
 
-  const clearDraft = () => {
-    setDraftPoints([])
-    setCursorPoint(null)
-  }
   const {
     applyEditorSnapshot,
     ensureActiveLayerWritable,
@@ -503,7 +518,7 @@ export function EditorApp() {
     }
 
     const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
-    const raw = window.localStorage.getItem(storageKey)
+    const raw = safeLocalStorageGet(storageKey)
     if (!raw) {
       return
     }
@@ -511,7 +526,7 @@ export function EditorApp() {
     try {
       const parsed = parseImportedJsonDocument(raw)
       applyLoadedDocument(parsed.doc, 'Loaded project from new tab transfer')
-      window.localStorage.removeItem(storageKey)
+      safeLocalStorageRemove(storageKey)
       url.searchParams.delete('openDoc')
       window.history.replaceState(null, '', url.toString())
     } catch (error) {
@@ -1144,92 +1159,6 @@ export function EditorApp() {
     setStatus(`Opened printable tiles (${printPlan.tiles.length} page${printPlan.tiles.length === 1 ? '' : 's'})`)
   }
 
-  const setActiveTool = (nextTool: Tool) => {
-    setTool(nextTool)
-    clearDraft()
-    setStatus(`Tool selected: ${toolLabel(nextTool)}`)
-  }
-
-  const clampDesktopPreviewWidth = useCallback((value: number) => {
-    const workspaceWidth = workspaceRef.current?.clientWidth ?? 0
-    if (workspaceWidth <= 0) {
-      return Math.max(value, DESKTOP_PREVIEW_MIN_WIDTH_PX)
-    }
-
-    const computedMax = workspaceWidth - DESKTOP_CANVAS_MIN_WIDTH_PX - DESKTOP_SPLITTER_WIDTH_PX
-    const maxPreviewWidth = Math.max(DESKTOP_PREVIEW_MIN_WIDTH_PX, computedMax)
-    return Math.min(Math.max(value, DESKTOP_PREVIEW_MIN_WIDTH_PX), maxPreviewWidth)
-  }, [])
-
-  const handleDesktopSplitterPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (isMobileLayout || !showThreePreview) {
-        return
-      }
-
-      event.preventDefault()
-      setIsDesktopPreviewResizing(true)
-      event.currentTarget.setPointerCapture(event.pointerId)
-
-      const updateFromPointer = (clientX: number) => {
-        const workspaceRect = workspaceRef.current?.getBoundingClientRect()
-        if (!workspaceRect) {
-          return
-        }
-
-        const nextWidth = workspaceRect.right - clientX - DESKTOP_SPLITTER_WIDTH_PX / 2
-        setDesktopPreviewWidthPx(clampDesktopPreviewWidth(nextWidth))
-      }
-
-      const handlePointerMove = (pointerEvent: PointerEvent) => {
-        updateFromPointer(pointerEvent.clientX)
-      }
-
-      const finishResize = () => {
-        window.removeEventListener('pointermove', handlePointerMove)
-        window.removeEventListener('pointerup', finishResize)
-        window.removeEventListener('pointercancel', finishResize)
-        setIsDesktopPreviewResizing(false)
-      }
-
-      window.addEventListener('pointermove', handlePointerMove)
-      window.addEventListener('pointerup', finishResize)
-      window.addEventListener('pointercancel', finishResize)
-      updateFromPointer(event.clientX)
-    },
-    [clampDesktopPreviewWidth, isMobileLayout, showThreePreview],
-  )
-
-  useEffect(() => {
-    if (isMobileLayout || !showThreePreview) {
-      return
-    }
-
-    const syncPreviewWidth = () => {
-      setDesktopPreviewWidthPx((current) => clampDesktopPreviewWidth(current))
-    }
-
-    syncPreviewWidth()
-    window.addEventListener('resize', syncPreviewWidth)
-    return () => window.removeEventListener('resize', syncPreviewWidth)
-  }, [clampDesktopPreviewWidth, isMobileLayout, showThreePreview])
-
-  useEffect(() => {
-    if (!isDesktopPreviewResizing) {
-      return
-    }
-
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-
-    return () => {
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-    }
-  }, [isDesktopPreviewResizing])
-
   const {
     workspaceClassName,
     topbarClassName,
@@ -1642,58 +1571,60 @@ export function EditorApp() {
             </aside>
           )}
 
-          <EditorCanvasPane
-            hideCanvasPane={hideCanvasPane}
-            svgRef={svgRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onWheel={handleWheel}
-            viewport={viewport}
-            displayUnit={displayUnit}
-            gridLines={gridLines}
-            showCanvasRuler={showCanvasRuler}
-            showDimensions={showDimensions}
-            onZoomOut={() => handleZoomStep(0.85)}
-            onZoomIn={() => handleZoomStep(1.15)}
-            onFitView={handleFitView}
-            onResetView={handleResetView}
-            tracingOverlays={tracingOverlays}
-            showPrintAreas={showPrintAreas}
-            printPlan={printPlan}
-            seamGuides={seamGuides}
-            showAnnotations={showAnnotations}
-            visibleShapes={workspaceEditableShapes}
-            linkedShapes={workspaceLinkedShapes}
-            sketchWorkspaceMode={sketchWorkspaceMode}
-            lineTypes={lineTypes}
-            lineTypesById={lineTypesById}
-            selectedShapeIdSet={selectedShapeIdSet}
-            stitchStrokeColor={stitchStrokeColor}
-            foldStrokeColor={foldStrokeColor}
-            cutStrokeColor={cutStrokeColor}
-            displayLayerColorsById={displayLayerColorsById}
-            onShapePointerDown={handleShapePointerDown}
-            onShapeHandlePointerDown={handleShapeHandlePointerDown}
-            showShapeHandles={tool === 'pan'}
-            visibleStitchHoles={workspaceStitchHoles}
-            selectedStitchHoleId={selectedStitchHoleId}
-            showStitchSequenceLabels={showStitchSequenceLabels}
-            onStitchHolePointerDown={handleStitchHolePointerDown}
-            visibleHardwareMarkers={workspaceHardwareMarkers}
-            selectedHardwareMarkerId={selectedHardwareMarkerId}
-            onHardwarePointerDown={handleHardwarePointerDown}
-            foldLines={foldLines}
-            annotationLabels={annotationLabels}
-            previewElement={previewElement}
-            showLayerLegend={showLayerLegend}
-            legendMode={legendMode}
-            onSetLegendMode={setLegendMode}
-            layers={layers}
-            layerColorsById={layerColorsById}
-            fallbackLayerStroke={fallbackLayerStroke}
-            stackLegendEntries={stackLegendEntries}
-          />
+          <ErrorBoundary>
+            <EditorCanvasPane
+              hideCanvasPane={hideCanvasPane}
+              svgRef={svgRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onWheel={handleWheel}
+              viewport={viewport}
+              displayUnit={displayUnit}
+              gridLines={gridLines}
+              showCanvasRuler={showCanvasRuler}
+              showDimensions={showDimensions}
+              onZoomOut={() => handleZoomStep(0.85)}
+              onZoomIn={() => handleZoomStep(1.15)}
+              onFitView={handleFitView}
+              onResetView={handleResetView}
+              tracingOverlays={tracingOverlays}
+              showPrintAreas={showPrintAreas}
+              printPlan={printPlan}
+              seamGuides={seamGuides}
+              showAnnotations={showAnnotations}
+              visibleShapes={workspaceEditableShapes}
+              linkedShapes={workspaceLinkedShapes}
+              sketchWorkspaceMode={sketchWorkspaceMode}
+              lineTypes={lineTypes}
+              lineTypesById={lineTypesById}
+              selectedShapeIdSet={selectedShapeIdSet}
+              stitchStrokeColor={stitchStrokeColor}
+              foldStrokeColor={foldStrokeColor}
+              cutStrokeColor={cutStrokeColor}
+              displayLayerColorsById={displayLayerColorsById}
+              onShapePointerDown={handleShapePointerDown}
+              onShapeHandlePointerDown={handleShapeHandlePointerDown}
+              showShapeHandles={tool === 'pan'}
+              visibleStitchHoles={workspaceStitchHoles}
+              selectedStitchHoleId={selectedStitchHoleId}
+              showStitchSequenceLabels={showStitchSequenceLabels}
+              onStitchHolePointerDown={handleStitchHolePointerDown}
+              visibleHardwareMarkers={workspaceHardwareMarkers}
+              selectedHardwareMarkerId={selectedHardwareMarkerId}
+              onHardwarePointerDown={handleHardwarePointerDown}
+              foldLines={foldLines}
+              annotationLabels={annotationLabels}
+              previewElement={previewElement}
+              showLayerLegend={showLayerLegend}
+              legendMode={legendMode}
+              onSetLegendMode={setLegendMode}
+              layers={layers}
+              layerColorsById={layerColorsById}
+              fallbackLayerStroke={fallbackLayerStroke}
+              stackLegendEntries={stackLegendEntries}
+            />
+          </ErrorBoundary>
         </div>
 
         {!isMobileLayout && showThreePreview && (
@@ -1706,10 +1637,14 @@ export function EditorApp() {
           />
         )}
 
-        <EditorPreviewPane {...previewPaneProps} />
+        <ErrorBoundary>
+          <EditorPreviewPane {...previewPaneProps} />
+        </ErrorBoundary>
       </main>
 
-      <EditorModalStack {...modalStackProps} />
+      <ErrorBoundary>
+        <EditorModalStack {...modalStackProps} />
+      </ErrorBoundary>
 
       <ContextualActionsPanel
         selectedShapes={selectedShapes}
@@ -1736,12 +1671,14 @@ export function EditorApp() {
         onRunCommand={runPrecisionCommand}
       />
 
-      <ProjectMemoModal
-        open={showProjectMemoModal}
-        onClose={() => setShowProjectMemoModal(false)}
-        value={projectMemo}
-        onChange={(nextValue) => setProjectMemo(nextValue.slice(0, 8000))}
-      />
+      <Suspense fallback={null}>
+        <ProjectMemoModal
+          open={showProjectMemoModal}
+          onClose={() => setShowProjectMemoModal(false)}
+          value={projectMemo}
+          onChange={(nextValue) => setProjectMemo(nextValue.slice(0, 8000))}
+        />
+      </Suspense>
 
       <EditorStatusBar {...statusBarProps} />
 
