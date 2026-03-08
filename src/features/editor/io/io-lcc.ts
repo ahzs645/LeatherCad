@@ -588,7 +588,7 @@ export function importLccDocument(raw: string): LccImportResult {
     stitchHoles,
     dimensionLines: dimensionLines.length > 0 ? dimensionLines : undefined,
     printAreas: printAreas.length > 0 ? printAreas : undefined,
-    showDimensions: lccLayers.some((l) => l.id === 4) || dimensionLines.length > 0,
+    showDimensions: false,
   }
 
   return {
