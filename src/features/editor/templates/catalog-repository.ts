@@ -1,4 +1,5 @@
 import { BUNDLED_CATALOG_SUMMARIES } from './catalog-builtins'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
 const CATALOG_REPOSITORY_STORAGE_KEY = 'leathercraft-catalog-repository-v1'
 const BUNDLED_CATALOG_IMPORTED_AT = '2026-01-01T00:00:00.000Z'
@@ -280,7 +281,7 @@ export function loadCatalogRepository(): CatalogRepositoryShop[] {
     return []
   }
   try {
-    const raw = window.localStorage.getItem(CATALOG_REPOSITORY_STORAGE_KEY)
+    const raw = safeLocalStorageGet(CATALOG_REPOSITORY_STORAGE_KEY)
     if (!raw) {
       return []
     }
@@ -330,7 +331,7 @@ export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
         })),
       })),
     }))
-    window.localStorage.setItem(CATALOG_REPOSITORY_STORAGE_KEY, JSON.stringify(serializableShops))
+    safeLocalStorageSet(CATALOG_REPOSITORY_STORAGE_KEY, JSON.stringify(serializableShops))
   } catch {
     // Catalog files can be large; keep runtime behavior resilient when storage quota is exceeded.
   }

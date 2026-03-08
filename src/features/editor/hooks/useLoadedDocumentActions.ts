@@ -150,7 +150,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
       typeof doc.threeTextureSource === 'object' &&
       typeof doc.threeTextureSource.albedoUrl === 'string' &&
       doc.threeTextureSource.albedoUrl.trim().length > 0
-        ? (doc.threeTextureSource as TextureSource)
+        ? (doc.threeTextureSource)
         : null
     const normalizedThreeTextureShapeIds = Array.isArray(doc.threeTextureShapeIds)
       ? doc.threeTextureShapeIds.filter((shapeId): shapeId is string => typeof shapeId === 'string' && shapeIdSet.has(shapeId))

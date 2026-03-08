@@ -1,4 +1,4 @@
-import type { Point, Shape, TextShape } from './cad-types'
+import type { Point, Shape } from './cad-types'
 import { normalizeTextShape, sampleTextShapePoints } from '../ops/text-shape-ops'
 
 const TAU = Math.PI * 2
@@ -98,7 +98,7 @@ export function shapeToSvg(shape: Shape) {
     return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="#0f172a" stroke-width="2" fill="none" />`
   }
 
-  const textShape = normalizeTextShape(shape as TextShape)
+  const textShape = normalizeTextShape(shape)
   return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="#0f172a" font-size="${round(textShape.fontSizeMm)}" font-family="${textShape.fontFamily.replace(/"/g, '&quot;')}">${textShape.text.replace(/[<>&]/g, (char) => (char === '<' ? '&lt;' : char === '>' ? '&gt;' : '&amp;'))}</text>`
 }
 
