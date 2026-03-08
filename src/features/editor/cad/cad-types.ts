@@ -36,6 +36,8 @@ type BaseShape = {
   layerId: string
   lineTypeId: string
   groupId?: string
+  arrowStart?: boolean
+  arrowEnd?: boolean
 }
 
 export type LineShape = {
@@ -44,6 +46,8 @@ export type LineShape = {
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
   groupId?: BaseShape['groupId']
+  arrowStart?: BaseShape['arrowStart']
+  arrowEnd?: BaseShape['arrowEnd']
   start: Point
   end: Point
 }
@@ -54,6 +58,8 @@ export type ArcShape = {
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
   groupId?: BaseShape['groupId']
+  arrowStart?: BaseShape['arrowStart']
+  arrowEnd?: BaseShape['arrowEnd']
   start: Point
   mid: Point
   end: Point
@@ -65,6 +71,8 @@ export type BezierShape = {
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
   groupId?: BaseShape['groupId']
+  arrowStart?: BaseShape['arrowStart']
+  arrowEnd?: BaseShape['arrowEnd']
   start: Point
   control: Point
   end: Point
@@ -233,6 +241,25 @@ export type TextureSource = {
   roughnessUrl?: string
 }
 
+export type DimensionLine = {
+  id: string
+  start: Point
+  end: Point
+  offsetMm: number
+  text?: string
+  layerId: string
+  lineTypeId: string
+}
+
+export type PrintArea = {
+  id: string
+  offsetX: number
+  offsetY: number
+  widthMm: number
+  heightMm: number
+  scalePercent: number
+}
+
 export type DocFile = {
   version: 1
   units: 'mm'
@@ -258,6 +285,8 @@ export type DocFile = {
   threeTextureShapeIds?: string[]
   showCanvasRuler?: boolean
   showDimensions?: boolean
+  dimensionLines?: DimensionLine[]
+  printAreas?: PrintArea[]
 }
 
 export type Viewport = {

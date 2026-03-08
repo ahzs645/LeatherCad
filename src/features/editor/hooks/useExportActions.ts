@@ -90,17 +90,21 @@ export function useExportActions(params: UseExportActionsParams) {
     const stroke = lineType?.color ?? '#0f172a'
     const strokeDasharray = exportForceSolidStrokes ? undefined : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
     const dashAttribute = strokeDasharray ? ` stroke-dasharray="${strokeDasharray}"` : ''
+    const arrowParts: string[] = []
+    if ('arrowStart' in shape && shape.arrowStart) arrowParts.push('marker-start="url(#arrow-start)"')
+    if ('arrowEnd' in shape && shape.arrowEnd) arrowParts.push('marker-end="url(#arrow-end)"')
+    const arrowAttribute = arrowParts.length > 0 ? ' ' + arrowParts.join(' ') : ''
 
     if (shape.type === 'line') {
-      return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
+      return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute}${arrowAttribute} />`
     }
 
     if (shape.type === 'arc') {
-      return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
+      return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute}${arrowAttribute} />`
     }
 
     if (shape.type === 'bezier') {
-      return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute} />`
+      return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute}${arrowAttribute} />`
     }
 
     const textShape = normalizeTextShape(shape)

@@ -1,6 +1,7 @@
 import type { PointerEvent, PointerEventHandler, ReactElement, RefObject, WheelEventHandler } from 'react'
 import { arcPath, round, sampleShapePoints } from '../cad/cad-geometry'
 import type {
+  DimensionLine,
   FoldLine,
   HardwareMarker,
   Layer,
@@ -44,6 +45,7 @@ type EditorCanvasPaneProps = {
   onResetView: () => void
   tracingOverlays: TracingOverlay[]
   showPrintAreas: boolean
+  dimensionLines: DimensionLine[]
   printPlan: PrintPlan | null
   seamGuides: SeamGuide[]
   showAnnotations: boolean
@@ -102,6 +104,7 @@ export function EditorCanvasPane({
   onResetView,
   tracingOverlays,
   showPrintAreas,
+  dimensionLines,
   printPlan,
   seamGuides,
   showAnnotations,
@@ -137,6 +140,17 @@ export function EditorCanvasPane({
   fallbackLayerStroke,
   stackLegendEntries,
 }: EditorCanvasPaneProps) {
+  const arrowMarkerStyle = (shape: Shape): Record<string, string> => {
+    const style: Record<string, string> = {}
+    if ('arrowStart' in shape && shape.arrowStart) {
+      style.markerStart = 'url(#arrow-start)'
+    }
+    if ('arrowEnd' in shape && shape.arrowEnd) {
+      style.markerEnd = 'url(#arrow-end)'
+    }
+    return style
+  }
+
   const shapeHandleEntries = (shape: Shape): Array<{ key: 'start' | 'mid' | 'control' | 'end'; point: Point }> => {
     if (shape.type === 'line' || shape.type === 'text') {
       return [
@@ -295,6 +309,14 @@ export function EditorCanvasPane({
         onWheel={onWheel}
         onContextMenu={(event) => event.preventDefault()}
       >
+        <defs>
+          <marker id="arrow-end" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <polygon points="0 0, 10 3.5, 0 7" fill="context-stroke" />
+          </marker>
+          <marker id="arrow-start" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto" markerUnits="strokeWidth">
+            <polygon points="10 0, 0 3.5, 10 7" fill="context-stroke" />
+          </marker>
+        </defs>
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
           {gridLines}
 
@@ -447,7 +469,7 @@ export function EditorCanvasPane({
                   x2={shape.end.x}
                   y2={shape.end.y}
                   className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
-                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
+                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity, ...arrowMarkerStyle(shape) }}
                   onPointerDown={(event) => onShapePointerDown(event, shape.id)}
                 />
               )
@@ -459,7 +481,7 @@ export function EditorCanvasPane({
                   key={shape.id}
                   d={arcPath(shape.start, shape.mid, shape.end)}
                   className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
-                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
+                  style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity, ...arrowMarkerStyle(shape) }}
                   onPointerDown={(event) => onShapePointerDown(event, shape.id)}
                 />
               )
@@ -481,7 +503,7 @@ export function EditorCanvasPane({
                   shape.end.x,
                 )} ${round(shape.end.y)}`}
                 className={isSelected ? 'shape-line shape-selected' : 'shape-line'}
-                style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity }}
+                style={{ stroke: layerStroke, strokeDasharray, strokeOpacity: shapeStrokeOpacity, ...arrowMarkerStyle(shape) }}
                 onPointerDown={(event) => onShapePointerDown(event, shape.id)}
               />
             )
@@ -599,6 +621,33 @@ export function EditorCanvasPane({
               {entry.text}
             </text>
           ))}
+
+          {showDimensions &&
+            dimensionLines.map((dim) => {
+              const dx = dim.end.x - dim.start.x
+              const dy = dim.end.y - dim.start.y
+              const len = Math.hypot(dx, dy)
+              if (len < 0.01) return null
+              const nx = (-dy / len) * dim.offsetMm
+              const ny = (dx / len) * dim.offsetMm
+              const s = { x: dim.start.x + nx, y: dim.start.y + ny }
+              const e = { x: dim.end.x + nx, y: dim.end.y + ny }
+              const mx = (s.x + e.x) / 2
+              const my = (s.y + e.y) / 2
+              const dimText = dim.text ?? `${round(len)}mm`
+              return (
+                <g key={`dimline-${dim.id}`} className="dimension-line-group">
+                  <line x1={dim.start.x} y1={dim.start.y} x2={s.x} y2={s.y} className="dimension-extension-line" />
+                  <line x1={dim.end.x} y1={dim.end.y} x2={e.x} y2={e.y} className="dimension-extension-line" />
+                  <line
+                    x1={s.x} y1={s.y} x2={e.x} y2={e.y}
+                    className="dimension-measure-line"
+                    style={{ markerStart: 'url(#arrow-start)', markerEnd: 'url(#arrow-end)' }}
+                  />
+                  <text x={mx + 3} y={my - 3} className="dimension-label">{dimText}</text>
+                </g>
+              )
+            })}
 
           {previewElement}
         </g>

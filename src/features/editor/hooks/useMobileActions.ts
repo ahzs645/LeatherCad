@@ -14,6 +14,7 @@ type UseMobileActionsParams = {
   handleMoveLayer: (direction: -1 | 1) => void
   handleDeleteLayer: () => void
   handleSaveJson: () => void
+  handleSaveLcc: () => void
   handleLoadPreset: () => void
   handleExportSvg: () => void
   handleExportPdf: () => void
@@ -46,6 +47,7 @@ export function useMobileActions(params: UseMobileActionsParams) {
     handleMoveLayer,
     handleDeleteLayer,
     handleSaveJson,
+    handleSaveLcc,
     handleLoadPreset,
     handleExportSvg,
     handleExportPdf,
@@ -106,6 +108,11 @@ export function useMobileActions(params: UseMobileActionsParams) {
   const handleRunMobileFileAction = () => {
     if (mobileFileAction === 'save-json') {
       handleSaveJson()
+      return
+    }
+
+    if (mobileFileAction === 'save-lcc') {
+      handleSaveLcc()
       return
     }
 

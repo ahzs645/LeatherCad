@@ -1,11 +1,13 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import '../../app/styles/App.css'
 import type {
+  DimensionLine,
   DocFile,
   FoldLine,
   HardwareMarker,
   LineType,
   ParametricConstraint,
+  PrintArea,
   SeamAllowance,
   Shape,
   SketchGroup,
@@ -126,6 +128,8 @@ export function EditorApp() {
   const [constraints, setConstraints] = useState<ParametricConstraint[]>([])
   const [seamAllowances, setSeamAllowances] = useState<SeamAllowance[]>([])
   const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
+  const [dimensionLines, setDimensionLines] = useState<DimensionLine[]>([])
+  const [printAreas, setPrintAreas] = useState<PrintArea[]>([])
   const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS)
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [status, setStatus] = useState('Ready')
@@ -518,6 +522,8 @@ export function EditorApp() {
     setThreeTextureShapeIds,
     setShowCanvasRuler,
     setShowDimensions,
+    setDimensionLines,
+    setPrintAreas,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
@@ -658,6 +664,8 @@ export function EditorApp() {
     threeTextureShapeIds: threeTextureShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
     showCanvasRuler,
     showDimensions,
+    dimensionLines,
+    printAreas,
   })
   const {
     handleSaveTemplateToRepository,
@@ -874,7 +882,7 @@ export function EditorApp() {
     setStatus,
   })
 
-  const { handleSaveJson, handleLoadJson, handleImportSvg, handleLoadPreset, handleOpenInNewTab } = useFileActions({
+  const { handleSaveJson, handleSaveLcc, handleLoadJson, handleImportSvg, handleLoadPreset, handleOpenInNewTab } = useFileActions({
     buildCurrentDocFile,
     applyLoadedDocument,
     selectedPresetId,
@@ -1148,6 +1156,7 @@ export function EditorApp() {
     handleMoveLayer,
     handleDeleteLayer,
     handleSaveJson,
+    handleSaveLcc,
     handleLoadPreset,
     handleExportSvg,
     handleExportPdf,
@@ -1398,6 +1407,7 @@ export function EditorApp() {
     showExportOptionsModal,
     setShowExportOptionsModal,
     handleSaveJson,
+    handleSaveLcc,
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
@@ -1701,6 +1711,7 @@ export function EditorApp() {
               onResetView={handleResetView}
               tracingOverlays={tracingOverlays}
               showPrintAreas={showPrintAreas}
+              dimensionLines={dimensionLines}
               printPlan={printPlan}
               seamGuides={seamGuides}
               showAnnotations={showAnnotations}

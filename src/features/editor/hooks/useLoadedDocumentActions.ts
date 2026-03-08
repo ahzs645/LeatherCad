@@ -3,11 +3,13 @@ import type { Dispatch, SetStateAction } from 'react'
 import { uid } from '../cad/cad-geometry'
 import { normalizeLineTypes, resolveActiveLineTypeId } from '../cad/line-types'
 import type {
+  DimensionLine,
   DocFile,
   HardwareMarker,
   Layer,
   LineType,
   ParametricConstraint,
+  PrintArea,
   SeamAllowance,
   Shape,
   SketchGroup,
@@ -46,6 +48,8 @@ type UseLoadedDocumentActionsParams = {
   setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
   setShowDimensions: Dispatch<SetStateAction<boolean>>
+  setDimensionLines: Dispatch<SetStateAction<DimensionLine[]>>
+  setPrintAreas: Dispatch<SetStateAction<PrintArea[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
@@ -80,6 +84,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setThreeTextureShapeIds,
     setShowCanvasRuler,
     setShowDimensions,
+    setDimensionLines,
+    setPrintAreas,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
@@ -181,6 +187,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setThreeTextureShapeIds(normalizedThreeTextureShapeIds)
     setShowCanvasRuler(normalizedShowCanvasRuler)
     setShowDimensions(normalizedShowDimensions)
+    setDimensionLines(doc.dimensionLines ?? [])
+    setPrintAreas(doc.printAreas ?? [])
     setSelectedShapeIds([])
     setSelectedStitchHoleId(null)
     setSelectedHardwareMarkerId(null)
@@ -213,6 +221,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setThreeTextureShapeIds,
     setShowCanvasRuler,
     setShowDimensions,
+    setDimensionLines,
+    setPrintAreas,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,

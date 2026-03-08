@@ -37,6 +37,7 @@ export type MobileLayerAction =
 
 export type MobileFileAction =
   | 'save-json'
+  | 'save-lcc'
   | 'load-json'
   | 'import-svg'
   | 'load-preset'

@@ -706,6 +706,7 @@ export function EditorTopbar({
                   </optgroup>
                   <optgroup label="Exports">
                     <option value="save-json">Save JSON</option>
+                    <option value="save-lcc">Save LCC</option>
                     <option value="export-svg">Export SVG</option>
                     <option value="export-pdf">Export PDF</option>
                     <option value="export-dxf">Export DXF</option>

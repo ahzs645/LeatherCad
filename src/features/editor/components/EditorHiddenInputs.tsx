@@ -27,7 +27,7 @@ export function EditorHiddenInputs({
 }: EditorHiddenInputsProps) {
   return (
     <>
-      <input ref={fileInputRef} type="file" accept="application/json" className="hidden-input" onChange={onLoadJson} />
+      <input ref={fileInputRef} type="file" accept="application/json,.lcc" className="hidden-input" onChange={onLoadJson} />
       <input ref={svgInputRef} type="file" accept=".svg,image/svg+xml" className="hidden-input" onChange={onImportSvg} />
       <input
         ref={tracingInputRef}
