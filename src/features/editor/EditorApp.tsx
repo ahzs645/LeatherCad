@@ -1461,6 +1461,42 @@ export function EditorApp() {
     selectedHardwareMarker,
     handleUpdateSelectedHardwareMarker,
     handleDeleteSelectedHardwareMarker,
+    handleBooleanOp: (op: import('./ops/clipper-ops').BooleanOp) => {
+      import('./ops/clipper-ops').then(({ booleanOpOnShapes }) => {
+        const result = booleanOpOnShapes(
+          shapes,
+          new Set(selectedShapeIds),
+          op,
+          activeLayer?.id ?? '',
+          activeLineTypeId,
+        )
+        if (result.ok) {
+          setShapes(result.nextShapes)
+        }
+        setStatus(result.message)
+      })
+    },
+    handleClipperOffset: (offsetMm: number, joinType: import('./ops/clipper-ops').OffsetJoinType) => {
+      import('./ops/clipper-ops').then(({ clipperOffsetForSelection }) => {
+        const result = clipperOffsetForSelection(
+          shapes,
+          new Set(selectedShapeIds),
+          offsetMm,
+          joinType,
+          activeLineTypeId,
+        )
+        if (result.ok) {
+          setShapes((prev) => [...prev, ...result.created])
+        }
+        setStatus(result.message)
+      })
+    },
+    handleTextToPath: () => {
+      setStatus('Text-to-path: load a font file first via Pattern Tools (opentype.js)')
+    },
+    handleOpenNesting: () => {
+      setStatus('Nesting tool available via Pattern Tools modal')
+    },
     showTracingModal,
     setShowTracingModal,
     tracingOverlays,

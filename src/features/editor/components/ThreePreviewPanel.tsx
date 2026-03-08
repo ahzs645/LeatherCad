@@ -10,6 +10,7 @@ import {
   DEFAULT_FOLD_STIFFNESS,
   DEFAULT_FOLD_THICKNESS_MM,
 } from '../ops/fold-line-ops'
+import { LEATHER_PRESETS, PRESET_IDS, LEATHER_COLORS } from '../three/material-presets'
 
 type ThreePreviewPanelProps = {
   shapes: Shape[]
@@ -416,6 +417,63 @@ export function ThreePreviewPanel({
                 onChange={(event) => onSetStitchThreadColor(event.target.value)}
               />
             </label>
+          </div>
+
+          <div className="control-block">
+            <h3>Leather Material Preset</h3>
+            <p className="hint">
+              Select a leather type to set realistic PBR material properties.
+            </p>
+            <div className="line-type-edit-grid">
+              <label className="field-row">
+                <span>Preset</span>
+                <select
+                  onChange={(event) => {
+                    const presetId = event.target.value
+                    if (presetId && bridgeRef.current) {
+                      bridgeRef.current.applyLeatherPreset(presetId)
+                      setTextureStatus(`Applied ${LEATHER_PRESETS[presetId]?.label ?? presetId} preset`)
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select preset...</option>
+                  {PRESET_IDS.map((id) => (
+                    <option key={id} value={id}>
+                      {LEATHER_PRESETS[id].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-row">
+                <span>Color</span>
+                <select
+                  onChange={(event) => {
+                    const color = event.target.value
+                    if (color && bridgeRef.current) {
+                      bridgeRef.current.setLeatherColor(color)
+                    }
+                  }}
+                  defaultValue=""
+                >
+                  <option value="" disabled>Select color...</option>
+                  {LEATHER_COLORS.map((c) => (
+                    <option key={c.id} value={c.color}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-row">
+                <span>Shadows</span>
+                <input
+                  type="checkbox"
+                  onChange={(event) => {
+                    bridgeRef.current?.enableShadows(event.target.checked)
+                  }}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="control-block">

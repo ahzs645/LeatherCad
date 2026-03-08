@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
 import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
+import { LEATHER_PRESETS } from './material-presets'
 
 type ModelTransform = {
   scale: number
@@ -1085,6 +1086,70 @@ export class ThreeBridge {
     }
     this.threadColor = color
     this.rebuildModel()
+  }
+
+  /**
+   * Applies a leather material preset to the 3D model.
+   */
+  applyLeatherPreset(presetId: string) {
+    const preset = LEATHER_PRESETS[presetId]
+    if (!preset) return
+
+    const materials = [
+      this.leftMaterial,
+      this.rightMaterial,
+      this.leftTextureMaterial,
+      this.rightTextureMaterial,
+    ]
+
+    for (const mat of materials) {
+      mat.color.set(preset.color)
+      mat.roughness = preset.roughness
+      mat.metalness = preset.metalness
+      if (mat.normalMap) {
+        mat.normalScale.set(preset.normalScale, preset.normalScale)
+      }
+      mat.envMapIntensity = preset.envMapIntensity
+      mat.needsUpdate = true
+    }
+
+    this.rebuildModel()
+  }
+
+  /**
+   * Sets the leather color without changing other material properties.
+   */
+  setLeatherColor(color: string) {
+    if (typeof color !== 'string' || color.trim().length === 0) return
+
+    const materials = [
+      this.leftMaterial,
+      this.rightMaterial,
+      this.leftTextureMaterial,
+      this.rightTextureMaterial,
+    ]
+
+    for (const mat of materials) {
+      mat.color.set(color)
+      mat.needsUpdate = true
+    }
+  }
+
+  /**
+   * Enables shadow casting from the key light.
+   */
+  enableShadows(enabled: boolean) {
+    this.renderer.shadowMap.enabled = enabled
+    if (enabled) {
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      this.keyLight.castShadow = true
+      this.keyLight.shadow.mapSize.width = 1024
+      this.keyLight.shadow.mapSize.height = 1024
+      this.keyLight.shadow.camera.near = 0.1
+      this.keyLight.shadow.camera.far = 10
+    } else {
+      this.keyLight.castShadow = false
+    }
   }
 
   resize(width: number, height: number) {
