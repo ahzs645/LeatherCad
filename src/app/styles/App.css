@@ -491,6 +491,32 @@
   margin-left: 2px;
 }
 
+.settings-button svg {
+  display: block;
+}
+
+.settings-dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.settings-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: var(--surface-modal, var(--surface-secondary));
+  border: 1px solid var(--border-color, #444);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
 .theme-mode-toggle {
   display: inline-flex;
   align-items: center;

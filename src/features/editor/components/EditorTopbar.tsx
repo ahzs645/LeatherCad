@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { clamp } from '../cad/cad-geometry'
 import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
 import { DESKTOP_RIBBON_TABS, DESKTOP_TOOL_ICON_ITEMS, GRID_SPACING_OPTIONS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
@@ -334,6 +335,26 @@ export function EditorTopbar({
     </div>
   )
 
+  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false)
+  const settingsDropdownRef = useRef<HTMLDivElement>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!showSettingsDropdown) return
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        settingsDropdownRef.current &&
+        !settingsDropdownRef.current.contains(event.target as Node) &&
+        settingsButtonRef.current &&
+        !settingsButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowSettingsDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showSettingsDropdown])
+
   return (
     <header className={topbarClassName}>
       {!isMobileLayout && (
@@ -361,15 +382,33 @@ export function EditorTopbar({
             <button onClick={onOpenProjectMemoModal}>Project Memo</button>
             <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
             {renderThemeModeToggle('desktop-theme-toggle')}
-            <button
-              type="button"
-              className="help-button"
-              onClick={onOpenHelpModal}
-              aria-label="Open help"
-              title="Help"
-            >
-              ?
-            </button>
+            <div className="settings-dropdown-wrapper">
+              <button
+                ref={settingsButtonRef}
+                type="button"
+                className="help-button settings-button"
+                onClick={() => setShowSettingsDropdown((prev) => !prev)}
+                aria-label="Open settings"
+                title="Settings"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
+              </button>
+              {showSettingsDropdown && (
+                <div ref={settingsDropdownRef} className="settings-dropdown">
+                  <label className="stitch-pitch-inline">
+                    <span>Units</span>
+                    <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
+                      <option value="mm">mm</option>
+                      <option value="in">in</option>
+                    </select>
+                  </label>
+                  <button type="button" onClick={onOpenHelpModal}>Help</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -434,15 +473,33 @@ export function EditorTopbar({
                 <button onClick={onOpenPrecisionModal}>Precision</button>
                 <button onClick={onOpenProjectMemoModal}>Project Memo</button>
                 <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
-                <button
-                  type="button"
-                  className="help-button mobile-help-toggle"
-                  onClick={onOpenHelpModal}
-                  aria-label="Open help"
-                  title="Help"
-                >
-                  ?
-                </button>
+                <div className="settings-dropdown-wrapper">
+                  <button
+                    ref={settingsButtonRef}
+                    type="button"
+                    className="help-button settings-button mobile-help-toggle"
+                    onClick={() => setShowSettingsDropdown((prev) => !prev)}
+                    aria-label="Open settings"
+                    title="Settings"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                  </button>
+                  {showSettingsDropdown && (
+                    <div ref={settingsDropdownRef} className="settings-dropdown">
+                      <label className="stitch-pitch-inline">
+                        <span>Units</span>
+                        <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
+                          <option value="mm">mm</option>
+                          <option value="in">in</option>
+                        </select>
+                      </label>
+                      <button type="button" onClick={onOpenHelpModal}>Help</button>
+                    </div>
+                  )}
+                </div>
                 <button className="mobile-menu-toggle" onClick={onToggleMobileMenu}>
                   {showMobileMenu ? 'Close' : 'Options'}
                 </button>
@@ -475,13 +532,6 @@ export function EditorTopbar({
                 Sketch Focus
               </button>
             </div>
-            <label className="stitch-pitch-inline">
-              <span>Units</span>
-              <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
-                <option value="mm">mm</option>
-                <option value="in">in</option>
-              </select>
-            </label>
             <label className="stitch-pitch-inline">
               <span>Grid</span>
               <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
