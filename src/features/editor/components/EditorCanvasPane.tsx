@@ -525,8 +525,28 @@ export function EditorCanvasPane({
                 )),
               )}
 
+          {/* Stitch connecting lines (drawn first, behind holes) */}
+          {(() => {
+            const sorted = [...visibleStitchHoles].sort((a, b) => a.sequence - b.sequence)
+            const pathParts: string[] = []
+            for (let i = 1; i < sorted.length; i++) {
+              const prev = sorted[i - 1]
+              const curr = sorted[i]
+              if (curr.sequence === prev.sequence + 1) {
+                pathParts.push(`M${prev.point.x},${prev.point.y}L${curr.point.x},${curr.point.y}`)
+              }
+            }
+            return pathParts.length > 0 ? (
+              <path d={pathParts.join('')} className="stitch-thread-line" />
+            ) : null
+          })()}
+
           {visibleStitchHoles.map((stitchHole) => {
             const isSelected = stitchHole.id === selectedStitchHoleId
+            const r = stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.6
+            const outerR = r * 2.5
+            const crossR = outerR * 1.3
+
             if (stitchHole.holeType === 'slit') {
               const radians = (stitchHole.angleDeg * Math.PI) / 180
               const dx = Math.cos(radians) * 3
@@ -544,17 +564,25 @@ export function EditorCanvasPane({
               )
             }
 
+            const cx = stitchHole.point.x
+            const cy = stitchHole.point.y
+
             return (
-              <g key={stitchHole.id}>
+              <g key={stitchHole.id} onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)} style={{ cursor: 'pointer' }}>
+                {/* Dashed outline circle */}
+                <circle cx={cx} cy={cy} r={outerR} className="stitch-hole-outline" />
+                {/* Crosshair lines */}
+                <line x1={cx - crossR} y1={cy} x2={cx + crossR} y2={cy} className="stitch-hole-crosshair" />
+                <line x1={cx} y1={cy - crossR} x2={cx} y2={cy + crossR} className="stitch-hole-crosshair" />
+                {/* Center dot */}
                 <circle
-                  cx={stitchHole.point.x}
-                  cy={stitchHole.point.y}
-                  r={stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.8}
+                  cx={cx}
+                  cy={cy}
+                  r={r}
                   className={isSelected ? 'stitch-hole-dot stitch-hole-dot-selected' : 'stitch-hole-dot'}
-                  onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)}
                 />
                 {showStitchSequenceLabels && (
-                  <text x={stitchHole.point.x + 3.2} y={stitchHole.point.y - 3.2} className="stitch-hole-sequence-label">
+                  <text x={cx + 3.2} y={cy - 3.2} className="stitch-hole-sequence-label">
                     {stitchHole.sequence + 1}
                   </text>
                 )}

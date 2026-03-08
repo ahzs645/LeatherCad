@@ -854,6 +854,35 @@ button:disabled {
   stroke-dasharray: 7 5;
 }
 
+.stitch-thread-line {
+  fill: none;
+  stroke: #c084fc;
+  stroke-width: 0.8;
+  stroke-dasharray: 1.5 1.5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.stitch-hole-outline {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 0.6;
+  stroke-dasharray: 1.2 1.0;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.stitch-hole-crosshair {
+  stroke: #c084fc;
+  stroke-width: 0.5;
+  stroke-dasharray: 0.8 0.8;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 .stitch-hole-dot {
   fill: var(--stitch-hole-fill);
   stroke: var(--stitch-hole-stroke);
