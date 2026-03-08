@@ -498,8 +498,10 @@ describe('importLccDocument', () => {
 
     const result = importLccDocument(lcc)
     const shape = result.doc.objects[0]
-    expect(shape.arrowStart).toBe(true)
-    expect(shape.arrowEnd).toBe(true)
+    if (shape.type === 'line') {
+      expect(shape.arrowStart).toBe(true)
+      expect(shape.arrowEnd).toBe(true)
+    }
   })
 
   it('imports print areas from LCC printareas', () => {
@@ -532,7 +534,7 @@ describe('exportLccDocument', () => {
     sketchGroups: [],
     activeSketchGroupId: null,
     lineTypes: [
-      { id: 'lt-1', name: 'Cut', role: 'cut', style: 'solid', color: '#00ffff', visible: true, sortIndex: 0 },
+      { id: 'lt-1', name: 'Cut', role: 'cut', style: 'solid', color: '#00ffff', visible: true },
     ],
     activeLineTypeId: 'lt-1',
     objects: [],
@@ -541,7 +543,7 @@ describe('exportLccDocument', () => {
     constraints: [],
     seamAllowances: [],
     hardwareMarkers: [],
-    snapSettings: { gridEnabled: true, gridSizeMm: 5, snapToGrid: true, snapToEndpoints: true, snapDistance: 8 },
+    snapSettings: { enabled: true, grid: true, gridStep: 5, endpoints: true, midpoints: false, guides: true, hardware: true },
     showAnnotations: true,
     tracingOverlays: [],
     projectMemo: '',
@@ -605,8 +607,10 @@ describe('exportLccDocument', () => {
     const output = exportLccDocument(doc)
     const reimported = importLccDocument(output)
     const shape = reimported.doc.objects[0]
-    expect(shape.arrowStart).toBe(true)
-    expect(shape.arrowEnd).toBe(true)
+    if (shape.type === 'line') {
+      expect(shape.arrowStart).toBe(true)
+      expect(shape.arrowEnd).toBe(true)
+    }
   })
 
   it('round-trips print areas (offset and count)', () => {

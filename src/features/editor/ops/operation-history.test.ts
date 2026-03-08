@@ -9,10 +9,8 @@ import {
   getRedoLabels,
   applyOperationForward,
   applyOperationReverse,
-  type OperationHistoryState,
   type AddShapesOp,
   type MoveShapesOp,
-  type RemoveShapesOp,
 } from './operation-history'
 import type { EditorSnapshot } from '../editor-types'
 
@@ -37,7 +35,7 @@ function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
     constraints: [],
     seamAllowances: [],
     hardwareMarkers: [],
-    snapSettings: { gridSnap: false, endpointSnap: true, midpointSnap: false, gridSizeMm: 5, angleLock: false, angleLockDeg: 45 },
+    snapSettings: { enabled: false, grid: false, gridStep: 5, endpoints: true, midpoints: false, guides: false, hardware: false },
     showAnnotations: true,
     tracingOverlays: [],
     projectMemo: '',
