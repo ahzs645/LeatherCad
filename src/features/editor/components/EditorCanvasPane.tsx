@@ -549,7 +549,7 @@ export function EditorCanvasPane({
                 <circle
                   cx={stitchHole.point.x}
                   cy={stitchHole.point.y}
-                  r={2.2}
+                  r={stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.8}
                   className={isSelected ? 'stitch-hole-dot stitch-hole-dot-selected' : 'stitch-hole-dot'}
                   onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)}
                 />

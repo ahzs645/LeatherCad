@@ -146,6 +146,7 @@ export type StitchHole = {
   angleDeg: number
   holeType: StitchHoleType
   sequence: number
+  diameterMm?: number
 }
 
 export type ConstraintAnchor = 'start' | 'end' | 'mid' | 'center'

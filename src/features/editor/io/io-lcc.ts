@@ -497,6 +497,7 @@ export function importLccDocument(raw: string): LccImportResult {
           angleDeg,
           holeType: isRound ? 'round' : 'slit',
           sequence: 0, // will be recomputed from chain
+          diameterMm: holeDiam > 0 ? holeDiam : undefined,
         })
 
         stitchHoleIdMap.set(lccShape.id, holeId)
