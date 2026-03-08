@@ -56,6 +56,7 @@ import type { ClipboardPayload } from './ops/shape-selection-ops'
 import {
   DESKTOP_TOOL_ICON_ITEMS,
   DEFAULT_EXPORT_ROLE_FILTERS,
+  DEFAULT_GRID_SPACING,
   DEFAULT_SNAP_SETTINGS,
 } from './editor-constants'
 import { openPrintTilesWindow } from './preview/print-output'
@@ -235,6 +236,7 @@ export function EditorApp() {
   const [selectedHardwareMarkerId, setSelectedHardwareMarkerId] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>('system')
   const [systemThemeMode, setSystemThemeMode] = useState<ResolvedThemeMode>(() => getSystemThemeMode())
+  const [gridSpacing, setGridSpacing] = useState(DEFAULT_GRID_SPACING)
   const [legendMode, setLegendMode] = useState<LegendMode>('layer')
   const [sketchWorkspaceMode, setSketchWorkspaceMode] = useState<SketchWorkspaceMode>('assembly')
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
@@ -561,7 +563,7 @@ export function EditorApp() {
     }
   }, [applyLoadedDocument])
 
-  const gridLines = useGridLines()
+  const gridLines = useGridLines(gridSpacing)
   const previewElement = useDraftPreviewElement({
     cursorPoint,
     draftPoints,
@@ -1277,6 +1279,8 @@ export function EditorApp() {
     setShowCanvasRuler,
     showDimensions,
     setShowDimensions,
+    gridSpacing,
+    setGridSpacing,
     sketchWorkspaceMode,
     setSketchWorkspaceMode,
     showEditSection,

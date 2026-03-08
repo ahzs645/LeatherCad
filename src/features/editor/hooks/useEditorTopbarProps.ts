@@ -42,6 +42,8 @@ type UseEditorTopbarPropsParams = {
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
   showDimensions: boolean
   setShowDimensions: Dispatch<SetStateAction<boolean>>
+  gridSpacing: number
+  setGridSpacing: Dispatch<SetStateAction<number>>
   sketchWorkspaceMode: SketchWorkspaceMode
   setSketchWorkspaceMode: Dispatch<SetStateAction<SketchWorkspaceMode>>
   showEditSection: boolean
@@ -168,6 +170,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setShowCanvasRuler,
     showDimensions,
     setShowDimensions,
+    gridSpacing,
+    setGridSpacing,
     sketchWorkspaceMode,
     setSketchWorkspaceMode,
     showEditSection,
@@ -300,6 +304,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onToggleCanvasRuler: () => setShowCanvasRuler((previous) => !previous),
     showDimensions,
     onToggleDimensions: () => setShowDimensions((previous) => !previous),
+    gridSpacing,
+    onSetGridSpacing: setGridSpacing,
     sketchWorkspaceMode,
     onSetSketchWorkspaceMode: setSketchWorkspaceMode,
     showEditSection,

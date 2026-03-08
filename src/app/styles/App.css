@@ -689,13 +689,15 @@ button:disabled {
 }
 
 .canvas-tool-rail {
+  position: relative;
+  z-index: 10;
   min-height: 0;
   max-height: 100%;
   padding: 12px 8px;
   border-right: 1px solid var(--border-soft);
   background: var(--surface-panel);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow-y: clip;
+  overflow-x: visible;
   overscroll-behavior: contain;
 }
 
@@ -787,6 +789,12 @@ button:disabled {
 
 .panel-hidden {
   display: none;
+}
+
+.grid-line-minor {
+  stroke: var(--grid-line-color);
+  stroke-width: 0.5;
+  opacity: 0.35;
 }
 
 .grid-line {

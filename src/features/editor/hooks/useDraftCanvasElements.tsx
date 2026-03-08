@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import type { ReactElement } from 'react'
 import { arcPath, round } from '../cad/cad-geometry'
 import type { Point, Tool } from '../cad/cad-types'
-import { GRID_EXTENT, GRID_STEP } from '../editor-constants'
+import { GRID_EXTENT } from '../editor-constants'
 
 type UseDraftPreviewElementParams = {
   cursorPoint: Point | null
@@ -12,21 +12,43 @@ type UseDraftPreviewElementParams = {
   activeLineTypeDasharray: string | undefined
 }
 
-export function useGridLines() {
+export function useGridLines(gridSpacing: number) {
   return useMemo(() => {
     const lines: ReactElement[] = []
-    for (let i = -GRID_EXTENT; i <= GRID_EXTENT; i += GRID_STEP) {
+    const majorStep = gridSpacing
+    // Minor subdivisions: split each major cell into 5 (or 2 if spacing <= 2)
+    const subdivisions = majorStep <= 2 ? 2 : 5
+    const minorStep = majorStep / subdivisions
+
+    // Limit extent for fine grids to avoid too many elements
+    const extent = Math.min(GRID_EXTENT, Math.max(500, majorStep * 80))
+
+    // Minor grid lines
+    for (let i = -extent; i <= extent; i += minorStep) {
+      // Skip positions that fall on major grid lines
+      if (Math.abs(i % majorStep) > minorStep * 0.1) {
+        lines.push(
+          <line key={`mv-${i}`} x1={i} y1={-extent} x2={i} y2={extent} className="grid-line-minor" />,
+          <line key={`mh-${i}`} x1={-extent} y1={i} x2={extent} y2={i} className="grid-line-minor" />,
+        )
+      }
+    }
+
+    // Major grid lines
+    for (let i = -extent; i <= extent; i += majorStep) {
       lines.push(
-        <line key={`v-${i}`} x1={i} y1={-GRID_EXTENT} x2={i} y2={GRID_EXTENT} className="grid-line" />,
-        <line key={`h-${i}`} x1={-GRID_EXTENT} y1={i} x2={GRID_EXTENT} y2={i} className="grid-line" />,
+        <line key={`v-${i}`} x1={i} y1={-extent} x2={i} y2={extent} className="grid-line" />,
+        <line key={`h-${i}`} x1={-extent} y1={i} x2={extent} y2={i} className="grid-line" />,
       )
     }
+
+    // Axis lines (always on top)
     lines.push(
-      <line key="axis-y" x1={0} y1={-GRID_EXTENT} x2={0} y2={GRID_EXTENT} className="axis-line" />,
-      <line key="axis-x" x1={-GRID_EXTENT} y1={0} x2={GRID_EXTENT} y2={0} className="axis-line" />,
+      <line key="axis-y" x1={0} y1={-extent} x2={0} y2={extent} className="axis-line" />,
+      <line key="axis-x" x1={-extent} y1={0} x2={extent} y2={0} className="axis-line" />,
     )
     return lines
-  }, [])
+  }, [gridSpacing])
 }
 
 export function useDraftPreviewElement(params: UseDraftPreviewElementParams) {

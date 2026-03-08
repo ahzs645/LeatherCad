@@ -1,10 +1,11 @@
 import type { HardwareKind, SnapSettings, Tool } from './cad/cad-types'
 import type { DesktopRibbonTab, ExportRoleFilters, MobileOptionsTab } from './editor-types'
 
-export const GRID_STEP = 100
 export const GRID_EXTENT = 4000
-export const MIN_ZOOM = 0.2
-export const MAX_ZOOM = 6
+export const MIN_ZOOM = 0.1
+export const MAX_ZOOM = 40
+export const GRID_SPACING_OPTIONS = [1, 2, 5, 10, 25, 50, 100] as const
+export const DEFAULT_GRID_SPACING = 10
 export const MOBILE_MEDIA_QUERY = '(max-width: 1100px)'
 export const DEFAULT_FRONT_LAYER_COLOR = '#60a5fa'
 export const DEFAULT_BACK_LAYER_COLOR = '#f97316'

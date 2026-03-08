@@ -1,6 +1,6 @@
 import { clamp } from '../cad/cad-geometry'
 import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
-import { DESKTOP_RIBBON_TABS, DESKTOP_TOOL_ICON_ITEMS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
+import { DESKTOP_RIBBON_TABS, DESKTOP_TOOL_ICON_ITEMS, GRID_SPACING_OPTIONS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
 import type { DisplayUnit } from '../ops/unit-ops'
 import type {
   DesktopRibbonTab,
@@ -43,6 +43,8 @@ type EditorTopbarProps = {
   onToggleCanvasRuler: () => void
   showDimensions: boolean
   onToggleDimensions: () => void
+  gridSpacing: number
+  onSetGridSpacing: (spacing: number) => void
   sketchWorkspaceMode: SketchWorkspaceMode
   onSetSketchWorkspaceMode: (mode: SketchWorkspaceMode) => void
   showEditSection: boolean
@@ -218,6 +220,8 @@ export function EditorTopbar({
   onToggleCanvasRuler,
   showDimensions,
   onToggleDimensions,
+  gridSpacing,
+  onSetGridSpacing,
   sketchWorkspaceMode,
   onSetSketchWorkspaceMode,
   showEditSection,
@@ -476,6 +480,14 @@ export function EditorTopbar({
               <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
                 <option value="mm">mm</option>
                 <option value="in">in</option>
+              </select>
+            </label>
+            <label className="stitch-pitch-inline">
+              <span>Grid</span>
+              <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
+                {GRID_SPACING_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>{opt}mm</option>
+                ))}
               </select>
             </label>
             <button onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
