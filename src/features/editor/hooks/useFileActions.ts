@@ -1,6 +1,7 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
 import type { DocFile, Layer, Shape, SketchGroup } from '../cad/cad-types'
 import { importSvgAsShapes } from '../io/io-svg'
+import { importLccDocument } from '../io/io-lcc'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from '../data/sample-doc'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { uid } from '../cad/cad-geometry'
@@ -61,6 +62,18 @@ export function useFileActions(params: UseFileActionsParams) {
 
     try {
       const raw = await file.text()
+      const isLcc = file.name.toLowerCase().endsWith('.lcc')
+
+      if (isLcc) {
+        const result = importLccDocument(raw)
+        const warningNote = result.warnings.length > 0 ? ` (${result.warnings.length} warning(s))` : ''
+        applyLoadedDocument(
+          result.doc,
+          `Loaded LCC (${result.summary.shapeCount} shapes, ${result.summary.stitchHoleCount} holes, ${result.summary.layerCount} layers)${warningNote}`,
+        )
+        return
+      }
+
       const imported = parseImportedJsonDocument(raw)
       applyLoadedDocument(
         imported.doc,
