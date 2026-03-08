@@ -674,14 +674,6 @@ function styleToLccDash(style: LineTypeStyle): string {
   return 'Solid'
 }
 
-const ROLE_TO_LAYER: Record<LineTypeRole, number> = {
-  cut: 0,
-  fold: 1,
-  mark: 2,
-  stitch: 3,
-  guide: 4,
-}
-
 let exportIdCounter = 1000
 
 function nextExportId(): string {
