@@ -58,20 +58,22 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'freehand', label: 'Freehand' },
 ]
 
+const base = import.meta.env.BASE_URL
+
 export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSrc: string }> = [
-  { value: 'pan', label: 'Move', iconSrc: '/icons/leathercad/pan.svg' },
-  { value: 'line', label: 'Line', iconSrc: '/icons/jsketcher/line.png' },
-  { value: 'polyline', label: 'Polyline', iconSrc: '/icons/jsketcher/mline.png' },
-  { value: 'rectangle', label: 'Rect', iconSrc: '/icons/leathercad/rectangle.svg' },
-  { value: 'circle', label: 'Circle', iconSrc: '/icons/jsketcher/circle.png' },
-  { value: 'ellipse', label: 'Ellipse', iconSrc: '/icons/leathercad/ellipse.svg' },
-  { value: 'arc', label: 'Arc', iconSrc: '/icons/jsketcher/arc.png' },
-  { value: 'bezier', label: 'Bezier', iconSrc: '/icons/leathercad/bezier.svg' },
-  { value: 'fold', label: 'Fold', iconSrc: '/icons/leathercad/fold.svg' },
-  { value: 'stitch-hole', label: 'Stitch', iconSrc: '/icons/jsketcher/dot.png' },
-  { value: 'hardware', label: 'Hardware', iconSrc: '/icons/leathercad/hardware.svg' },
-  { value: 'text', label: 'Text', iconSrc: '/icons/leathercad/text.svg' },
-  { value: 'freehand', label: 'Freehand', iconSrc: '/icons/leathercad/bezier.svg' },
+  { value: 'pan', label: 'Move', iconSrc: `${base}icons/leathercad/pan.svg` },
+  { value: 'line', label: 'Line', iconSrc: `${base}icons/jsketcher/line.png` },
+  { value: 'polyline', label: 'Polyline', iconSrc: `${base}icons/jsketcher/mline.png` },
+  { value: 'rectangle', label: 'Rect', iconSrc: `${base}icons/leathercad/rectangle.svg` },
+  { value: 'circle', label: 'Circle', iconSrc: `${base}icons/jsketcher/circle.png` },
+  { value: 'ellipse', label: 'Ellipse', iconSrc: `${base}icons/leathercad/ellipse.svg` },
+  { value: 'arc', label: 'Arc', iconSrc: `${base}icons/jsketcher/arc.png` },
+  { value: 'bezier', label: 'Bezier', iconSrc: `${base}icons/leathercad/bezier.svg` },
+  { value: 'fold', label: 'Fold', iconSrc: `${base}icons/leathercad/fold.svg` },
+  { value: 'stitch-hole', label: 'Stitch', iconSrc: `${base}icons/jsketcher/dot.png` },
+  { value: 'hardware', label: 'Hardware', iconSrc: `${base}icons/leathercad/hardware.svg` },
+  { value: 'text', label: 'Text', iconSrc: `${base}icons/leathercad/text.svg` },
+  { value: 'freehand', label: 'Freehand', iconSrc: `${base}icons/leathercad/bezier.svg` },
 ]
 
 export const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
