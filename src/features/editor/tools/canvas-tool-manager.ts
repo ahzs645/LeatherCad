@@ -23,6 +23,7 @@ import {
 } from '../ops/fold-line-ops'
 import { sanitizeFoldLine } from '../editor-parsers'
 import { HARDWARE_PRESETS } from '../editor-constants'
+import { fitFreehandCurve, smoothPoints } from '../ops/freehand-ops'
 
 type HardwareKind = HardwareMarker['kind']
 
@@ -556,6 +557,65 @@ const hardwareTool: CanvasToolHandler = {
   },
 }
 
+const freehandTool: CanvasToolHandler = {
+  pointerDown(point, runtime) {
+    if (!withWritableShapeTarget(runtime)) {
+      return
+    }
+
+    if (runtime.draftPoints.length === 0) {
+      // Start collecting points
+      runtime.setDraftPoints([point])
+      runtime.pointPicked(point)
+      runtime.setStatus('Freehand: drawing... press Escape to finish')
+      return
+    }
+
+    // Add point to freehand stroke
+    const lastPoint = runtime.draftPoints[runtime.draftPoints.length - 1]
+    if (distance(lastPoint, point) < 0.5) {
+      return // Skip near-duplicate
+    }
+
+    runtime.setDraftPoints((prev) => [...prev, point])
+  },
+  processCommand(command: string, context: ToolCommandContext): string {
+    const trimmed = command.trim().toLowerCase()
+    if (trimmed === 'finish' || trimmed === 'done') {
+      const { runtime } = context
+      const rawPoints = runtime.draftPoints
+
+      if (rawPoints.length < 3) {
+        runtime.clearDraft()
+        runtime.setStatus('Freehand: not enough points')
+        return 'Not enough points for freehand curve'
+      }
+
+      // Smooth and fit
+      const smoothed = smoothPoints(rawPoints, 3)
+      const shapes = fitFreehandCurve(
+        smoothed,
+        1.0, // tolerance in mm
+        runtime.activeLayerId,
+        runtime.activeLineTypeId,
+        runtime.activeSketchGroup?.id,
+      )
+
+      if (shapes.length > 0) {
+        runtime.setShapes((prev) => [...prev, ...shapes])
+        runtime.setStatus(`Freehand: created ${shapes.length} curve segment(s)`)
+      } else {
+        runtime.setStatus('Freehand: could not fit curve')
+      }
+
+      runtime.clearDraft()
+      return `Created ${shapes.length} freehand segments`
+    }
+
+    return 'Type "finish" to complete freehand drawing'
+  },
+}
+
 const TOOL_HANDLERS: Record<Exclude<Tool, 'pan'>, CanvasToolHandler> = {
   line: lineTool,
   polyline: polylineTool,
@@ -568,6 +628,7 @@ const TOOL_HANDLERS: Record<Exclude<Tool, 'pan'>, CanvasToolHandler> = {
   'stitch-hole': stitchHoleTool,
   hardware: hardwareTool,
   text: textTool,
+  freehand: freehandTool,
 }
 
 const VECTOR_PATTERN = /^(@)?(.+)(,|<)(.+)$/
@@ -723,6 +784,9 @@ export function getCanvasToolHint(tool: Tool, draftPoints: Point[]) {
   }
   if (tool === 'bezier' && draftPoints.length === 2) {
     return 'Bezier: pick end point'
+  }
+  if (tool === 'freehand' && draftPoints.length > 0) {
+    return 'Freehand: click to add points, "finish" or Escape to complete'
   }
   return null
 }

@@ -176,6 +176,10 @@ type UseEditorModalStackPropsParams = {
   selectedHardwareMarker: HardwareMarker | null
   handleUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
   handleDeleteSelectedHardwareMarker: () => void
+  handleBooleanOp: (op: import('../ops/clipper-ops').BooleanOp) => void
+  handleClipperOffset: (offsetMm: number, joinType: import('../ops/clipper-ops').OffsetJoinType) => void
+  handleTextToPath: () => void
+  handleOpenNesting: () => void
   showTracingModal: boolean
   setShowTracingModal: Dispatch<SetStateAction<boolean>>
   tracingOverlays: TracingOverlay[]
@@ -365,6 +369,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     selectedHardwareMarker,
     handleUpdateSelectedHardwareMarker,
     handleDeleteSelectedHardwareMarker,
+    handleBooleanOp,
+    handleClipperOffset,
+    handleTextToPath,
+    handleOpenNesting,
     showTracingModal,
     setShowTracingModal,
     tracingOverlays,
@@ -585,6 +593,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       selectedHardwareMarker,
       onUpdateSelectedHardwareMarker: handleUpdateSelectedHardwareMarker,
       onDeleteSelectedHardwareMarker: handleDeleteSelectedHardwareMarker,
+      onBooleanOp: handleBooleanOp,
+      onClipperOffset: handleClipperOffset,
+      onTextToPath: handleTextToPath,
+      onOpenNesting: handleOpenNesting,
     },
     tracingModalProps: {
       open: showTracingModal,

@@ -11,6 +11,7 @@ export type Tool =
   | 'stitch-hole'
   | 'hardware'
   | 'text'
+  | 'freehand'
 
 export type Point = {
   x: number

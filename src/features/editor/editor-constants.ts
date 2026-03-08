@@ -55,6 +55,7 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'stitch-hole', label: 'Stitch Hole' },
   { value: 'hardware', label: 'Hardware' },
   { value: 'text', label: 'Text' },
+  { value: 'freehand', label: 'Freehand' },
 ]
 
 export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSrc: string }> = [
@@ -70,6 +71,7 @@ export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSr
   { value: 'stitch-hole', label: 'Stitch', iconSrc: '/icons/jsketcher/dot.png' },
   { value: 'hardware', label: 'Hardware', iconSrc: '/icons/leathercad/hardware.svg' },
   { value: 'text', label: 'Text', iconSrc: '/icons/leathercad/text.svg' },
+  { value: 'freehand', label: 'Freehand', iconSrc: '/icons/leathercad/bezier.svg' },
 ]
 
 export const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [

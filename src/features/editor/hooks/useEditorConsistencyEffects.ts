@@ -12,6 +12,7 @@ import type {
   TracingOverlay,
 } from '../cad/cad-types'
 import { deepClone, pushHistorySnapshot, type HistoryState } from '../ops/history-ops'
+import { pushOperation, type OperationHistoryState, type SnapshotOp } from '../ops/operation-history'
 import { HISTORY_LIMIT } from '../editor-constants'
 import type { EditorSnapshot } from '../editor-types'
 import { saveTemplateRepository, type TemplateRepositoryEntry } from '../templates/template-repository'
@@ -51,6 +52,7 @@ type UseEditorConsistencyEffectsParams = {
   currentSnapshot: EditorSnapshot
   currentSnapshotSignature: string
   setHistoryState: Dispatch<SetStateAction<HistoryState<EditorSnapshot>>>
+  setOpHistory: Dispatch<SetStateAction<OperationHistoryState>>
 }
 
 export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsParams) {
@@ -88,6 +90,7 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     currentSnapshot,
     currentSnapshotSignature,
     setHistoryState,
+    setOpHistory,
   } = params
 
   useEffect(() => {
@@ -326,9 +329,16 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
       return
     }
 
+    const prevSnapshot = lastSnapshotRef.current as EditorSnapshot
     setHistoryState((previousHistory) =>
-      pushHistorySnapshot(previousHistory, lastSnapshotRef.current as EditorSnapshot, HISTORY_LIMIT),
+      pushHistorySnapshot(previousHistory, prevSnapshot, HISTORY_LIMIT),
     )
+    const snapshotOp: SnapshotOp = {
+      type: 'snapshot',
+      label: 'Edit',
+      beforeSnapshot: deepClone(prevSnapshot),
+    }
+    setOpHistory((prev) => pushOperation(prev, snapshotOp))
     lastSnapshotRef.current = deepClone(currentSnapshot)
     lastSnapshotSignatureRef.current = currentSnapshotSignature
   }, [
@@ -338,5 +348,6 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     lastSnapshotRef,
     lastSnapshotSignatureRef,
     setHistoryState,
+    setOpHistory,
   ])
 }

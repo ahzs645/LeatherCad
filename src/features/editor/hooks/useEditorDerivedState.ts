@@ -74,6 +74,7 @@ type UseEditorDerivedStateParams = {
   templateRepository: TemplateRepositoryEntry[]
   selectedTemplateEntryId: string | null
   historyState: HistoryState<EditorSnapshot>
+  opHistory?: { past: unknown[]; future: unknown[] }
   printSelectedOnly: boolean
   printPaper: PrintPaper
   printMarginMm: number
@@ -183,8 +184,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     [templateRepository, selectedTemplateEntryId],
   )
   const stitchAlwaysShapeIdSet = useMemo(() => new Set(stitchAlwaysShapeIds), [stitchAlwaysShapeIds])
-  const canUndo = historyState.past.length > 0
-  const canRedo = historyState.future.length > 0
+  const canUndo = (params.opHistory?.past.length ?? 0) > 0 || historyState.past.length > 0
+  const canRedo = (params.opHistory?.future.length ?? 0) > 0 || historyState.future.length > 0
 
   const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
   const visibleLineTypeIdSet = useMemo(

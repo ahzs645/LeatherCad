@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { clamp } from '../cad/cad-geometry'
 import type {
   ConstraintAxis,
@@ -11,6 +12,7 @@ import type {
   SnapSettings,
   TextTransformMode,
 } from '../cad/cad-types'
+import type { BooleanOp, OffsetJoinType } from '../ops/clipper-ops'
 
 type SketchLinkMode = NonNullable<SketchGroup['linkMode']>
 
@@ -97,6 +99,14 @@ type PatternToolsModalProps = {
   selectedHardwareMarker: HardwareMarker | null
   onUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
   onDeleteSelectedHardwareMarker: () => void
+  // Boolean operations
+  onBooleanOp: (op: BooleanOp) => void
+  // Clipper path offset
+  onClipperOffset: (offsetMm: number, joinType: OffsetJoinType) => void
+  // Text to path
+  onTextToPath: () => void
+  // Nesting
+  onOpenNesting: () => void
 }
 
 export function PatternToolsModal({
@@ -173,7 +183,14 @@ export function PatternToolsModal({
   selectedHardwareMarker,
   onUpdateSelectedHardwareMarker,
   onDeleteSelectedHardwareMarker,
+  onBooleanOp,
+  onClipperOffset,
+  onTextToPath,
+  onOpenNesting,
 }: PatternToolsModalProps) {
+  const [clipperOffsetMm, setClipperOffsetMm] = useState(3)
+  const [clipperJoinType, setClipperJoinType] = useState<OffsetJoinType>('round')
+
   if (!open) {
     return null
   }
@@ -821,6 +838,87 @@ export function PatternToolsModal({
           ) : (
             <p className="hint">Select a hardware marker in Move tool to edit metadata.</p>
           )}
+        </div>
+
+        <div className="control-block">
+          <h3>Boolean Operations</h3>
+          <p className="hint">
+            Select 2+ shapes. For Difference: first-selected group is subject, rest is clip.
+          </p>
+          <div className="line-type-modal-actions">
+            <button disabled={selectedShapeCount < 2} onClick={() => onBooleanOp('union')}>
+              Union
+            </button>
+            <button disabled={selectedShapeCount < 2} onClick={() => onBooleanOp('difference')}>
+              Difference
+            </button>
+            <button disabled={selectedShapeCount < 2} onClick={() => onBooleanOp('intersection')}>
+              Intersect
+            </button>
+            <button disabled={selectedShapeCount < 2} onClick={() => onBooleanOp('xor')}>
+              XOR
+            </button>
+          </div>
+        </div>
+
+        <div className="control-block">
+          <h3>Clipper Path Offset</h3>
+          <p className="hint">
+            Robust polygon offset with corner treatment. Replaces naive perpendicular offset for closed shapes.
+          </p>
+          <div className="line-type-edit-grid">
+            <label className="field-row">
+              <span>Offset (mm)</span>
+              <input
+                type="number"
+                step={0.5}
+                value={clipperOffsetMm}
+                onChange={(e) => setClipperOffsetMm(Number(e.target.value))}
+                style={{ width: 70 }}
+              />
+            </label>
+            <label className="field-row">
+              <span>Join Type</span>
+              <select
+                value={clipperJoinType}
+                onChange={(e) => setClipperJoinType(e.target.value as OffsetJoinType)}
+              >
+                <option value="round">Round</option>
+                <option value="miter">Miter</option>
+                <option value="square">Square</option>
+              </select>
+            </label>
+          </div>
+          <div className="line-type-modal-actions">
+            <button
+              disabled={selectedShapeCount === 0}
+              onClick={() => onClipperOffset(clipperOffsetMm, clipperJoinType)}
+            >
+              Offset Selection (Clipper)
+            </button>
+          </div>
+        </div>
+
+        <div className="control-block">
+          <h3>Text to Path</h3>
+          <p className="hint">
+            Convert selected text shapes to vector outlines using OpenType.js font metrics.
+          </p>
+          <div className="line-type-modal-actions">
+            <button disabled={selectedShapeCount === 0} onClick={onTextToPath}>
+              Convert Text to Paths
+            </button>
+          </div>
+        </div>
+
+        <div className="control-block">
+          <h3>Pattern Nesting</h3>
+          <p className="hint">
+            NFP nesting algorithm to optimize pattern placement and minimize leather waste.
+          </p>
+          <div className="line-type-modal-actions">
+            <button onClick={onOpenNesting}>Open Nesting Tool</button>
+          </div>
         </div>
       </div>
     </div>

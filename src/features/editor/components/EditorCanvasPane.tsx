@@ -15,6 +15,7 @@ import type {
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import type { AnnotationLabel, LegendMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
+import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
 import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
 import type { PrintPlan } from '../preview/print-preview'
 import { LayerLegendPanel } from './LayerLegendPanel'
@@ -72,6 +73,7 @@ type EditorCanvasPaneProps = {
   onHardwarePointerDown: (event: PointerEvent<SVGGElement>, markerId: string) => void
   foldLines: FoldLine[]
   annotationLabels: AnnotationLabel[]
+  constraintSuggestions: ConstraintSuggestion[]
   previewElement: ReactElement | null
   showLayerLegend: boolean
   legendMode: LegendMode
@@ -125,6 +127,7 @@ export function EditorCanvasPane({
   onHardwarePointerDown,
   foldLines,
   annotationLabels,
+  constraintSuggestions,
   previewElement,
   showLayerLegend,
   legendMode,
@@ -569,6 +572,25 @@ export function EditorCanvasPane({
           {annotationLabels.map((label) => (
             <text key={label.id} x={label.point.x} y={label.point.y} className="annotation-label">
               {label.text}
+            </text>
+          ))}
+
+          {constraintSuggestions.map((suggestion, i) => (
+            <text
+              key={`cs-${i}`}
+              x={suggestion.glyphPoint.x}
+              y={suggestion.glyphPoint.y - 4}
+              className="constraint-glyph"
+              style={{
+                fontSize: 10 / viewport.scale,
+                fill: '#22d3ee',
+                fontWeight: 700,
+                textAnchor: 'middle',
+                pointerEvents: 'none',
+                opacity: 0.5 + suggestion.confidence * 0.5,
+              }}
+            >
+              {suggestion.glyph}
             </text>
           ))}
 

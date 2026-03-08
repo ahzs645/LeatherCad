@@ -26,6 +26,9 @@ import { PrecisionCommandPanel } from './components/PrecisionCommandPanel'
 const ProjectMemoModal = lazy(() =>
   import('./components/ProjectMemoModal').then((mod) => ({ default: mod.ProjectMemoModal })),
 )
+const NestingModal = lazy(() =>
+  import('./components/NestingModal').then((mod) => ({ default: mod.NestingModal })),
+)
 import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
@@ -133,6 +136,20 @@ export function EditorApp() {
   const [mobileOptionsTab, setMobileOptionsTab] = useState<MobileOptionsTab>('view')
   const [showPrecisionModal, setShowPrecisionModal] = useState(false)
   const [showProjectMemoModal, setShowProjectMemoModal] = useState(false)
+  const [showNestingModal, setShowNestingModal] = useState(false)
+  const [loadedFontUrl, setLoadedFontUrl] = useState<string | null>(null)
+  const [constraintSuggestions, setConstraintSuggestions] = useState<import('./ops/auto-constraint-ops').ConstraintSuggestion[]>([])
+  const [autoConstraintSettings] = useState(() => ({
+    enabled: true,
+    horizontal: true,
+    vertical: true,
+    parallel: true,
+    perpendicular: true,
+    equalLength: true,
+    tangent: true,
+    angleTolerance: 3,
+    distanceTolerance: 0.5,
+  }))
   const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
@@ -289,6 +306,8 @@ export function EditorApp() {
   const {
     historyState,
     setHistoryState,
+    opHistory,
+    setOpHistory,
     lastSnapshotRef,
     lastSnapshotSignatureRef,
     applyingHistoryRef,
@@ -336,6 +355,7 @@ export function EditorApp() {
   const tracingInputRef = useRef<HTMLInputElement | null>(null)
   const templateImportInputRef = useRef<HTMLInputElement | null>(null)
   const catalogImportInputRef = useRef<HTMLInputElement | null>(null)
+  const fontInputRef = useRef<HTMLInputElement | null>(null)
   const pasteCountRef = useRef(0)
   const tracingObjectUrlsRef = useRef<Set<string>>(new Set())
   const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
@@ -415,6 +435,7 @@ export function EditorApp() {
     templateRepository,
     selectedTemplateEntryId,
     historyState,
+    opHistory,
     printSelectedOnly,
     printPaper,
     printMarginMm,
@@ -545,10 +566,12 @@ export function EditorApp() {
 
   const { handleUndo, handleRedo } = useHistoryActions({
     historyState,
+    opHistory,
     currentSnapshot,
     applyEditorSnapshot,
     applyingHistoryRef,
     setHistoryState,
+    setOpHistory,
     setStatus,
   })
 
@@ -731,6 +754,7 @@ export function EditorApp() {
     currentSnapshot,
     currentSnapshotSignature,
     setHistoryState,
+    setOpHistory,
   })
 
   useKeyboardShortcuts({
@@ -745,6 +769,29 @@ export function EditorApp() {
     handleDuplicateSelection,
     handleSelectAllShapes,
   })
+
+  // Auto-constraint detection: run when shapes change
+  const prevShapeCountRef = useRef(0)
+  useEffect(() => {
+    if (!autoConstraintSettings.enabled || shapes.length === 0) {
+      if (constraintSuggestions.length > 0) setConstraintSuggestions([])
+      prevShapeCountRef.current = shapes.length
+      return
+    }
+    // Only detect when a shape was just added
+    if (shapes.length > prevShapeCountRef.current && shapes.length > 1) {
+      const newest = shapes[shapes.length - 1]
+      const rest = shapes.slice(0, -1)
+      import('./ops/auto-constraint-ops').then(({ detectAutoConstraints }) => {
+        const suggestions = detectAutoConstraints(newest, rest, autoConstraintSettings)
+        setConstraintSuggestions(suggestions)
+      })
+    } else if (shapes.length < prevShapeCountRef.current) {
+      // Shapes were removed, clear suggestions
+      setConstraintSuggestions([])
+    }
+    prevShapeCountRef.current = shapes.length
+  }, [shapes, autoConstraintSettings]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const {
     handleZoomStep,
@@ -1461,6 +1508,70 @@ export function EditorApp() {
     selectedHardwareMarker,
     handleUpdateSelectedHardwareMarker,
     handleDeleteSelectedHardwareMarker,
+    handleBooleanOp: (op: import('./ops/clipper-ops').BooleanOp) => {
+      import('./ops/clipper-ops').then(({ booleanOpOnShapes }) => {
+        const result = booleanOpOnShapes(
+          shapes,
+          new Set(selectedShapeIds),
+          op,
+          activeLayer?.id ?? '',
+          activeLineTypeId,
+        )
+        if (result.ok) {
+          setShapes(result.nextShapes)
+        }
+        setStatus(result.message)
+      })
+    },
+    handleClipperOffset: (offsetMm: number, joinType: import('./ops/clipper-ops').OffsetJoinType) => {
+      import('./ops/clipper-ops').then(({ clipperOffsetForSelection }) => {
+        const result = clipperOffsetForSelection(
+          shapes,
+          new Set(selectedShapeIds),
+          offsetMm,
+          joinType,
+          activeLineTypeId,
+        )
+        if (result.ok) {
+          setShapes((prev) => [...prev, ...result.created])
+        }
+        setStatus(result.message)
+      })
+    },
+    handleTextToPath: () => {
+      if (!loadedFontUrl) {
+        fontInputRef.current?.click()
+        setStatus('Select a .ttf/.otf font file to enable text-to-path conversion')
+        return
+      }
+      const textShapes = shapes.filter((s) => s.type === 'text' && selectedShapeIdSet.has(s.id))
+      if (textShapes.length === 0) {
+        setStatus('Select at least one text shape to convert')
+        return
+      }
+      import('./ops/opentype-ops').then(({ textToPathShapes }) => {
+        const created: Shape[] = []
+        const convertedIds = new Set<string>()
+        for (const ts of textShapes) {
+          if (ts.type !== 'text') continue
+          const result = textToPathShapes(ts, loadedFontUrl)
+          if (result.ok) {
+            created.push(...result.shapes)
+            convertedIds.add(ts.id)
+          }
+        }
+        if (created.length > 0) {
+          setShapes((prev) => [...prev.filter((s) => !convertedIds.has(s.id)), ...created])
+          setSelectedShapeIds([])
+          setStatus(`Converted ${convertedIds.size} text shape(s) to ${created.length} path shapes`)
+        } else {
+          setStatus('No paths generated. Ensure font is loaded and text shapes are selected.')
+        }
+      })
+    },
+    handleOpenNesting: () => {
+      setShowNestingModal(true)
+    },
     showTracingModal,
     setShowTracingModal,
     tracingOverlays,
@@ -1615,6 +1726,7 @@ export function EditorApp() {
               onHardwarePointerDown={handleHardwarePointerDown}
               foldLines={foldLines}
               annotationLabels={annotationLabels}
+              constraintSuggestions={constraintSuggestions}
               previewElement={previewElement}
               showLayerLegend={showLayerLegend}
               legendMode={legendMode}
@@ -1680,6 +1792,22 @@ export function EditorApp() {
         />
       </Suspense>
 
+      <Suspense fallback={null}>
+        <NestingModal
+          open={showNestingModal}
+          onClose={() => setShowNestingModal(false)}
+          shapes={shapes}
+          selectedShapeIds={selectedShapeIdSet}
+          activeLayerId={activeLayerId}
+          activeLineTypeId={activeLineTypeId}
+          onApplyNesting={(createdShapes) => {
+            setShapes((prev) => [...prev, ...createdShapes])
+            setShowNestingModal(false)
+            setStatus(`Nesting applied: ${createdShapes.length} shapes created`)
+          }}
+        />
+      </Suspense>
+
       <EditorStatusBar {...statusBarProps} />
 
       <EditorHiddenInputs
@@ -1693,6 +1821,31 @@ export function EditorApp() {
         onImportTracing={handleImportTracing}
         onImportTemplateRepositoryFile={handleImportTemplateRepositoryFile}
         onImportCatalogFile={handleImportCatalogFile}
+      />
+      <input
+        ref={fontInputRef}
+        type="file"
+        accept=".ttf,.otf,.woff"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (!file) return
+          const reader = new FileReader()
+          reader.onload = () => {
+            import('./ops/opentype-ops').then(({ loadFontFromBuffer }) => {
+              try {
+                const key = `font:${file.name}`
+                loadFontFromBuffer(reader.result as ArrayBuffer, key)
+                setLoadedFontUrl(key)
+                setStatus(`Font loaded: ${file.name}`)
+              } catch (err) {
+                setStatus(`Failed to load font: ${err instanceof Error ? err.message : 'unknown error'}`)
+              }
+            })
+          }
+          reader.readAsArrayBuffer(file)
+          e.target.value = ''
+        }}
       />
     </div>
   )
