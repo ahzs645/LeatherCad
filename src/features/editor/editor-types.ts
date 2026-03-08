@@ -22,6 +22,7 @@ export type ThemeMode = ResolvedThemeMode | 'system'
 export type LegendMode = 'layer' | 'stack'
 export type DxfVersion = 'r12' | 'r14'
 export type DesktopRibbonTab = 'build' | 'edit' | 'stitch' | 'output' | 'view'
+export type SidePanelTab = '3d' | 'layers'
 export type SketchWorkspaceMode = 'assembly' | 'sketch'
 export type ExportRoleFilters = Record<LineTypeRole, boolean>
 

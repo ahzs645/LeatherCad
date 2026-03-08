@@ -59,6 +59,7 @@ import {
   DEFAULT_GRID_SPACING,
   DEFAULT_SNAP_SETTINGS,
 } from './editor-constants'
+import { detectOutlines, type OutlineChain } from './ops/outline-detection'
 import { openPrintTilesWindow } from './preview/print-output'
 import type {
   DesktopRibbonTab,
@@ -68,6 +69,7 @@ import type {
   MobileOptionsTab,
   MobileViewMode,
   ResolvedThemeMode,
+  SidePanelTab,
   SketchWorkspaceMode,
   ThemeMode,
 } from './editor-types'
@@ -135,6 +137,8 @@ export function EditorApp() {
   const [showAnnotations, setShowAnnotations] = useState(true)
   const [status, setStatus] = useState('Ready')
   const [showThreePreview, setShowThreePreview] = useState(true)
+  const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>('3d')
+  const [show3dInMain, setShow3dInMain] = useState(false)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
   const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
   const [showMobileMenu, setShowMobileMenu] = useState(false)
@@ -457,6 +461,12 @@ export function EditorApp() {
     sketchWorkspaceMode,
     themeMode: resolvedThemeMode,
   })
+
+  // Detect closed outlines and open paths for canvas labels
+  const outlineChains = useMemo<OutlineChain[]>(
+    () => detectOutlines(workspaceEditableShapes, lineTypes),
+    [workspaceEditableShapes, lineTypes],
+  )
 
   const {
     applyEditorSnapshot,
@@ -1241,13 +1251,15 @@ export function EditorApp() {
   const effectiveDesktopPreviewWidthPx = desktopPreviewWidthPx
   const workspaceStyle: CSSProperties | undefined = isMobileLayout
     ? undefined
-    : showThreePreview
-      ? {
-          gridTemplateColumns: `minmax(0, 1fr) ${DESKTOP_SPLITTER_WIDTH_PX}px ${effectiveDesktopPreviewWidthPx}px`,
-        }
-      : {
-          gridTemplateColumns: 'minmax(0, 1fr)',
-        }
+    : show3dInMain
+      ? { gridTemplateColumns: 'minmax(0, 1fr)' }
+      : showThreePreview
+        ? {
+            gridTemplateColumns: `minmax(0, 1fr) ${DESKTOP_SPLITTER_WIDTH_PX}px ${effectiveDesktopPreviewWidthPx}px`,
+          }
+        : {
+            gridTemplateColumns: 'minmax(0, 1fr)',
+          }
 
   const topbarProps = useEditorTopbarProps({
     topbarClassName,
@@ -1628,10 +1640,12 @@ export function EditorApp() {
     handleOpenPrintTiles,
   })
   const previewPaneProps = useEditorPreviewPaneProps({
-    showThreePreview,
+    showSidePanel: showThreePreview,
     hidePreviewPane,
     isMobileLayout,
     mobileViewMode,
+    sidePanelTab,
+    onSetSidePanelTab: setSidePanelTab,
     shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
     selectedShapeIds,
     stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
@@ -1646,6 +1660,28 @@ export function EditorApp() {
     lineTypes,
     themeMode: resolvedThemeMode,
     setFoldLines,
+    setLayers,
+    activeLayer,
+    layerStackLevels,
+    layerColorsById,
+    onSetActiveLayerId: setActiveLayerId,
+    onClearDraft: clearDraft,
+    onAddLayer: handleAddLayer,
+    onRenameActiveLayer: handleRenameActiveLayer,
+    onMoveLayerUp: () => handleMoveLayer(-1),
+    onMoveLayerDown: () => handleMoveLayer(1),
+    onDeleteLayer: handleDeleteLayer,
+    onOpenLayerColorModal: () => setShowLayerColorModal(true),
+    show3dInMain,
+    onToggle3dInMain: () => {
+      setShow3dInMain((prev) => {
+        if (!prev) {
+          setSidePanelTab('3d')
+          setShowThreePreview(true)
+        }
+        return !prev
+      })
+    },
   })
   const statusBarProps = useEditorStatusBarProps({
     toolLabel: toolLabel(tool),
@@ -1671,7 +1707,7 @@ export function EditorApp() {
       <EditorTopbar {...topbarProps} />
 
       <main ref={workspaceRef} className={workspaceClassName} style={workspaceStyle}>
-        <div className="canvas-stage">
+        {!show3dInMain && <div className="canvas-stage">
           {!isMobileLayout && (
             <aside className="canvas-tool-rail" aria-label="Geometry tools">
               <div className="group tool-group ribbon-section canvas-tool-sidebar">
@@ -1750,11 +1786,12 @@ export function EditorApp() {
               layerColorsById={layerColorsById}
               fallbackLayerStroke={fallbackLayerStroke}
               stackLegendEntries={stackLegendEntries}
+              outlineChains={outlineChains}
             />
           </ErrorBoundary>
-        </div>
+        </div>}
 
-        {!isMobileLayout && showThreePreview && (
+        {!isMobileLayout && showThreePreview && !show3dInMain && (
           <div
             className={`workspace-splitter ${isDesktopPreviewResizing ? 'active' : ''}`}
             role="separator"

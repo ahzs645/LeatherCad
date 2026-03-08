@@ -49,11 +49,7 @@ export function useEditorLayoutFlags(params: UseEditorLayoutFlagsParams): Editor
   const showDesktopEditSection = desktopRibbonTab === 'edit'
   const showDesktopLineTypeSection = desktopRibbonTab === 'build' || desktopRibbonTab === 'edit' || desktopRibbonTab === 'stitch'
   const showDesktopStitchSection = desktopRibbonTab === 'stitch'
-  const showDesktopLayerSection =
-    desktopRibbonTab === 'build' ||
-    desktopRibbonTab === 'edit' ||
-    desktopRibbonTab === 'stitch' ||
-    desktopRibbonTab === 'view'
+  const showDesktopLayerSection = false
   const showDesktopFileSection = desktopRibbonTab === 'output'
   const showToolSection = isMobileLayout || showDesktopToolSection
   const showPresetSection = isMobileLayout ? showViewOptions : showDesktopPresetSection

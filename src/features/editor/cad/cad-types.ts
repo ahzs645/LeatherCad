@@ -12,6 +12,7 @@ export type Tool =
   | 'hardware'
   | 'text'
   | 'freehand'
+  | 'cut-line'
 
 export type Point = {
   x: number

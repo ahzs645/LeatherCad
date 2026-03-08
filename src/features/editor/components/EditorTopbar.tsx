@@ -377,7 +377,7 @@ export function EditorTopbar({
           <div className="desktop-ribbon-strip-meta">
             <span>{selectedShapeCount} selected</span>
             <span>{selectedStitchHoleCount} selected holes</span>
-            <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</button>
+            <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide Panel' : 'Show Panel'}</button>
             <button onClick={onOpenPrecisionModal}>Precision</button>
             <button onClick={onOpenProjectMemoModal}>Project Memo</button>
             <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
@@ -405,6 +405,15 @@ export function EditorTopbar({
                       <option value="in">in</option>
                     </select>
                   </label>
+                  <label className="stitch-pitch-inline">
+                    <span>Grid</span>
+                    <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
+                      {GRID_SPACING_OPTIONS.map((opt) => (
+                        <option key={opt} value={opt}>{opt}mm</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="button" onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
                   <button type="button" onClick={onOpenHelpModal}>Help</button>
                 </div>
               )}
@@ -496,6 +505,15 @@ export function EditorTopbar({
                           <option value="in">in</option>
                         </select>
                       </label>
+                      <label className="stitch-pitch-inline">
+                        <span>Grid</span>
+                        <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
+                          {GRID_SPACING_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}mm</option>
+                          ))}
+                        </select>
+                      </label>
+                      <button type="button" onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
                       <button type="button" onClick={onOpenHelpModal}>Help</button>
                     </div>
                   )}
@@ -532,15 +550,6 @@ export function EditorTopbar({
                 Sketch Focus
               </button>
             </div>
-            <label className="stitch-pitch-inline">
-              <span>Grid</span>
-              <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
-                {GRID_SPACING_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>{opt}mm</option>
-                ))}
-              </select>
-            </label>
-            <button onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
             <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
             {isMobileLayout && renderThemeModeToggle('mobile-theme-toggle')}
           </div>

@@ -1,9 +1,15 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { sampleShapePoints } from '../cad/cad-geometry'
-import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
+import type { FoldLine, Layer, LineType, Point, Shape, StitchHole, TextureSource } from '../cad/cad-types'
 import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
 import { LEATHER_PRESETS } from './material-presets'
+
+export type OutlinePolygon = {
+  polygon: Point[]
+  shapeIds: string[]
+  layerId: string
+}
 
 type ModelTransform = {
   scale: number
@@ -241,6 +247,7 @@ export class ThreeBridge {
   private currentRoughness: THREE.Texture | null = null
   private texturedShapeIdSet = new Set<string>()
   private threadColor = DEFAULT_STITCH_THREAD_COLOR
+  private outlinePolygons: OutlinePolygon[] = []
 
   private layers: Layer[] = []
   private lineTypes: LineType[] = []
@@ -518,6 +525,7 @@ export class ThreeBridge {
     bounds: Bounds2,
     pivot: THREE.Vector2 | null,
     yOffset: number,
+    holes?: THREE.Vector2[][],
   ) {
     if (points.length < 3) {
       return null
@@ -528,26 +536,55 @@ export class ThreeBridge {
     const width = Math.max(bounds.maxX - bounds.minX, EPSILON)
     const height = Math.max(bounds.maxY - bounds.minY, EPSILON)
 
+    // Use THREE.Shape for proper triangulation (handles concave polygons + holes)
+    const shape = new THREE.Shape()
+    shape.moveTo(points[0].x - pivotX, points[0].y - pivotY)
+    for (let i = 1; i < points.length; i++) {
+      shape.lineTo(points[i].x - pivotX, points[i].y - pivotY)
+    }
+    shape.closePath()
+
+    if (holes) {
+      for (const hole of holes) {
+        if (hole.length < 3) continue
+        const holePath = new THREE.Path()
+        holePath.moveTo(hole[0].x - pivotX, hole[0].y - pivotY)
+        for (let i = 1; i < hole.length; i++) {
+          holePath.lineTo(hole[i].x - pivotX, hole[i].y - pivotY)
+        }
+        holePath.closePath()
+        shape.holes.push(holePath)
+      }
+    }
+
+    const shapeGeometry = new THREE.ShapeGeometry(shape)
+
+    // Remap the geometry: ShapeGeometry produces XY plane, we need XZ (y = yOffset)
+    const posAttr = shapeGeometry.getAttribute('position')
+    const count = posAttr.count
     const vertices: number[] = []
     const normals: number[] = []
     const uvs: number[] = []
-    for (const point of points) {
-      vertices.push(point.x - pivotX, yOffset, point.y - pivotY)
-      normals.push(0, 1, 0)
-      uvs.push((point.x - bounds.minX) / width, (point.y - bounds.minY) / height)
-    }
 
-    const indices: number[] = []
-    for (let index = 1; index < points.length - 1; index += 1) {
-      indices.push(0, index, index + 1)
+    for (let i = 0; i < count; i++) {
+      const sx = posAttr.getX(i)
+      const sy = posAttr.getY(i)
+      vertices.push(sx, yOffset, sy)
+      normals.push(0, 1, 0)
+      // Remap UV based on world bounds
+      const worldX = sx + pivotX
+      const worldY = sy + pivotY
+      uvs.push((worldX - bounds.minX) / width, (worldY - bounds.minY) / height)
     }
 
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
     geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
     geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
-    geometry.setIndex(indices)
+    geometry.setIndex(Array.from(shapeGeometry.index?.array ?? []))
     geometry.computeBoundingSphere()
+
+    shapeGeometry.dispose()
 
     return new THREE.Mesh(geometry, material)
   }
@@ -801,20 +838,30 @@ export class ThreeBridge {
 
     let maxYOffset = 0
     for (const [index, layerSlice] of layerSlices.entries()) {
-      const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
-      const layerRectangle = [
-        this.projectPoint({ x: layerBounds.minX, y: layerBounds.minY }),
-        this.projectPoint({ x: layerBounds.maxX, y: layerBounds.minY }),
-        this.projectPoint({ x: layerBounds.maxX, y: layerBounds.maxY }),
-        this.projectPoint({ x: layerBounds.minX, y: layerBounds.maxY }),
-      ]
-      const layerProjectedBounds = polygonBounds(layerRectangle)
+      // Check for actual outline polygons for this layer
+      const layerOutlines = this.outlinePolygons.filter((o) => o.layerId === layerSlice.layerId)
 
-      let positivePolygon = clipPolygonByLine(layerRectangle, foldStart, foldEnd, true)
-      let negativePolygon = clipPolygonByLine(layerRectangle, foldStart, foldEnd, false)
-      if (positivePolygon.length < 3 && negativePolygon.length < 3) {
-        positivePolygon = []
-        negativePolygon = layerRectangle.map((point) => point.clone())
+      let panelPolygons: THREE.Vector2[][]
+      let layerProjectedBounds: Bounds2
+
+      if (layerOutlines.length > 0) {
+        // Use actual closed-shape geometry instead of bounding-box rectangles
+        panelPolygons = layerOutlines.map((o) => o.polygon.map((p) => this.projectPoint(p)))
+        // Compute combined bounds from all outline polygons
+        const allPoints = panelPolygons.flat()
+        layerProjectedBounds = polygonBounds(allPoints)
+      } else {
+        // Fall back to bounding-box rectangle
+        const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
+        panelPolygons = [
+          [
+            this.projectPoint({ x: layerBounds.minX, y: layerBounds.minY }),
+            this.projectPoint({ x: layerBounds.maxX, y: layerBounds.minY }),
+            this.projectPoint({ x: layerBounds.maxX, y: layerBounds.maxY }),
+            this.projectPoint({ x: layerBounds.minX, y: layerBounds.maxY }),
+          ],
+        ]
+        layerProjectedBounds = polygonBounds(panelPolygons[0])
       }
 
       const stackLevel = layerStackLevels.get(layerSlice.layerId) ?? index
@@ -825,21 +872,30 @@ export class ThreeBridge {
       const staticMaterial = hasTexturedShape ? this.leftTextureMaterial : this.leftMaterial
       const foldingMaterial = hasTexturedShape ? this.rightTextureMaterial : this.rightMaterial
 
-      if (negativePolygon.length >= 3) {
-        const staticPanel = this.createPanelMesh(negativePolygon, staticMaterial, layerProjectedBounds, null, yOffset)
-        if (staticPanel) {
-          this.staticPanels.push(staticPanel)
-          this.staticSideGroup.add(staticPanel)
-          this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null, yOffset)
+      for (const panelPoly of panelPolygons) {
+        let positivePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, true)
+        let negativePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, false)
+        if (positivePolygon.length < 3 && negativePolygon.length < 3) {
+          positivePolygon = []
+          negativePolygon = panelPoly.map((point) => point.clone())
         }
-      }
 
-      if (positivePolygon.length >= 3) {
-        const foldingPanel = this.createPanelMesh(positivePolygon, foldingMaterial, layerProjectedBounds, foldMid, yOffset)
-        if (foldingPanel) {
-          this.foldingPanels.push(foldingPanel)
-          this.foldingSideGroup.add(foldingPanel)
-          this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid, yOffset)
+        if (negativePolygon.length >= 3) {
+          const staticPanel = this.createPanelMesh(negativePolygon, staticMaterial, layerProjectedBounds, null, yOffset)
+          if (staticPanel) {
+            this.staticPanels.push(staticPanel)
+            this.staticSideGroup.add(staticPanel)
+            this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null, yOffset)
+          }
+        }
+
+        if (positivePolygon.length >= 3) {
+          const foldingPanel = this.createPanelMesh(positivePolygon, foldingMaterial, layerProjectedBounds, foldMid, yOffset)
+          if (foldingPanel) {
+            this.foldingPanels.push(foldingPanel)
+            this.foldingSideGroup.add(foldingPanel)
+            this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid, yOffset)
+          }
         }
       }
 
@@ -962,12 +1018,14 @@ export class ThreeBridge {
     foldLines: FoldLine[],
     lineTypes: LineType[] = [],
     stitchHoles: StitchHole[] = [],
+    outlinePolygons: OutlinePolygon[] = [],
   ) {
     this.layers = [...layers]
     this.lineTypes = [...lineTypes]
     this.shapes = [...shapes]
     this.foldLines = [...foldLines]
     this.stitchHoles = [...stitchHoles]
+    this.outlinePolygons = outlinePolygons
     const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
     this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
     this.activeFoldBehavior = resolveFoldBehavior(this.foldLines[0] ?? null)
@@ -980,8 +1038,11 @@ export class ThreeBridge {
     this.rebuildModel()
   }
 
-  setShapes(shapes: Shape[]) {
+  setShapes(shapes: Shape[], outlinePolygons?: OutlinePolygon[]) {
     this.shapes = [...shapes]
+    if (outlinePolygons) {
+      this.outlinePolygons = outlinePolygons
+    }
     const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
     this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
     this.rebuildModel()

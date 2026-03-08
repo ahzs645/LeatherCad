@@ -272,7 +272,6 @@ export function TemplateRepositoryModal({
           </>
         ) : activeTab === 'catalog' ? (
           <>
-            <h3 className="line-type-modal-subtitle">Leather Catalog (.ctlg)</h3>
             <div className="line-type-modal-actions">
               <button onClick={onImportCatalog}>Import Catalog</button>
               <button
@@ -286,126 +285,132 @@ export function TemplateRepositoryModal({
                 Delete Catalog
               </button>
             </div>
-            <div className="template-list">
-              {catalogRepository.length === 0 ? (
-                <p className="hint">No catalogs available yet.</p>
-              ) : (
-                catalogRepository.map((shop) => {
-                  const itemCount = getCatalogItemCount(shop)
-                  const groupCount = typeof shop.groupCount === 'number' ? shop.groupCount : shop.groups.length
-                  return (
-                    <label key={shop.id} className="template-item">
-                      <input
-                        type="radio"
-                        name="catalog-shop"
-                        checked={selectedCatalogShopId === shop.id}
-                        onChange={() => onSelectCatalogShop(shop.id)}
-                      />
-                      <span className="template-item-name">{shop.name}</span>
-                      <span className="template-item-meta">
-                        {groupCount} groups, {itemCount} items
-                        {shop.sourceFileName ? ` - ${shop.sourceFileName}` : ''}
-                      </span>
-                    </label>
-                  )
-                })
-              )}
-            </div>
-            <h3 className="line-type-modal-subtitle">Catalog Item Preview</h3>
-            {!selectedCatalogShop ? (
-              <p className="hint">Select a catalog to preview its items.</p>
-            ) : (
-              <>
-                <p className="hint">
-                  {selectedCatalogShop.name} • {selectedCatalogShopGroupCount} groups • {selectedCatalogShopItemCount} items
-                </p>
-                {catalogPreviewItems.length === 0 ? (
+            <div className="catalog-split-layout">
+              <div className="catalog-split-shops">
+                <h3 className="catalog-split-heading">Shops</h3>
+                <div className="catalog-split-shops-list">
+                  {catalogRepository.length === 0 ? (
+                    <p className="hint">No catalogs available yet.</p>
+                  ) : (
+                    catalogRepository.map((shop) => {
+                      const itemCount = getCatalogItemCount(shop)
+                      const groupCount = typeof shop.groupCount === 'number' ? shop.groupCount : shop.groups.length
+                      return (
+                        <label key={shop.id} className="template-item">
+                          <input
+                            type="radio"
+                            name="catalog-shop"
+                            checked={selectedCatalogShopId === shop.id}
+                            onChange={() => onSelectCatalogShop(shop.id)}
+                          />
+                          <span className="template-item-name">{shop.name}</span>
+                          <span className="template-item-meta">
+                            {groupCount} groups, {itemCount} items
+                          </span>
+                        </label>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+              <div className="catalog-split-preview">
+                {!selectedCatalogShop ? (
+                  <p className="hint">Select a shop to browse its items.</p>
+                ) : catalogPreviewItems.length === 0 ? (
                   <p className="hint">
                     This catalog only includes summary metadata. Import the source `.ctlg` file to preview individual items.
                   </p>
                 ) : (
-                  <div className="catalog-preview-layout">
-                    <div className="catalog-preview-item-list" role="listbox" aria-label="Catalog items">
-                      {catalogPreviewItems.map((entry) => {
-                        const itemDetails = joinCatalogItemDetails(entry.item)
-                        return (
-                          <button
-                            key={entry.key}
-                            type="button"
-                            className={`catalog-preview-item-chip ${resolvedSelectedCatalogItemKey === entry.key ? 'active' : ''}`}
-                            onClick={() => setSelectedCatalogItemKey(entry.key)}
-                            aria-selected={resolvedSelectedCatalogItemKey === entry.key}
-                          >
-                            <span className="catalog-preview-item-chip-name">{entry.item.name}</span>
-                            <span className="catalog-preview-item-chip-meta">
-                              {entry.groupName}
-                              {itemDetails ? ` • ${itemDetails}` : ''}
-                            </span>
-                          </button>
-                        )
-                      })}
+                  <>
+                    <h3 className="catalog-split-heading">
+                      {selectedCatalogShop.name}
+                      <span className="catalog-split-heading-meta">
+                        {selectedCatalogShopGroupCount} groups, {selectedCatalogShopItemCount} items
+                      </span>
+                    </h3>
+                    <div className="catalog-preview-layout">
+                      <div className="catalog-preview-item-list" role="listbox" aria-label="Catalog items">
+                        {catalogPreviewItems.map((entry) => {
+                          const itemDetails = joinCatalogItemDetails(entry.item)
+                          return (
+                            <button
+                              key={entry.key}
+                              type="button"
+                              className={`catalog-preview-item-chip ${resolvedSelectedCatalogItemKey === entry.key ? 'active' : ''}`}
+                              onClick={() => setSelectedCatalogItemKey(entry.key)}
+                              aria-selected={resolvedSelectedCatalogItemKey === entry.key}
+                            >
+                              <span className="catalog-preview-item-chip-name">{entry.item.name}</span>
+                              <span className="catalog-preview-item-chip-meta">
+                                {entry.groupName}
+                                {itemDetails ? ` • ${itemDetails}` : ''}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="catalog-preview-detail">
+                        {selectedCatalogPreviewItem ? (
+                          <>
+                            <h4>{selectedCatalogPreviewItem.item.name}</h4>
+                            <p className="catalog-preview-detail-subtitle">Group: {selectedCatalogPreviewItem.groupName}</p>
+                            {selectedCatalogPreviewItem.item.hasImage ? (
+                              <div className="catalog-preview-image-wrap">
+                                {selectedCatalogPreviewImageUrl ? (
+                                  <img
+                                    className="catalog-preview-image"
+                                    src={selectedCatalogPreviewImageUrl}
+                                    alt={`${selectedCatalogPreviewItem.item.name} thumbnail`}
+                                  />
+                                ) : selectedCatalogPreviewItem.item.zipBmpBase64 ? (
+                                  <p className="hint">
+                                    {isCatalogPreviewImageLoading
+                                      ? 'Loading thumbnail…'
+                                      : catalogPreviewImageError || 'Thumbnail preview is unavailable for this item.'}
+                                  </p>
+                                ) : (
+                                  <p className="hint">Thumbnail payload is unavailable. Re-import the original `.ctlg` file to view it.</p>
+                                )}
+                              </div>
+                            ) : null}
+                            <dl className="catalog-preview-detail-grid">
+                              <dt>Category</dt>
+                              <dd>{selectedCatalogPreviewItem.item.category || 'Uncategorized'}</dd>
+                              <dt>Price / Unit</dt>
+                              <dd>
+                                {[selectedCatalogPreviewItem.item.unitPrice, selectedCatalogPreviewItem.item.unitStr]
+                                  .filter((value) => value.trim().length > 0)
+                                  .join(' ') || 'Not specified'}
+                              </dd>
+                              <dt>Image</dt>
+                              <dd>
+                                {selectedCatalogPreviewItem.item.hasImage
+                                  ? selectedCatalogPreviewItem.item.imageDpi
+                                    ? `Included (${selectedCatalogPreviewItem.item.imageDpi} dpi)`
+                                    : 'Included'
+                                  : 'No image'}
+                              </dd>
+                              <dt>GUID</dt>
+                              <dd>{selectedCatalogPreviewItem.item.guid || 'N/A'}</dd>
+                            </dl>
+                            {selectedCatalogPreviewItem.item.memo ? (
+                              <p className="catalog-preview-detail-memo">{selectedCatalogPreviewItem.item.memo}</p>
+                            ) : null}
+                            {selectedCatalogPreviewItem.item.url ? (
+                              <a href={selectedCatalogPreviewItem.item.url} target="_blank" rel="noreferrer">
+                                Open product URL
+                              </a>
+                            ) : null}
+                          </>
+                        ) : (
+                          <p className="hint">No items to preview in this catalog.</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="catalog-preview-detail">
-                      {selectedCatalogPreviewItem ? (
-                        <>
-                          <h4>{selectedCatalogPreviewItem.item.name}</h4>
-                          <p className="catalog-preview-detail-subtitle">Group: {selectedCatalogPreviewItem.groupName}</p>
-                          {selectedCatalogPreviewItem.item.hasImage ? (
-                            <div className="catalog-preview-image-wrap">
-                              {selectedCatalogPreviewImageUrl ? (
-                                <img
-                                  className="catalog-preview-image"
-                                  src={selectedCatalogPreviewImageUrl}
-                                  alt={`${selectedCatalogPreviewItem.item.name} thumbnail`}
-                                />
-                              ) : selectedCatalogPreviewItem.item.zipBmpBase64 ? (
-                                <p className="hint">
-                                  {isCatalogPreviewImageLoading
-                                    ? 'Loading thumbnail…'
-                                    : catalogPreviewImageError || 'Thumbnail preview is unavailable for this item.'}
-                                </p>
-                              ) : (
-                                <p className="hint">Thumbnail payload is unavailable. Re-import the original `.ctlg` file to view it.</p>
-                              )}
-                            </div>
-                          ) : null}
-                          <dl className="catalog-preview-detail-grid">
-                            <dt>Category</dt>
-                            <dd>{selectedCatalogPreviewItem.item.category || 'Uncategorized'}</dd>
-                            <dt>Price / Unit</dt>
-                            <dd>
-                              {[selectedCatalogPreviewItem.item.unitPrice, selectedCatalogPreviewItem.item.unitStr]
-                                .filter((value) => value.trim().length > 0)
-                                .join(' ') || 'Not specified'}
-                            </dd>
-                            <dt>Image</dt>
-                            <dd>
-                              {selectedCatalogPreviewItem.item.hasImage
-                                ? selectedCatalogPreviewItem.item.imageDpi
-                                  ? `Included (${selectedCatalogPreviewItem.item.imageDpi} dpi)`
-                                  : 'Included'
-                                : 'No image'}
-                            </dd>
-                            <dt>GUID</dt>
-                            <dd>{selectedCatalogPreviewItem.item.guid || 'N/A'}</dd>
-                          </dl>
-                          {selectedCatalogPreviewItem.item.memo ? (
-                            <p className="catalog-preview-detail-memo">{selectedCatalogPreviewItem.item.memo}</p>
-                          ) : null}
-                          {selectedCatalogPreviewItem.item.url ? (
-                            <a href={selectedCatalogPreviewItem.item.url} target="_blank" rel="noreferrer">
-                              Open product URL
-                            </a>
-                          ) : null}
-                        </>
-                      ) : (
-                        <p className="hint">No items to preview in this catalog.</p>
-                      )}
-                    </div>
-                  </div>
+                  </>
                 )}
-              </>
-            )}
+              </div>
+            </div>
           </>
         ) : (
           <>

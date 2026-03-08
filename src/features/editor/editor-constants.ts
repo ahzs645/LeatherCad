@@ -57,6 +57,7 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'hardware', label: 'Hardware' },
   { value: 'text', label: 'Text' },
   { value: 'freehand', label: 'Freehand' },
+  { value: 'cut-line', label: 'Cut' },
 ]
 
 const base = import.meta.env.BASE_URL
@@ -75,6 +76,7 @@ export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSr
   { value: 'hardware', label: 'Hardware', iconSrc: `${base}icons/leathercad/hardware.svg` },
   { value: 'text', label: 'Text', iconSrc: `${base}icons/leathercad/text.svg` },
   { value: 'freehand', label: 'Freehand', iconSrc: `${base}icons/leathercad/bezier.svg` },
+  { value: 'cut-line', label: 'Cut', iconSrc: `${base}icons/leathercad/cut.svg` },
 ]
 
 export const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [

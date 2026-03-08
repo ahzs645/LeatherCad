@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
-import { ThreeBridge } from '../three/three-bridge'
+import { ThreeBridge, type OutlinePolygon } from '../three/three-bridge'
+import { detectOutlines } from '../ops/outline-detection'
 import {
   DEFAULT_FOLD_CLEARANCE_MM,
   DEFAULT_FOLD_DIRECTION,
@@ -127,6 +128,23 @@ export function ThreePreviewPanel({
     return result
   }, [shapes])
 
+  const outlinePolygons = useMemo<OutlinePolygon[]>(() => {
+    const chains = detectOutlines(shapesIn3dView, lineTypes)
+    const result: OutlinePolygon[] = []
+    for (const chain of chains) {
+      if (!chain.isClosed || chain.area < 1) continue
+      // Determine layer from first shape in chain
+      const firstShape = shapesIn3dView.find((s) => s.id === chain.shapeIds[0])
+      if (!firstShape) continue
+      result.push({
+        polygon: chain.polygon,
+        shapeIds: chain.shapeIds,
+        layerId: firstShape.layerId,
+      })
+    }
+    return result
+  }, [shapesIn3dView, lineTypes])
+
   const selectedClosedShapeIds = useMemo(
     () => selectedShapeIds.filter((shapeId) => closedShapeIdSet.has(shapeId)),
     [selectedShapeIds, closedShapeIdSet],
@@ -166,8 +184,8 @@ export function ThreePreviewPanel({
       return
     }
 
-    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines, lineTypes, stitchHoles)
-  }, [layers, shapesIn3dView, foldLines, lineTypes, stitchHoles])
+    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines, lineTypes, stitchHoles, outlinePolygons)
+  }, [layers, shapesIn3dView, foldLines, lineTypes, stitchHoles, outlinePolygons])
 
   useEffect(() => {
     bridgeRef.current?.setTheme(themeMode)

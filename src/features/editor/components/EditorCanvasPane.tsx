@@ -18,6 +18,7 @@ import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } fr
 import type { AnnotationLabel, LegendMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
 import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
 import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
+import { chainCentroid, type OutlineChain } from '../ops/outline-detection'
 import type { PrintPlan } from '../preview/print-preview'
 import { LayerLegendPanel } from './LayerLegendPanel'
 
@@ -84,6 +85,7 @@ type EditorCanvasPaneProps = {
   layerColorsById: Record<string, string>
   fallbackLayerStroke: string
   stackLegendEntries: StackLegendEntry[]
+  outlineChains: OutlineChain[]
 }
 
 export function EditorCanvasPane({
@@ -139,6 +141,7 @@ export function EditorCanvasPane({
   layerColorsById,
   fallbackLayerStroke,
   stackLegendEntries,
+  outlineChains,
 }: EditorCanvasPaneProps) {
   const arrowMarkerStyle = (shape: Shape): Record<string, string> => {
     const style: Record<string, string> = {}
@@ -621,6 +624,35 @@ export function EditorCanvasPane({
               {label.text}
             </text>
           ))}
+
+          {outlineChains.map((chain) => {
+            const centroid = chainCentroid(chain.polygon)
+            const labelSize = 3.5 / viewport.scale
+            if (chain.isClosed) return null
+            // Render open-path endpoint indicators and label
+            const first = chain.polygon[0]
+            const last = chain.polygon[chain.polygon.length - 1]
+            const endpointR = 2 / viewport.scale
+            return (
+              <g key={`outline-${chain.id}`} className="outline-chain-label" style={{ pointerEvents: 'none' }}>
+                <circle cx={first.x} cy={first.y} r={endpointR} className="open-path-endpoint" style={{ strokeWidth: 1.2 / viewport.scale }} />
+                <circle cx={last.x} cy={last.y} r={endpointR} className="open-path-endpoint" style={{ strokeWidth: 1.2 / viewport.scale }} />
+                <text
+                  x={centroid.x}
+                  y={centroid.y - 4 / viewport.scale}
+                  style={{
+                    fontSize: labelSize,
+                    fill: '#f97316',
+                    fontWeight: 600,
+                    textAnchor: 'middle',
+                    opacity: 0.8,
+                  }}
+                >
+                  Open Path
+                </text>
+              </g>
+            )
+          })}
 
           {constraintSuggestions.map((suggestion, i) => (
             <text

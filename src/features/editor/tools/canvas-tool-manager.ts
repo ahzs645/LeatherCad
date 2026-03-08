@@ -616,6 +616,36 @@ const freehandTool: CanvasToolHandler = {
   },
 }
 
+const cutLineTool: CanvasToolHandler = {
+  pointerDown(point, runtime) {
+    if (!withWritableShapeTarget(runtime)) {
+      return
+    }
+
+    // Find the 'cut' line type to auto-assign
+    const cutLineType = Object.values(runtime.lineTypesById).find((lt) => lt?.role === 'cut')
+    const cutLineTypeId = cutLineType?.id ?? runtime.activeLineTypeId
+
+    if (runtime.draftPoints.length === 0) {
+      runtime.setDraftPoints([point])
+      runtime.pointPicked(point)
+      runtime.setStatus('Cut: click to continue, Escape to finish')
+      return
+    }
+
+    const start = runtime.draftPoints[runtime.draftPoints.length - 1]
+    if (distance(start, point) < MIN_SHAPE_DISTANCE) {
+      runtime.setStatus('Cut segment ignored: points overlap')
+      return
+    }
+
+    addLineShape(runtime, start, point, { lineTypeId: cutLineTypeId })
+    runtime.setDraftPoints([point])
+    runtime.pointPicked(point)
+    runtime.setStatus('Cut segment created')
+  },
+}
+
 const TOOL_HANDLERS: Record<Exclude<Tool, 'pan'>, CanvasToolHandler> = {
   line: lineTool,
   polyline: polylineTool,
@@ -629,6 +659,7 @@ const TOOL_HANDLERS: Record<Exclude<Tool, 'pan'>, CanvasToolHandler> = {
   hardware: hardwareTool,
   text: textTool,
   freehand: freehandTool,
+  'cut-line': cutLineTool,
 }
 
 const VECTOR_PATTERN = /^(@)?(.+)(,|<)(.+)$/
@@ -787,6 +818,9 @@ export function getCanvasToolHint(tool: Tool, draftPoints: Point[]) {
   }
   if (tool === 'freehand' && draftPoints.length > 0) {
     return 'Freehand: click to add points, "finish" or Escape to complete'
+  }
+  if (tool === 'cut-line' && draftPoints.length > 0) {
+    return 'Cut: click to continue, Escape to finish'
   }
   return null
 }
