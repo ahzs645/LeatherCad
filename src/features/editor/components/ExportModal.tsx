@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-type ExportFormat = 'json' | 'svg' | 'pdf' | 'dxf' | 'laser-svg'
+type ExportFormat = 'json' | 'lcc' | 'svg' | 'pdf' | 'dxf' | 'laser-svg'
 
 type ExportModalProps = {
   open: boolean
@@ -10,6 +10,7 @@ type ExportModalProps = {
   onOpenExportOptions: () => void
   onOpenPrintPreview: () => void
   onSaveJson: () => void
+  onSaveLcc: () => void
   onExportSvg: () => void
   onExportPdf: () => void
   onExportDxf: () => void
@@ -18,6 +19,7 @@ type ExportModalProps = {
 
 const FORMAT_OPTIONS: Array<{ value: ExportFormat; label: string; description: string }> = [
   { value: 'json', label: 'JSON Document', description: 'Saves the editable project state as a JSON file.' },
+  { value: 'lcc', label: 'LCC (LeathercraftCAD)', description: 'Saves in LeathercraftCAD v2.8 format for cross-app compatibility.' },
   { value: 'svg', label: 'SVG', description: 'Vector export for editing, plotting, and browser preview.' },
   { value: 'pdf', label: 'PDF', description: 'Print-friendly export for sharing and archive workflows.' },
   { value: 'dxf', label: 'DXF', description: 'CAD export for CAM/CNC workflows with DXF options.' },
@@ -32,6 +34,7 @@ export function ExportModal({
   onOpenExportOptions,
   onOpenPrintPreview,
   onSaveJson,
+  onSaveLcc,
   onExportSvg,
   onExportPdf,
   onExportDxf,
@@ -44,11 +47,17 @@ export function ExportModal({
   }
 
   const selectedFormat = FORMAT_OPTIONS.find((option) => option.value === format) ?? FORMAT_OPTIONS[0]
-  const primaryActionLabel = format === 'json' ? 'Save JSON' : `Export ${selectedFormat.label}`
+  const primaryActionLabel = format === 'json' ? 'Save JSON' : format === 'lcc' ? 'Save LCC' : `Export ${selectedFormat.label}`
 
   const handleRunExport = () => {
     if (format === 'json') {
       onSaveJson()
+      onClose()
+      return
+    }
+
+    if (format === 'lcc') {
+      onSaveLcc()
       onClose()
       return
     }

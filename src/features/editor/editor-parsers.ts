@@ -27,6 +27,7 @@ import {
   DEFAULT_SNAP_SETTINGS,
   HARDWARE_PRESETS,
 } from './editor-constants'
+import type { DimensionLine, PrintArea } from './cad/cad-types'
 
 export function parseFoldLine(value: unknown): FoldLine | null {
   if (typeof value !== 'object' || value === null) {
@@ -356,6 +357,78 @@ export function parseSnapSettings(value: unknown): SnapSettings | null {
     midpoints: typeof candidate.midpoints === 'boolean' ? candidate.midpoints : DEFAULT_SNAP_SETTINGS.midpoints,
     guides: typeof candidate.guides === 'boolean' ? candidate.guides : DEFAULT_SNAP_SETTINGS.guides,
     hardware: typeof candidate.hardware === 'boolean' ? candidate.hardware : DEFAULT_SNAP_SETTINGS.hardware,
+  }
+}
+
+export function parseDimensionLine(value: unknown): DimensionLine | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as {
+    id?: unknown
+    start?: unknown
+    end?: unknown
+    offsetMm?: unknown
+    text?: unknown
+    layerId?: unknown
+    lineTypeId?: unknown
+  }
+
+  if (!isPointLike(candidate.start) || !isPointLike(candidate.end)) {
+    return null
+  }
+  if (typeof candidate.layerId !== 'string' || candidate.layerId.length === 0) {
+    return null
+  }
+  if (typeof candidate.lineTypeId !== 'string' || candidate.lineTypeId.length === 0) {
+    return null
+  }
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
+    start: candidate.start,
+    end: candidate.end,
+    offsetMm:
+      typeof candidate.offsetMm === 'number' && Number.isFinite(candidate.offsetMm)
+        ? candidate.offsetMm
+        : 5,
+    text: typeof candidate.text === 'string' ? candidate.text : undefined,
+    layerId: candidate.layerId,
+    lineTypeId: candidate.lineTypeId,
+  }
+}
+
+export function parsePrintArea(value: unknown): PrintArea | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as {
+    id?: unknown
+    offsetX?: unknown
+    offsetY?: unknown
+    widthMm?: unknown
+    heightMm?: unknown
+    scalePercent?: unknown
+  }
+
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
+    offsetX: typeof candidate.offsetX === 'number' && Number.isFinite(candidate.offsetX) ? candidate.offsetX : 0,
+    offsetY: typeof candidate.offsetY === 'number' && Number.isFinite(candidate.offsetY) ? candidate.offsetY : 0,
+    widthMm:
+      typeof candidate.widthMm === 'number' && Number.isFinite(candidate.widthMm) && candidate.widthMm > 0
+        ? candidate.widthMm
+        : 210,
+    heightMm:
+      typeof candidate.heightMm === 'number' && Number.isFinite(candidate.heightMm) && candidate.heightMm > 0
+        ? candidate.heightMm
+        : 297,
+    scalePercent:
+      typeof candidate.scalePercent === 'number' && Number.isFinite(candidate.scalePercent) && candidate.scalePercent > 0
+        ? candidate.scalePercent
+        : 100,
   }
 }
 

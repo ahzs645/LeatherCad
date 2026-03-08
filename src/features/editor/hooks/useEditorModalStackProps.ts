@@ -57,6 +57,7 @@ type UseEditorModalStackPropsParams = {
   showExportOptionsModal: boolean
   setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
   handleSaveJson: () => void
+  handleSaveLcc: () => void
   handleExportSvg: () => void
   handleExportPdf: () => void
   handleExportDxf: () => void
@@ -259,6 +260,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showExportOptionsModal,
     setShowExportOptionsModal,
     handleSaveJson,
+    handleSaveLcc,
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
@@ -470,6 +472,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onOpenExportOptions: () => setShowExportOptionsModal(true),
       onOpenPrintPreview: () => setShowPrintPreviewModal(true),
       onSaveJson: handleSaveJson,
+      onSaveLcc: handleSaveLcc,
       onExportSvg: handleExportSvg,
       onExportPdf: handleExportPdf,
       onExportDxf: handleExportDxf,

@@ -52,21 +52,29 @@ function resolveDash(shape: Shape, lineTypesById: Record<string, LineType>, prin
   return ''
 }
 
+function arrowAttrs(shape: Shape) {
+  const parts: string[] = []
+  if ('arrowStart' in shape && shape.arrowStart) parts.push('marker-start="url(#arrow-start)"')
+  if ('arrowEnd' in shape && shape.arrowEnd) parts.push('marker-end="url(#arrow-end)"')
+  return parts.length > 0 ? ' ' + parts.join(' ') : ''
+}
+
 function shapeToSvgMarkup(shape: Shape, lineTypesById: Record<string, LineType>, options: { printInColor: boolean; printStitchAsDots: boolean }) {
   const stroke = resolveStroke(shape, lineTypesById, options.printInColor)
   const dash = resolveDash(shape, lineTypesById, options.printStitchAsDots)
   const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
+  const arrows = arrowAttrs(shape)
 
   if (shape.type === 'line') {
-    return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr} />`
+    return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr}${arrows} />`
   }
 
   if (shape.type === 'arc') {
-    return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr} />`
+    return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr}${arrows} />`
   }
 
   if (shape.type === 'bezier') {
-    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr} />`
+    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr}${arrows} />`
   }
 
   const textShape = normalizeTextShape(shape)

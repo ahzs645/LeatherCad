@@ -1,11 +1,13 @@
 import { isShapeLike, uid } from './cad/cad-geometry'
 import type {
   AlignConstraint,
+  DimensionLine,
   DocFile,
   FoldLine,
   HardwareMarker,
   LineType,
   ParametricConstraint,
+  PrintArea,
   SeamAllowance,
   Shape,
   SketchGroup,
@@ -21,9 +23,11 @@ import {
 } from './cad/line-types'
 import {
   parseConstraint,
+  parseDimensionLine,
   parseFoldLine,
   parseHardwareMarker,
   parseLayer,
+  parsePrintArea,
   parseSeamAllowance,
   parseSketchGroup,
   parseSnapSettings,
@@ -52,6 +56,8 @@ type ImportedJsonCandidate = {
   threeTextureShapeIds?: unknown[]
   showCanvasRuler?: unknown
   showDimensions?: unknown
+  dimensionLines?: unknown[]
+  printAreas?: unknown[]
   layers?: unknown[]
   activeLayerId?: unknown
   lineTypes?: unknown[]
@@ -157,6 +163,15 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
     const nextShapeId = uid()
     shapeIdMap.set(sourceShapeId, nextShapeId)
 
+    const arrowStart =
+      typeof (candidate as { arrowStart?: unknown }).arrowStart === 'boolean'
+        ? (candidate as { arrowStart: boolean }).arrowStart
+        : undefined
+    const arrowEnd =
+      typeof (candidate as { arrowEnd?: unknown }).arrowEnd === 'boolean'
+        ? (candidate as { arrowEnd: boolean }).arrowEnd
+        : undefined
+
     if (candidate.type === 'line') {
       nextShapes.push({
         id: nextShapeId,
@@ -164,6 +179,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         layerId,
         lineTypeId,
         groupId,
+        arrowStart,
+        arrowEnd,
         start: candidate.start,
         end: candidate.end,
       })
@@ -174,6 +191,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         layerId,
         lineTypeId,
         groupId,
+        arrowStart,
+        arrowEnd,
         start: candidate.start,
         mid: candidate.mid,
         end: candidate.end,
@@ -185,6 +204,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         layerId,
         lineTypeId,
         groupId,
+        arrowStart,
+        arrowEnd,
         start: candidate.start,
         control: candidate.control,
         end: candidate.end,
@@ -321,6 +342,19 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         .filter((overlay): overlay is TracingOverlay => overlay !== null)
     : []
 
+  const nextDimensionLines = Array.isArray(parsed.dimensionLines)
+    ? parsed.dimensionLines
+        .map(parseDimensionLine)
+        .filter((dim): dim is DimensionLine => dim !== null)
+        .filter((dim) => nextLayerIdSet.has(dim.layerId))
+    : []
+
+  const nextPrintAreas = Array.isArray(parsed.printAreas)
+    ? parsed.printAreas
+        .map(parsePrintArea)
+        .filter((area): area is PrintArea => area !== null)
+    : []
+
   return {
     doc: {
       version: 1,
@@ -347,6 +381,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       threeTextureShapeIds,
       showCanvasRuler,
       showDimensions,
+      dimensionLines: nextDimensionLines,
+      printAreas: nextPrintAreas,
     },
     summary: {
       shapeCount: nextShapes.length,
