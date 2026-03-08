@@ -352,9 +352,6 @@ export function EditorCanvasPane({
                   </g>
                 )
               })}
-              <text x={10} y={-10} className="xy-ruler-origin">
-                0,0
-              </text>
             </g>
           )}
 
