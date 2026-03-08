@@ -391,4 +391,61 @@ describe('importLccDocument', () => {
     expect(lineType).toBeDefined()
     expect(lineType!.style).toBe('dashed')
   })
+
+  it('converts LINE with non-zero bz1/bz2 to bezier shape', () => {
+    const lcc = JSON.stringify({
+      meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
+      layers: [{ id: 0, chk: '-1', nam: 'Cut', indp: '0' }],
+      shapes: [
+        {
+          id: '1',
+          type: 'LINE',
+          sp: [0, 0],
+          ep: [20, 0],
+          ct: [10, 0],
+          w: '0.0',
+          h: '0.0',
+          color: 'Aqua',
+          dash: 'Solid',
+          opc: '0.5',
+          path: '',
+          rt: '0.0',
+          st: '',
+          inv: '0',
+          bz1: [5, 10],
+          bz2: [15, 10],
+          thk: '1.5',
+          la: '0.0',
+          lb: '0.0',
+          iv: '-1',
+          ih: '0',
+          sta: '0.0',
+          swa: '0.0',
+          tx: '',
+          fs: '10.0',
+          ff: 'Meiryo UI',
+          txst: '1.0',
+          txrd: '0.0',
+          guid: '{BZ-TEST}',
+          nm: '',
+          gid: '0',
+          dim: '0',
+          arst: '0',
+          ared: '0',
+          layer: '0',
+          plidx: '0',
+        },
+      ],
+    })
+
+    const result = importLccDocument(lcc)
+    expect(result.summary.shapeCount).toBe(1)
+    const shape = result.doc.objects[0]
+    expect(shape.type).toBe('bezier')
+    if (shape.type === 'bezier') {
+      expect(shape.start).toEqual({ x: 0, y: 0 })
+      expect(shape.end).toEqual({ x: 20, y: 0 })
+      expect(shape.control).toEqual({ x: 10, y: 10 })
+    }
+  })
 })

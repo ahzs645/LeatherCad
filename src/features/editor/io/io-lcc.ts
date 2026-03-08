@@ -12,6 +12,7 @@
 import { uid } from '../cad/cad-geometry'
 import type {
   ArcShape,
+  BezierShape,
   DocFile,
   Layer,
   LineShape,
@@ -212,6 +213,43 @@ function ellipseToArcShapes(
   ]
 }
 
+function ellipseArcToShapes(
+  center: Point,
+  w: number,
+  h: number,
+  startAngleDeg: number,
+  sweepAngleDeg: number,
+  layerId: string,
+  lineTypeId: string,
+): ArcShape[] {
+  const rx = w / 2
+  const ry = h / 2
+  const cx = center.x
+  const cy = center.y
+  const toRad = Math.PI / 180
+
+  const startRad = startAngleDeg * toRad
+  const endRad = (startAngleDeg + sweepAngleDeg) * toRad
+  const midRad = (startRad + endRad) / 2
+
+  const pointAt = (rad: number): Point => ({
+    x: cx + rx * Math.cos(rad),
+    y: cy + ry * Math.sin(rad),
+  })
+
+  return [
+    {
+      id: uid(),
+      type: 'arc',
+      layerId,
+      lineTypeId,
+      start: pointAt(startRad),
+      mid: pointAt(midRad),
+      end: pointAt(endRad),
+    },
+  ]
+}
+
 // ---------------------------------------------------------------------------
 // Main import
 // ---------------------------------------------------------------------------
@@ -329,15 +367,39 @@ export function importLccDocument(raw: string): LccImportResult {
           // Still import dimension lines but mark with guide role – they're useful reference
         }
 
-        const line: LineShape = {
-          id: uid(),
-          type: 'line',
-          layerId,
-          lineTypeId,
-          start: pt(lccShape.sp),
-          end: pt(lccShape.ep),
+        // Check for bezier control points – when bz1/bz2 are non-zero,
+        // the LCC LINE is actually a cubic bezier. We approximate as a
+        // quadratic bezier using the average of the two control points.
+        const bz1 = lccShape.bz1
+        const bz2 = lccShape.bz2
+        const hasBezier =
+          (bz1[0] !== 0 || bz1[1] !== 0) || (bz2[0] !== 0 || bz2[1] !== 0)
+
+        if (hasBezier) {
+          const bezier: BezierShape = {
+            id: uid(),
+            type: 'bezier',
+            layerId,
+            lineTypeId,
+            start: pt(lccShape.sp),
+            control: {
+              x: (bz1[0] + bz2[0]) / 2,
+              y: (bz1[1] + bz2[1]) / 2,
+            },
+            end: pt(lccShape.ep),
+          }
+          shapes.push(bezier)
+        } else {
+          const line: LineShape = {
+            id: uid(),
+            type: 'line',
+            layerId,
+            lineTypeId,
+            start: pt(lccShape.sp),
+            end: pt(lccShape.ep),
+          }
+          shapes.push(line)
         }
-        shapes.push(line)
         break
       }
 
@@ -346,12 +408,22 @@ export function importLccDocument(raw: string): LccImportResult {
         const w = parseLccFloat(lccShape.w)
         const h = parseLccFloat(lccShape.h)
         const center = pt(lccShape.ct)
+        const startAngle = parseLccFloat(lccShape.sta)
+        const sweepAngle = parseLccFloat(lccShape.swa)
 
-        if (w > 0 && h > 0) {
-          const arcs = ellipseToArcShapes(center, w, h, layerId, lineTypeId)
+        if (w <= 0 || h <= 0) {
+          warnings.push(`Ellipse ${lccShape.id} has zero size, skipped`)
+          break
+        }
+
+        if (sweepAngle !== 0) {
+          // Partial arc/ellipse – create a single three-point arc
+          const arcs = ellipseArcToShapes(center, w, h, startAngle, sweepAngle, layerId, lineTypeId)
           shapes.push(...arcs)
         } else {
-          warnings.push(`Ellipse ${lccShape.id} has zero size, skipped`)
+          // Full ellipse – 4 quadrant arcs
+          const arcs = ellipseToArcShapes(center, w, h, layerId, lineTypeId)
+          shapes.push(...arcs)
         }
         break
       }
