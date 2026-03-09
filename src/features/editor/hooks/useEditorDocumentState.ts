@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import type {
+  AvatarSpec,
   DimensionLine,
   FoldLine,
   HardwareMarker,
   LineType,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
@@ -12,10 +14,12 @@ import type {
   PieceNotch,
   PieceSeamAllowance,
   PrintArea,
+  SeamConnection,
   Shape,
   SketchGroup,
   SnapSettings,
   StitchHole,
+  ThreePreviewSettings,
   TextureSource,
   TracingOverlay,
 } from '../cad/cad-types'
@@ -23,7 +27,7 @@ import {
   DEFAULT_ACTIVE_LINE_TYPE_ID,
   createDefaultLineTypes,
 } from '../cad/line-types'
-import { DEFAULT_SNAP_SETTINGS } from '../editor-constants'
+import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 
 export function useEditorDocumentState() {
   const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
@@ -38,6 +42,8 @@ export function useEditorDocumentState() {
   const [pieceGrainlines, setPieceGrainlines] = useState<PieceGrainline[]>([])
   const [pieceLabels, setPieceLabels] = useState<PieceLabel[]>([])
   const [piecePlacementLabels, setPiecePlacementLabels] = useState<PiecePlacementLabel[]>([])
+  const [piecePlacements3d, setPiecePlacements3d] = useState<PiecePlacement3D[]>([])
+  const [seamConnections, setSeamConnections] = useState<SeamConnection[]>([])
   const [seamAllowances, setSeamAllowances] = useState<PieceSeamAllowance[]>([])
   const [pieceNotches, setPieceNotches] = useState<PieceNotch[]>([])
   const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
@@ -50,6 +56,8 @@ export function useEditorDocumentState() {
   const [projectMemo, setProjectMemo] = useState('')
   const [stitchAlwaysShapeIds, setStitchAlwaysShapeIds] = useState<string[]>([])
   const [stitchThreadColor, setStitchThreadColor] = useState('#fb923c')
+  const [threePreviewSettings, setThreePreviewSettings] = useState<ThreePreviewSettings>(DEFAULT_THREE_PREVIEW_SETTINGS)
+  const [avatars, setAvatars] = useState<AvatarSpec[]>([])
   const [threeTextureSource, setThreeTextureSource] = useState<TextureSource | null>(null)
   const [threeTextureShapeIds, setThreeTextureShapeIds] = useState<string[]>([])
   const [showCanvasRuler, setShowCanvasRuler] = useState(true)
@@ -68,6 +76,8 @@ export function useEditorDocumentState() {
     pieceGrainlines, setPieceGrainlines,
     pieceLabels, setPieceLabels,
     piecePlacementLabels, setPiecePlacementLabels,
+    piecePlacements3d, setPiecePlacements3d,
+    seamConnections, setSeamConnections,
     seamAllowances, setSeamAllowances,
     pieceNotches, setPieceNotches,
     hardwareMarkers, setHardwareMarkers,
@@ -80,6 +90,8 @@ export function useEditorDocumentState() {
     projectMemo, setProjectMemo,
     stitchAlwaysShapeIds, setStitchAlwaysShapeIds,
     stitchThreadColor, setStitchThreadColor,
+    threePreviewSettings, setThreePreviewSettings,
+    avatars, setAvatars,
     threeTextureSource, setThreeTextureSource,
     threeTextureShapeIds, setThreeTextureShapeIds,
     showCanvasRuler, setShowCanvasRuler,

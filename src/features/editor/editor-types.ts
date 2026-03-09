@@ -5,19 +5,23 @@ import type {
   LineType,
   LineTypeRole,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
   PieceNotch,
+  SeamConnection,
   PieceSeamAllowance,
   Point,
   Shape,
   SketchGroup,
   SnapSettings,
   StitchHole,
+  ThreePreviewSettings,
   TextureSource,
   TracingOverlay,
+  AvatarSpec,
 } from './cad/cad-types'
 
 export type MobileViewMode = 'editor' | 'preview' | 'split'
@@ -107,6 +111,8 @@ export type EditorSnapshot = {
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
   piecePlacementLabels: PiecePlacementLabel[]
+  piecePlacements3d: PiecePlacement3D[]
+  seamConnections: SeamConnection[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
@@ -116,6 +122,8 @@ export type EditorSnapshot = {
   projectMemo: string
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
+  threePreviewSettings: ThreePreviewSettings
+  avatars: AvatarSpec[]
   threeTextureSource: TextureSource | null
   threeTextureShapeIds: string[]
   showCanvasRuler: boolean

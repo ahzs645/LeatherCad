@@ -8,6 +8,7 @@ import type {
   LegacySeamAllowance,
   LineType,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
@@ -15,11 +16,13 @@ import type {
   PieceNotch,
   PieceSeamAllowance,
   PrintArea,
+  SeamConnection,
   Shape,
   SketchGroup,
   StitchHole,
   TextureSource,
   TracingOverlay,
+  AvatarSpec,
 } from './cad/cad-types'
 import {
   normalizeLineTypes,
@@ -37,15 +40,19 @@ import {
   parsePatternPiece,
   parsePieceGrainline,
   parsePieceLabel,
+  parsePiecePlacement3d,
   parsePiecePlacementLabel,
   parsePieceNotch,
   parsePieceSeamAllowance,
   parsePrintArea,
+  parseSeamConnection,
   parseSketchGroup,
   parseSnapSettings,
+  parseThreePreviewSettings,
   parseTracingOverlay,
+  parseAvatarSpec,
 } from './editor-parsers'
-import { DEFAULT_SNAP_SETTINGS } from './editor-constants'
+import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from './editor-constants'
 import { normalizeStitchHoleSequences, parseStitchHole } from './ops/stitch-hole-ops'
 import { sanitizeSketchGroupLinks } from './ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from './ops/pattern-piece-ops'
@@ -60,6 +67,8 @@ type ImportedJsonCandidate = {
   pieceGrainlines?: unknown[]
   pieceLabels?: unknown[]
   piecePlacementLabels?: unknown[]
+  piecePlacements3d?: unknown[]
+  seamConnections?: unknown[]
   pieceNotches?: unknown[]
   hardwareMarkers?: unknown[]
   sketchGroups?: unknown[]
@@ -70,6 +79,8 @@ type ImportedJsonCandidate = {
   projectMemo?: unknown
   stitchAlwaysShapeIds?: unknown[]
   stitchThreadColor?: unknown
+  threePreviewSettings?: unknown
+  avatars?: unknown[]
   threeTextureSource?: unknown
   threeTextureShapeIds?: unknown[]
   showCanvasRuler?: unknown
@@ -283,6 +294,12 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
     typeof parsed.stitchThreadColor === 'string' && parsed.stitchThreadColor.trim().length > 0
       ? parsed.stitchThreadColor
       : '#fb923c'
+  const threePreviewSettings = parseThreePreviewSettings(parsed.threePreviewSettings) ?? DEFAULT_THREE_PREVIEW_SETTINGS
+  const avatars = Array.isArray(parsed.avatars)
+    ? parsed.avatars
+        .map(parseAvatarSpec)
+        .filter((avatar): avatar is AvatarSpec => avatar !== null)
+    : []
   const threeTextureSource =
     parsed.threeTextureSource &&
     typeof parsed.threeTextureSource === 'object' &&
@@ -355,6 +372,21 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
     ? parsed.piecePlacementLabels
         .map(parsePiecePlacementLabel)
         .filter((label): label is PiecePlacementLabel => label !== null && nextPatternPieceIdSet.has(label.pieceId))
+    : []
+  const nextPiecePlacements3d = Array.isArray(parsed.piecePlacements3d)
+    ? parsed.piecePlacements3d
+        .map(parsePiecePlacement3d)
+        .filter((placement): placement is PiecePlacement3D => placement !== null && nextPatternPieceIdSet.has(placement.pieceId))
+    : []
+  const nextSeamConnections = Array.isArray(parsed.seamConnections)
+    ? parsed.seamConnections
+        .map(parseSeamConnection)
+        .filter(
+          (connection): connection is SeamConnection =>
+            connection !== null &&
+            nextPatternPieceIdSet.has(connection.from.pieceId) &&
+            nextPatternPieceIdSet.has(connection.to.pieceId),
+        )
     : []
   const nextPieceNotches = Array.isArray(parsed.pieceNotches)
     ? parsed.pieceNotches
@@ -433,6 +465,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       pieceGrainlines: nextPieceGrainlines,
       pieceLabels: nextPieceLabels,
       piecePlacementLabels: nextPiecePlacementLabels,
+      piecePlacements3d: nextPiecePlacements3d,
+      seamConnections: nextSeamConnections,
       seamAllowances: nextSeamAllowances,
       pieceNotches: nextPieceNotches,
       hardwareMarkers: nextHardwareMarkers,
@@ -442,6 +476,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       projectMemo,
       stitchAlwaysShapeIds,
       stitchThreadColor,
+      threePreviewSettings,
+      avatars,
       threeTextureSource,
       threeTextureShapeIds,
       showCanvasRuler,

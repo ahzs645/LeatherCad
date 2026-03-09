@@ -185,6 +185,56 @@ export type ParametricConstraint = EdgeOffsetConstraint | AlignConstraint
 
 export type PatternPieceOrientation = 'any' | 'horizontal' | 'vertical'
 
+export type PieceEdgeRef = {
+  pieceId: string
+  edgeIndex: number
+}
+
+export type PiecePlacement3D = {
+  pieceId: string
+  translationMm: {
+    x: number
+    y: number
+    z: number
+  }
+  rotationDeg: {
+    x: number
+    y: number
+    z: number
+  }
+  flipped: boolean
+}
+
+export type SeamConnectionKind = 'sewn' | 'aligned' | 'hinge'
+
+export type SeamConnection = {
+  id: string
+  from: PieceEdgeRef
+  to: PieceEdgeRef
+  stitchSpacingMm?: number
+  reversed?: boolean
+  kind: SeamConnectionKind
+}
+
+export type ThreePreviewMode = 'fold' | 'assembled' | 'avatar'
+
+export type AvatarSpec = {
+  id: string
+  name: string
+  sourceUrl: string
+  scaleMm: number
+}
+
+export type ThreePreviewSettings = {
+  mode: ThreePreviewMode
+  explodedFactor: number
+  thicknessMm: number
+  showSeams: boolean
+  showEdgeLabels: boolean
+  showStressOverlay: boolean
+  avatarId?: string
+}
+
 export type PatternPiece = {
   id: string
   name: string
@@ -387,6 +437,10 @@ export type DocFile = {
   projectMemo?: string
   stitchAlwaysShapeIds?: string[]
   stitchThreadColor?: string
+  piecePlacements3d?: PiecePlacement3D[]
+  seamConnections?: SeamConnection[]
+  threePreviewSettings?: ThreePreviewSettings
+  avatars?: AvatarSpec[]
   threeTextureSource?: TextureSource | null
   threeTextureShapeIds?: string[]
   showCanvasRuler?: boolean

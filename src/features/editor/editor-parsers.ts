@@ -1,5 +1,6 @@
 import { clamp, isPointLike, uid } from './cad/cad-geometry'
 import type {
+  AvatarSpec,
   ConstraintAnchor,
   ConstraintAxis,
   ConstraintEdge,
@@ -9,14 +10,17 @@ import type {
   LegacySeamAllowance,
   Layer,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  SeamConnection,
   SketchGroup,
   SnapSettings,
+  ThreePreviewSettings,
   TracingOverlay,
 } from './cad/cad-types'
 import {
@@ -29,6 +33,7 @@ import {
   parseFoldDirection,
 } from './ops/fold-line-ops'
 import {
+  DEFAULT_THREE_PREVIEW_SETTINGS,
   DEFAULT_SEAM_ALLOWANCE_MM,
   DEFAULT_SNAP_SETTINGS,
   HARDWARE_PRESETS,
@@ -253,6 +258,143 @@ export function parsePatternPiece(value: unknown): PatternPiece | null {
     locked: candidate.locked === true,
     color: typeof candidate.color === 'string' ? candidate.color : undefined,
     fill: typeof candidate.fill === 'string' ? candidate.fill : undefined,
+  }
+}
+
+export function sanitizePiecePlacement3d(value: PiecePlacement3D): PiecePlacement3D {
+  const numberOrZero = (candidate: unknown) => (typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : 0)
+  return {
+    pieceId: value.pieceId,
+    translationMm: {
+      x: numberOrZero(value.translationMm?.x),
+      y: numberOrZero(value.translationMm?.y),
+      z: numberOrZero(value.translationMm?.z),
+    },
+    rotationDeg: {
+      x: numberOrZero(value.rotationDeg?.x),
+      y: numberOrZero(value.rotationDeg?.y),
+      z: numberOrZero(value.rotationDeg?.z),
+    },
+    flipped: value.flipped === true,
+  }
+}
+
+export function parsePiecePlacement3d(value: unknown): PiecePlacement3D | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<PiecePlacement3D>
+  if (typeof candidate.pieceId !== 'string' || candidate.pieceId.length === 0) {
+    return null
+  }
+
+  return sanitizePiecePlacement3d({
+    pieceId: candidate.pieceId,
+    translationMm: {
+      x: typeof candidate.translationMm?.x === 'number' ? candidate.translationMm.x : 0,
+      y: typeof candidate.translationMm?.y === 'number' ? candidate.translationMm.y : 0,
+      z: typeof candidate.translationMm?.z === 'number' ? candidate.translationMm.z : 0,
+    },
+    rotationDeg: {
+      x: typeof candidate.rotationDeg?.x === 'number' ? candidate.rotationDeg.x : 0,
+      y: typeof candidate.rotationDeg?.y === 'number' ? candidate.rotationDeg.y : 0,
+      z: typeof candidate.rotationDeg?.z === 'number' ? candidate.rotationDeg.z : 0,
+    },
+    flipped: candidate.flipped === true,
+  })
+}
+
+export function parseSeamConnection(value: unknown): SeamConnection | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<SeamConnection>
+  if (
+    typeof candidate.id !== 'string' ||
+    typeof candidate.from?.pieceId !== 'string' ||
+    typeof candidate.to?.pieceId !== 'string' ||
+    typeof candidate.from?.edgeIndex !== 'number' ||
+    typeof candidate.to?.edgeIndex !== 'number'
+  ) {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    from: {
+      pieceId: candidate.from.pieceId,
+      edgeIndex: Math.max(0, Math.round(candidate.from.edgeIndex)),
+    },
+    to: {
+      pieceId: candidate.to.pieceId,
+      edgeIndex: Math.max(0, Math.round(candidate.to.edgeIndex)),
+    },
+    stitchSpacingMm:
+      typeof candidate.stitchSpacingMm === 'number' && Number.isFinite(candidate.stitchSpacingMm)
+        ? Math.max(0.1, Math.abs(candidate.stitchSpacingMm))
+        : undefined,
+    reversed: candidate.reversed === true,
+    kind: candidate.kind === 'aligned' || candidate.kind === 'hinge' ? candidate.kind : 'sewn',
+  }
+}
+
+export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): ThreePreviewSettings {
+  return {
+    mode: value.mode === 'assembled' || value.mode === 'avatar' ? value.mode : 'fold',
+    explodedFactor:
+      typeof value.explodedFactor === 'number' && Number.isFinite(value.explodedFactor)
+        ? clamp(value.explodedFactor, 0, 3)
+        : DEFAULT_THREE_PREVIEW_SETTINGS.explodedFactor,
+    thicknessMm:
+      typeof value.thicknessMm === 'number' && Number.isFinite(value.thicknessMm)
+        ? clamp(Math.abs(value.thicknessMm), 0.2, 20)
+        : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
+    showSeams: value.showSeams !== false,
+    showEdgeLabels: value.showEdgeLabels === true,
+    showStressOverlay: value.showStressOverlay !== false,
+    avatarId: typeof value.avatarId === 'string' && value.avatarId.trim().length > 0 ? value.avatarId.trim() : undefined,
+  }
+}
+
+export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<ThreePreviewSettings>
+  return sanitizeThreePreviewSettings({
+    mode: candidate.mode === 'assembled' || candidate.mode === 'avatar' ? candidate.mode : 'fold',
+    explodedFactor:
+      typeof candidate.explodedFactor === 'number' ? candidate.explodedFactor : DEFAULT_THREE_PREVIEW_SETTINGS.explodedFactor,
+    thicknessMm:
+      typeof candidate.thicknessMm === 'number' ? candidate.thicknessMm : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
+    showSeams: candidate.showSeams !== false,
+    showEdgeLabels: candidate.showEdgeLabels === true,
+    showStressOverlay: candidate.showStressOverlay !== false,
+    avatarId: typeof candidate.avatarId === 'string' ? candidate.avatarId : undefined,
+  })
+}
+
+export function parseAvatarSpec(value: unknown): AvatarSpec | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<AvatarSpec>
+  if (typeof candidate.id !== 'string' || candidate.id.length === 0 || typeof candidate.name !== 'string' || candidate.name.length === 0) {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    sourceUrl: typeof candidate.sourceUrl === 'string' ? candidate.sourceUrl : '',
+    scaleMm:
+      typeof candidate.scaleMm === 'number' && Number.isFinite(candidate.scaleMm)
+        ? Math.max(1, Math.abs(candidate.scaleMm))
+        : 1,
   }
 }
 

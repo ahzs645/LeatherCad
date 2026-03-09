@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { importLccDocument, exportLccDocument } from './io-lcc'
 import type { DocFile } from '../cad/cad-types'
+import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 
 const MINIMAL_LCC = JSON.stringify({
   meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
@@ -549,6 +550,10 @@ describe('exportLccDocument', () => {
     projectMemo: '',
     stitchAlwaysShapeIds: [],
     stitchThreadColor: '#fb923c',
+    piecePlacements3d: [],
+    seamConnections: [],
+    threePreviewSettings: DEFAULT_THREE_PREVIEW_SETTINGS,
+    avatars: [],
     threeTextureSource: null,
     threeTextureShapeIds: [],
     showCanvasRuler: true,

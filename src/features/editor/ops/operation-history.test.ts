@@ -13,6 +13,7 @@ import {
   type MoveShapesOp,
 } from './operation-history'
 import type { EditorSnapshot } from '../editor-types'
+import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 
 function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
   return {
@@ -37,6 +38,8 @@ function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
     pieceGrainlines: [],
     pieceLabels: [],
     piecePlacementLabels: [],
+    piecePlacements3d: [],
+    seamConnections: [],
     seamAllowances: [],
     pieceNotches: [],
     hardwareMarkers: [],
@@ -46,6 +49,8 @@ function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
     projectMemo: '',
     stitchAlwaysShapeIds: [],
     stitchThreadColor: '#ffffff',
+    threePreviewSettings: DEFAULT_THREE_PREVIEW_SETTINGS,
+    avatars: [],
     threeTextureSource: null,
     threeTextureShapeIds: [],
     showCanvasRuler: true,

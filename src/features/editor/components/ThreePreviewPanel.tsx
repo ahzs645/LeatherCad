@@ -1,6 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { sampleShapePoints } from '../cad/cad-geometry'
-import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
+import type {
+  AvatarSpec,
+  FoldLine,
+  Layer,
+  LineType,
+  PatternPiece,
+  PiecePlacement3D,
+  SeamConnection,
+  Shape,
+  StitchHole,
+  TextureSource,
+  ThreePreviewSettings,
+} from '../cad/cad-types'
 import { ThreeBridge, type OutlinePolygon } from '../three/three-bridge'
 import { detectOutlines } from '../ops/outline-detection'
 import {
@@ -11,6 +23,7 @@ import {
   DEFAULT_FOLD_STIFFNESS,
   DEFAULT_FOLD_THICKNESS_MM,
 } from '../ops/fold-line-ops'
+import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { LEATHER_PRESETS, PRESET_IDS, LEATHER_COLORS } from '../three/material-presets'
 
 type ThreePreviewPanelProps = {
@@ -19,6 +32,13 @@ type ThreePreviewPanelProps = {
   stitchHoles: StitchHole[]
   stitchThreadColor: string
   onSetStitchThreadColor: (color: string) => void
+  patternPieces: PatternPiece[]
+  piecePlacements3d: PiecePlacement3D[]
+  seamConnections: SeamConnection[]
+  threePreviewSettings: ThreePreviewSettings
+  avatars: AvatarSpec[]
+  onSetPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  onSetThreePreviewSettings: Dispatch<SetStateAction<ThreePreviewSettings>>
   threeTextureSource: TextureSource | null
   onSetThreeTextureSource: (source: TextureSource | null) => void
   threeTextureShapeIds: string[]
@@ -65,6 +85,13 @@ export function ThreePreviewPanel({
   stitchHoles,
   stitchThreadColor,
   onSetStitchThreadColor,
+  patternPieces,
+  piecePlacements3d,
+  seamConnections,
+  threePreviewSettings,
+  avatars,
+  onSetPiecePlacements3d,
+  onSetThreePreviewSettings,
   threeTextureSource,
   onSetThreeTextureSource,
   threeTextureShapeIds,
@@ -95,6 +122,19 @@ export function ThreePreviewPanel({
         layers
           .filter((layer) => layer.visible && !effectiveHidden3dLayerIds.includes(layer.id))
           .map((layer) => layer.id),
+      ),
+    [layers, effectiveHidden3dLayerIds],
+  )
+
+  const layersFor3d = useMemo(
+    () =>
+      layers.map((layer) =>
+        effectiveHidden3dLayerIds.includes(layer.id)
+          ? {
+              ...layer,
+              visible: false,
+            }
+          : layer,
       ),
     [layers, effectiveHidden3dLayerIds],
   )
@@ -145,6 +185,16 @@ export function ThreePreviewPanel({
     return result
   }, [shapesIn3dView, lineTypes])
 
+  const piecePlacementById = useMemo(
+    () => Object.fromEntries(piecePlacements3d.map((placement) => [placement.pieceId, placement])),
+    [piecePlacements3d],
+  )
+
+  const visiblePatternPieces = useMemo(
+    () => patternPieces.filter((piece) => visible3dLayerIdSet.has(piece.layerId)),
+    [patternPieces, visible3dLayerIdSet],
+  )
+
   const selectedClosedShapeIds = useMemo(
     () => selectedShapeIds.filter((shapeId) => closedShapeIdSet.has(shapeId)),
     [selectedShapeIds, closedShapeIdSet],
@@ -184,8 +234,32 @@ export function ThreePreviewPanel({
       return
     }
 
-    bridgeRef.current.setDocument(layers, shapesIn3dView, foldLines, lineTypes, stitchHoles, outlinePolygons)
-  }, [layers, shapesIn3dView, foldLines, lineTypes, stitchHoles, outlinePolygons])
+    bridgeRef.current.setDocument(
+      layersFor3d,
+      shapesIn3dView,
+      foldLines,
+      lineTypes,
+      stitchHoles,
+      outlinePolygons,
+      patternPieces,
+      piecePlacements3d,
+      seamConnections,
+      threePreviewSettings,
+      avatars,
+    )
+  }, [
+    layersFor3d,
+    shapesIn3dView,
+    foldLines,
+    lineTypes,
+    stitchHoles,
+    outlinePolygons,
+    patternPieces,
+    piecePlacements3d,
+    seamConnections,
+    threePreviewSettings,
+    avatars,
+  ])
 
   useEffect(() => {
     bridgeRef.current?.setTheme(themeMode)
@@ -198,6 +272,20 @@ export function ThreePreviewPanel({
   useEffect(() => {
     bridgeRef.current?.setTextureAssignments(threeTextureShapeIds)
   }, [threeTextureShapeIds])
+
+  const updatePlacement = (pieceId: string, updater: (current: PiecePlacement3D) => PiecePlacement3D) => {
+    onSetPiecePlacements3d((previous) => {
+      const existing = previous.find((entry) => entry.pieceId === pieceId) ?? {
+        pieceId,
+        translationMm: { x: 0, y: 0, z: 0 },
+        rotationDeg: { x: 0, y: 0, z: 0 },
+        flipped: false,
+      }
+      const next = updater(existing)
+      const others = previous.filter((entry) => entry.pieceId !== pieceId)
+      return [...others, next]
+    })
+  }
 
   useEffect(() => {
     const bridge = bridgeRef.current
@@ -245,7 +333,8 @@ export function ThreePreviewPanel({
       <div className="three-preview-header">
         <div>
           <h2>3D Preview Bridge</h2>
-          <p>2D shapes: {shapesIn3dView.length} | fold lines: {foldLines.length}</p>
+          <p>2D shapes: {shapesIn3dView.length} | pieces: {visiblePatternPieces.length}</p>
+          <p>Mode: {threePreviewSettings.mode} | fold lines: {foldLines.length} | seams: {seamConnections.length}</p>
           <p>Stitch holes: {stitchHoles.length}</p>
           <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
         </div>
@@ -262,6 +351,110 @@ export function ThreePreviewPanel({
 
       {showControls && (
         <div className="three-preview-controls">
+          <div className="control-block">
+            <h3>Preview Mode</h3>
+            <label className="field-row">
+              <span>Mode</span>
+              <select
+                value={threePreviewSettings.mode}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    mode:
+                      event.target.value === 'assembled' || event.target.value === 'avatar'
+                        ? event.target.value
+                        : 'fold',
+                  }))
+                }
+              >
+                <option value="fold">Fold</option>
+                <option value="assembled">Assembled</option>
+                <option value="avatar">Avatar</option>
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Exploded View</span>
+              <input
+                type="range"
+                min={0}
+                max={3}
+                step={0.05}
+                value={threePreviewSettings.explodedFactor}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    explodedFactor: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+            <label className="field-row">
+              <span>Thickness (mm)</span>
+              <input
+                type="number"
+                min={0.2}
+                max={20}
+                step={0.1}
+                value={threePreviewSettings.thicknessMm}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    thicknessMm: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={threePreviewSettings.showSeams}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    showSeams: event.target.checked,
+                  }))
+                }
+              />
+              <span>Show seam guides</span>
+            </label>
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={threePreviewSettings.showStressOverlay}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    showStressOverlay: event.target.checked,
+                  }))
+                }
+              />
+              <span>Show seam stress tint</span>
+            </label>
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={threePreviewSettings.showEdgeLabels}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    showEdgeLabels: event.target.checked,
+                  }))
+                }
+              />
+              <span>Show edge labels</span>
+            </label>
+            <div className="button-row">
+              <button onClick={() => onSetThreePreviewSettings(DEFAULT_THREE_PREVIEW_SETTINGS)}>Reset 3D Settings</button>
+            </div>
+            {threePreviewSettings.mode === 'avatar' ? (
+              <p className="hint">
+                {avatars.length > 0
+                  ? `Avatar mode active (${avatars.length} configured avatar${avatars.length === 1 ? '' : 's'}).`
+                  : 'Avatar mode uses the built-in mannequin fallback until a real avatar asset is configured.'}
+              </p>
+            ) : null}
+          </div>
+
           <div className="control-block">
             <h3>3D Layer Visibility</h3>
             <p className="hint">
@@ -313,7 +506,9 @@ export function ThreePreviewPanel({
 
           <div className="control-block">
             <h3>Bend Controls</h3>
-            {foldLines.length === 0 ? (
+            {threePreviewSettings.mode !== 'fold' ? (
+              <p className="hint">Fold controls are only active in Fold mode.</p>
+            ) : foldLines.length === 0 ? (
               <p className="hint">Use the Fold tool in 2D canvas to assign bend lines.</p>
             ) : (
               foldLines.map((foldLine) => (
@@ -422,6 +617,162 @@ export function ThreePreviewPanel({
                   </label>
                 </div>
               ))
+            )}
+          </div>
+
+          <div className="control-block">
+            <h3>Piece Placement</h3>
+            {visiblePatternPieces.length === 0 ? (
+              <p className="hint">Create pattern pieces in 2D to unlock assembled 3D placement.</p>
+            ) : (
+              <>
+                <p className="hint">
+                  {visiblePatternPieces.length} piece{visiblePatternPieces.length === 1 ? '' : 's'} in the current 3D view.
+                </p>
+                {visiblePatternPieces.map((piece) => {
+                  const placement = piecePlacementById[piece.id] ?? {
+                    pieceId: piece.id,
+                    translationMm: { x: 0, y: 0, z: 0 },
+                    rotationDeg: { x: 0, y: 0, z: 0 },
+                    flipped: false,
+                  }
+
+                  return (
+                    <div key={piece.id} className="fold-control-card">
+                      <strong>{piece.name}</strong>
+                      <label className="field-row">
+                        <span>Translate X</span>
+                        <input
+                          type="number"
+                          step={1}
+                          value={placement.translationMm.x}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              translationMm: {
+                                ...current.translationMm,
+                                x: Number(event.target.value),
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="field-row">
+                        <span>Translate Y</span>
+                        <input
+                          type="number"
+                          step={1}
+                          value={placement.translationMm.y}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              translationMm: {
+                                ...current.translationMm,
+                                y: Number(event.target.value),
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="field-row">
+                        <span>Translate Z</span>
+                        <input
+                          type="number"
+                          step={1}
+                          value={placement.translationMm.z}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              translationMm: {
+                                ...current.translationMm,
+                                z: Number(event.target.value),
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="field-row">
+                        <span>Rotate X</span>
+                        <input
+                          type="number"
+                          step={1}
+                          value={placement.rotationDeg.x}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              rotationDeg: {
+                                ...current.rotationDeg,
+                                x: Number(event.target.value),
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="field-row">
+                        <span>Rotate Y</span>
+                        <input
+                          type="number"
+                          step={1}
+                          value={placement.rotationDeg.y}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              rotationDeg: {
+                                ...current.rotationDeg,
+                                y: Number(event.target.value),
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="field-row">
+                        <span>Rotate Z</span>
+                        <input
+                          type="number"
+                          step={1}
+                          value={placement.rotationDeg.z}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              rotationDeg: {
+                                ...current.rotationDeg,
+                                z: Number(event.target.value),
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                      <label className="layer-toggle-item">
+                        <input
+                          type="checkbox"
+                          checked={placement.flipped}
+                          onChange={(event) =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              flipped: event.target.checked,
+                            }))
+                          }
+                        />
+                        <span>Flip piece</span>
+                      </label>
+                      <div className="button-row">
+                        <button
+                          onClick={() =>
+                            updatePlacement(piece.id, (current) => ({
+                              ...current,
+                              translationMm: { x: 0, y: 0, z: 0 },
+                              rotationDeg: { x: 0, y: 0, z: 0 },
+                              flipped: false,
+                            }))
+                          }
+                        >
+                          Reset Piece
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </>
             )}
           </div>
 

@@ -1,4 +1,4 @@
-import type { HardwareKind, SnapSettings, Tool } from './cad/cad-types'
+import type { HardwareKind, SnapSettings, ThreePreviewSettings, Tool } from './cad/cad-types'
 import type { DesktopRibbonTab, ExportRoleFilters, MobileOptionsTab } from './editor-types'
 
 export const GRID_EXTENT = 4000
@@ -24,6 +24,15 @@ export const DEFAULT_SNAP_SETTINGS: SnapSettings = {
   midpoints: true,
   guides: true,
   hardware: true,
+}
+
+export const DEFAULT_THREE_PREVIEW_SETTINGS: ThreePreviewSettings = {
+  mode: 'fold',
+  explodedFactor: 0.35,
+  thicknessMm: 1.8,
+  showSeams: true,
+  showEdgeLabels: false,
+  showStressOverlay: true,
 }
 
 export const HARDWARE_PRESETS: Record<Exclude<HardwareKind, 'custom'>, { label: string; holeDiameterMm: number; spacingMm: number }> = {

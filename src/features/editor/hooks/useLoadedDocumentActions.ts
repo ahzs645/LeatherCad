@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { uid } from '../cad/cad-geometry'
 import { normalizeLineTypes, resolveActiveLineTypeId } from '../cad/line-types'
 import type {
+  AvatarSpec,
   DimensionLine,
   DocFile,
   HardwareMarker,
@@ -10,6 +11,7 @@ import type {
   Layer,
   LineType,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
@@ -17,15 +19,18 @@ import type {
   PieceNotch,
   PieceSeamAllowance,
   PrintArea,
+  SeamConnection,
   Shape,
   SketchGroup,
   StitchHole,
   TextureSource,
+  ThreePreviewSettings,
   Tool,
   TracingOverlay,
 } from '../cad/cad-types'
-import { DEFAULT_SNAP_SETTINGS } from '../editor-constants'
+import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { parseSnapSettings } from '../editor-parsers'
+import { parseAvatarSpec, parsePiecePlacement3d, parseSeamConnection, parseThreePreviewSettings, sanitizeThreePreviewSettings } from '../editor-parsers'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
@@ -47,6 +52,8 @@ type UseLoadedDocumentActionsParams = {
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
   setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
+  setPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  setSeamConnections: Dispatch<SetStateAction<SeamConnection[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
@@ -56,6 +63,8 @@ type UseLoadedDocumentActionsParams = {
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
+  setThreePreviewSettings: Dispatch<SetStateAction<ThreePreviewSettings>>
+  setAvatars: Dispatch<SetStateAction<AvatarSpec[]>>
   setThreeTextureSource: Dispatch<SetStateAction<TextureSource | null>>
   setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
@@ -88,6 +97,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -97,6 +108,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
+    setThreePreviewSettings,
+    setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
     setShowCanvasRuler,
@@ -168,6 +181,17 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     const normalizedPieceGrainlines = (doc.pieceGrainlines ?? []).filter((grainline) => patternPieceIdSet.has(grainline.pieceId))
     const normalizedPieceLabels = (doc.pieceLabels ?? []).filter((label) => patternPieceIdSet.has(label.pieceId))
     const normalizedPiecePlacementLabels = (doc.piecePlacementLabels ?? []).filter((label) => patternPieceIdSet.has(label.pieceId))
+    const normalizedPiecePlacements3d = (doc.piecePlacements3d ?? [])
+      .map(parsePiecePlacement3d)
+      .filter((placement): placement is PiecePlacement3D => placement !== null && patternPieceIdSet.has(placement.pieceId))
+    const normalizedSeamConnections = (doc.seamConnections ?? [])
+      .map(parseSeamConnection)
+      .filter(
+        (connection): connection is SeamConnection =>
+          connection !== null &&
+          patternPieceIdSet.has(connection.from.pieceId) &&
+          patternPieceIdSet.has(connection.to.pieceId),
+      )
     const normalizedPieceNotches = (doc.pieceNotches ?? []).filter((notch) => patternPieceIdSet.has(notch.pieceId))
     const normalizedHardwareMarkers = (doc.hardwareMarkers ?? []).filter((marker) => {
       if (!layerIdSet.has(marker.layerId)) {
@@ -188,6 +212,12 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
       typeof doc.stitchThreadColor === 'string' && doc.stitchThreadColor.trim().length > 0
         ? doc.stitchThreadColor
         : '#fb923c'
+    const normalizedThreePreviewSettings = sanitizeThreePreviewSettings(
+      parseThreePreviewSettings(doc.threePreviewSettings) ?? DEFAULT_THREE_PREVIEW_SETTINGS,
+    )
+    const normalizedAvatars = (doc.avatars ?? [])
+      .map(parseAvatarSpec)
+      .filter((avatar): avatar is AvatarSpec => avatar !== null)
     const normalizedThreeTextureSource =
       doc.threeTextureSource &&
       typeof doc.threeTextureSource === 'object' &&
@@ -216,6 +246,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setPieceGrainlines(normalizedPieceGrainlines)
     setPieceLabels(normalizedPieceLabels)
     setPiecePlacementLabels(normalizedPiecePlacementLabels)
+    setPiecePlacements3d(normalizedPiecePlacements3d)
+    setSeamConnections(normalizedSeamConnections)
     setSeamAllowances(normalizedSeamAllowances)
     setPieceNotches(normalizedPieceNotches)
     setHardwareMarkers(normalizedHardwareMarkers)
@@ -225,6 +257,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setProjectMemo(normalizedProjectMemo)
     setStitchAlwaysShapeIds(normalizedStitchAlwaysShapeIds)
     setStitchThreadColor(normalizedStitchThreadColor)
+    setThreePreviewSettings(normalizedThreePreviewSettings)
+    setAvatars(normalizedAvatars)
     setThreeTextureSource(normalizedThreeTextureSource)
     setThreeTextureShapeIds(normalizedThreeTextureShapeIds)
     setShowCanvasRuler(normalizedShowCanvasRuler)
@@ -255,6 +289,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -264,6 +300,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
+    setThreePreviewSettings,
+    setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
     setShowCanvasRuler,

@@ -1,9 +1,23 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { sampleShapePoints } from '../cad/cad-geometry'
-import type { FoldLine, Layer, LineType, Point, Shape, StitchHole, TextureSource } from '../cad/cad-types'
+import type {
+  AvatarSpec,
+  FoldLine,
+  Layer,
+  LineType,
+  PatternPiece,
+  PiecePlacement3D,
+  Point,
+  SeamConnection,
+  Shape,
+  StitchHole,
+  TextureSource,
+  ThreePreviewSettings,
+} from '../cad/cad-types'
 import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
 import { LEATHER_PRESETS } from './material-presets'
+import { buildPieceMeshes, createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 
 export type OutlinePolygon = {
   polygon: Point[]
@@ -30,6 +44,15 @@ type Bounds2 = {
   maxY: number
 }
 
+type Bounds3 = {
+  minX: number
+  minY: number
+  minZ: number
+  maxX: number
+  maxY: number
+  maxZ: number
+}
+
 const EPSILON = 1e-6
 const CUT_LINE_COLOR = '#38bdf8'
 const STITCH_LINE_COLOR = '#f97316'
@@ -40,6 +63,7 @@ const COLLISION_SEARCH_STEP_DEG = 1
 const COLLISION_CHECK_CUTOFF_DEG = 90
 const MIN_OVERLAP_AREA_WORLD = 0.00002
 const MIN_OVERLAP_HEIGHT_WORLD = 0.00045
+const DEFAULT_THICKNESS_WORLD = 0.005
 
 function disposeObjectGraph(root: THREE.Object3D, preservedMaterials: Set<THREE.Material>) {
   root.traverse((object) => {
@@ -206,6 +230,8 @@ export class ThreeBridge {
   private foldingPivot = new THREE.Group()
   private foldingSideGroup = new THREE.Group()
   private foldGuideGroup = new THREE.Group()
+  private assembledGroup = new THREE.Group()
+  private avatarGroup = new THREE.Group()
   private preservedMaterials: Set<THREE.Material>
   private ambientLight = new THREE.AmbientLight('#ffffff', 0.55)
   private keyLight = new THREE.DirectionalLight('#dbeafe', 0.9)
@@ -241,6 +267,27 @@ export class ThreeBridge {
     side: THREE.DoubleSide,
   })
 
+  private assembledFrontMaterial = new THREE.MeshStandardMaterial({
+    color: '#8a6742',
+    roughness: 0.88,
+    metalness: 0.05,
+    side: THREE.DoubleSide,
+  })
+
+  private assembledBackMaterial = new THREE.MeshStandardMaterial({
+    color: '#5b4227',
+    roughness: 0.92,
+    metalness: 0.02,
+    side: THREE.DoubleSide,
+  })
+
+  private assembledSideMaterial = new THREE.MeshStandardMaterial({
+    color: '#6f5030',
+    roughness: 0.9,
+    metalness: 0.03,
+    side: THREE.DoubleSide,
+  })
+
   private textureLoader = new THREE.TextureLoader()
   private currentAlbedo: THREE.Texture | null = null
   private currentNormal: THREE.Texture | null = null
@@ -254,6 +301,18 @@ export class ThreeBridge {
   private shapes: Shape[] = []
   private foldLines: FoldLine[] = []
   private stitchHoles: StitchHole[] = []
+  private patternPieces: PatternPiece[] = []
+  private piecePlacements3d: PiecePlacement3D[] = []
+  private seamConnections: SeamConnection[] = []
+  private threePreviewSettings: ThreePreviewSettings = {
+    mode: 'fold',
+    explodedFactor: 0.35,
+    thicknessMm: 1.8,
+    showSeams: true,
+    showEdgeLabels: false,
+    showStressOverlay: true,
+  }
+  private pieceMeshes: PieceMeshData[] = []
   private activeFoldAxis = new THREE.Vector3(0, 0, 1)
   private activeFoldMid = new THREE.Vector2(0, 0)
   private activeFoldBehavior: ResolvedFoldBehavior = resolveFoldBehavior(null)
@@ -276,6 +335,9 @@ export class ThreeBridge {
       this.rightMaterial,
       this.leftTextureMaterial,
       this.rightTextureMaterial,
+      this.assembledFrontMaterial,
+      this.assembledBackMaterial,
+      this.assembledSideMaterial,
     ])
 
     this.renderer = new THREE.WebGLRenderer({
@@ -313,6 +375,8 @@ export class ThreeBridge {
     this.modelRoot.add(this.staticSideGroup)
     this.modelRoot.add(this.foldingPivot)
     this.modelRoot.add(this.foldGuideGroup)
+    this.modelRoot.add(this.assembledGroup)
+    this.modelRoot.add(this.avatarGroup)
     this.modelRoot.position.set(0, -0.08, 0.1)
     this.modelRoot.rotation.x = -0.7
     this.scene.add(this.modelRoot)
@@ -335,11 +399,160 @@ export class ThreeBridge {
     this.scene.add(this.grid)
   }
 
+  private clearAssembledGroups() {
+    clearGroup(this.assembledGroup, this.preservedMaterials)
+    clearGroup(this.avatarGroup, this.preservedMaterials)
+  }
+
   private projectPoint(point: { x: number; y: number }) {
     return new THREE.Vector2(
       (point.x - this.transform.centerX) * this.transform.scale,
       -(point.y - this.transform.centerY) * this.transform.scale,
     )
+  }
+
+  private buildBoundsFromPieceMeshes() {
+    if (this.pieceMeshes.length === 0) {
+      return null
+    }
+
+    let minX = Number.POSITIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+
+    for (const piece of this.pieceMeshes) {
+      minX = Math.min(minX, piece.bounds.minX)
+      minY = Math.min(minY, piece.bounds.minY)
+      maxX = Math.max(maxX, piece.bounds.maxX)
+      maxY = Math.max(maxY, piece.bounds.maxY)
+    }
+
+    return { minX, minY, maxX, maxY }
+  }
+
+  private buildModelBounds3() {
+    const box = new THREE.Box3().setFromObject(this.modelRoot)
+    if (box.isEmpty()) {
+      return null
+    }
+    return {
+      minX: box.min.x,
+      minY: box.min.y,
+      minZ: box.min.z,
+      maxX: box.max.x,
+      maxY: box.max.y,
+      maxZ: box.max.z,
+    } satisfies Bounds3
+  }
+
+  private fitControlsToModel() {
+    this.modelRoot.updateMatrixWorld(true)
+    const bounds = this.buildModelBounds3()
+    if (!bounds) {
+      this.controls.target.set(0, 0.18, 0)
+      this.controls.update()
+      return
+    }
+
+    const center = new THREE.Vector3(
+      (bounds.minX + bounds.maxX) / 2,
+      (bounds.minY + bounds.maxY) / 2,
+      (bounds.minZ + bounds.maxZ) / 2,
+    )
+    const size = new THREE.Vector3(
+      bounds.maxX - bounds.minX,
+      bounds.maxY - bounds.minY,
+      bounds.maxZ - bounds.minZ,
+    )
+    const radius = Math.max(size.length() * 0.5, 0.6)
+
+    this.controls.target.copy(center)
+    this.controls.minDistance = Math.max(0.3, radius * 0.4)
+    this.controls.maxDistance = Math.max(5.5, radius * 8)
+    this.camera.position.set(center.x + radius * 0.95, center.y + radius * 1.15, center.z + radius * 1.3)
+    this.camera.lookAt(center)
+    this.controls.update()
+  }
+
+  private placementForPiece(pieceId: string) {
+    return (
+      this.piecePlacements3d.find((placement) => placement.pieceId === pieceId) ?? {
+        pieceId,
+        translationMm: { x: 0, y: 0, z: 0 },
+        rotationDeg: { x: 0, y: 0, z: 0 },
+        flipped: false,
+      }
+    )
+  }
+
+  private explodedOffsetForIndex(index: number, total: number) {
+    if (total <= 1) {
+      return new THREE.Vector3(0, 0, 0)
+    }
+    const angle = (index / total) * Math.PI * 2
+    const radiusMm = 70 * this.threePreviewSettings.explodedFactor
+    return new THREE.Vector3(
+      Math.cos(angle) * radiusMm * this.transform.scale,
+      0,
+      Math.sin(angle) * radiusMm * this.transform.scale,
+    )
+  }
+
+  private applyPlacementTransform(group: THREE.Group, placement: PiecePlacement3D, index: number, total: number) {
+    const exploded = this.explodedOffsetForIndex(index, total)
+    group.position.set(
+      placement.translationMm.x * this.transform.scale + exploded.x,
+      placement.translationMm.y * this.transform.scale + exploded.y,
+      -placement.translationMm.z * this.transform.scale + exploded.z,
+    )
+    group.rotation.set(
+      THREE.MathUtils.degToRad(placement.rotationDeg.x),
+      THREE.MathUtils.degToRad(placement.rotationDeg.y),
+      THREE.MathUtils.degToRad(placement.rotationDeg.z),
+    )
+    if (placement.flipped) {
+      group.scale.x = -1
+    }
+  }
+
+  private createProceduralAvatar(scaleWorld: number) {
+    const avatar = new THREE.Group()
+    const material = new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      roughness: 0.96,
+      metalness: 0.02,
+      transparent: true,
+      opacity: 0.28,
+    })
+
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.14 * scaleWorld, 0.55 * scaleWorld, 8, 12), material)
+    torso.position.set(0, 0.45 * scaleWorld, 0)
+    avatar.add(torso)
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.12 * scaleWorld, 16, 16), material)
+    head.position.set(0, 0.92 * scaleWorld, 0)
+    avatar.add(head)
+
+    const leftLeg = new THREE.Mesh(new THREE.CapsuleGeometry(0.05 * scaleWorld, 0.46 * scaleWorld, 6, 10), material)
+    leftLeg.position.set(-0.08 * scaleWorld, 0.03 * scaleWorld, 0)
+    avatar.add(leftLeg)
+
+    const rightLeg = leftLeg.clone()
+    rightLeg.position.x *= -1
+    avatar.add(rightLeg)
+
+    const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.04 * scaleWorld, 0.42 * scaleWorld, 6, 10), material)
+    leftArm.position.set(-0.27 * scaleWorld, 0.53 * scaleWorld, 0)
+    leftArm.rotation.z = THREE.MathUtils.degToRad(22)
+    avatar.add(leftArm)
+
+    const rightArm = leftArm.clone()
+    rightArm.position.x *= -1
+    rightArm.rotation.z *= -1
+    avatar.add(rightArm)
+
+    return avatar
   }
 
   private foldAxisFromLine(lineStart: THREE.Vector2, lineEnd: THREE.Vector2) {
@@ -699,7 +912,10 @@ export class ThreeBridge {
   }
 
   private computeTransform() {
-    let bounds = this.buildBoundsFromShapes(this.shapes)
+    let bounds = this.buildBoundsFromPieceMeshes()
+    if (!bounds) {
+      bounds = this.buildBoundsFromShapes(this.shapes)
+    }
     if (bounds) {
       bounds = ensureMinSpan(bounds, 80)
     } else {
@@ -761,7 +977,236 @@ export class ThreeBridge {
     return { positiveSegments, negativeSegments }
   }
 
+  private pieceUsesTexture(piece: PatternPiece) {
+    return (
+      this.currentAlbedo !== null &&
+      [piece.boundaryShapeId, ...piece.internalShapeIds].some((shapeId) => this.texturedShapeIdSet.has(shapeId))
+    )
+  }
+
+  private addEdgeLabel(group: THREE.Group, text: string, point: THREE.Vector3, color: string) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 160
+    canvas.height = 64
+    const context = canvas.getContext('2d')
+    if (!context) {
+      return
+    }
+
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    context.fillStyle = 'rgba(15, 23, 42, 0.85)'
+    context.fillRect(6, 8, 148, 48)
+    context.strokeStyle = 'rgba(255,255,255,0.2)'
+    context.strokeRect(6, 8, 148, 48)
+    context.fillStyle = color
+    context.font = '28px monospace'
+    context.textAlign = 'center'
+    context.textBaseline = 'middle'
+    context.fillText(text, canvas.width / 2, canvas.height / 2)
+
+    const texture = new THREE.CanvasTexture(canvas)
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false })
+    const sprite = new THREE.Sprite(material)
+    sprite.position.copy(point)
+    sprite.scale.set(0.16, 0.064, 1)
+    group.add(sprite)
+  }
+
+  private addAssembledStitchHoles(group: THREE.Group, piece: PatternPiece, topY: number) {
+    const pieceShapeIdSet = new Set([piece.boundaryShapeId, ...piece.internalShapeIds])
+    const holes = this.stitchHoles.filter((entry) => pieceShapeIdSet.has(entry.shapeId))
+    if (holes.length === 0) {
+      return
+    }
+
+    const geometry = new THREE.CylinderGeometry(0.006, 0.006, 0.003, 10)
+    const material = new THREE.MeshStandardMaterial({
+      color: this.threadColor,
+      roughness: 0.55,
+      metalness: 0.05,
+    })
+    const instances = new THREE.InstancedMesh(geometry, material, holes.length)
+    const matrix = new THREE.Matrix4()
+
+    holes.forEach((hole, index) => {
+      const projected = projectPiecePoint(hole.point, this.transform.scale, this.transform.centerX, this.transform.centerY)
+      matrix.makeRotationX(Math.PI / 2)
+      matrix.setPosition(projected.x, topY + 0.0025, projected.y)
+      instances.setMatrixAt(index, matrix)
+    })
+    instances.instanceMatrix.needsUpdate = true
+    group.add(instances)
+  }
+
+  private createAssembledPieceGroup(piece: PatternPiece, pieceMesh: PieceMeshData, index: number, total: number) {
+    const group = new THREE.Group()
+    const pieceShape = createPieceShape(pieceMesh, this.transform.scale, this.transform.centerX, this.transform.centerY)
+    const thicknessWorld = Math.max(this.threePreviewSettings.thicknessMm * this.transform.scale, DEFAULT_THICKNESS_WORLD)
+    const halfThickness = thicknessWorld / 2
+    const usesTexture = this.pieceUsesTexture(piece)
+    const frontMaterial = usesTexture ? this.leftTextureMaterial : this.assembledFrontMaterial
+    const sideMaterial = this.assembledSideMaterial
+
+    const bodyGeometry = new THREE.ExtrudeGeometry(pieceShape, {
+      depth: thicknessWorld,
+      bevelEnabled: false,
+      steps: 1,
+    })
+    bodyGeometry.rotateX(-Math.PI / 2)
+    bodyGeometry.translate(0, -halfThickness, 0)
+    const bodyMesh = new THREE.Mesh(bodyGeometry, [frontMaterial, sideMaterial])
+    group.add(bodyMesh)
+
+    const backGeometry = new THREE.ShapeGeometry(pieceShape)
+    backGeometry.rotateX(-Math.PI / 2)
+    backGeometry.translate(0, -halfThickness - 0.0008, 0)
+    const backMesh = new THREE.Mesh(backGeometry, this.assembledBackMaterial)
+    group.add(backMesh)
+
+    const outlinePoints = pieceMesh.outer.map((point) => projectPiecePoint(point, this.transform.scale, this.transform.centerX, this.transform.centerY))
+    this.addPanelOutline(outlinePoints, group, '#e2e8f0', null, halfThickness + 0.0015)
+
+    if (this.threePreviewSettings.showEdgeLabels) {
+      pieceMesh.edges.forEach((edge) => {
+        const midpoint = projectPiecePoint(edge.midpoint, this.transform.scale, this.transform.centerX, this.transform.centerY)
+        this.addEdgeLabel(group, `${edge.index + 1}`, new THREE.Vector3(midpoint.x, halfThickness + 0.02, midpoint.y), '#f8fafc')
+      })
+    }
+
+    this.addAssembledStitchHoles(group, piece, halfThickness)
+
+    const placement = this.placementForPiece(piece.id)
+    this.applyPlacementTransform(group, placement, index, total)
+    group.updateMatrixWorld(true)
+
+    return group
+  }
+
+  private edgeMidpointWorld(group: THREE.Group, pieceMesh: PieceMeshData, edgeIndex: number) {
+    const edge = pieceMesh.edges[Math.max(0, Math.min(pieceMesh.edges.length - 1, edgeIndex))]
+    if (!edge) {
+      return null
+    }
+    const midpoint = projectPiecePoint(edge.midpoint, this.transform.scale, this.transform.centerX, this.transform.centerY)
+    const point = new THREE.Vector3(midpoint.x, 0, midpoint.y)
+    return point.applyMatrix4(group.matrixWorld)
+  }
+
+  private edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number) {
+    const edge = pieceMesh.edges[Math.max(0, Math.min(pieceMesh.edges.length - 1, edgeIndex))]
+    return edge ? edge.lengthMm * this.transform.scale : 0
+  }
+
+  private seamColorForConnection(leftLength: number, rightLength: number, midpointDistance: number) {
+    const ratio = Math.abs(leftLength - rightLength) / Math.max(leftLength, rightLength, EPSILON)
+    const severity = THREE.MathUtils.clamp(ratio * 1.25 + midpointDistance * 0.9, 0, 1)
+    const safe = new THREE.Color('#22c55e')
+    const warning = new THREE.Color('#ef4444')
+    return safe.lerp(warning, this.threePreviewSettings.showStressOverlay ? severity : 0.18)
+  }
+
+  private addSeamGuide(
+    from: THREE.Vector3,
+    to: THREE.Vector3,
+    color: THREE.Color,
+    dashed: boolean,
+  ) {
+    const material = dashed
+      ? new THREE.LineDashedMaterial({ color, dashSize: 0.04, gapSize: 0.025 })
+      : new THREE.LineBasicMaterial({ color })
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([from, to]),
+      material,
+    )
+    if (line instanceof THREE.Line && 'computeLineDistances' in line) {
+      line.computeLineDistances()
+    }
+    this.assembledGroup.add(line)
+  }
+
+  private rebuildAssembledModel() {
+    this.clearAssembledGroups()
+    clearGroup(this.staticSideGroup, this.preservedMaterials)
+    clearGroup(this.foldingSideGroup, this.preservedMaterials)
+    clearGroup(this.foldGuideGroup, this.preservedMaterials)
+    this.staticPanels = []
+    this.foldingPanels = []
+    this.staticPanelBoxes = []
+
+    const pieces = this.patternPieces.filter((piece) => this.layers.some((layer) => layer.id === piece.layerId && layer.visible))
+    if (pieces.length === 0) {
+      this.fitControlsToModel()
+      return
+    }
+
+    const pieceMeshById = new Map(this.pieceMeshes.map((piece) => [piece.pieceId, piece]))
+    const pieceGroupById = new Map<string, THREE.Group>()
+
+    pieces.forEach((piece, index) => {
+      const pieceMesh = pieceMeshById.get(piece.id)
+      if (!pieceMesh) {
+        return
+      }
+      const group = this.createAssembledPieceGroup(piece, pieceMesh, index, pieces.length)
+      pieceGroupById.set(piece.id, group)
+      this.assembledGroup.add(group)
+    })
+
+    if (this.threePreviewSettings.showSeams) {
+      for (const connection of this.seamConnections) {
+        const fromGroup = pieceGroupById.get(connection.from.pieceId)
+        const toGroup = pieceGroupById.get(connection.to.pieceId)
+        const fromPiece = pieceMeshById.get(connection.from.pieceId)
+        const toPiece = pieceMeshById.get(connection.to.pieceId)
+        if (!fromGroup || !toGroup || !fromPiece || !toPiece) {
+          continue
+        }
+
+        const fromMid = this.edgeMidpointWorld(fromGroup, fromPiece, connection.from.edgeIndex)
+        const toMid = this.edgeMidpointWorld(toGroup, toPiece, connection.to.edgeIndex)
+        if (!fromMid || !toMid) {
+          continue
+        }
+        const color = this.seamColorForConnection(
+          this.edgeLengthWorld(fromPiece, connection.from.edgeIndex),
+          this.edgeLengthWorld(toPiece, connection.to.edgeIndex),
+          fromMid.distanceTo(toMid),
+        )
+        this.addSeamGuide(fromMid, toMid, color, connection.kind !== 'aligned')
+      }
+    }
+
+    if (this.threePreviewSettings.mode === 'avatar') {
+      const avatar = this.createProceduralAvatar(1.05)
+      avatar.position.set(0, 0.22, 0)
+      this.avatarGroup.add(avatar)
+    }
+
+    this.fitControlsToModel()
+  }
+
   private rebuildModel() {
+    const chainsByShapeId = new Map<string, { id: string; shapeIds: string[]; polygon: Point[]; isClosed: true; area: number }>()
+    for (const outline of this.outlinePolygons) {
+      const chain = {
+        id: outline.shapeIds[0] ?? outline.layerId,
+        shapeIds: outline.shapeIds,
+        polygon: outline.polygon,
+        isClosed: true as const,
+        area: Math.abs(THREE.ShapeUtils.area(outline.polygon.map((point) => new THREE.Vector2(point.x, point.y)))),
+      }
+      for (const shapeId of outline.shapeIds) {
+        chainsByShapeId.set(shapeId, chain)
+      }
+    }
+    this.pieceMeshes = buildPieceMeshes(this.patternPieces, chainsByShapeId)
+    if (this.threePreviewSettings.mode === 'assembled' || this.threePreviewSettings.mode === 'avatar') {
+      this.computeTransform()
+      this.rebuildAssembledModel()
+      return
+    }
+
+    this.clearAssembledGroups()
     clearGroup(this.staticSideGroup, this.preservedMaterials)
     clearGroup(this.foldingSideGroup, this.preservedMaterials)
     clearGroup(this.foldGuideGroup, this.preservedMaterials)
@@ -1004,7 +1449,12 @@ export class ThreeBridge {
     this.currentNormal = normal
     this.currentRoughness = roughness
 
-    for (const material of [this.leftTextureMaterial, this.rightTextureMaterial]) {
+    for (const material of [
+      this.leftTextureMaterial,
+      this.rightTextureMaterial,
+      this.assembledFrontMaterial,
+      this.assembledSideMaterial,
+    ]) {
       material.map = albedo
       material.normalMap = normal
       material.roughnessMap = roughness
@@ -1019,6 +1469,11 @@ export class ThreeBridge {
     lineTypes: LineType[] = [],
     stitchHoles: StitchHole[] = [],
     outlinePolygons: OutlinePolygon[] = [],
+    patternPieces: PatternPiece[] = [],
+    piecePlacements3d: PiecePlacement3D[] = [],
+    seamConnections: SeamConnection[] = [],
+    threePreviewSettings?: ThreePreviewSettings,
+    _avatars: AvatarSpec[] = [],
   ) {
     this.layers = [...layers]
     this.lineTypes = [...lineTypes]
@@ -1026,6 +1481,10 @@ export class ThreeBridge {
     this.foldLines = [...foldLines]
     this.stitchHoles = [...stitchHoles]
     this.outlinePolygons = outlinePolygons
+    this.patternPieces = [...patternPieces]
+    this.piecePlacements3d = [...piecePlacements3d]
+    this.seamConnections = [...seamConnections]
+    this.threePreviewSettings = threePreviewSettings ? { ...threePreviewSettings } : this.threePreviewSettings
     const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
     this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
     this.activeFoldBehavior = resolveFoldBehavior(this.foldLines[0] ?? null)
@@ -1161,6 +1620,9 @@ export class ThreeBridge {
       this.rightMaterial,
       this.leftTextureMaterial,
       this.rightTextureMaterial,
+      this.assembledFrontMaterial,
+      this.assembledBackMaterial,
+      this.assembledSideMaterial,
     ]
 
     for (const mat of materials) {
@@ -1188,6 +1650,9 @@ export class ThreeBridge {
       this.rightMaterial,
       this.leftTextureMaterial,
       this.rightTextureMaterial,
+      this.assembledFrontMaterial,
+      this.assembledBackMaterial,
+      this.assembledSideMaterial,
     ]
 
     for (const mat of materials) {
@@ -1231,6 +1696,8 @@ export class ThreeBridge {
     clearGroup(this.staticSideGroup, this.preservedMaterials)
     clearGroup(this.foldingSideGroup, this.preservedMaterials)
     clearGroup(this.foldGuideGroup, this.preservedMaterials)
+    clearGroup(this.assembledGroup, this.preservedMaterials)
+    clearGroup(this.avatarGroup, this.preservedMaterials)
 
     this.applyTextureMaps(null, null, null)
     this.controls.dispose()
@@ -1238,6 +1705,9 @@ export class ThreeBridge {
     this.rightMaterial.dispose()
     this.leftTextureMaterial.dispose()
     this.rightTextureMaterial.dispose()
+    this.assembledFrontMaterial.dispose()
+    this.assembledBackMaterial.dispose()
+    this.assembledSideMaterial.dispose()
     this.renderer.dispose()
   }
 }

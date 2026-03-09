@@ -9,21 +9,25 @@ import { buildPrintPlan, type PrintPaper } from '../preview/print-preview'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import type {
+  AvatarSpec,
   FoldLine,
   HardwareMarker,
   Layer,
   LineType,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  SeamConnection,
   Shape,
   SketchGroup,
   SnapSettings,
   StitchHole,
+  ThreePreviewSettings,
   TextureSource,
   TracingOverlay,
 } from '../cad/cad-types'
@@ -73,6 +77,8 @@ type UseEditorDerivedStateParams = {
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
   piecePlacementLabels: PiecePlacementLabel[]
+  piecePlacements3d: PiecePlacement3D[]
+  seamConnections: SeamConnection[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
@@ -82,6 +88,8 @@ type UseEditorDerivedStateParams = {
   projectMemo: string
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
+  threePreviewSettings: ThreePreviewSettings
+  avatars: AvatarSpec[]
   threeTextureSource: TextureSource | null
   threeTextureShapeIds: string[]
   showCanvasRuler: boolean
@@ -126,6 +134,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     pieceGrainlines,
     pieceLabels,
     piecePlacementLabels,
+    piecePlacements3d,
+    seamConnections,
     seamAllowances,
     pieceNotches,
     hardwareMarkers,
@@ -135,6 +145,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     projectMemo,
     stitchAlwaysShapeIds,
     stitchThreadColor,
+    threePreviewSettings,
+    avatars,
     threeTextureSource,
     threeTextureShapeIds,
     showCanvasRuler,
@@ -680,6 +692,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       pieceGrainlines: deepClone(pieceGrainlines),
       pieceLabels: deepClone(pieceLabels),
       piecePlacementLabels: deepClone(piecePlacementLabels),
+      piecePlacements3d: deepClone(piecePlacements3d),
+      seamConnections: deepClone(seamConnections),
       seamAllowances: deepClone(seamAllowances),
       pieceNotches: deepClone(pieceNotches),
       hardwareMarkers: deepClone(hardwareMarkers),
@@ -689,6 +703,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       projectMemo,
       stitchAlwaysShapeIds: deepClone(stitchAlwaysShapeIds),
       stitchThreadColor,
+      threePreviewSettings: deepClone(threePreviewSettings),
+      avatars: deepClone(avatars),
       threeTextureSource: deepClone(threeTextureSource),
       threeTextureShapeIds: deepClone(threeTextureShapeIds),
       showCanvasRuler,
@@ -712,6 +728,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       pieceGrainlines,
       pieceLabels,
       piecePlacementLabels,
+      piecePlacements3d,
+      seamConnections,
       seamAllowances,
       pieceNotches,
       hardwareMarkers,
@@ -721,6 +739,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       projectMemo,
       stitchAlwaysShapeIds,
       stitchThreadColor,
+      threePreviewSettings,
+      avatars,
       threeTextureSource,
       threeTextureShapeIds,
       showCanvasRuler,

@@ -1,5 +1,17 @@
-import { lazy, Suspense } from 'react'
-import type { FoldLine, Layer, LineType, Shape, StitchHole, TextureSource } from '../cad/cad-types'
+import { lazy, Suspense, type Dispatch, type SetStateAction } from 'react'
+import type {
+  AvatarSpec,
+  FoldLine,
+  Layer,
+  LineType,
+  PatternPiece,
+  PiecePlacement3D,
+  SeamConnection,
+  Shape,
+  StitchHole,
+  TextureSource,
+  ThreePreviewSettings,
+} from '../cad/cad-types'
 import type { ResolvedThemeMode, SidePanelTab } from '../editor-types'
 import { LayerSidePanel } from './LayerSidePanel'
 
@@ -19,6 +31,13 @@ type EditorPreviewPaneProps = {
   stitchHoles: StitchHole[]
   stitchThreadColor: string
   onSetStitchThreadColor: (color: string) => void
+  patternPieces: PatternPiece[]
+  piecePlacements3d: PiecePlacement3D[]
+  seamConnections: SeamConnection[]
+  threePreviewSettings: ThreePreviewSettings
+  avatars: AvatarSpec[]
+  onSetPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  onSetThreePreviewSettings: Dispatch<SetStateAction<ThreePreviewSettings>>
   threeTextureSource: TextureSource | null
   onSetThreeTextureSource: (source: TextureSource | null) => void
   threeTextureShapeIds: string[]
@@ -59,6 +78,13 @@ export function EditorPreviewPane({
   stitchHoles,
   stitchThreadColor,
   onSetStitchThreadColor,
+  patternPieces,
+  piecePlacements3d,
+  seamConnections,
+  threePreviewSettings,
+  avatars,
+  onSetPiecePlacements3d,
+  onSetThreePreviewSettings,
   threeTextureSource,
   onSetThreeTextureSource,
   threeTextureShapeIds,
@@ -148,6 +174,13 @@ export function EditorPreviewPane({
             stitchHoles={stitchHoles}
             stitchThreadColor={stitchThreadColor}
             onSetStitchThreadColor={onSetStitchThreadColor}
+            patternPieces={patternPieces}
+            piecePlacements3d={piecePlacements3d}
+            seamConnections={seamConnections}
+            threePreviewSettings={threePreviewSettings}
+            avatars={avatars}
+            onSetPiecePlacements3d={onSetPiecePlacements3d}
+            onSetThreePreviewSettings={onSetThreePreviewSettings}
             threeTextureSource={threeTextureSource}
             onSetThreeTextureSource={onSetThreeTextureSource}
             threeTextureShapeIds={threeTextureShapeIds}

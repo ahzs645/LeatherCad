@@ -6,25 +6,29 @@ import {
   createDefaultLineTypes,
 } from '../cad/line-types'
 import type {
+  AvatarSpec,
   FoldLine,
   HardwareMarker,
   Layer,
   LineType,
   PatternPiece,
+  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  SeamConnection,
   Shape,
   SketchGroup,
   SnapSettings,
   StitchHole,
+  ThreePreviewSettings,
   TextureSource,
   TracingOverlay,
 } from '../cad/cad-types'
-import { DEFAULT_SNAP_SETTINGS } from '../editor-constants'
+import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import type { EditorSnapshot } from '../editor-types'
 import { createDefaultLayer } from '../editor-utils'
 
@@ -47,6 +51,8 @@ type UseEditorStateActionsParams = {
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
   setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
+  setPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  setSeamConnections: Dispatch<SetStateAction<SeamConnection[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
@@ -56,6 +62,8 @@ type UseEditorStateActionsParams = {
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
+  setThreePreviewSettings: Dispatch<SetStateAction<ThreePreviewSettings>>
+  setAvatars: Dispatch<SetStateAction<AvatarSpec[]>>
   setThreeTextureSource: Dispatch<SetStateAction<TextureSource | null>>
   setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
@@ -90,6 +98,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -99,6 +109,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
+    setThreePreviewSettings,
+    setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
     setShowCanvasRuler,
@@ -128,6 +140,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPieceGrainlines(snapshot.pieceGrainlines)
     setPieceLabels(snapshot.pieceLabels)
     setPiecePlacementLabels(snapshot.piecePlacementLabels)
+    setPiecePlacements3d(snapshot.piecePlacements3d)
+    setSeamConnections(snapshot.seamConnections)
     setSeamAllowances(snapshot.seamAllowances)
     setPieceNotches(snapshot.pieceNotches)
     setHardwareMarkers(snapshot.hardwareMarkers)
@@ -137,6 +151,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setProjectMemo(snapshot.projectMemo)
     setStitchAlwaysShapeIds(snapshot.stitchAlwaysShapeIds)
     setStitchThreadColor(snapshot.stitchThreadColor)
+    setThreePreviewSettings(snapshot.threePreviewSettings)
+    setAvatars(snapshot.avatars)
     setThreeTextureSource(snapshot.threeTextureSource)
     setThreeTextureShapeIds(snapshot.threeTextureShapeIds)
     setShowCanvasRuler(snapshot.showCanvasRuler)
@@ -162,6 +178,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -171,6 +189,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
+    setThreePreviewSettings,
+    setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
     setShowCanvasRuler,
@@ -248,6 +268,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPieceGrainlines([])
     setPieceLabels([])
     setPiecePlacementLabels([])
+    setPiecePlacements3d([])
+    setSeamConnections([])
     setSeamAllowances([])
     setPieceNotches([])
     setHardwareMarkers([])
@@ -257,6 +279,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setProjectMemo('')
     setStitchAlwaysShapeIds([])
     setStitchThreadColor('#fb923c')
+    setThreePreviewSettings(DEFAULT_THREE_PREVIEW_SETTINGS)
+    setAvatars([])
     setThreeTextureSource(null)
     setThreeTextureShapeIds([])
     setShowCanvasRuler(true)
@@ -283,6 +307,9 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -292,6 +319,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
+    setThreePreviewSettings,
+    setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
     setShowCanvasRuler,
