@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
-import type { PatternPiece, PieceGrainline, PieceLabel, PieceNotch, PieceSeamAllowance, Shape } from '../cad/cad-types'
+import type {
+  PatternPiece,
+  PieceGrainline,
+  PieceLabel,
+  PiecePlacementLabel,
+  PieceNotch,
+  PieceSeamAllowance,
+  Shape,
+} from '../cad/cad-types'
 import { AVAILABLE_PIECE_LABEL_TOKENS } from '../ops/pattern-piece-ops'
 
 type PieceInspectorModalProps = {
@@ -10,6 +18,7 @@ type PieceInspectorModalProps = {
   patternLabel: PieceLabel | null
   seamAllowance: PieceSeamAllowance | null
   notches: PieceNotch[]
+  placementLabels: PiecePlacementLabel[]
   edgeCount: number
   availableInternalShapes: Shape[]
   selectedInternalShapeIds: Set<string>
@@ -22,6 +31,9 @@ type PieceInspectorModalProps = {
   onUpdateSeamAllowance: (patch: Partial<PieceSeamAllowance>) => void
   onUpdateNotch: (notchId: string, patch: Partial<PieceNotch>) => void
   onDeleteNotch: (notchId: string) => void
+  onAddPlacementLabel: () => void
+  onUpdatePlacementLabel: (labelId: string, patch: Partial<PiecePlacementLabel>) => void
+  onDeletePlacementLabel: (labelId: string) => void
 }
 
 function parseNumber(value: string, fallback: number) {
@@ -37,6 +49,7 @@ export function PieceInspectorModal({
   patternLabel,
   seamAllowance,
   notches,
+  placementLabels,
   edgeCount,
   availableInternalShapes,
   selectedInternalShapeIds,
@@ -49,6 +62,9 @@ export function PieceInspectorModal({
   onUpdateSeamAllowance,
   onUpdateNotch,
   onDeleteNotch,
+  onAddPlacementLabel,
+  onUpdatePlacementLabel,
+  onDeletePlacementLabel,
 }: PieceInspectorModalProps) {
   const nameRef = useRef<HTMLInputElement | null>(null)
 
@@ -446,6 +462,147 @@ export function PieceInspectorModal({
                     <span>Show on seam</span>
                   </label>
                   <button type="button" onClick={() => onDeleteNotch(notch.id)}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="control-block">
+          <h3>Placement Labels</h3>
+          <div className="line-type-modal-actions">
+            <button type="button" onClick={onAddPlacementLabel}>
+              Add placement label
+            </button>
+          </div>
+          {placementLabels.length === 0 ? (
+            <p className="hint">Add placement labels for snap centers, fold marks, or text callouts.</p>
+          ) : (
+            <div className="pattern-toggle-grid">
+              {placementLabels.map((label, index) => (
+                <div key={label.id} className="layer-toggle-item">
+                  <span>{`${index + 1}. ${label.name}`}</span>
+                  <label className="layer-field">
+                    <span>Name</span>
+                    <input value={label.name} onChange={(event) => onUpdatePlacementLabel(label.id, { name: event.target.value })} />
+                  </label>
+                  <label className="layer-field">
+                    <span>Kind</span>
+                    <select value={label.kind} onChange={(event) => onUpdatePlacementLabel(label.id, { kind: event.target.value as PiecePlacementLabel['kind'] })}>
+                      <option value="cross">Cross</option>
+                      <option value="box">Box</option>
+                      <option value="circle">Circle</option>
+                      <option value="text">Text</option>
+                    </select>
+                  </label>
+                  <label className="layer-field">
+                    <span>Anchor</span>
+                    <select
+                      value={label.anchor}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { anchor: event.target.value as PiecePlacementLabel['anchor'] })}
+                    >
+                      <option value="center">Center</option>
+                      <option value="edge">Edge</option>
+                    </select>
+                  </label>
+                  {label.anchor === 'edge' && (
+                    <>
+                      <label className="layer-field">
+                        <span>Edge</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={Math.max(1, edgeCount)}
+                          value={label.edgeIndex + 1}
+                          onChange={(event) =>
+                            onUpdatePlacementLabel(label.id, {
+                              edgeIndex: Math.max(0, Math.min(Math.max(1, edgeCount) - 1, Math.round(parseNumber(event.target.value, label.edgeIndex + 1) - 1))),
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="layer-field">
+                        <span>Position (%)</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={Math.round(label.t * 100)}
+                          onChange={(event) =>
+                            onUpdatePlacementLabel(label.id, {
+                              t: Math.max(0, Math.min(1, parseNumber(event.target.value, label.t * 100) / 100)),
+                            })
+                          }
+                        />
+                      </label>
+                    </>
+                  )}
+                  <label className="layer-field">
+                    <span>Offset X</span>
+                    <input
+                      type="number"
+                      value={label.offsetX}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { offsetX: parseNumber(event.target.value, label.offsetX) })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Offset Y</span>
+                    <input
+                      type="number"
+                      value={label.offsetY}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { offsetY: parseNumber(event.target.value, label.offsetY) })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Width</span>
+                    <input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      value={label.widthMm}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { widthMm: Math.max(0.5, parseNumber(event.target.value, label.widthMm)) })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Height</span>
+                    <input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      value={label.heightMm}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { heightMm: Math.max(0.5, parseNumber(event.target.value, label.heightMm)) })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Rotation (deg)</span>
+                    <input
+                      type="number"
+                      value={label.rotationDeg}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { rotationDeg: parseNumber(event.target.value, label.rotationDeg) })}
+                    />
+                  </label>
+                  {label.kind === 'text' && (
+                    <label className="layer-field">
+                      <span>Text</span>
+                      <input value={label.text ?? ''} onChange={(event) => onUpdatePlacementLabel(label.id, { text: event.target.value || undefined })} />
+                    </label>
+                  )}
+                  <label className="layer-toggle-item">
+                    <input type="checkbox" checked={label.visible} onChange={(event) => onUpdatePlacementLabel(label.id, { visible: event.target.checked })} />
+                    <span>Visible</span>
+                  </label>
+                  <label className="layer-toggle-item">
+                    <input
+                      type="checkbox"
+                      checked={label.showOnSeam}
+                      onChange={(event) => onUpdatePlacementLabel(label.id, { showOnSeam: event.target.checked })}
+                      disabled={label.anchor !== 'edge'}
+                    />
+                    <span>Use seam line</span>
+                  </label>
+                  <button type="button" onClick={() => onDeletePlacementLabel(label.id)}>
                     Delete
                   </button>
                 </div>

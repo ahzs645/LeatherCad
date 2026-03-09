@@ -11,6 +11,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   PrintArea,
@@ -36,6 +37,7 @@ import {
   parsePatternPiece,
   parsePieceGrainline,
   parsePieceLabel,
+  parsePiecePlacementLabel,
   parsePieceNotch,
   parsePieceSeamAllowance,
   parsePrintArea,
@@ -57,6 +59,7 @@ type ImportedJsonCandidate = {
   patternPieces?: unknown[]
   pieceGrainlines?: unknown[]
   pieceLabels?: unknown[]
+  piecePlacementLabels?: unknown[]
   pieceNotches?: unknown[]
   hardwareMarkers?: unknown[]
   sketchGroups?: unknown[]
@@ -348,6 +351,11 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         .map(parsePieceLabel)
         .filter((label): label is PieceLabel => label !== null && nextPatternPieceIdSet.has(label.pieceId))
     : []
+  const nextPiecePlacementLabels = Array.isArray(parsed.piecePlacementLabels)
+    ? parsed.piecePlacementLabels
+        .map(parsePiecePlacementLabel)
+        .filter((label): label is PiecePlacementLabel => label !== null && nextPatternPieceIdSet.has(label.pieceId))
+    : []
   const nextPieceNotches = Array.isArray(parsed.pieceNotches)
     ? parsed.pieceNotches
         .map(parsePieceNotch)
@@ -424,6 +432,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       patternPieces: nextPatternPieces,
       pieceGrainlines: nextPieceGrainlines,
       pieceLabels: nextPieceLabels,
+      piecePlacementLabels: nextPiecePlacementLabels,
       seamAllowances: nextSeamAllowances,
       pieceNotches: nextPieceNotches,
       hardwareMarkers: nextHardwareMarkers,

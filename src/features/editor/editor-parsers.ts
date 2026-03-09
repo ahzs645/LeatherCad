@@ -12,6 +12,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   SketchGroup,
@@ -300,6 +301,46 @@ export function parsePieceLabel(value: unknown): PieceLabel | null {
       typeof candidate.fontSizeMm === 'number' && Number.isFinite(candidate.fontSizeMm)
         ? Math.max(2, candidate.fontSizeMm)
         : 8,
+  }
+}
+
+export function parsePiecePlacementLabel(value: unknown): PiecePlacementLabel | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+  const candidate = value as Partial<PiecePlacementLabel>
+  if (typeof candidate.id !== 'string' || typeof candidate.pieceId !== 'string') {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    pieceId: candidate.pieceId,
+    name: typeof candidate.name === 'string' && candidate.name.trim().length > 0 ? candidate.name.trim() : 'Placement Label',
+    visible: candidate.visible !== false,
+    kind:
+      candidate.kind === 'box' || candidate.kind === 'circle' || candidate.kind === 'text'
+        ? candidate.kind
+        : 'cross',
+    anchor: candidate.anchor === 'edge' ? 'edge' : 'center',
+    edgeIndex:
+      typeof candidate.edgeIndex === 'number' && Number.isFinite(candidate.edgeIndex)
+        ? Math.max(0, Math.round(candidate.edgeIndex))
+        : 0,
+    t: typeof candidate.t === 'number' && Number.isFinite(candidate.t) ? clamp(candidate.t, 0, 1) : 0.5,
+    offsetX: typeof candidate.offsetX === 'number' && Number.isFinite(candidate.offsetX) ? candidate.offsetX : 0,
+    offsetY: typeof candidate.offsetY === 'number' && Number.isFinite(candidate.offsetY) ? candidate.offsetY : 0,
+    widthMm:
+      typeof candidate.widthMm === 'number' && Number.isFinite(candidate.widthMm)
+        ? Math.max(1, Math.abs(candidate.widthMm))
+        : 6,
+    heightMm:
+      typeof candidate.heightMm === 'number' && Number.isFinite(candidate.heightMm)
+        ? Math.max(1, Math.abs(candidate.heightMm))
+        : 6,
+    rotationDeg: typeof candidate.rotationDeg === 'number' && Number.isFinite(candidate.rotationDeg) ? candidate.rotationDeg : 0,
+    text: typeof candidate.text === 'string' && candidate.text.trim().length > 0 ? candidate.text.trim() : undefined,
+    showOnSeam: candidate.showOnSeam === true,
   }
 }
 

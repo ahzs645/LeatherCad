@@ -15,6 +15,17 @@ type PieceNotchLine = {
   showOnSeam: boolean
 }
 
+type PiecePlacementGuide = {
+  id: string
+  pieceId: string
+  kind: 'cross' | 'box' | 'circle' | 'text'
+  point: { x: number; y: number }
+  rotationDeg: number
+  widthMm: number
+  heightMm: number
+  text?: string
+}
+
 type BuildAnnotationExportShapesParams = {
   showAnnotations: boolean
   onlySelected: boolean
@@ -23,8 +34,20 @@ type BuildAnnotationExportShapesParams = {
   annotationLabels: AnnotationLabel[]
   pieceGrainlineSegments: PieceGrainlineSegment[]
   pieceNotchLines: PieceNotchLine[]
+  piecePlacementGuides: PiecePlacementGuide[]
   fallbackLayerId: string
   annotationLineTypeId: string
+}
+
+function rotatePoint(point: { x: number; y: number }, center: { x: number; y: number }, radians: number) {
+  const dx = point.x - center.x
+  const dy = point.y - center.y
+  const cos = Math.cos(radians)
+  const sin = Math.sin(radians)
+  return {
+    x: center.x + dx * cos - dy * sin,
+    y: center.y + dx * sin + dy * cos,
+  }
 }
 
 function isPieceSelected(piece: PatternPiece, selectedShapeIdSet: Set<string>) {
@@ -43,6 +66,7 @@ export function buildAnnotationExportShapes(params: BuildAnnotationExportShapesP
     annotationLabels,
     pieceGrainlineSegments,
     pieceNotchLines,
+    piecePlacementGuides,
     fallbackLayerId,
     annotationLineTypeId,
   } = params
@@ -109,5 +133,93 @@ export function buildAnnotationExportShapes(params: BuildAnnotationExportShapesP
       end: notch.end,
     }))
 
-  return [...labelShapes, ...grainlineShapes, ...notchShapes]
+  const placementShapes: Shape[] = piecePlacementGuides
+    .filter((guide) => allowPiece(guide.pieceId))
+    .flatMap<Shape>((guide) => {
+      const layerId = resolveLayerId(guide.pieceId)
+      const radians = (guide.rotationDeg * Math.PI) / 180
+      const halfWidth = guide.widthMm / 2
+      const halfHeight = guide.heightMm / 2
+
+      if (guide.kind === 'text' && guide.text) {
+        const dx = Math.cos(radians) * halfWidth
+        const dy = Math.sin(radians) * halfWidth
+        return [{
+          id: `annotation-export-placement-${guide.id}`,
+          type: 'text',
+          layerId,
+          lineTypeId: annotationLineTypeId,
+          start: { x: guide.point.x - dx, y: guide.point.y - dy },
+          end: { x: guide.point.x + dx, y: guide.point.y + dy },
+          text: guide.text,
+          fontFamily: 'Arial',
+          fontSizeMm: Math.max(4, guide.heightMm),
+          transform: 'none',
+          radiusMm: 0,
+          sweepDeg: 0,
+        } satisfies Shape]
+      }
+
+      if (guide.kind === 'circle') {
+        const segments = 8
+        return Array.from({ length: segments }, (_, index) => {
+          const startAngle = (index / segments) * Math.PI * 2
+          const endAngle = ((index + 1) / segments) * Math.PI * 2
+          return {
+            id: `annotation-export-placement-${guide.id}-${index}`,
+            type: 'line',
+            layerId,
+            lineTypeId: annotationLineTypeId,
+            start: {
+              x: guide.point.x + Math.cos(startAngle) * halfWidth,
+              y: guide.point.y + Math.sin(startAngle) * halfWidth,
+            },
+            end: {
+              x: guide.point.x + Math.cos(endAngle) * halfWidth,
+              y: guide.point.y + Math.sin(endAngle) * halfWidth,
+            },
+          } satisfies Shape
+        })
+      }
+
+      const corners = [
+        { x: guide.point.x - halfWidth, y: guide.point.y - halfHeight },
+        { x: guide.point.x + halfWidth, y: guide.point.y - halfHeight },
+        { x: guide.point.x + halfWidth, y: guide.point.y + halfHeight },
+        { x: guide.point.x - halfWidth, y: guide.point.y + halfHeight },
+      ].map((point) => rotatePoint(point, guide.point, radians))
+
+      if (guide.kind === 'box') {
+        return corners.map((corner, index) => ({
+          id: `annotation-export-placement-${guide.id}-${index}`,
+          type: 'line',
+          layerId,
+          lineTypeId: annotationLineTypeId,
+          start: corner,
+          end: corners[(index + 1) % corners.length],
+        } satisfies Shape))
+      }
+
+      const crossSegments = [
+        [
+          rotatePoint({ x: guide.point.x - halfWidth, y: guide.point.y }, guide.point, radians),
+          rotatePoint({ x: guide.point.x + halfWidth, y: guide.point.y }, guide.point, radians),
+        ],
+        [
+          rotatePoint({ x: guide.point.x, y: guide.point.y - halfHeight }, guide.point, radians),
+          rotatePoint({ x: guide.point.x, y: guide.point.y + halfHeight }, guide.point, radians),
+        ],
+      ] as const
+
+      return crossSegments.map(([start, end], index) => ({
+        id: `annotation-export-placement-${guide.id}-${index}`,
+        type: 'line',
+        layerId,
+        lineTypeId: annotationLineTypeId,
+        start,
+        end,
+      } satisfies Shape))
+    })
+
+  return [...labelShapes, ...grainlineShapes, ...notchShapes, ...placementShapes]
 }

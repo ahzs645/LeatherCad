@@ -17,6 +17,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Shape,
@@ -31,6 +32,7 @@ import type {
   EditorSnapshot,
   ExportRoleFilters,
   LegendMode,
+  PiecePlacementGuide,
   ResolvedThemeMode,
   SeamGuide,
   SketchWorkspaceMode,
@@ -50,6 +52,7 @@ import {
   buildPatternPieceSeamPath,
   buildPieceDerivedGrainline,
   buildPieceDerivedLabels,
+  buildPieceDerivedPlacementGuides,
   buildPieceDerivedNotches,
   getPatternPieceChain,
   resolvePatternPieceChains,
@@ -69,6 +72,7 @@ type UseEditorDerivedStateParams = {
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
@@ -121,6 +125,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     hardwareMarkers,
@@ -510,10 +515,37 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
             if (!chain || !chain.shapeIds.some((shapeId) => visibleShapeIdSet.has(shapeId))) {
               return []
             }
-            return buildPieceDerivedNotches(piece, pieceNotches, chain)
+            return buildPieceDerivedNotches(
+              piece,
+              pieceNotches,
+              chain,
+              seamAllowances.find((entry) => entry.pieceId === piece.id),
+            )
           })
         : [],
-    [showAnnotations, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, visibleShapeIdSet, pieceNotches],
+    [showAnnotations, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, visibleShapeIdSet, pieceNotches, seamAllowances],
+  )
+
+  const piecePlacementGuides = useMemo<PiecePlacementGuide[]>(
+    () =>
+      showAnnotations
+        ? patternPieces.flatMap((piece) => {
+            if (!visibleLayerIdSet.has(piece.layerId)) {
+              return []
+            }
+            const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
+            if (!chain || !chain.shapeIds.some((shapeId) => visibleShapeIdSet.has(shapeId))) {
+              return []
+            }
+            return buildPieceDerivedPlacementGuides(
+              piece,
+              piecePlacementLabels,
+              chain,
+              seamAllowances.find((entry) => entry.pieceId === piece.id),
+            )
+          })
+        : [],
+    [showAnnotations, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, visibleShapeIdSet, piecePlacementLabels, seamAllowances],
   )
 
   const lineTypeStylesById = useMemo(
@@ -647,6 +679,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       patternPieces: deepClone(patternPieces),
       pieceGrainlines: deepClone(pieceGrainlines),
       pieceLabels: deepClone(pieceLabels),
+      piecePlacementLabels: deepClone(piecePlacementLabels),
       seamAllowances: deepClone(seamAllowances),
       pieceNotches: deepClone(pieceNotches),
       hardwareMarkers: deepClone(hardwareMarkers),
@@ -678,6 +711,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       patternPieces,
       pieceGrainlines,
       pieceLabels,
+      piecePlacementLabels,
       seamAllowances,
       pieceNotches,
       hardwareMarkers,
@@ -739,6 +773,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     annotationLabels,
     pieceGrainlineSegments,
     pieceNotchLines,
+    piecePlacementGuides,
     lineTypeStylesById,
     printableShapes,
     printPlan,

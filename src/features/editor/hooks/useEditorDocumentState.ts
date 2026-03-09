@@ -8,6 +8,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   PrintArea,
@@ -36,6 +37,7 @@ export function useEditorDocumentState() {
   const [patternPieces, setPatternPieces] = useState<PatternPiece[]>([])
   const [pieceGrainlines, setPieceGrainlines] = useState<PieceGrainline[]>([])
   const [pieceLabels, setPieceLabels] = useState<PieceLabel[]>([])
+  const [piecePlacementLabels, setPiecePlacementLabels] = useState<PiecePlacementLabel[]>([])
   const [seamAllowances, setSeamAllowances] = useState<PieceSeamAllowance[]>([])
   const [pieceNotches, setPieceNotches] = useState<PieceNotch[]>([])
   const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
@@ -65,6 +67,7 @@ export function useEditorDocumentState() {
     patternPieces, setPatternPieces,
     pieceGrainlines, setPieceGrainlines,
     pieceLabels, setPieceLabels,
+    piecePlacementLabels, setPiecePlacementLabels,
     seamAllowances, setSeamAllowances,
     pieceNotches, setPieceNotches,
     hardwareMarkers, setHardwareMarkers,

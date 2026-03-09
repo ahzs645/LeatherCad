@@ -231,6 +231,28 @@ export type PieceLabel = {
   fontSizeMm: number
 }
 
+export type PiecePlacementLabelKind = 'cross' | 'box' | 'circle' | 'text'
+
+export type PiecePlacementLabelAnchor = 'center' | 'edge'
+
+export type PiecePlacementLabel = {
+  id: string
+  pieceId: string
+  name: string
+  visible: boolean
+  kind: PiecePlacementLabelKind
+  anchor: PiecePlacementLabelAnchor
+  edgeIndex: number
+  t: number
+  offsetX: number
+  offsetY: number
+  widthMm: number
+  heightMm: number
+  rotationDeg: number
+  text?: string
+  showOnSeam: boolean
+}
+
 export type PieceSeamAllowanceEdgeOverride = {
   edgeIndex: number
   offsetMm: number
@@ -355,6 +377,7 @@ export type DocFile = {
   patternPieces?: PatternPiece[]
   pieceGrainlines?: PieceGrainline[]
   pieceLabels?: PieceLabel[]
+  piecePlacementLabels?: PiecePlacementLabel[]
   seamAllowances?: Array<PieceSeamAllowance | LegacySeamAllowance>
   pieceNotches?: PieceNotch[]
   hardwareMarkers?: HardwareMarker[]

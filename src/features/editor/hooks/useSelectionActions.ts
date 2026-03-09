@@ -7,6 +7,7 @@ import type {
   PatternPiece,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Shape,
@@ -45,6 +46,7 @@ type UseSelectionActionsParams = {
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   activeLayerId: string | null
@@ -56,6 +58,7 @@ type UseSelectionActionsParams = {
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
@@ -84,6 +87,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     activeLayerId,
@@ -95,6 +99,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -157,6 +162,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
         patternPieces,
         pieceGrainlines,
         pieceLabels,
+        piecePlacementLabels,
         seamAllowances,
         pieceNotches,
         selectedShapeIdSet,
@@ -167,6 +173,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       patternPieces,
       pieceGrainlines,
       pieceLabels,
+      piecePlacementLabels,
       seamAllowances,
       pieceNotches,
       selectedShapeIdSet,
@@ -204,6 +211,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPatternPieces((previous) => previous.filter((piece) => !deletedPieceIdSet.has(piece.id)))
     setPieceGrainlines((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPieceLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPiecePlacementLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setSeamAllowances((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPieceNotches((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setConstraints((previous) =>
@@ -297,6 +305,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       setPatternPieces((previous) => [...previous, ...pasted.patternPieces])
       setPieceGrainlines((previous) => [...previous, ...pasted.pieceGrainlines])
       setPieceLabels((previous) => [...previous, ...pasted.pieceLabels])
+      setPiecePlacementLabels((previous) => [...previous, ...pasted.piecePlacementLabels])
       setSeamAllowances((previous) => [...previous, ...pasted.seamAllowances])
       setPieceNotches((previous) => [...previous, ...pasted.pieceNotches])
       setSelectedShapeIds(pasted.shapeIds)

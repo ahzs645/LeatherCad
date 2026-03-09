@@ -8,6 +8,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Point,
@@ -80,6 +81,17 @@ export type AnnotationLabel = {
   kind?: 'generic' | 'piece' | 'pattern'
 }
 
+export type PiecePlacementGuide = {
+  id: string
+  pieceId: string
+  kind: PiecePlacementLabel['kind']
+  point: Point
+  rotationDeg: number
+  widthMm: number
+  heightMm: number
+  text?: string
+}
+
 export type EditorSnapshot = {
   layers: Layer[]
   activeLayerId: string
@@ -94,6 +106,7 @@ export type EditorSnapshot = {
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]

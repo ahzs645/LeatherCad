@@ -3,6 +3,7 @@ import type {
   PatternPiece,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Shape,
@@ -16,6 +17,7 @@ export type ClipboardPayload = {
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
 }
@@ -69,6 +71,7 @@ export function copySelectionToClipboard(
   patternPieces: PatternPiece[],
   pieceGrainlines: PieceGrainline[],
   pieceLabels: PieceLabel[],
+  piecePlacementLabels: PiecePlacementLabel[],
   seamAllowances: PieceSeamAllowance[],
   pieceNotches: PieceNotch[],
   selectedShapeIds: Set<string>,
@@ -88,6 +91,7 @@ export function copySelectionToClipboard(
     })),
     pieceGrainlines: pieceGrainlines.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
     pieceLabels: pieceLabels.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
+    piecePlacementLabels: piecePlacementLabels.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
     seamAllowances: seamAllowances.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
     pieceNotches: pieceNotches.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
   }
@@ -120,6 +124,7 @@ export function parseClipboardPayload(raw: string): ClipboardPayload | null {
       patternPieces: Array.isArray(parsed.payload.patternPieces) ? parsed.payload.patternPieces : [],
       pieceGrainlines: Array.isArray(parsed.payload.pieceGrainlines) ? parsed.payload.pieceGrainlines : [],
       pieceLabels: Array.isArray(parsed.payload.pieceLabels) ? parsed.payload.pieceLabels : [],
+      piecePlacementLabels: Array.isArray(parsed.payload.piecePlacementLabels) ? parsed.payload.piecePlacementLabels : [],
       seamAllowances: Array.isArray(parsed.payload.seamAllowances) ? parsed.payload.seamAllowances : [],
       pieceNotches: Array.isArray(parsed.payload.pieceNotches) ? parsed.payload.pieceNotches : [],
     }
@@ -174,6 +179,7 @@ export function pasteClipboardPayload(
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   shapeIds: string[]
@@ -211,6 +217,7 @@ export function pasteClipboardPayload(
     payload.patternPieces,
     payload.pieceGrainlines,
     payload.pieceLabels,
+    payload.piecePlacementLabels,
     payload.seamAllowances,
     payload.pieceNotches,
     idMap,
@@ -222,6 +229,7 @@ export function pasteClipboardPayload(
     patternPieces: piecePayload.patternPieces,
     pieceGrainlines: piecePayload.pieceGrainlines,
     pieceLabels: piecePayload.pieceLabels,
+    piecePlacementLabels: piecePayload.piecePlacementLabels,
     seamAllowances: piecePayload.seamAllowances,
     pieceNotches: piecePayload.pieceNotches,
     shapeIds: nextShapes.map((shape) => shape.id),

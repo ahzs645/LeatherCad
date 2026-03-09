@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { PatternPiece, PieceGrainline, PieceLabel, PieceNotch, PieceSeamAllowance } from '../cad/cad-types'
-import { buildPatternPieceSeamPath, buildPieceDerivedLabels, clonePatternPieceSelection, migrateLegacySeamAllowances } from './pattern-piece-ops'
+import type { PatternPiece, PieceGrainline, PieceLabel, PiecePlacementLabel, PieceNotch, PieceSeamAllowance } from '../cad/cad-types'
+import {
+  buildPatternPieceSeamPath,
+  buildPieceDerivedLabels,
+  buildPieceDerivedNotches,
+  buildPieceDerivedPlacementGuides,
+  clonePatternPieceSelection,
+  migrateLegacySeamAllowances,
+} from './pattern-piece-ops'
 import type { OutlineChain } from './outline-detection'
 
 describe('migrateLegacySeamAllowances', () => {
@@ -80,6 +87,24 @@ describe('clonePatternPieceSelection', () => {
         edgeOverrides: [{ edgeIndex: 2, offsetMm: 5 }],
       },
     ]
+    const placementLabels: PiecePlacementLabel[] = [
+      {
+        id: 'placement-1',
+        pieceId: 'piece-1',
+        name: 'Snap',
+        visible: true,
+        kind: 'cross',
+        anchor: 'edge',
+        edgeIndex: 1,
+        t: 0.25,
+        offsetX: 1,
+        offsetY: 2,
+        widthMm: 5,
+        heightMm: 5,
+        rotationDeg: 10,
+        showOnSeam: true,
+      },
+    ]
     const notches: PieceNotch[] = [
       {
         id: 'notch-1',
@@ -98,6 +123,7 @@ describe('clonePatternPieceSelection', () => {
       pieces,
       grainlines,
       labels,
+      placementLabels,
       seamAllowances,
       notches,
       new Map([
@@ -113,6 +139,8 @@ describe('clonePatternPieceSelection', () => {
     expect(cloned.pieceGrainlines[0].pieceId).toBe(cloned.patternPieces[0].id)
     expect(cloned.pieceLabels[0].pieceId).toBe(cloned.patternPieces[0].id)
     expect(cloned.pieceLabels[0].id).not.toBe('label-1')
+    expect(cloned.piecePlacementLabels[0].pieceId).toBe(cloned.patternPieces[0].id)
+    expect(cloned.piecePlacementLabels[0].id).not.toBe('placement-1')
     expect(cloned.seamAllowances[0].pieceId).toBe(cloned.patternPieces[0].id)
     expect(cloned.seamAllowances[0].edgeOverrides).toEqual([{ edgeIndex: 2, offsetMm: 5 }])
     expect(cloned.pieceNotches[0].pieceId).toBe(cloned.patternPieces[0].id)
@@ -209,5 +237,172 @@ describe('buildPatternPieceSeamPath', () => {
     expect(path).not.toBeNull()
     expect(path).toContain('-6')
     expect(path?.endsWith('Z')).toBe(true)
+  })
+})
+
+describe('buildPieceDerivedNotches', () => {
+  it('samples seam-positioned notches from the seam polygon', () => {
+    const piece: PatternPiece = {
+      id: 'piece-1',
+      name: 'Front',
+      boundaryShapeId: 'shape-1',
+      internalShapeIds: [],
+      layerId: 'layer-1',
+      quantity: 1,
+      onFold: false,
+      orientation: 'any',
+      allowFlip: true,
+      includeInLayout: true,
+      locked: false,
+    }
+    const chain: OutlineChain = {
+      id: 'chain-1',
+      shapeIds: ['shape-1'],
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+        { x: 20, y: 10 },
+        { x: 0, y: 10 },
+        { x: 0, y: 0 },
+      ],
+      isClosed: true,
+      area: 200,
+    }
+    const seamAllowance: PieceSeamAllowance = {
+      id: 'seam-1',
+      pieceId: piece.id,
+      enabled: true,
+      defaultOffsetMm: 3,
+      edgeOverrides: [],
+    }
+
+    const [boundaryNotch] = buildPieceDerivedNotches(
+      piece,
+      [
+        {
+          id: 'notch-1',
+          pieceId: piece.id,
+          edgeIndex: 0,
+          t: 0.5,
+          style: 'single',
+          lengthMm: 4,
+          widthMm: 0,
+          angleMode: 'normal',
+          showOnSeam: false,
+        },
+      ],
+      chain,
+      seamAllowance,
+    )
+    const [seamNotch] = buildPieceDerivedNotches(
+      piece,
+      [
+        {
+          id: 'notch-1',
+          pieceId: piece.id,
+          edgeIndex: 0,
+          t: 0.5,
+          style: 'single',
+          lengthMm: 4,
+          widthMm: 0,
+          angleMode: 'normal',
+          showOnSeam: true,
+        },
+      ],
+      chain,
+      seamAllowance,
+    )
+
+    expect(seamNotch.start.x).not.toBeCloseTo(boundaryNotch.start.x, 4)
+    expect(seamNotch.start.y).not.toBeCloseTo(boundaryNotch.start.y, 4)
+  })
+})
+
+describe('buildPieceDerivedPlacementGuides', () => {
+  it('positions edge-anchored placement labels on the seam path', () => {
+    const piece: PatternPiece = {
+      id: 'piece-1',
+      name: 'Front',
+      boundaryShapeId: 'shape-1',
+      internalShapeIds: [],
+      layerId: 'layer-1',
+      quantity: 1,
+      onFold: false,
+      orientation: 'any',
+      allowFlip: true,
+      includeInLayout: true,
+      locked: false,
+    }
+    const chain: OutlineChain = {
+      id: 'chain-1',
+      shapeIds: ['shape-1'],
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+        { x: 20, y: 10 },
+        { x: 0, y: 10 },
+        { x: 0, y: 0 },
+      ],
+      isClosed: true,
+      area: 200,
+    }
+    const seamAllowance: PieceSeamAllowance = {
+      id: 'seam-1',
+      pieceId: piece.id,
+      enabled: true,
+      defaultOffsetMm: 3,
+      edgeOverrides: [],
+    }
+
+    const [boundaryGuide] = buildPieceDerivedPlacementGuides(
+      piece,
+      [
+        {
+          id: 'placement-1',
+          pieceId: piece.id,
+          name: 'Snap',
+          visible: true,
+          kind: 'cross',
+          anchor: 'edge',
+          edgeIndex: 0,
+          t: 0.5,
+          offsetX: 0,
+          offsetY: 0,
+          widthMm: 6,
+          heightMm: 6,
+          rotationDeg: 0,
+          showOnSeam: false,
+        },
+      ],
+      chain,
+      seamAllowance,
+    )
+    const [guide] = buildPieceDerivedPlacementGuides(
+      piece,
+      [
+        {
+          id: 'placement-1',
+          pieceId: piece.id,
+          name: 'Snap',
+          visible: true,
+          kind: 'cross',
+          anchor: 'edge',
+          edgeIndex: 0,
+          t: 0.5,
+          offsetX: 0,
+          offsetY: 0,
+          widthMm: 6,
+          heightMm: 6,
+          rotationDeg: 0,
+          showOnSeam: true,
+        },
+      ],
+      chain,
+      seamAllowance,
+    )
+
+    expect(guide.point.x).not.toBeCloseTo(boundaryGuide.point.x, 4)
+    expect(guide.point.y).not.toBeCloseTo(boundaryGuide.point.y, 4)
+    expect(Number.isFinite(guide.rotationDeg)).toBe(true)
   })
 })

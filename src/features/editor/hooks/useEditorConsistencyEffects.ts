@@ -8,6 +8,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Shape,
@@ -38,6 +39,7 @@ type UseEditorConsistencyEffectsParams = {
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
@@ -80,6 +82,7 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -217,6 +220,17 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
       return next.length === previous.length ? previous : next
     })
   }, [currentSnapshot.patternPieces, setPieceLabels])
+
+  useEffect(() => {
+    setPiecePlacementLabels((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const pieceIdSet = new Set(currentSnapshot.patternPieces.map((piece) => piece.id))
+      const next = previous.filter((entry) => pieceIdSet.has(entry.pieceId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [currentSnapshot.patternPieces, setPiecePlacementLabels])
 
   useEffect(() => {
     setConstraints((previous) => {

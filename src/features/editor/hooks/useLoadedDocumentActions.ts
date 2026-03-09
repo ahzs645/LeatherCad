@@ -13,6 +13,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   PrintArea,
@@ -45,6 +46,7 @@ type UseLoadedDocumentActionsParams = {
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
@@ -85,6 +87,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -164,6 +167,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     const normalizedSeamAllowances = [...pieceSeamAllowances, ...migratedSeamAllowances]
     const normalizedPieceGrainlines = (doc.pieceGrainlines ?? []).filter((grainline) => patternPieceIdSet.has(grainline.pieceId))
     const normalizedPieceLabels = (doc.pieceLabels ?? []).filter((label) => patternPieceIdSet.has(label.pieceId))
+    const normalizedPiecePlacementLabels = (doc.piecePlacementLabels ?? []).filter((label) => patternPieceIdSet.has(label.pieceId))
     const normalizedPieceNotches = (doc.pieceNotches ?? []).filter((notch) => patternPieceIdSet.has(notch.pieceId))
     const normalizedHardwareMarkers = (doc.hardwareMarkers ?? []).filter((marker) => {
       if (!layerIdSet.has(marker.layerId)) {
@@ -211,6 +215,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setPatternPieces(normalizedPatternPieces)
     setPieceGrainlines(normalizedPieceGrainlines)
     setPieceLabels(normalizedPieceLabels)
+    setPiecePlacementLabels(normalizedPiecePlacementLabels)
     setSeamAllowances(normalizedSeamAllowances)
     setPieceNotches(normalizedPieceNotches)
     setHardwareMarkers(normalizedHardwareMarkers)
@@ -249,6 +254,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,

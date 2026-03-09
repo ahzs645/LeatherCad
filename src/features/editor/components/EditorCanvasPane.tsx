@@ -15,7 +15,7 @@ import type {
 } from '../cad/cad-types'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
-import type { AnnotationLabel, LegendMode, SeamGuide, SketchWorkspaceMode } from '../editor-types'
+import type { AnnotationLabel, LegendMode, PiecePlacementGuide, SeamGuide, SketchWorkspaceMode } from '../editor-types'
 import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
 import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
 import { chainCentroid, type OutlineChain } from '../ops/outline-detection'
@@ -52,6 +52,7 @@ type EditorCanvasPaneProps = {
   showAnnotations: boolean
   pieceGrainlineSegments: Array<{ pieceId: string; start: Point; end: Point }>
   pieceNotchLines: Array<{ id: string; pieceId: string; start: Point; end: Point; showOnSeam: boolean }>
+  piecePlacementGuides: PiecePlacementGuide[]
   visibleShapes: Shape[]
   linkedShapes: Shape[]
   sketchWorkspaceMode: SketchWorkspaceMode
@@ -114,6 +115,7 @@ export function EditorCanvasPane({
   showAnnotations,
   pieceGrainlineSegments,
   pieceNotchLines,
+  piecePlacementGuides,
   visibleShapes,
   linkedShapes,
   sketchWorkspaceMode,
@@ -655,6 +657,92 @@ export function EditorCanvasPane({
               style={{ pointerEvents: 'none' }}
             />
           ))}
+
+          {piecePlacementGuides.map((guide) => {
+            const radians = (guide.rotationDeg * Math.PI) / 180
+            const halfWidth = guide.widthMm / 2
+            const halfHeight = guide.heightMm / 2
+            const rotatePoint = (x: number, y: number) => ({
+              x: guide.point.x + x * Math.cos(radians) - y * Math.sin(radians),
+              y: guide.point.y + x * Math.sin(radians) + y * Math.cos(radians),
+            })
+
+            if (guide.kind === 'text') {
+              return (
+                <text
+                  key={guide.id}
+                  x={guide.point.x}
+                  y={guide.point.y}
+                  className="annotation-label"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  transform={`rotate(${round(guide.rotationDeg)} ${guide.point.x} ${guide.point.y})`}
+                  style={{ pointerEvents: 'none', fontSize: `${Math.max(4, guide.heightMm)}px` }}
+                >
+                  {guide.text ?? guide.id}
+                </text>
+              )
+            }
+
+            if (guide.kind === 'circle') {
+              return (
+                <circle
+                  key={guide.id}
+                  cx={guide.point.x}
+                  cy={guide.point.y}
+                  r={Math.max(1, halfWidth)}
+                  stroke="#1d4ed8"
+                  fill="none"
+                  strokeWidth={1.2 / viewport.scale}
+                  style={{ pointerEvents: 'none' }}
+                />
+              )
+            }
+
+            if (guide.kind === 'box') {
+              const corners = [
+                rotatePoint(-halfWidth, -halfHeight),
+                rotatePoint(halfWidth, -halfHeight),
+                rotatePoint(halfWidth, halfHeight),
+                rotatePoint(-halfWidth, halfHeight),
+              ]
+              return (
+                <polygon
+                  key={guide.id}
+                  points={corners.map((point) => `${point.x},${point.y}`).join(' ')}
+                  stroke="#1d4ed8"
+                  fill="none"
+                  strokeWidth={1.2 / viewport.scale}
+                  style={{ pointerEvents: 'none' }}
+                />
+              )
+            }
+
+            const horizontalStart = rotatePoint(-halfWidth, 0)
+            const horizontalEnd = rotatePoint(halfWidth, 0)
+            const verticalStart = rotatePoint(0, -halfHeight)
+            const verticalEnd = rotatePoint(0, halfHeight)
+            return (
+              <g key={guide.id} style={{ pointerEvents: 'none' }}>
+                <line
+                  x1={horizontalStart.x}
+                  y1={horizontalStart.y}
+                  x2={horizontalEnd.x}
+                  y2={horizontalEnd.y}
+                  stroke="#1d4ed8"
+                  strokeWidth={1.2 / viewport.scale}
+                />
+                <line
+                  x1={verticalStart.x}
+                  y1={verticalStart.y}
+                  x2={verticalEnd.x}
+                  y2={verticalEnd.y}
+                  stroke="#1d4ed8"
+                  strokeWidth={1.2 / viewport.scale}
+                />
+              </g>
+            )
+          })}
 
           {annotationLabels.map((label) => (
             <text

@@ -36,6 +36,7 @@ function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
     patternPieces: [],
     pieceGrainlines: [],
     pieceLabels: [],
+    piecePlacementLabels: [],
     seamAllowances: [],
     pieceNotches: [],
     hardwareMarkers: [],

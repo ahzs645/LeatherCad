@@ -5,6 +5,7 @@ import type {
   PatternPiece,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Point,
@@ -35,6 +36,17 @@ export type PieceDerivedNotchLine = {
   start: Point
   end: Point
   showOnSeam: boolean
+}
+
+export type PieceDerivedPlacementGuide = {
+  id: string
+  pieceId: string
+  kind: PiecePlacementLabel['kind']
+  point: Point
+  rotationDeg: number
+  widthMm: number
+  heightMm: number
+  text?: string
 }
 
 export const AVAILABLE_PIECE_LABEL_TOKENS = [
@@ -107,6 +119,26 @@ export function createDefaultPieceLabels(piece: PatternPiece): PieceLabel[] {
       fontSizeMm: 6,
     },
   ]
+}
+
+export function createDefaultPiecePlacementLabel(pieceId: string): PiecePlacementLabel {
+  return {
+    id: uid(),
+    pieceId,
+    name: 'Placement Label',
+    visible: true,
+    kind: 'cross',
+    anchor: 'center',
+    edgeIndex: 0,
+    t: 0.5,
+    offsetX: 0,
+    offsetY: 0,
+    widthMm: 6,
+    heightMm: 6,
+    rotationDeg: 0,
+    text: undefined,
+    showOnSeam: false,
+  }
 }
 
 export function createDefaultPieceSeamAllowance(pieceId: string, offsetMm = DEFAULT_SEAM_ALLOWANCE_MM): PieceSeamAllowance {
@@ -284,6 +316,17 @@ function buildVariableOffsetPolygon(points: Point[], seamAllowance: PieceSeamAll
   return result.length >= 3 ? result : null
 }
 
+export function buildPatternPieceSeamPolygon(chain: OutlineChain, seamAllowance: PieceSeamAllowance): Point[] | null {
+  if (!seamAllowance.enabled || chain.polygon.length < 3) {
+    return null
+  }
+  if (seamAllowance.edgeOverrides.length > 0) {
+    return buildVariableOffsetPolygon(chain.polygon, seamAllowance)
+  }
+  const [offset] = offsetPolygon(chain.polygon, seamAllowance.defaultOffsetMm, 'round')
+  return offset && offset.length >= 3 ? offset : null
+}
+
 export function polygonCenter(points: Point[]): Point | null {
   const bounds = polygonBounds(points)
   if (!bounds) {
@@ -296,15 +339,7 @@ export function polygonCenter(points: Point[]): Point | null {
 }
 
 export function buildPatternPieceSeamPath(chain: OutlineChain, seamAllowance: PieceSeamAllowance): string | null {
-  if (!seamAllowance.enabled || chain.polygon.length < 3) {
-    return null
-  }
-  const variableOffset = seamAllowance.edgeOverrides.length > 0
-    ? buildVariableOffsetPolygon(chain.polygon, seamAllowance)
-    : null
-  const [offset] = variableOffset
-    ? [variableOffset]
-    : offsetPolygon(chain.polygon, seamAllowance.defaultOffsetMm, 'round')
+  const offset = buildPatternPieceSeamPolygon(chain, seamAllowance)
   if (!offset || offset.length < 2) {
     return null
   }
@@ -392,11 +427,19 @@ export function buildPieceDerivedLabels(
     .filter((label) => label.text.length > 0)
 }
 
-export function buildPieceDerivedNotches(piece: PatternPiece, pieceNotches: PieceNotch[], chain: OutlineChain): PieceDerivedNotchLine[] {
+export function buildPieceDerivedNotches(
+  piece: PatternPiece,
+  pieceNotches: PieceNotch[],
+  chain: OutlineChain,
+  seamAllowance?: PieceSeamAllowance,
+): PieceDerivedNotchLine[] {
+  const seamPolygon = seamAllowance ? buildPatternPieceSeamPolygon(chain, seamAllowance) : null
+
   return pieceNotches
     .filter((notch) => notch.pieceId === piece.id)
     .flatMap((notch) => {
-      const sampled = pointAlongPolyline(chain.polygon, notch.edgeIndex, notch.t)
+      const referencePolyline = notch.showOnSeam && seamPolygon ? seamPolygon : chain.polygon
+      const sampled = pointAlongPolyline(referencePolyline, notch.edgeIndex, notch.t)
       if (!sampled) {
         return []
       }
@@ -470,6 +513,64 @@ export function buildPieceDerivedNotches(piece: PatternPiece, pieceNotches: Piec
     })
 }
 
+export function buildPieceDerivedPlacementGuides(
+  piece: PatternPiece,
+  placementLabels: PiecePlacementLabel[],
+  chain: OutlineChain,
+  seamAllowance?: PieceSeamAllowance,
+): PieceDerivedPlacementGuide[] {
+  const center = polygonCenter(chain.polygon)
+  const seamPolygon = seamAllowance ? buildPatternPieceSeamPolygon(chain, seamAllowance) : null
+
+  return placementLabels
+    .filter((label) => label.pieceId === piece.id && label.visible)
+    .flatMap((label) => {
+      if (label.anchor === 'center') {
+        if (!center) {
+          return []
+        }
+        return [{
+          id: label.id,
+          pieceId: piece.id,
+          kind: label.kind,
+          point: { x: center.x + label.offsetX, y: center.y + label.offsetY },
+          rotationDeg: label.rotationDeg,
+          widthMm: label.widthMm,
+          heightMm: label.heightMm,
+          text: label.text,
+        }]
+      }
+
+      const referencePolyline = label.showOnSeam && seamPolygon ? seamPolygon : chain.polygon
+      const sampled = pointAlongPolyline(referencePolyline, label.edgeIndex, label.t)
+      if (!sampled) {
+        return []
+      }
+      const tangentLength = Math.hypot(sampled.tangent.x, sampled.tangent.y)
+      if (tangentLength < 1e-6) {
+        return []
+      }
+      const tangentX = sampled.tangent.x / tangentLength
+      const tangentY = sampled.tangent.y / tangentLength
+      const normalX = -tangentY
+      const normalY = tangentX
+
+      return [{
+        id: label.id,
+        pieceId: piece.id,
+        kind: label.kind,
+        point: {
+          x: sampled.point.x + tangentX * label.offsetX + normalX * label.offsetY,
+          y: sampled.point.y + tangentY * label.offsetX + normalY * label.offsetY,
+        },
+        rotationDeg: Math.atan2(tangentY, tangentX) * (180 / Math.PI) + label.rotationDeg,
+        widthMm: label.widthMm,
+        heightMm: label.heightMm,
+        text: label.text,
+      }]
+    })
+}
+
 export function migrateLegacySeamAllowances(
   legacyEntries: LegacySeamAllowance[],
   patternPieces: PatternPiece[],
@@ -490,6 +591,7 @@ export function clonePatternPieceSelection(
   patternPieces: PatternPiece[],
   pieceGrainlines: PieceGrainline[],
   pieceLabels: PieceLabel[],
+  piecePlacementLabels: PiecePlacementLabel[],
   seamAllowances: PieceSeamAllowance[],
   pieceNotches: PieceNotch[],
   shapeIdMap: Map<string, string>,
@@ -497,6 +599,7 @@ export function clonePatternPieceSelection(
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
 } {
@@ -523,6 +626,13 @@ export function clonePatternPieceSelection(
         pieceId: pieceIdMap.get(grainline.pieceId) ?? grainline.pieceId,
       })),
     pieceLabels: pieceLabels
+      .filter((label) => pieceIdMap.has(label.pieceId))
+      .map((label) => ({
+        ...label,
+        id: uid(),
+        pieceId: pieceIdMap.get(label.pieceId) ?? label.pieceId,
+      })),
+    piecePlacementLabels: piecePlacementLabels
       .filter((label) => pieceIdMap.has(label.pieceId))
       .map((label) => ({
         ...label,

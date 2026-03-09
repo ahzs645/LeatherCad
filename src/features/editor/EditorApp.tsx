@@ -3,6 +3,7 @@ import '../../app/styles/App.css'
 import type {
   DocFile,
   PatternPiece,
+  PiecePlacementLabel,
   Shape,
 } from './cad/cad-types'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
@@ -40,6 +41,7 @@ import {
   createDefaultPatternPiece,
   createDefaultPieceGrainline,
   createDefaultPieceLabels,
+  createDefaultPiecePlacementLabel,
   createDefaultPieceSeamAllowance,
   getPatternPieceChain,
 } from './ops/pattern-piece-ops'
@@ -107,6 +109,7 @@ export function EditorApp() {
     patternPieces, setPatternPieces,
     pieceGrainlines, setPieceGrainlines,
     pieceLabels, setPieceLabels,
+    piecePlacementLabels, setPiecePlacementLabels,
     seamAllowances, setSeamAllowances,
     pieceNotches, setPieceNotches,
     hardwareMarkers, setHardwareMarkers,
@@ -379,6 +382,7 @@ export function EditorApp() {
     annotationLabels,
     pieceGrainlineSegments,
     pieceNotchLines,
+    piecePlacementGuides,
     lineTypeStylesById,
     printableShapes,
     activeExportRoleCount,
@@ -408,6 +412,7 @@ export function EditorApp() {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     hardwareMarkers,
@@ -474,6 +479,7 @@ export function EditorApp() {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -512,6 +518,7 @@ export function EditorApp() {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -609,6 +616,7 @@ export function EditorApp() {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     activeLayerId: activeLayer?.id ?? null,
@@ -620,6 +628,7 @@ export function EditorApp() {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -667,6 +676,7 @@ export function EditorApp() {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     hardwareMarkers,
@@ -760,6 +770,7 @@ export function EditorApp() {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -900,6 +911,7 @@ export function EditorApp() {
     annotationLabels,
     pieceGrainlineSegments,
     pieceNotchLines,
+    piecePlacementGuides,
     exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
@@ -1000,6 +1012,7 @@ export function EditorApp() {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     hardwareMarkers,
@@ -1009,6 +1022,7 @@ export function EditorApp() {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -1098,6 +1112,10 @@ export function EditorApp() {
   const selectedPieceNotches = useMemo(
     () => (selectedPatternPiece ? pieceNotches.filter((entry) => entry.pieceId === selectedPatternPiece.id) : []),
     [selectedPatternPiece, pieceNotches],
+  )
+  const selectedPiecePlacementLabels = useMemo(
+    () => (selectedPatternPiece ? piecePlacementLabels.filter((entry) => entry.pieceId === selectedPatternPiece.id) : []),
+    [selectedPatternPiece, piecePlacementLabels],
   )
   const selectedPieceInternalShapeIdSet = useMemo(
     () => new Set(selectedPatternPiece?.internalShapeIds ?? []),
@@ -1307,6 +1325,41 @@ export function EditorApp() {
     )
   }
 
+  const handleAddSelectedPiecePlacementLabel = () => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPiecePlacementLabels((previous) => [...previous, createDefaultPiecePlacementLabel(selectedPatternPiece.id)])
+  }
+
+  const handleUpdateSelectedPiecePlacementLabel = (labelId: string, patch: Partial<PiecePlacementLabel>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPiecePlacementLabels((previous) =>
+      previous.map((entry) => {
+        if (entry.id !== labelId || entry.pieceId !== selectedPatternPiece.id) {
+          return entry
+        }
+        return {
+          ...entry,
+          ...patch,
+          edgeIndex:
+            typeof patch.edgeIndex === 'number'
+              ? Math.max(0, Math.min(Math.max(0, selectedPatternPieceEdgeCount - 1), Math.round(patch.edgeIndex)))
+              : entry.edgeIndex,
+          t: typeof patch.t === 'number' ? clamp(patch.t, 0, 1) : entry.t,
+          widthMm: typeof patch.widthMm === 'number' ? Math.max(0.5, patch.widthMm) : entry.widthMm,
+          heightMm: typeof patch.heightMm === 'number' ? Math.max(0.5, patch.heightMm) : entry.heightMm,
+        }
+      }),
+    )
+  }
+
+  const handleDeleteSelectedPiecePlacementLabel = (labelId: string) => {
+    setPiecePlacementLabels((previous) => previous.filter((entry) => entry.id !== labelId))
+  }
+
   const handleUpdateSelectedShapePoint = (
     pointKey: 'start' | 'mid' | 'control' | 'end',
     axis: 'x' | 'y',
@@ -1484,6 +1537,7 @@ export function EditorApp() {
         annotationLabels,
         pieceGrainlineSegments,
         pieceNotchLines,
+        piecePlacementGuides,
         fallbackLayerId: activeLayerId,
         annotationLineTypeId,
       }),
@@ -1495,6 +1549,7 @@ export function EditorApp() {
       annotationLabels,
       pieceGrainlineSegments,
       pieceNotchLines,
+      piecePlacementGuides,
       activeLayerId,
       annotationLineTypeId,
     ],
@@ -2072,6 +2127,7 @@ export function EditorApp() {
               showAnnotations={showAnnotations}
               pieceGrainlineSegments={pieceGrainlineSegments}
               pieceNotchLines={pieceNotchLines}
+              piecePlacementGuides={piecePlacementGuides}
               visibleShapes={workspaceEditableShapes}
               linkedShapes={workspaceLinkedShapes}
               sketchWorkspaceMode={sketchWorkspaceMode}
@@ -2172,6 +2228,7 @@ export function EditorApp() {
         patternLabel={selectedPatternLabel}
         seamAllowance={selectedPieceSeamAllowance}
         notches={selectedPieceNotches}
+        placementLabels={selectedPiecePlacementLabels}
         edgeCount={selectedPatternPieceEdgeCount}
         availableInternalShapes={selectedPieceAvailableInternalShapes}
         selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
@@ -2184,6 +2241,9 @@ export function EditorApp() {
         onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
         onUpdateNotch={handleUpdateSelectedPieceNotch}
         onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
+        onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}
+        onUpdatePlacementLabel={handleUpdateSelectedPiecePlacementLabel}
+        onDeletePlacementLabel={handleDeleteSelectedPiecePlacementLabel}
       />
 
       <Suspense fallback={null}>

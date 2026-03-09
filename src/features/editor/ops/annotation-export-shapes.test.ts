@@ -26,11 +26,12 @@ describe('buildAnnotationExportShapes', () => {
       annotationLabels: [{ id: 'label-1', text: 'Front x1', point: { x: 10, y: 12 }, pieceId: piece.id, kind: 'piece' }],
       pieceGrainlineSegments: [{ pieceId: piece.id, start: { x: 0, y: 0 }, end: { x: 0, y: 20 } }],
       pieceNotchLines: [{ id: 'notch-1', pieceId: piece.id, start: { x: 5, y: 5 }, end: { x: 7, y: 8 }, showOnSeam: true }],
+      piecePlacementGuides: [{ id: 'placement-1', pieceId: piece.id, kind: 'cross', point: { x: 3, y: 4 }, rotationDeg: 0, widthMm: 6, heightMm: 6 }],
       fallbackLayerId: 'fallback-layer',
       annotationLineTypeId: 'mark-line',
     })
 
-    expect(shapes).toHaveLength(3)
+    expect(shapes).toHaveLength(5)
     expect(shapes.filter((shape) => shape.type === 'text')).toHaveLength(1)
     expect(shapes.every((shape) => shape.layerId === 'layer-1')).toBe(true)
     expect(shapes.every((shape) => shape.lineTypeId === 'mark-line')).toBe(true)
@@ -48,6 +49,7 @@ describe('buildAnnotationExportShapes', () => {
       ],
       pieceGrainlineSegments: [{ pieceId: piece.id, start: { x: 0, y: 0 }, end: { x: 0, y: 20 } }],
       pieceNotchLines: [],
+      piecePlacementGuides: [],
       fallbackLayerId: 'fallback-layer',
       annotationLineTypeId: 'mark-line',
     })

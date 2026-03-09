@@ -24,6 +24,7 @@ type UseExportActionsParams = {
   annotationLabels: import('../editor-types').AnnotationLabel[]
   pieceGrainlineSegments: Array<{ pieceId: string; start: { x: number; y: number }; end: { x: number; y: number } }>
   pieceNotchLines: Array<{ id: string; pieceId: string; start: { x: number; y: number }; end: { x: number; y: number }; showOnSeam: boolean }>
+  piecePlacementGuides: import('../editor-types').PiecePlacementGuide[]
   exportOnlySelectedShapes: boolean
   exportOnlyVisibleLineTypes: boolean
   exportRoleFilters: ExportRoleFilters
@@ -49,6 +50,7 @@ export function useExportActions(params: UseExportActionsParams) {
     annotationLabels,
     pieceGrainlineSegments,
     pieceNotchLines,
+    piecePlacementGuides,
     exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
@@ -93,6 +95,7 @@ export function useExportActions(params: UseExportActionsParams) {
       annotationLabels,
       pieceGrainlineSegments,
       pieceNotchLines,
+      piecePlacementGuides,
       fallbackLayerId: Array.from(visibleLayerIdSet)[0] ?? shapes[0]?.layerId ?? 'layer-1',
       annotationLineTypeId,
     }).filter(

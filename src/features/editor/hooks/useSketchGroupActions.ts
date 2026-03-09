@@ -6,6 +6,7 @@ import type {
   PatternPiece,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Shape,
@@ -30,6 +31,7 @@ type UseSketchGroupActionsParams = {
   patternPieces: PatternPiece[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
@@ -39,6 +41,7 @@ type UseSketchGroupActionsParams = {
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
@@ -70,6 +73,7 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     patternPieces,
     pieceGrainlines,
     pieceLabels,
+    piecePlacementLabels,
     seamAllowances,
     pieceNotches,
     hardwareMarkers,
@@ -79,6 +83,7 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -406,6 +411,7 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
       patternPieces.filter((piece) => shapeIdMap.has(piece.boundaryShapeId)),
       pieceGrainlines,
       pieceLabels,
+      piecePlacementLabels,
       seamAllowances,
       pieceNotches,
       shapeIdMap,
@@ -426,6 +432,7 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     setPatternPieces((previous) => [...previous, ...duplicatedPieceMetadata.patternPieces])
     setPieceGrainlines((previous) => [...previous, ...duplicatedPieceMetadata.pieceGrainlines])
     setPieceLabels((previous) => [...previous, ...duplicatedPieceMetadata.pieceLabels])
+    setPiecePlacementLabels((previous) => [...previous, ...duplicatedPieceMetadata.piecePlacementLabels])
     setSeamAllowances((previous) => [...previous, ...duplicatedPieceMetadata.seamAllowances])
     setPieceNotches((previous) => [...previous, ...duplicatedPieceMetadata.pieceNotches])
     setHardwareMarkers((previous) => [...previous, ...duplicatedHardware])

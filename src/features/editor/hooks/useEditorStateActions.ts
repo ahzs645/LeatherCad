@@ -14,6 +14,7 @@ import type {
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
+  PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
   Shape,
@@ -45,6 +46,7 @@ type UseEditorStateActionsParams = {
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
@@ -87,6 +89,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -124,6 +127,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPatternPieces(snapshot.patternPieces)
     setPieceGrainlines(snapshot.pieceGrainlines)
     setPieceLabels(snapshot.pieceLabels)
+    setPiecePlacementLabels(snapshot.piecePlacementLabels)
     setSeamAllowances(snapshot.seamAllowances)
     setPieceNotches(snapshot.pieceNotches)
     setHardwareMarkers(snapshot.hardwareMarkers)
@@ -157,6 +161,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
     setSeamAllowances,
     setPieceNotches,
     setHardwareMarkers,
@@ -242,6 +247,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setPatternPieces([])
     setPieceGrainlines([])
     setPieceLabels([])
+    setPiecePlacementLabels([])
     setSeamAllowances([])
     setPieceNotches([])
     setHardwareMarkers([])
