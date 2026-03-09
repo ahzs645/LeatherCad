@@ -4,6 +4,8 @@ import type {
   HardwareMarker,
   Layer,
   LineType,
+  PatternPiece,
+  PieceNotch,
   Point,
   Shape,
   SketchGroup,
@@ -24,6 +26,7 @@ import {
 import { sanitizeFoldLine } from '../editor-parsers'
 import { HARDWARE_PRESETS } from '../editor-constants'
 import { fitFreehandCurve, smoothPoints } from '../ops/freehand-ops'
+import { findNearestPatternPieceEdge, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
 
 type HardwareKind = HardwareMarker['kind']
 
@@ -48,10 +51,12 @@ export type ToolRuntime = {
   textRadiusMm: number
   textSweepDeg: number
   stitchTargetShapes: Shape[]
+  patternPieces: PatternPiece[]
   lineTypesById: Record<string, LineType>
   shapesById: Record<string, Shape>
   layers: Layer[]
   stitchHoles: StitchHole[]
+  pieceNotches: PieceNotch[]
   setDraftPoints: (updater: Point[] | ((previous: Point[]) => Point[])) => void
   clearDraft: () => void
   setStatus: (status: string) => void
@@ -59,6 +64,7 @@ export type ToolRuntime = {
   setFoldLines: (updater: FoldLine[] | ((previous: FoldLine[]) => FoldLine[])) => void
   setStitchHoles: (updater: StitchHole[] | ((previous: StitchHole[]) => StitchHole[])) => void
   setSelectedStitchHoleId: (value: string | null) => void
+  setPieceNotches: (updater: PieceNotch[] | ((previous: PieceNotch[]) => PieceNotch[])) => void
   setHardwareMarkers: (updater: HardwareMarker[] | ((previous: HardwareMarker[]) => HardwareMarker[])) => void
   setSelectedHardwareMarkerId: (value: string | null) => void
   ensureActiveLayerWritable: () => boolean
@@ -557,6 +563,36 @@ const hardwareTool: CanvasToolHandler = {
   },
 }
 
+const pieceNotchTool: CanvasToolHandler = {
+  pointerDown(point, runtime) {
+    if (!runtime.ensureActiveLayerWritable()) {
+      return
+    }
+
+    const pieceChains = resolvePatternPieceChains(runtime.stitchTargetShapes, Object.values(runtime.lineTypesById))
+    const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId)
+    if (!nearest) {
+      runtime.setStatus('Piece notch: click a pattern piece boundary')
+      return
+    }
+
+    const nextNotch: PieceNotch = {
+      id: uid(),
+      pieceId: nearest.piece.id,
+      edgeIndex: nearest.edgeIndex,
+      t: nearest.t,
+      style: 'single',
+      lengthMm: 4,
+      widthMm: 2,
+      angleMode: 'normal',
+      showOnSeam: true,
+    }
+    runtime.setPieceNotches((previous) => [...previous, nextNotch])
+    runtime.pointPicked(point)
+    runtime.setStatus(`Added notch to ${nearest.piece.name}`)
+  },
+}
+
 const freehandTool: CanvasToolHandler = {
   pointerDown(point, runtime) {
     if (!withWritableShapeTarget(runtime)) {
@@ -657,6 +693,7 @@ const TOOL_HANDLERS: Record<Exclude<Tool, 'pan'>, CanvasToolHandler> = {
   fold: foldTool,
   'stitch-hole': stitchHoleTool,
   hardware: hardwareTool,
+  'piece-notch': pieceNotchTool,
   text: textTool,
   freehand: freehandTool,
   'cut-line': cutLineTool,
@@ -821,6 +858,9 @@ export function getCanvasToolHint(tool: Tool, draftPoints: Point[]) {
   }
   if (tool === 'cut-line' && draftPoints.length > 0) {
     return 'Cut: click to continue, Escape to finish'
+  }
+  if (tool === 'piece-notch') {
+    return 'Piece Notch: click a pattern piece edge'
   }
   return null
 }

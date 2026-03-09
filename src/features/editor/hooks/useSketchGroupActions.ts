@@ -3,7 +3,11 @@ import { uid } from '../cad/cad-geometry'
 import type {
   HardwareMarker,
   Layer,
-  SeamAllowance,
+  PatternPiece,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   Shape,
   SketchGroup,
   StitchHole,
@@ -12,6 +16,7 @@ import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { computeBoundsFromShapes, translateShape } from '../ops/pattern-ops'
 import { SUB_SKETCH_COPY_OFFSET_MM } from '../editor-constants'
 import { newSketchGroupName } from '../editor-utils'
+import { clonePatternPieceSelection } from '../ops/pattern-piece-ops'
 
 type SketchLinkMode = NonNullable<SketchGroup['linkMode']>
 
@@ -22,12 +27,20 @@ type UseSketchGroupActionsParams = {
   sketchGroups: SketchGroup[]
   shapes: Shape[]
   stitchHoles: StitchHole[]
-  seamAllowances: SeamAllowance[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
-  setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
+  setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
+  setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
@@ -54,12 +67,20 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     sketchGroups,
     shapes,
     stitchHoles,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
     seamAllowances,
+    pieceNotches,
     hardwareMarkers,
     setSketchGroups,
     setShapes,
     setStitchHoles,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSelectedShapeIds,
     setActiveSketchGroupId,
@@ -381,13 +402,14 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
           y: hole.point.y + SUB_SKETCH_COPY_OFFSET_MM,
         },
       }))
-    const duplicatedSeamAllowances = seamAllowances
-      .filter((entry) => shapeIdMap.has(entry.shapeId))
-      .map((entry) => ({
-        ...entry,
-        id: uid(),
-        shapeId: shapeIdMap.get(entry.shapeId) ?? entry.shapeId,
-      }))
+    const duplicatedPieceMetadata = clonePatternPieceSelection(
+      patternPieces.filter((piece) => shapeIdMap.has(piece.boundaryShapeId)),
+      pieceGrainlines,
+      pieceLabels,
+      seamAllowances,
+      pieceNotches,
+      shapeIdMap,
+    )
     const duplicatedHardware = hardwareMarkers
       .filter((marker) => marker.groupId === activeSketchGroup.id)
       .map((marker) => ({
@@ -401,7 +423,11 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
 
     setShapes((previous) => [...previous, ...duplicatedShapes])
     setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...duplicatedHoles]))
-    setSeamAllowances((previous) => [...previous, ...duplicatedSeamAllowances])
+    setPatternPieces((previous) => [...previous, ...duplicatedPieceMetadata.patternPieces])
+    setPieceGrainlines((previous) => [...previous, ...duplicatedPieceMetadata.pieceGrainlines])
+    setPieceLabels((previous) => [...previous, ...duplicatedPieceMetadata.pieceLabels])
+    setSeamAllowances((previous) => [...previous, ...duplicatedPieceMetadata.seamAllowances])
+    setPieceNotches((previous) => [...previous, ...duplicatedPieceMetadata.pieceNotches])
     setHardwareMarkers((previous) => [...previous, ...duplicatedHardware])
     setSelectedShapeIds(Array.from(duplicatedShapeIds))
     setStatus(`Placed ${duplicatedShapes.length} copied sub-sketch shape${duplicatedShapes.length === 1 ? '' : 's'}`)

@@ -4,9 +4,13 @@ import type {
   FoldLine,
   HardwareMarker,
   LineType,
+  PatternPiece,
   ParametricConstraint,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   PrintArea,
-  SeamAllowance,
   Shape,
   SketchGroup,
   SnapSettings,
@@ -29,7 +33,11 @@ export function useEditorDocumentState() {
   const [sketchGroups, setSketchGroups] = useState<SketchGroup[]>([])
   const [activeSketchGroupId, setActiveSketchGroupId] = useState<string | null>(null)
   const [constraints, setConstraints] = useState<ParametricConstraint[]>([])
-  const [seamAllowances, setSeamAllowances] = useState<SeamAllowance[]>([])
+  const [patternPieces, setPatternPieces] = useState<PatternPiece[]>([])
+  const [pieceGrainlines, setPieceGrainlines] = useState<PieceGrainline[]>([])
+  const [pieceLabels, setPieceLabels] = useState<PieceLabel[]>([])
+  const [seamAllowances, setSeamAllowances] = useState<PieceSeamAllowance[]>([])
+  const [pieceNotches, setPieceNotches] = useState<PieceNotch[]>([])
   const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
   const [dimensionLines, setDimensionLines] = useState<DimensionLine[]>([])
   const [printAreas, setPrintAreas] = useState<PrintArea[]>([])
@@ -54,7 +62,11 @@ export function useEditorDocumentState() {
     sketchGroups, setSketchGroups,
     activeSketchGroupId, setActiveSketchGroupId,
     constraints, setConstraints,
+    patternPieces, setPatternPieces,
+    pieceGrainlines, setPieceGrainlines,
+    pieceLabels, setPieceLabels,
     seamAllowances, setSeamAllowances,
+    pieceNotches, setPieceNotches,
     hardwareMarkers, setHardwareMarkers,
     dimensionLines, setDimensionLines,
     printAreas, setPrintAreas,

@@ -1,13 +1,15 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import '../../app/styles/App.css'
 import type {
   DocFile,
+  PatternPiece,
   Shape,
 } from './cad/cad-types'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { EditorHiddenInputs } from './components/EditorHiddenInputs'
 import { EditorModalStack } from './components/EditorModalStack'
+import { PieceInspectorModal } from './components/PieceInspectorModal'
 import { EditorPreviewPane } from './components/EditorPreviewPane'
 import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
@@ -34,7 +36,15 @@ import {
   DEFAULT_EXPORT_ROLE_FILTERS,
 } from './editor-constants'
 import { detectOutlines, type OutlineChain } from './ops/outline-detection'
+import {
+  createDefaultPatternPiece,
+  createDefaultPieceGrainline,
+  createDefaultPieceLabels,
+  createDefaultPieceSeamAllowance,
+} from './ops/pattern-piece-ops'
+import { buildAnnotationExportShapes } from './ops/annotation-export-shapes'
 import { openPrintTilesWindow } from './preview/print-output'
+import { buildPrintPlan } from './preview/print-preview'
 import type {
   ResolvedThemeMode,
 } from './editor-types'
@@ -92,7 +102,11 @@ export function EditorApp() {
     sketchGroups, setSketchGroups,
     activeSketchGroupId, setActiveSketchGroupId,
     constraints, setConstraints,
+    patternPieces, setPatternPieces,
+    pieceGrainlines, setPieceGrainlines,
+    pieceLabels, setPieceLabels,
     seamAllowances, setSeamAllowances,
+    pieceNotches, setPieceNotches,
     hardwareMarkers, setHardwareMarkers,
     dimensionLines, setDimensionLines,
     printAreas, setPrintAreas,
@@ -326,6 +340,7 @@ export function EditorApp() {
   const fontInputRef = useRef<HTMLInputElement | null>(null)
   const pasteCountRef = useRef(0)
   const tracingObjectUrlsRef = useRef<Set<string>>(new Set())
+  const [showPieceInspectorModal, setShowPieceInspectorModal] = useState(false)
   const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
     null,
   )
@@ -336,6 +351,9 @@ export function EditorApp() {
     activeLineType,
     lineTypesById,
     shapesById,
+    patternPiecesById,
+    patternPieceByBoundaryShapeId,
+    patternPieceChains,
     selectedShapeIdSet,
     shapeCountsByLineType,
     stitchHoleCountsByShape,
@@ -357,9 +375,10 @@ export function EditorApp() {
     workspaceHardwareMarkers,
     seamGuides,
     annotationLabels,
+    pieceGrainlineSegments,
+    pieceNotchLines,
     lineTypeStylesById,
     printableShapes,
-    printPlan,
     activeExportRoleCount,
     layerColorsById,
     layerStackLevels,
@@ -384,7 +403,11 @@ export function EditorApp() {
     foldLines,
     stitchHoles,
     constraints,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
     seamAllowances,
+    pieceNotches,
     hardwareMarkers,
     snapSettings,
     showAnnotations,
@@ -446,7 +469,11 @@ export function EditorApp() {
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,
@@ -480,7 +507,11 @@ export function EditorApp() {
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,
@@ -573,13 +604,22 @@ export function EditorApp() {
     selectedHardwareMarkerId,
     shapes,
     stitchHoles,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
+    seamAllowances,
+    pieceNotches,
     activeLayerId: activeLayer?.id ?? null,
     clipboardPayload,
     pasteCountRef,
     setClipboardPayload,
     setShapes,
     setStitchHoles,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setConstraints,
     setSketchGroups,
     setSelectedShapeIds,
@@ -622,7 +662,11 @@ export function EditorApp() {
     foldLines,
     stitchHoles,
     constraints,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
     seamAllowances,
+    pieceNotches,
     hardwareMarkers,
     snapSettings,
     showAnnotations,
@@ -711,7 +755,11 @@ export function EditorApp() {
     setActiveLineTypeId,
     shapes,
     setSelectedShapeIds,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setConstraints,
     setStitchHoles,
     stitchHoles,
@@ -814,6 +862,8 @@ export function EditorApp() {
     textRadiusMm,
     textSweepDeg,
     stitchHoles,
+    patternPieces,
+    pieceNotches,
     hardwareMarkers,
     selectedShapeIds,
     selectedStitchHoleId,
@@ -825,6 +875,7 @@ export function EditorApp() {
     setShapes,
     setStitchHoles,
     setSelectedStitchHoleId,
+    setPieceNotches,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setFoldLines,
@@ -838,10 +889,15 @@ export function EditorApp() {
     foldLines,
     lineTypes,
     lineTypesById,
+    patternPiecesById,
     lineTypeStylesById,
     sketchGroupsById,
     selectedShapeIdSet,
     visibleLayerIdSet,
+    showAnnotations,
+    annotationLabels,
+    pieceGrainlineSegments,
+    pieceNotchLines,
     exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
@@ -939,12 +995,20 @@ export function EditorApp() {
     sketchGroups,
     shapes,
     stitchHoles,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
     seamAllowances,
+    pieceNotches,
     hardwareMarkers,
     setSketchGroups,
     setShapes,
     setStitchHoles,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSelectedShapeIds,
     setActiveSketchGroupId,
@@ -980,6 +1044,7 @@ export function EditorApp() {
     constraintAxis,
     constraints,
     seamAllowanceInputMm,
+    patternPieces,
     seamAllowances,
     snapSettings,
     setShapes,
@@ -995,6 +1060,210 @@ export function EditorApp() {
     () => selectedShapeIds.map((shapeId) => shapesById[shapeId]).filter((shape): shape is Shape => shape !== undefined),
     [selectedShapeIds, shapesById],
   )
+  const selectedPatternPiece = useMemo(() => {
+    if (selectedShapeIds.length !== 1) {
+      return null
+    }
+    const selectedShapeId = selectedShapeIds[0]
+    return (
+      patternPieces.find(
+        (piece) => piece.boundaryShapeId === selectedShapeId || piece.internalShapeIds.includes(selectedShapeId),
+      ) ?? null
+    )
+  }, [selectedShapeIds, patternPieces])
+  const selectedPieceGrainline = useMemo(
+    () => (selectedPatternPiece ? pieceGrainlines.find((entry) => entry.pieceId === selectedPatternPiece.id) ?? null : null),
+    [selectedPatternPiece, pieceGrainlines],
+  )
+  const selectedPieceLabel = useMemo(
+    () =>
+      selectedPatternPiece
+        ? pieceLabels.find((entry) => entry.pieceId === selectedPatternPiece.id && entry.kind === 'piece') ?? null
+        : null,
+    [selectedPatternPiece, pieceLabels],
+  )
+  const selectedPatternLabel = useMemo(
+    () =>
+      selectedPatternPiece
+        ? pieceLabels.find((entry) => entry.pieceId === selectedPatternPiece.id && entry.kind === 'pattern') ?? null
+        : null,
+    [selectedPatternPiece, pieceLabels],
+  )
+  const selectedPieceSeamAllowance = useMemo(
+    () => (selectedPatternPiece ? seamAllowances.find((entry) => entry.pieceId === selectedPatternPiece.id) ?? null : null),
+    [selectedPatternPiece, seamAllowances],
+  )
+  const selectedPieceNotches = useMemo(
+    () => (selectedPatternPiece ? pieceNotches.filter((entry) => entry.pieceId === selectedPatternPiece.id) : []),
+    [selectedPatternPiece, pieceNotches],
+  )
+  const selectedPieceInternalShapeIdSet = useMemo(
+    () => new Set(selectedPatternPiece?.internalShapeIds ?? []),
+    [selectedPatternPiece],
+  )
+  const selectedPieceAvailableInternalShapes = useMemo(() => {
+    if (!selectedPatternPiece) {
+      return []
+    }
+    const otherBoundaryShapeIdSet = new Set(
+      patternPieces
+        .filter((piece) => piece.id !== selectedPatternPiece.id)
+        .map((piece) => piece.boundaryShapeId),
+    )
+    return shapes.filter(
+      (shape) =>
+        shape.layerId === selectedPatternPiece.layerId &&
+        shape.id !== selectedPatternPiece.boundaryShapeId &&
+        !otherBoundaryShapeIdSet.has(shape.id),
+    )
+  }, [selectedPatternPiece, patternPieces, shapes])
+
+  const ensurePatternPieceSupportRecords = (piece: PatternPiece) => {
+    if (!pieceGrainlines.some((entry) => entry.pieceId === piece.id)) {
+      setPieceGrainlines((previous) => [...previous, createDefaultPieceGrainline(piece.id)])
+    }
+    if (!pieceLabels.some((entry) => entry.pieceId === piece.id && entry.kind === 'piece')) {
+      const defaultPieceLabel = createDefaultPieceLabels(piece).find((entry) => entry.kind === 'piece')
+      if (defaultPieceLabel) {
+        setPieceLabels((previous) => [...previous, defaultPieceLabel])
+      }
+    }
+    if (!pieceLabels.some((entry) => entry.pieceId === piece.id && entry.kind === 'pattern')) {
+      const defaultPatternLabel = createDefaultPieceLabels(piece).find((entry) => entry.kind === 'pattern')
+      if (defaultPatternLabel) {
+        setPieceLabels((previous) => [...previous, defaultPatternLabel])
+      }
+    }
+    if (!seamAllowances.some((entry) => entry.pieceId === piece.id)) {
+      setSeamAllowances((previous) => [...previous, createDefaultPieceSeamAllowance(piece.id)])
+    }
+  }
+
+  const openSelectedPatternPieceInspector = () => {
+    if (!selectedPatternPiece) {
+      setStatus('Select a pattern piece first')
+      return
+    }
+    ensurePatternPieceSupportRecords(selectedPatternPiece)
+    setShowPieceInspectorModal(true)
+  }
+
+  const handleCreatePatternPieceFromSelection = () => {
+    if (selectedShapeIds.length !== 1) {
+      setStatus('Select exactly one closed outline to create a pattern piece')
+      return
+    }
+    const boundaryShapeId = selectedShapeIds[0]
+    const boundaryShape = shapesById[boundaryShapeId]
+    if (!boundaryShape) {
+      setStatus('Selected outline could not be resolved')
+      return
+    }
+    const existingPiece = patternPieceByBoundaryShapeId[boundaryShapeId]
+    if (existingPiece) {
+      ensurePatternPieceSupportRecords(existingPiece)
+      setShowPieceInspectorModal(true)
+      setStatus('Pattern piece already exists for this boundary')
+      return
+    }
+    const chain = patternPieceChains.byShapeId.get(boundaryShapeId)
+    if (!chain?.isClosed) {
+      setStatus('Pattern pieces require a closed outline boundary')
+      return
+    }
+
+    const piece = createDefaultPatternPiece(boundaryShapeId, boundaryShape.layerId, `Piece ${patternPieces.length + 1}`)
+    setPatternPieces((previous) => [...previous, piece])
+    setPieceGrainlines((previous) => [...previous, createDefaultPieceGrainline(piece.id)])
+    setPieceLabels((previous) => [...previous, ...createDefaultPieceLabels(piece)])
+    setSeamAllowances((previous) => [...previous, createDefaultPieceSeamAllowance(piece.id)])
+    setShowPieceInspectorModal(true)
+    setStatus(`Created pattern piece "${piece.name}"`)
+  }
+
+  const handleUpdateSelectedPatternPiece = (patch: Partial<PatternPiece>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPatternPieces((previous) =>
+      previous.map((piece) =>
+        piece.id === selectedPatternPiece.id
+          ? {
+              ...piece,
+              ...patch,
+            }
+          : piece,
+      ),
+    )
+  }
+
+  const handleToggleSelectedPieceInternalShape = (shapeId: string, included: boolean) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPatternPieces((previous) =>
+      previous.map((piece) => {
+        if (piece.id !== selectedPatternPiece.id) {
+          return piece
+        }
+        const internalShapeIds = included
+          ? Array.from(new Set([...piece.internalShapeIds, shapeId]))
+          : piece.internalShapeIds.filter((entry) => entry !== shapeId)
+        return {
+          ...piece,
+          internalShapeIds,
+        }
+      }),
+    )
+  }
+
+  const updateSelectedLabel = (kind: 'piece' | 'pattern', patch: Partial<(typeof pieceLabels)[number]>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPieceLabels((previous) =>
+      previous.map((label) =>
+        label.pieceId === selectedPatternPiece.id && label.kind === kind
+          ? {
+              ...label,
+              ...patch,
+            }
+          : label,
+      ),
+    )
+  }
+
+  const handleUpdateSelectedPieceGrainline = (patch: Partial<(typeof pieceGrainlines)[number]>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPieceGrainlines((previous) =>
+      previous.map((entry) =>
+        entry.pieceId === selectedPatternPiece.id
+          ? {
+              ...entry,
+              ...patch,
+            }
+          : entry,
+      ),
+    )
+  }
+
+  const handleUpdateSelectedPieceSeamAllowance = (patch: Partial<(typeof seamAllowances)[number]>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setSeamAllowances((previous) =>
+      previous.map((entry) =>
+        entry.pieceId === selectedPatternPiece.id
+          ? {
+              ...entry,
+              ...patch,
+            }
+          : entry,
+      ),
+    )
+  }
 
   const handleUpdateSelectedShapePoint = (
     pointKey: 'start' | 'mid' | 'control' | 'end',
@@ -1159,17 +1428,63 @@ export function EditorApp() {
     setDxfVersion('r12')
   }
 
+  const annotationLineTypeId = useMemo(
+    () => lineTypes.find((lineType) => lineType.role === 'mark')?.id ?? lineTypes[0]?.id ?? activeLineTypeId,
+    [lineTypes, activeLineTypeId],
+  )
+  const printableAnnotationShapes = useMemo(
+    () =>
+      buildAnnotationExportShapes({
+        showAnnotations,
+        onlySelected: printSelectedOnly,
+        selectedShapeIdSet,
+        patternPiecesById,
+        annotationLabels,
+        pieceGrainlineSegments,
+        pieceNotchLines,
+        fallbackLayerId: activeLayerId,
+        annotationLineTypeId,
+      }),
+    [
+      showAnnotations,
+      printSelectedOnly,
+      selectedShapeIdSet,
+      patternPiecesById,
+      annotationLabels,
+      pieceGrainlineSegments,
+      pieceNotchLines,
+      activeLayerId,
+      annotationLineTypeId,
+    ],
+  )
+  const printOutputShapes = useMemo(
+    () => [...printableShapes, ...printableAnnotationShapes],
+    [printableShapes, printableAnnotationShapes],
+  )
+  const printOutputPlan = useMemo(
+    () =>
+      buildPrintPlan(printOutputShapes, {
+        paper: printPaper,
+        marginMm: printMarginMm,
+        overlapMm: printOverlapMm,
+        tileX: printTileX,
+        tileY: printTileY,
+        scalePercent: printScalePercent,
+      }),
+    [printOutputShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
+  )
+
   const handleOpenPrintTiles = () => {
-    if (!printPlan || printableShapes.length === 0) {
+    if (!printOutputPlan || printOutputShapes.length === 0) {
       setStatus('No printable content available')
       return
     }
 
     const opened = openPrintTilesWindow({
-      shapes: printableShapes,
+      shapes: printOutputShapes,
       foldLines,
       lineTypesById,
-      printPlan,
+      printPlan: printOutputPlan,
       printInColor,
       printStitchAsDots,
       printRulerInside,
@@ -1182,7 +1497,7 @@ export function EditorApp() {
       return
     }
 
-    setStatus(`Opened printable tiles (${printPlan.tiles.length} page${printPlan.tiles.length === 1 ? '' : 's'})`)
+    setStatus(`Opened printable tiles (${printOutputPlan.tiles.length} page${printOutputPlan.tiles.length === 1 ? '' : 's'})`)
   }
 
   const {
@@ -1591,7 +1906,7 @@ export function EditorApp() {
     setPrintInColor,
     printStitchAsDots,
     setPrintStitchAsDots,
-    printPlan,
+    printPlan: printOutputPlan,
     showPrintAreas,
     setShowPrintAreas,
     handleFitView,
@@ -1710,9 +2025,11 @@ export function EditorApp() {
               tracingOverlays={tracingOverlays}
               showPrintAreas={showPrintAreas}
               dimensionLines={dimensionLines}
-              printPlan={printPlan}
+              printPlan={printOutputPlan}
               seamGuides={seamGuides}
               showAnnotations={showAnnotations}
+              pieceGrainlineSegments={pieceGrainlineSegments}
+              pieceNotchLines={pieceNotchLines}
               visibleShapes={workspaceEditableShapes}
               linkedShapes={workspaceLinkedShapes}
               sketchWorkspaceMode={sketchWorkspaceMode}
@@ -1781,6 +2098,9 @@ export function EditorApp() {
         onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
         onAddAlignConstraints={handleAddAlignConstraintsFromSelection}
         onApplyConstraints={handleApplyConstraints}
+        onCreatePatternPiece={handleCreatePatternPieceFromSelection}
+        onEditPatternPiece={openSelectedPatternPieceInspector}
+        canEditPatternPiece={selectedPatternPiece !== null}
         onApplySeamAllowance={handleApplySeamAllowanceToSelection}
         onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
         onApplyTextDefaults={handleApplyTextDefaultsToSelection}
@@ -1802,11 +2122,32 @@ export function EditorApp() {
         />
       </Suspense>
 
+      <PieceInspectorModal
+        open={showPieceInspectorModal && selectedPatternPiece !== null}
+        piece={selectedPatternPiece}
+        grainline={selectedPieceGrainline}
+        pieceLabel={selectedPieceLabel}
+        patternLabel={selectedPatternLabel}
+        seamAllowance={selectedPieceSeamAllowance}
+        notches={selectedPieceNotches}
+        availableInternalShapes={selectedPieceAvailableInternalShapes}
+        selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
+        onClose={() => setShowPieceInspectorModal(false)}
+        onUpdatePiece={handleUpdateSelectedPatternPiece}
+        onToggleInternalShape={handleToggleSelectedPieceInternalShape}
+        onUpdateGrainline={handleUpdateSelectedPieceGrainline}
+        onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
+        onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
+        onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
+        onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
+      />
+
       <Suspense fallback={null}>
         <NestingModal
           open={showNestingModal}
           onClose={() => setShowNestingModal(false)}
-          shapes={shapes}
+          patternPieces={patternPieces}
+          patternPieceChainsByShapeId={patternPieceChains.byShapeId}
           selectedShapeIds={selectedShapeIdSet}
           activeLayerId={activeLayerId}
           activeLineTypeId={activeLineTypeId}

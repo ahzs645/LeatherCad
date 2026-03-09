@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import {
-  buildSeamAllowancePath,
   computeBoundsFromShapes,
   getShapeAnchorPoint,
 } from '../ops/pattern-ops'
@@ -14,8 +13,12 @@ import type {
   HardwareMarker,
   Layer,
   LineType,
+  PatternPiece,
   ParametricConstraint,
-  SeamAllowance,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   Shape,
   SketchGroup,
   SnapSettings,
@@ -43,6 +46,14 @@ import { buildDocSnapshotSignature, interpolateHexColor } from '../editor-utils'
 import type { HistoryState } from '../ops/history-ops'
 import { deepClone } from '../ops/history-ops'
 import { buildLinkedProjectionShapes } from '../ops/sketch-link-ops'
+import {
+  buildPatternPieceSeamPath,
+  buildPieceDerivedGrainline,
+  buildPieceDerivedLabels,
+  buildPieceDerivedNotches,
+  getPatternPieceChain,
+  resolvePatternPieceChains,
+} from '../ops/pattern-piece-ops'
 
 type UseEditorDerivedStateParams = {
   layers: Layer[]
@@ -55,7 +66,11 @@ type UseEditorDerivedStateParams = {
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
   constraints: ParametricConstraint[]
-  seamAllowances: SeamAllowance[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
   snapSettings: SnapSettings
   showAnnotations: boolean
@@ -103,7 +118,11 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     foldLines,
     stitchHoles,
     constraints,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
     seamAllowances,
+    pieceNotches,
     hardwareMarkers,
     snapSettings,
     showAnnotations,
@@ -158,6 +177,18 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const shapesById = useMemo(
     () => Object.fromEntries(shapes.map((shape) => [shape.id, shape])),
     [shapes],
+  )
+  const patternPieceChains = useMemo(
+    () => resolvePatternPieceChains(shapes, lineTypes),
+    [shapes, lineTypes],
+  )
+  const patternPiecesById = useMemo(
+    () => Object.fromEntries(patternPieces.map((piece) => [piece.id, piece])),
+    [patternPieces],
+  )
+  const patternPieceByBoundaryShapeId = useMemo(
+    () => Object.fromEntries(patternPieces.map((piece) => [piece.boundaryShapeId, piece])),
+    [patternPieces],
   )
   const selectedShapeIdSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds])
   const shapeCountsByLineType = useMemo(() => countShapesByLineType(shapes), [shapes])
@@ -332,24 +363,32 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     () =>
       seamAllowances
         .map((entry) => {
-          const shape = shapesById[entry.shapeId]
-          if (!shape || !visibleShapeIdSet.has(shape.id)) {
+          const piece = patternPiecesById[entry.pieceId]
+          if (!piece || !visibleLayerIdSet.has(piece.layerId)) {
             return null
           }
-          const d = buildSeamAllowancePath(shape, entry.offsetMm)
+          const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
+          if (!chain || !chain.shapeIds.some((shapeId) => visibleShapeIdSet.has(shapeId))) {
+            return null
+          }
+          const d = buildPatternPieceSeamPath(chain, entry)
           if (!d) {
+            return null
+          }
+          const boundaryShape = shapesById[piece.boundaryShapeId]
+          if (!boundaryShape) {
             return null
           }
           return {
             id: entry.id,
-            shapeId: shape.id,
+            shapeId: piece.boundaryShapeId,
             d,
-            labelPoint: getShapeAnchorPoint(shape, 'center'),
-            offsetMm: entry.offsetMm,
+            labelPoint: getShapeAnchorPoint(boundaryShape, 'center'),
+            offsetMm: entry.defaultOffsetMm,
           }
         })
         .filter((entry): entry is SeamGuide => entry !== null),
-    [seamAllowances, shapesById, visibleShapeIdSet],
+    [seamAllowances, patternPiecesById, visibleLayerIdSet, patternPieceChains.byShapeId, visibleShapeIdSet, shapesById],
   )
 
   const annotationLabels = useMemo<AnnotationLabel[]>(() => {
@@ -398,11 +437,84 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
         id: `hardware-${marker.id}`,
         text: marker.notes.trim(),
         point: { x: marker.point.x + 7, y: marker.point.y - 7 },
+        kind: 'generic',
       })
     }
 
+    for (const piece of patternPieces) {
+      if (!visibleLayerIdSet.has(piece.layerId)) {
+        continue
+      }
+      const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
+      if (!chain || !chain.shapeIds.some((shapeId) => visibleShapeIdSet.has(shapeId))) {
+        continue
+      }
+      labels.push(
+        ...buildPieceDerivedLabels(piece, pieceLabels, chain).map((label) => ({
+          id: label.id,
+          text: label.text,
+          point: label.point,
+          pieceId: piece.id,
+          rotationDeg: label.rotationDeg,
+          fontSizeMm: label.fontSizeMm,
+          kind: label.kind,
+        })),
+      )
+    }
+
     return labels
-  }, [showAnnotations, layers, sketchGroups, workspaceShapes, workspaceHardwareMarkers])
+  }, [
+    showAnnotations,
+    layers,
+    sketchGroups,
+    workspaceShapes,
+    workspaceHardwareMarkers,
+    patternPieces,
+    pieceLabels,
+    visibleLayerIdSet,
+    visibleShapeIdSet,
+    patternPieceChains.byShapeId,
+  ])
+
+  const pieceGrainlineSegments = useMemo(
+    () =>
+      showAnnotations
+        ? patternPieces
+            .map((piece) => {
+              if (!visibleLayerIdSet.has(piece.layerId)) {
+                return null
+              }
+              const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
+              if (!chain || !chain.shapeIds.some((shapeId) => visibleShapeIdSet.has(shapeId))) {
+                return null
+              }
+              return buildPieceDerivedGrainline(
+                piece,
+                pieceGrainlines.find((entry) => entry.pieceId === piece.id),
+                chain,
+              )
+            })
+            .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+        : [],
+    [showAnnotations, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, visibleShapeIdSet, pieceGrainlines],
+  )
+
+  const pieceNotchLines = useMemo(
+    () =>
+      showAnnotations
+        ? patternPieces.flatMap((piece) => {
+            if (!visibleLayerIdSet.has(piece.layerId)) {
+              return []
+            }
+            const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
+            if (!chain || !chain.shapeIds.some((shapeId) => visibleShapeIdSet.has(shapeId))) {
+              return []
+            }
+            return buildPieceDerivedNotches(piece, pieceNotches, chain)
+          })
+        : [],
+    [showAnnotations, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, visibleShapeIdSet, pieceNotches],
+  )
 
   const lineTypeStylesById = useMemo(
     () =>
@@ -532,7 +644,11 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       foldLines: deepClone(foldLines),
       stitchHoles: deepClone(stitchHoles),
       constraints: deepClone(constraints),
+      patternPieces: deepClone(patternPieces),
+      pieceGrainlines: deepClone(pieceGrainlines),
+      pieceLabels: deepClone(pieceLabels),
       seamAllowances: deepClone(seamAllowances),
+      pieceNotches: deepClone(pieceNotches),
       hardwareMarkers: deepClone(hardwareMarkers),
       snapSettings: deepClone(snapSettings),
       showAnnotations,
@@ -559,7 +675,11 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       foldLines,
       stitchHoles,
       constraints,
+      patternPieces,
+      pieceGrainlines,
+      pieceLabels,
       seamAllowances,
+      pieceNotches,
       hardwareMarkers,
       snapSettings,
       showAnnotations,
@@ -589,6 +709,9 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     activeLineType,
     lineTypesById,
     shapesById,
+    patternPiecesById,
+    patternPieceByBoundaryShapeId,
+    patternPieceChains,
     selectedShapeIdSet,
     shapeCountsByLineType,
     stitchHoleCountsByShape,
@@ -614,6 +737,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     workspaceHardwareMarkers,
     seamGuides,
     annotationLabels,
+    pieceGrainlineSegments,
+    pieceNotchLines,
     lineTypeStylesById,
     printableShapes,
     printPlan,

@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import type { Shape } from '../cad/cad-types'
-import { shapesToNestingPieces, nestPieces, type NestingResult, type NestingConfig, DEFAULT_NESTING_CONFIG } from '../ops/nesting-ops'
+import type { PatternPiece, Shape } from '../cad/cad-types'
+import type { OutlineChain } from '../ops/outline-detection'
+import { nestPieces, patternPiecesToNestingPieces, type NestingResult, type NestingConfig, DEFAULT_NESTING_CONFIG } from '../ops/nesting-ops'
 import { polygonToLineShapes } from '../ops/polygon-ops'
 
 type NestingModalProps = {
   open: boolean
   onClose: () => void
-  shapes: Shape[]
+  patternPieces: PatternPiece[]
+  patternPieceChainsByShapeId: Map<string, OutlineChain>
   selectedShapeIds: Set<string>
   activeLayerId: string
   activeLineTypeId: string
@@ -16,7 +18,8 @@ type NestingModalProps = {
 export function NestingModal({
   open,
   onClose,
-  shapes,
+  patternPieces,
+  patternPieceChainsByShapeId,
   selectedShapeIds,
   activeLayerId,
   activeLineTypeId,
@@ -33,9 +36,9 @@ export function NestingModal({
   if (!open) return null
 
   function runNesting() {
-    const pieces = shapesToNestingPieces(shapes, selectedShapeIds)
+    const pieces = patternPiecesToNestingPieces(patternPieces, patternPieceChainsByShapeId, selectedShapeIds)
     if (pieces.length === 0) {
-      setStatus('No valid polygons found in selection. Select closed shapes.')
+      setStatus('No valid pattern pieces found. Select piece boundaries or mark pieces for layout.')
       setResult(null)
       return
     }
@@ -188,7 +191,7 @@ export function NestingModal({
         <div className="control-block">
           <div className="line-type-modal-actions">
             <button onClick={runNesting}>
-              Run Nesting ({selectedShapeIds.size} shape{selectedShapeIds.size !== 1 ? 's' : ''})
+              Run Nesting ({selectedShapeIds.size > 0 ? `${selectedShapeIds.size} selected shape${selectedShapeIds.size !== 1 ? 's' : ''}` : `${patternPieces.length} piece${patternPieces.length !== 1 ? 's' : ''}`})
             </button>
             {result && (
               <button onClick={applyResult}>

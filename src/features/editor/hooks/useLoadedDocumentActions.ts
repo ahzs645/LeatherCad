@@ -6,11 +6,16 @@ import type {
   DimensionLine,
   DocFile,
   HardwareMarker,
+  LegacySeamAllowance,
   Layer,
   LineType,
+  PatternPiece,
   ParametricConstraint,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   PrintArea,
-  SeamAllowance,
   Shape,
   SketchGroup,
   StitchHole,
@@ -23,6 +28,7 @@ import { parseSnapSettings } from '../editor-parsers'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
+import { migrateLegacySeamAllowances } from '../ops/pattern-piece-ops'
 
 type UseLoadedDocumentActionsParams = {
   clearDraft: () => void
@@ -36,7 +42,11 @@ type UseLoadedDocumentActionsParams = {
   setFoldLines: Dispatch<SetStateAction<import('../cad/cad-types').FoldLine[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
-  setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
+  setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
+  setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setSnapSettings: Dispatch<SetStateAction<import('../cad/cad-types').SnapSettings>>
   setShowAnnotations: Dispatch<SetStateAction<boolean>>
@@ -72,7 +82,11 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,
@@ -131,7 +145,26 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
       }
       return shapeIdSet.has(constraint.referenceShapeId)
     })
-    const normalizedSeamAllowances = (doc.seamAllowances ?? []).filter((entry) => shapeIdSet.has(entry.shapeId))
+    const normalizedPatternPieces = (doc.patternPieces ?? []).filter((piece) => shapeIdSet.has(piece.boundaryShapeId))
+    const patternPieceIdSet = new Set(normalizedPatternPieces.map((piece) => piece.id))
+    const rawSeamAllowances = doc.seamAllowances ?? []
+    const legacySeamAllowances: LegacySeamAllowance[] = rawSeamAllowances.filter(
+      (entry): entry is LegacySeamAllowance =>
+        'shapeId' in entry &&
+        typeof entry.shapeId === 'string' &&
+        shapeIdSet.has(entry.shapeId),
+    )
+    const pieceSeamAllowances = rawSeamAllowances.filter(
+      (entry): entry is PieceSeamAllowance =>
+        'pieceId' in entry &&
+        typeof entry.pieceId === 'string' &&
+        patternPieceIdSet.has(entry.pieceId),
+    )
+    const migratedSeamAllowances = migrateLegacySeamAllowances(legacySeamAllowances, normalizedPatternPieces)
+    const normalizedSeamAllowances = [...pieceSeamAllowances, ...migratedSeamAllowances]
+    const normalizedPieceGrainlines = (doc.pieceGrainlines ?? []).filter((grainline) => patternPieceIdSet.has(grainline.pieceId))
+    const normalizedPieceLabels = (doc.pieceLabels ?? []).filter((label) => patternPieceIdSet.has(label.pieceId))
+    const normalizedPieceNotches = (doc.pieceNotches ?? []).filter((notch) => patternPieceIdSet.has(notch.pieceId))
     const normalizedHardwareMarkers = (doc.hardwareMarkers ?? []).filter((marker) => {
       if (!layerIdSet.has(marker.layerId)) {
         return false
@@ -175,7 +208,11 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setFoldLines(doc.foldLines)
     setStitchHoles(normalizeStitchHoleSequences(doc.stitchHoles ?? []))
     setConstraints(normalizedConstraints)
+    setPatternPieces(normalizedPatternPieces)
+    setPieceGrainlines(normalizedPieceGrainlines)
+    setPieceLabels(normalizedPieceLabels)
     setSeamAllowances(normalizedSeamAllowances)
+    setPieceNotches(normalizedPieceNotches)
     setHardwareMarkers(normalizedHardwareMarkers)
     setSnapSettings(parseSnapSettings(doc.snapSettings) ?? DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(typeof doc.showAnnotations === 'boolean' ? doc.showAnnotations : true)
@@ -209,7 +246,11 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,

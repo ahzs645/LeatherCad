@@ -10,8 +10,12 @@ import type {
   HardwareMarker,
   Layer,
   LineType,
+  PatternPiece,
   ParametricConstraint,
-  SeamAllowance,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   Shape,
   SketchGroup,
   SnapSettings,
@@ -38,7 +42,11 @@ type UseEditorStateActionsParams = {
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
-  setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
+  setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
+  setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setSnapSettings: Dispatch<SetStateAction<SnapSettings>>
   setShowAnnotations: Dispatch<SetStateAction<boolean>>
@@ -76,7 +84,11 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,
@@ -109,7 +121,11 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setFoldLines(snapshot.foldLines)
     setStitchHoles(snapshot.stitchHoles)
     setConstraints(snapshot.constraints)
+    setPatternPieces(snapshot.patternPieces)
+    setPieceGrainlines(snapshot.pieceGrainlines)
+    setPieceLabels(snapshot.pieceLabels)
     setSeamAllowances(snapshot.seamAllowances)
+    setPieceNotches(snapshot.pieceNotches)
     setHardwareMarkers(snapshot.hardwareMarkers)
     setSnapSettings(snapshot.snapSettings)
     setShowAnnotations(snapshot.showAnnotations)
@@ -138,7 +154,11 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,
@@ -219,7 +239,11 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setFoldLines([])
     setStitchHoles([])
     setConstraints([])
+    setPatternPieces([])
+    setPieceGrainlines([])
+    setPieceLabels([])
     setSeamAllowances([])
+    setPieceNotches([])
     setHardwareMarkers([])
     setSnapSettings(DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(true)
@@ -250,7 +274,11 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setFoldLines,
     setStitchHoles,
     setConstraints,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setHardwareMarkers,
     setSnapSettings,
     setShowAnnotations,

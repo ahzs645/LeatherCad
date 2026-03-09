@@ -15,6 +15,9 @@ type ContextualActionsPanelProps = {
   onApplyConstraints: () => void
   onApplySeamAllowance: () => void
   onClearSeamAllowance: () => void
+  onCreatePatternPiece: () => void
+  onEditPatternPiece: () => void
+  canEditPatternPiece: boolean
   onApplyTextDefaults: () => void
 }
 
@@ -33,6 +36,9 @@ export function ContextualActionsPanel({
   onApplyConstraints,
   onApplySeamAllowance,
   onClearSeamAllowance,
+  onCreatePatternPiece,
+  onEditPatternPiece,
+  canEditPatternPiece,
   onApplyTextDefaults,
 }: ContextualActionsPanelProps) {
   if (selectedShapes.length === 0) {
@@ -73,6 +79,12 @@ export function ContextualActionsPanel({
           Add Align Constraints
         </button>
         <button onClick={onApplyConstraints}>Apply Constraints</button>
+        <button onClick={onCreatePatternPiece} disabled={selectedCount !== 1}>
+          Create Piece
+        </button>
+        <button onClick={onEditPatternPiece} disabled={!canEditPatternPiece}>
+          Edit Piece
+        </button>
         <button onClick={onApplySeamAllowance}>Apply Seam Allowance</button>
         <button onClick={onClearSeamAllowance}>Clear Seam Allowance</button>
         <button onClick={onApplyTextDefaults} disabled={textCount === 0}>

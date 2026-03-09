@@ -6,9 +6,14 @@ import type {
   FoldLine,
   HardwareKind,
   HardwareMarker,
+  LegacySeamAllowance,
   Layer,
+  PatternPiece,
   ParametricConstraint,
-  SeamAllowance,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   SketchGroup,
   SnapSettings,
   TracingOverlay,
@@ -181,7 +186,7 @@ export function parseSketchGroup(value: unknown): SketchGroup | null {
   }
 }
 
-export function parseSeamAllowance(value: unknown): SeamAllowance | null {
+export function parseLegacySeamAllowance(value: unknown): LegacySeamAllowance | null {
   if (typeof value !== 'object' || value === null) {
     return null
   }
@@ -203,6 +208,145 @@ export function parseSeamAllowance(value: unknown): SeamAllowance | null {
       typeof candidate.offsetMm === 'number' && Number.isFinite(candidate.offsetMm)
         ? Math.max(0.1, Math.abs(candidate.offsetMm))
         : DEFAULT_SEAM_ALLOWANCE_MM,
+  }
+}
+
+export function parsePatternPiece(value: unknown): PatternPiece | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<PatternPiece>
+  if (typeof candidate.id !== 'string' || typeof candidate.boundaryShapeId !== 'string' || typeof candidate.layerId !== 'string') {
+    return null
+  }
+
+  return {
+    id: candidate.id,
+    name: typeof candidate.name === 'string' && candidate.name.trim().length > 0 ? candidate.name.trim() : 'Pattern Piece',
+    boundaryShapeId: candidate.boundaryShapeId,
+    internalShapeIds: Array.isArray(candidate.internalShapeIds)
+      ? candidate.internalShapeIds.filter((shapeId): shapeId is string => typeof shapeId === 'string')
+      : [],
+    layerId: candidate.layerId,
+    quantity:
+      typeof candidate.quantity === 'number' && Number.isFinite(candidate.quantity)
+        ? Math.max(1, Math.round(candidate.quantity))
+        : 1,
+    annotation: typeof candidate.annotation === 'string' ? candidate.annotation : undefined,
+    onFold: candidate.onFold === true,
+    orientation:
+      candidate.orientation === 'horizontal' || candidate.orientation === 'vertical' || candidate.orientation === 'any'
+        ? candidate.orientation
+        : 'any',
+    allowFlip: candidate.allowFlip !== false,
+    includeInLayout: candidate.includeInLayout !== false,
+    locked: candidate.locked === true,
+    color: typeof candidate.color === 'string' ? candidate.color : undefined,
+    fill: typeof candidate.fill === 'string' ? candidate.fill : undefined,
+  }
+}
+
+export function parsePieceGrainline(value: unknown): PieceGrainline | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<PieceGrainline>
+  if (typeof candidate.pieceId !== 'string') {
+    return null
+  }
+
+  return {
+    pieceId: candidate.pieceId,
+    visible: candidate.visible !== false,
+    mode: candidate.mode === 'fixed' ? 'fixed' : 'auto',
+    lengthMm:
+      typeof candidate.lengthMm === 'number' && Number.isFinite(candidate.lengthMm)
+        ? Math.max(0.1, Math.abs(candidate.lengthMm))
+        : undefined,
+    rotationDeg: typeof candidate.rotationDeg === 'number' && Number.isFinite(candidate.rotationDeg) ? candidate.rotationDeg : 90,
+    anchor: 'center',
+  }
+}
+
+export function parsePieceLabel(value: unknown): PieceLabel | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+  const candidate = value as Partial<PieceLabel>
+  if (typeof candidate.id !== 'string' || typeof candidate.pieceId !== 'string') {
+    return null
+  }
+  return {
+    id: candidate.id,
+    pieceId: candidate.pieceId,
+    visible: candidate.visible !== false,
+    kind: candidate.kind === 'pattern' ? 'pattern' : 'piece',
+    textTemplate: typeof candidate.textTemplate === 'string' ? candidate.textTemplate : '{{name}}',
+    rotationDeg: typeof candidate.rotationDeg === 'number' && Number.isFinite(candidate.rotationDeg) ? candidate.rotationDeg : 0,
+    anchor: 'center',
+    offsetX: typeof candidate.offsetX === 'number' && Number.isFinite(candidate.offsetX) ? candidate.offsetX : 0,
+    offsetY: typeof candidate.offsetY === 'number' && Number.isFinite(candidate.offsetY) ? candidate.offsetY : 0,
+    fontSizeMm:
+      typeof candidate.fontSizeMm === 'number' && Number.isFinite(candidate.fontSizeMm)
+        ? Math.max(2, candidate.fontSizeMm)
+        : 8,
+  }
+}
+
+export function parsePieceSeamAllowance(value: unknown): PieceSeamAllowance | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+  const candidate = value as Partial<PieceSeamAllowance>
+  if (typeof candidate.pieceId !== 'string') {
+    return null
+  }
+  return {
+    id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
+    pieceId: candidate.pieceId,
+    enabled: candidate.enabled !== false,
+    defaultOffsetMm:
+      typeof candidate.defaultOffsetMm === 'number' && Number.isFinite(candidate.defaultOffsetMm)
+        ? Math.max(0.1, Math.abs(candidate.defaultOffsetMm))
+        : DEFAULT_SEAM_ALLOWANCE_MM,
+    edgeOverrides: Array.isArray(candidate.edgeOverrides)
+      ? candidate.edgeOverrides
+          .filter(
+            (entry): entry is { edgeIndex: number; offsetMm: number } =>
+              typeof entry === 'object' &&
+              entry !== null &&
+              typeof (entry as { edgeIndex?: unknown }).edgeIndex === 'number' &&
+              typeof (entry as { offsetMm?: unknown }).offsetMm === 'number',
+          )
+          .map((entry) => ({
+            edgeIndex: Math.max(0, Math.round(entry.edgeIndex)),
+            offsetMm: Math.max(0.1, Math.abs(entry.offsetMm)),
+          }))
+      : [],
+  }
+}
+
+export function parsePieceNotch(value: unknown): PieceNotch | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+  const candidate = value as Partial<PieceNotch>
+  if (typeof candidate.id !== 'string' || typeof candidate.pieceId !== 'string') {
+    return null
+  }
+  return {
+    id: candidate.id,
+    pieceId: candidate.pieceId,
+    edgeIndex: typeof candidate.edgeIndex === 'number' && Number.isFinite(candidate.edgeIndex) ? Math.max(0, Math.round(candidate.edgeIndex)) : 0,
+    t: typeof candidate.t === 'number' && Number.isFinite(candidate.t) ? clamp(candidate.t, 0, 1) : 0.5,
+    style: candidate.style === 'double' || candidate.style === 'v' ? candidate.style : 'single',
+    lengthMm: typeof candidate.lengthMm === 'number' && Number.isFinite(candidate.lengthMm) ? Math.max(0.5, candidate.lengthMm) : 4,
+    widthMm: typeof candidate.widthMm === 'number' && Number.isFinite(candidate.widthMm) ? Math.max(0, candidate.widthMm) : 2,
+    angleMode: candidate.angleMode === 'fixed' ? 'fixed' : 'normal',
+    angleDeg: typeof candidate.angleDeg === 'number' && Number.isFinite(candidate.angleDeg) ? candidate.angleDeg : undefined,
+    showOnSeam: candidate.showOnSeam === true,
   }
 }
 

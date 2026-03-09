@@ -5,7 +5,8 @@ import type {
   ConstraintEdge,
   Layer,
   ParametricConstraint,
-  SeamAllowance,
+  PatternPiece,
+  PieceSeamAllowance,
   Shape,
   SnapSettings,
 } from '../cad/cad-types'
@@ -34,12 +35,13 @@ type UseConstraintActionsParams = {
   constraintAxis: ConstraintAxis
   constraints: ParametricConstraint[]
   seamAllowanceInputMm: number
-  seamAllowances: SeamAllowance[]
+  patternPieces: PatternPiece[]
+  seamAllowances: PieceSeamAllowance[]
   snapSettings: SnapSettings
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
-  setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setStatus: Dispatch<SetStateAction<string>>
 }
 
@@ -58,6 +60,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     constraintAxis,
     constraints,
     seamAllowanceInputMm,
+    patternPieces,
     seamAllowances,
     snapSettings,
     setShapes,
@@ -151,19 +154,32 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     }
 
     const safeOffset = clamp(seamAllowanceInputMm, 0.1, 150)
-    const selectedIds = new Set(selectedShapeIds)
+    const selectedPieces = patternPieces.filter(
+      (piece) =>
+        selectedShapeIdSet.has(piece.boundaryShapeId) ||
+        piece.internalShapeIds.some((shapeId) => selectedShapeIdSet.has(shapeId)),
+    )
+    if (selectedPieces.length === 0) {
+      setStatus('Select a pattern piece boundary or one of its linked internal paths')
+      return
+    }
+    const selectedPieceIds = new Set(selectedPieces.map((piece) => piece.id))
 
     setSeamAllowances((previous) => {
-      const retained = previous.filter((entry) => !selectedIds.has(entry.shapeId))
-      const created = selectedShapeIds.map((shapeId) => ({
+      const retained = previous.filter((entry) => !selectedPieceIds.has(entry.pieceId))
+      const created = selectedPieces.map((piece) => ({
         id: uid(),
-        shapeId,
-        offsetMm: safeOffset,
+        pieceId: piece.id,
+        enabled: true,
+        defaultOffsetMm: safeOffset,
+        edgeOverrides: [],
       }))
       return [...retained, ...created]
     })
 
-    setStatus(`Applied ${safeOffset.toFixed(1)}mm seam allowance to ${selectedShapeIds.length} shape${selectedShapeIds.length === 1 ? '' : 's'}`)
+    setStatus(
+      `Applied ${safeOffset.toFixed(1)}mm seam allowance to ${selectedPieces.length} piece${selectedPieces.length === 1 ? '' : 's'}`,
+    )
   }
 
   const handleClearSeamAllowanceOnSelection = () => {
@@ -171,8 +187,21 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
       setStatus('Select one or more shapes first')
       return
     }
-    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
-    setStatus('Cleared seam allowance on selected shapes')
+    const selectedPieceIds = new Set(
+      patternPieces
+        .filter(
+          (piece) =>
+            selectedShapeIdSet.has(piece.boundaryShapeId) ||
+            piece.internalShapeIds.some((shapeId) => selectedShapeIdSet.has(shapeId)),
+        )
+        .map((piece) => piece.id),
+    )
+    if (selectedPieceIds.size === 0) {
+      setStatus('No selected pattern pieces with seam allowances')
+      return
+    }
+    setSeamAllowances((previous) => previous.filter((entry) => !selectedPieceIds.has(entry.pieceId)))
+    setStatus('Cleared seam allowance on selected pattern pieces')
   }
 
   const handleClearAllSeamAllowances = () => {

@@ -10,6 +10,7 @@ export type Tool =
   | 'fold'
   | 'stitch-hole'
   | 'hardware'
+  | 'piece-notch'
   | 'text'
   | 'freehand'
   | 'cut-line'
@@ -182,7 +183,78 @@ export type AlignConstraint = {
 
 export type ParametricConstraint = EdgeOffsetConstraint | AlignConstraint
 
-export type SeamAllowance = {
+export type PatternPieceOrientation = 'any' | 'horizontal' | 'vertical'
+
+export type PatternPiece = {
+  id: string
+  name: string
+  boundaryShapeId: string
+  internalShapeIds: string[]
+  layerId: string
+  quantity: number
+  annotation?: string
+  onFold: boolean
+  orientation: PatternPieceOrientation
+  allowFlip: boolean
+  includeInLayout: boolean
+  locked: boolean
+  color?: string
+  fill?: string
+}
+
+export type PieceGrainline = {
+  pieceId: string
+  visible: boolean
+  mode: 'auto' | 'fixed'
+  lengthMm?: number
+  rotationDeg: number
+  anchor: 'center'
+}
+
+export type PieceLabelKind = 'piece' | 'pattern'
+
+export type PieceLabel = {
+  id: string
+  pieceId: string
+  visible: boolean
+  kind: PieceLabelKind
+  textTemplate: string
+  rotationDeg: number
+  anchor: 'center'
+  offsetX: number
+  offsetY: number
+  fontSizeMm: number
+}
+
+export type PieceSeamAllowanceEdgeOverride = {
+  edgeIndex: number
+  offsetMm: number
+}
+
+export type PieceSeamAllowance = {
+  id: string
+  pieceId: string
+  enabled: boolean
+  defaultOffsetMm: number
+  edgeOverrides: PieceSeamAllowanceEdgeOverride[]
+}
+
+export type PieceNotchStyle = 'single' | 'double' | 'v'
+
+export type PieceNotch = {
+  id: string
+  pieceId: string
+  edgeIndex: number
+  t: number
+  style: PieceNotchStyle
+  lengthMm: number
+  widthMm: number
+  angleMode: 'normal' | 'fixed'
+  angleDeg?: number
+  showOnSeam: boolean
+}
+
+export type LegacySeamAllowance = {
   id: string
   shapeId: string
   offsetMm: number
@@ -275,7 +347,11 @@ export type DocFile = {
   foldLines: FoldLine[]
   stitchHoles?: StitchHole[]
   constraints?: ParametricConstraint[]
-  seamAllowances?: SeamAllowance[]
+  patternPieces?: PatternPiece[]
+  pieceGrainlines?: PieceGrainline[]
+  pieceLabels?: PieceLabel[]
+  seamAllowances?: Array<PieceSeamAllowance | LegacySeamAllowance>
+  pieceNotches?: PieceNotch[]
   hardwareMarkers?: HardwareMarker[]
   snapSettings?: SnapSettings
   showAnnotations?: boolean

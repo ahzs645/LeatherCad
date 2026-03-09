@@ -13,6 +13,8 @@ import type {
   HardwareMarker,
   Layer,
   LineType,
+  PatternPiece,
+  PieceNotch,
   Point,
   Shape,
   SketchGroup,
@@ -80,6 +82,8 @@ type UseCanvasInteractionsParams = {
   textRadiusMm: number
   textSweepDeg: number
   stitchHoles: StitchHole[]
+  patternPieces: PatternPiece[]
+  pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
   selectedShapeIds: string[]
   selectedStitchHoleId: string | null
@@ -91,6 +95,7 @@ type UseCanvasInteractionsParams = {
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
@@ -189,6 +194,8 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     textRadiusMm,
     textSweepDeg,
     stitchHoles,
+    patternPieces,
+    pieceNotches,
     hardwareMarkers,
     selectedShapeIds,
     selectedStitchHoleId,
@@ -200,6 +207,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setShapes,
     setStitchHoles,
     setSelectedStitchHoleId,
+    setPieceNotches,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setFoldLines,
@@ -283,10 +291,12 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     textRadiusMm,
     textSweepDeg,
     stitchTargetShapes,
+    patternPieces,
     lineTypesById,
     shapesById,
     layers,
     stitchHoles,
+    pieceNotches,
     setDraftPoints,
     clearDraft,
     setStatus,
@@ -294,6 +304,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setFoldLines,
     setStitchHoles,
     setSelectedStitchHoleId,
+    setPieceNotches,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     ensureActiveLayerWritable,

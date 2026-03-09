@@ -10,7 +10,7 @@
  *  - Waste percentage calculation
  */
 
-import type { Point, Shape } from '../cad/cad-types'
+import type { PatternPiece, Point, Shape } from '../cad/cad-types'
 import {
   type Polygon,
   shapesToPolygons,
@@ -21,6 +21,7 @@ import {
   rotatePolygon,
   ensureCCW,
 } from './polygon-ops'
+import type { OutlineChain } from './outline-detection'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -438,4 +439,38 @@ export function shapesToNestingPieces(
   }
 
   return pieces
+}
+
+export function patternPiecesToNestingPieces(
+  patternPieces: PatternPiece[],
+  chainsByShapeId: Map<string, OutlineChain>,
+  selectedShapeIds: Set<string>,
+): NestingPiece[] {
+  const hasSelection = selectedShapeIds.size > 0
+  return patternPieces
+    .filter((piece) => {
+      if (!piece.includeInLayout) {
+        return false
+      }
+      if (!hasSelection) {
+        return true
+      }
+      return (
+        selectedShapeIds.has(piece.boundaryShapeId) ||
+        piece.internalShapeIds.some((shapeId) => selectedShapeIds.has(shapeId))
+      )
+    })
+    .flatMap((piece) => {
+      const chain = chainsByShapeId.get(piece.boundaryShapeId)
+      if (!chain?.isClosed || chain.polygon.length < 3) {
+        return []
+      }
+      return [
+        {
+          id: piece.id,
+          polygon: chain.polygon,
+          quantity: Math.max(1, piece.quantity),
+        },
+      ]
+    })
 }

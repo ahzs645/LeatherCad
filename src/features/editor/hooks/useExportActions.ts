@@ -1,11 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { arcPath, getBounds, round } from '../cad/cad-geometry'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
-import type { FoldLine, LineType, Shape, SketchGroup } from '../cad/cad-types'
+import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup } from '../cad/cad-types'
 import type { DxfVersion, ExportRoleFilters } from '../editor-types'
 import { buildDxfFromShapes } from '../io/io-dxf'
 import { buildPdfFromShapes } from '../io/io-pdf'
 import { downloadFile } from '../editor-utils'
+import { buildAnnotationExportShapes } from '../ops/annotation-export-shapes'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import { MM_PER_INCH, type DisplayUnit } from '../ops/unit-ops'
 
@@ -14,10 +15,15 @@ type UseExportActionsParams = {
   foldLines: FoldLine[]
   lineTypes: LineType[]
   lineTypesById: Record<string, LineType>
+  patternPiecesById: Record<string, PatternPiece | undefined>
   lineTypeStylesById: Record<string, LineType['style']>
   sketchGroupsById: Record<string, SketchGroup>
   selectedShapeIdSet: Set<string>
   visibleLayerIdSet: Set<string>
+  showAnnotations: boolean
+  annotationLabels: import('../editor-types').AnnotationLabel[]
+  pieceGrainlineSegments: Array<{ pieceId: string; start: { x: number; y: number }; end: { x: number; y: number } }>
+  pieceNotchLines: Array<{ id: string; pieceId: string; start: { x: number; y: number }; end: { x: number; y: number }; showOnSeam: boolean }>
   exportOnlySelectedShapes: boolean
   exportOnlyVisibleLineTypes: boolean
   exportRoleFilters: ExportRoleFilters
@@ -34,10 +40,15 @@ export function useExportActions(params: UseExportActionsParams) {
     foldLines,
     lineTypes,
     lineTypesById,
+    patternPiecesById,
     lineTypeStylesById,
     sketchGroupsById,
     selectedShapeIdSet,
     visibleLayerIdSet,
+    showAnnotations,
+    annotationLabels,
+    pieceGrainlineSegments,
+    pieceNotchLines,
     exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
@@ -70,6 +81,26 @@ export function useExportActions(params: UseExportActionsParams) {
       }
       return exportRoleFilters[role]
     })
+
+  const annotationLineTypeId = lineTypes.find((lineType) => lineType.role === 'mark')?.id ?? lineTypes[0]?.id ?? 'annotation'
+
+  const getExportableAnnotationShapes = () =>
+    buildAnnotationExportShapes({
+      showAnnotations,
+      onlySelected: exportOnlySelectedShapes,
+      selectedShapeIdSet,
+      patternPiecesById,
+      annotationLabels,
+      pieceGrainlineSegments,
+      pieceNotchLines,
+      fallbackLayerId: Array.from(visibleLayerIdSet)[0] ?? shapes[0]?.layerId ?? 'layer-1',
+      annotationLineTypeId,
+    }).filter(
+      (shape) =>
+        visibleLayerIdSet.has(shape.layerId) &&
+        exportRoleFilters[lineTypesById[shape.lineTypeId]?.role ?? 'mark'] &&
+        (!exportOnlyVisibleLineTypes || (lineTypesById[shape.lineTypeId]?.visible ?? true)),
+    )
 
   const escapeXml = (value: string) =>
     value.replace(/[<>&"]/g, (char) => {
@@ -127,7 +158,7 @@ export function useExportActions(params: UseExportActionsParams) {
   }
 
   const handleExportSvg = () => {
-    const exportShapes = getExportableShapes()
+    const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
     if (exportShapes.length === 0) {
       setStatus('No shapes matched the current export filters')
       return
@@ -154,7 +185,7 @@ export function useExportActions(params: UseExportActionsParams) {
   }
 
   const handleExportDxf = () => {
-    const exportShapes = getExportableShapes()
+    const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
     if (exportShapes.length === 0) {
       setStatus('No shapes matched the current export filters')
       return
@@ -174,7 +205,7 @@ export function useExportActions(params: UseExportActionsParams) {
   }
 
   const handleExportPdf = () => {
-    const exportShapes = getExportableShapes()
+    const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
     if (exportShapes.length === 0) {
       setStatus('No shapes matched the current export filters')
       return

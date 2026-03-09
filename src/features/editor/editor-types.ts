@@ -4,9 +4,13 @@ import type {
   Layer,
   LineType,
   LineTypeRole,
+  PatternPiece,
   ParametricConstraint,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   Point,
-  SeamAllowance,
   Shape,
   SketchGroup,
   SnapSettings,
@@ -70,6 +74,10 @@ export type AnnotationLabel = {
   id: string
   text: string
   point: Point
+  pieceId?: string
+  rotationDeg?: number
+  fontSizeMm?: number
+  kind?: 'generic' | 'piece' | 'pattern'
 }
 
 export type EditorSnapshot = {
@@ -83,7 +91,11 @@ export type EditorSnapshot = {
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
   constraints: ParametricConstraint[]
-  seamAllowances: SeamAllowance[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
   hardwareMarkers: HardwareMarker[]
   snapSettings: SnapSettings
   showAnnotations: boolean

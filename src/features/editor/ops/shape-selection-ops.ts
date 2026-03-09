@@ -1,9 +1,23 @@
 import { uid } from '../cad/cad-geometry'
-import type { Shape, StitchHole } from '../cad/cad-types'
+import type {
+  PatternPiece,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
+  Shape,
+  StitchHole,
+} from '../cad/cad-types'
+import { clonePatternPieceSelection } from './pattern-piece-ops'
 
 export type ClipboardPayload = {
   shapes: Shape[]
   stitchHoles: StitchHole[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
 }
 
 type ClipboardEnvelope = {
@@ -52,8 +66,14 @@ function cloneShape(shape: Shape): Shape {
 export function copySelectionToClipboard(
   shapes: Shape[],
   stitchHoles: StitchHole[],
+  patternPieces: PatternPiece[],
+  pieceGrainlines: PieceGrainline[],
+  pieceLabels: PieceLabel[],
+  seamAllowances: PieceSeamAllowance[],
+  pieceNotches: PieceNotch[],
   selectedShapeIds: Set<string>,
 ): ClipboardPayload {
+  const selectedPieces = patternPieces.filter((piece) => selectedShapeIds.has(piece.boundaryShapeId))
   return {
     shapes: shapes.filter((shape) => selectedShapeIds.has(shape.id)).map(cloneShape),
     stitchHoles: stitchHoles
@@ -62,6 +82,14 @@ export function copySelectionToClipboard(
         ...stitchHole,
         point: { ...stitchHole.point },
       })),
+    patternPieces: selectedPieces.map((piece) => ({
+      ...piece,
+      internalShapeIds: [...piece.internalShapeIds],
+    })),
+    pieceGrainlines: pieceGrainlines.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
+    pieceLabels: pieceLabels.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
+    seamAllowances: seamAllowances.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
+    pieceNotches: pieceNotches.filter((entry) => selectedPieces.some((piece) => piece.id === entry.pieceId)),
   }
 }
 
@@ -89,6 +117,11 @@ export function parseClipboardPayload(raw: string): ClipboardPayload | null {
         ...stitchHole,
         point: { ...stitchHole.point },
       })),
+      patternPieces: Array.isArray(parsed.payload.patternPieces) ? parsed.payload.patternPieces : [],
+      pieceGrainlines: Array.isArray(parsed.payload.pieceGrainlines) ? parsed.payload.pieceGrainlines : [],
+      pieceLabels: Array.isArray(parsed.payload.pieceLabels) ? parsed.payload.pieceLabels : [],
+      seamAllowances: Array.isArray(parsed.payload.seamAllowances) ? parsed.payload.seamAllowances : [],
+      pieceNotches: Array.isArray(parsed.payload.pieceNotches) ? parsed.payload.pieceNotches : [],
     }
   } catch {
     return null
@@ -138,6 +171,11 @@ export function pasteClipboardPayload(
 ): {
   shapes: Shape[]
   stitchHoles: StitchHole[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
   shapeIds: string[]
 } {
   const idMap = new Map<string, string>()
@@ -169,10 +207,23 @@ export function pasteClipboardPayload(
       }
     })
     .filter((hole): hole is StitchHole => hole !== null)
+  const piecePayload = clonePatternPieceSelection(
+    payload.patternPieces,
+    payload.pieceGrainlines,
+    payload.pieceLabels,
+    payload.seamAllowances,
+    payload.pieceNotches,
+    idMap,
+  )
 
   return {
     shapes: nextShapes,
     stitchHoles: nextHoles,
+    patternPieces: piecePayload.patternPieces,
+    pieceGrainlines: piecePayload.pieceGrainlines,
+    pieceLabels: piecePayload.pieceLabels,
+    seamAllowances: piecePayload.seamAllowances,
+    pieceNotches: piecePayload.pieceNotches,
     shapeIds: nextShapes.map((shape) => shape.id),
   }
 }

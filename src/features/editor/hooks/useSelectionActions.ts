@@ -1,9 +1,19 @@
 import { useCallback } from 'react'
-import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { uid } from '../cad/cad-geometry'
-import type { HardwareMarker, ParametricConstraint, SeamAllowance, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
-import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
+import type {
+  HardwareMarker,
+  ParametricConstraint,
+  PatternPiece,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
+  Shape,
+  SketchGroup,
+  StitchHole,
+} from '../cad/cad-types'
+import { CLIPBOARD_PASTE_OFFSET } from '../editor-constants'
 import {
   copySelectionToClipboard,
   getSelectionCenter,
@@ -22,7 +32,8 @@ import {
   ungroupSelection,
   type ClipboardPayload,
 } from '../ops/shape-selection-ops'
-import { CLIPBOARD_PASTE_OFFSET } from '../editor-constants'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
+import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 
 const SYSTEM_CLIPBOARD_STORAGE_KEY = 'leathercraft-system-clipboard-v1'
 
@@ -31,13 +42,22 @@ type UseSelectionActionsParams = {
   selectedHardwareMarkerId: string | null
   shapes: Shape[]
   stitchHoles: StitchHole[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
   activeLayerId: string | null
   clipboardPayload: ClipboardPayload | null
   pasteCountRef: MutableRefObject<number>
   setClipboardPayload: Dispatch<SetStateAction<ClipboardPayload | null>>
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
-  setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
+  setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
+  setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
@@ -47,19 +67,36 @@ type UseSelectionActionsParams = {
   setStatus: Dispatch<SetStateAction<string>>
 }
 
+function getSelectedBoundaryPieceIds(selectedShapeIdSet: Set<string>, patternPieces: PatternPiece[]) {
+  return new Set(
+    patternPieces
+      .filter((piece) => selectedShapeIdSet.has(piece.boundaryShapeId))
+      .map((piece) => piece.id),
+  )
+}
+
 export function useSelectionActions(params: UseSelectionActionsParams) {
   const {
     selectedShapeIdSet,
     selectedHardwareMarkerId,
     shapes,
     stitchHoles,
+    patternPieces,
+    pieceGrainlines,
+    pieceLabels,
+    seamAllowances,
+    pieceNotches,
     activeLayerId,
     clipboardPayload,
     pasteCountRef,
     setClipboardPayload,
     setShapes,
     setStitchHoles,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setConstraints,
     setSketchGroups,
     setSelectedShapeIds,
@@ -112,16 +149,40 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     }
   }, [])
 
+  const buildClipboardPayload = useCallback(
+    () =>
+      copySelectionToClipboard(
+        shapes,
+        stitchHoles,
+        patternPieces,
+        pieceGrainlines,
+        pieceLabels,
+        seamAllowances,
+        pieceNotches,
+        selectedShapeIdSet,
+      ),
+    [
+      shapes,
+      stitchHoles,
+      patternPieces,
+      pieceGrainlines,
+      pieceLabels,
+      seamAllowances,
+      pieceNotches,
+      selectedShapeIdSet,
+    ],
+  )
+
   const handleCopySelection = useCallback(() => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('No selected shapes to copy')
       return
     }
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
+    const payload = buildClipboardPayload()
     setClipboardPayload(payload)
     void writeClipboard(payload)
     setStatus(`Copied ${payload.shapes.length} shape${payload.shapes.length === 1 ? '' : 's'} to clipboard`)
-  }, [selectedShapeIdSet, shapes, stitchHoles, setClipboardPayload, setStatus, writeClipboard])
+  }, [selectedShapeIdSet, buildClipboardPayload, setClipboardPayload, setStatus, writeClipboard])
 
   const handleDeleteSelection = useCallback(() => {
     if (selectedShapeIdSet.size === 0) {
@@ -134,10 +195,17 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       setStatus('No selected shapes to delete')
       return
     }
+
     const deleteCount = selectedShapeIdSet.size
+    const deletedPieceIdSet = getSelectedBoundaryPieceIds(selectedShapeIdSet, patternPieces)
+
     setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
     setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
-    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
+    setPatternPieces((previous) => previous.filter((piece) => !deletedPieceIdSet.has(piece.id)))
+    setPieceGrainlines((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPieceLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setSeamAllowances((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPieceNotches((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setConstraints((previous) =>
       previous.filter((entry) => {
         if (selectedShapeIdSet.has(entry.shapeId)) {
@@ -153,12 +221,17 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
   }, [
     selectedShapeIdSet,
     selectedHardwareMarkerId,
+    patternPieces,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setStatus,
     setShapes,
     setStitchHoles,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setConstraints,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
@@ -169,13 +242,21 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       setStatus('No selected shapes to cut')
       return
     }
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
+
+    const payload = buildClipboardPayload()
     setClipboardPayload(payload)
     void writeClipboard(payload)
+
     const deleteCount = selectedShapeIdSet.size
+    const deletedPieceIdSet = getSelectedBoundaryPieceIds(selectedShapeIdSet, patternPieces)
+
     setShapes((previous) => previous.filter((shape) => !selectedShapeIdSet.has(shape.id)))
     setStitchHoles((previous) => previous.filter((hole) => !selectedShapeIdSet.has(hole.shapeId)))
-    setSeamAllowances((previous) => previous.filter((entry) => !selectedShapeIdSet.has(entry.shapeId)))
+    setPatternPieces((previous) => previous.filter((piece) => !deletedPieceIdSet.has(piece.id)))
+    setPieceGrainlines((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPieceLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setSeamAllowances((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPieceNotches((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setConstraints((previous) =>
       previous.filter((entry) => {
         if (selectedShapeIdSet.has(entry.shapeId)) {
@@ -190,19 +271,51 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setStatus(`Cut ${deleteCount} selected shape${deleteCount === 1 ? '' : 's'}`)
   }, [
     selectedShapeIdSet,
-    shapes,
-    stitchHoles,
+    patternPieces,
+    buildClipboardPayload,
     setStatus,
     setClipboardPayload,
     writeClipboard,
     setShapes,
     setStitchHoles,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setConstraints,
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
   ])
+
+  const appendPastedSelection = useCallback(
+    (payload: ClipboardPayload, offset: { x: number; y: number }) => {
+      const pasted = pasteClipboardPayload(payload, offset, activeLayerId)
+      setShapes((previous) => [...previous, ...pasted.shapes])
+      setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
+      setPatternPieces((previous) => [...previous, ...pasted.patternPieces])
+      setPieceGrainlines((previous) => [...previous, ...pasted.pieceGrainlines])
+      setPieceLabels((previous) => [...previous, ...pasted.pieceLabels])
+      setSeamAllowances((previous) => [...previous, ...pasted.seamAllowances])
+      setPieceNotches((previous) => [...previous, ...pasted.pieceNotches])
+      setSelectedShapeIds(pasted.shapeIds)
+      setSelectedStitchHoleId(null)
+      return pasted
+    },
+    [
+      activeLayerId,
+      setShapes,
+      setStitchHoles,
+      setPatternPieces,
+      setPieceGrainlines,
+      setPieceLabels,
+      setSeamAllowances,
+      setPieceNotches,
+      setSelectedShapeIds,
+      setSelectedStitchHoleId,
+    ],
+  )
 
   const handlePasteClipboard = useCallback(async () => {
     let payload = clipboardPayload
@@ -223,56 +336,34 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       x: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
       y: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
     }
-    const pasted = pasteClipboardPayload(payload, offset, activeLayerId)
-    setShapes((previous) => [...previous, ...pasted.shapes])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
-    setSelectedShapeIds(pasted.shapeIds)
-    setSelectedStitchHoleId(null)
+    const pasted = appendPastedSelection(payload, offset)
     setStatus(`Pasted ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'}`)
-  }, [
-    clipboardPayload,
-    readClipboard,
-    setClipboardPayload,
-    activeLayerId,
-    pasteCountRef,
-    setShapes,
-    setStitchHoles,
-    setSelectedShapeIds,
-    setSelectedStitchHoleId,
-    setStatus,
-  ])
+  }, [clipboardPayload, readClipboard, setClipboardPayload, pasteCountRef, appendPastedSelection, setStatus])
 
   const handleDuplicateSelection = useCallback(() => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('No selected shapes to duplicate')
       return
     }
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
+
+    const payload = buildClipboardPayload()
     setClipboardPayload(payload)
     void writeClipboard(payload)
+
     pasteCountRef.current += 1
     const offset = {
       x: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
       y: CLIPBOARD_PASTE_OFFSET * pasteCountRef.current,
     }
-    const pasted = pasteClipboardPayload(payload, offset, activeLayerId)
-    setShapes((previous) => [...previous, ...pasted.shapes])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
-    setSelectedShapeIds(pasted.shapeIds)
-    setSelectedStitchHoleId(null)
+    const pasted = appendPastedSelection(payload, offset)
     setStatus(`Duplicated ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'}`)
   }, [
     selectedShapeIdSet,
-    shapes,
-    stitchHoles,
-    activeLayerId,
-    pasteCountRef,
+    buildClipboardPayload,
     setClipboardPayload,
     writeClipboard,
-    setShapes,
-    setStitchHoles,
-    setSelectedShapeIds,
-    setSelectedStitchHoleId,
+    pasteCountRef,
+    appendPastedSelection,
     setStatus,
   ])
 
@@ -400,11 +491,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       return
     }
 
-    const payload = copySelectionToClipboard(shapes, stitchHoles, selectedShapeIdSet)
-    const pasted = pasteClipboardPayload(payload, { x: dx, y: dy }, activeLayerId)
-    setShapes((previous) => [...previous, ...pasted.shapes])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...pasted.stitchHoles]))
-    setSelectedShapeIds(pasted.shapeIds)
+    const pasted = appendPastedSelection(buildClipboardPayload(), { x: dx, y: dy })
     setStatus(`Copied ${pasted.shapes.length} shape${pasted.shapes.length === 1 ? '' : 's'} by distance`)
   }
 

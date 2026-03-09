@@ -4,8 +4,12 @@ import { createDefaultLineTypes } from '../cad/line-types'
 import type {
   HardwareMarker,
   Layer,
+  PatternPiece,
   ParametricConstraint,
-  SeamAllowance,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   Shape,
   SketchGroup,
   StitchHole,
@@ -31,7 +35,11 @@ type UseEditorConsistencyEffectsParams = {
   setActiveLineTypeId: Dispatch<SetStateAction<string>>
   shapes: Shape[]
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
-  setSeamAllowances: Dispatch<SetStateAction<SeamAllowance[]>>
+  setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
+  setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   stitchHoles: StitchHole[]
@@ -69,7 +77,11 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     setActiveLineTypeId,
     shapes,
     setSelectedShapeIds,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
     setSeamAllowances,
+    setPieceNotches,
     setConstraints,
     setStitchHoles,
     stitchHoles,
@@ -137,15 +149,74 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
   }, [shapes, setSelectedShapeIds])
 
   useEffect(() => {
-    setSeamAllowances((previous) => {
+    setPatternPieces((previous) => {
       if (previous.length === 0) {
         return previous
       }
       const shapeIdSet = new Set(shapes.map((shape) => shape.id))
-      const next = previous.filter((entry) => shapeIdSet.has(entry.shapeId))
+      const layerIdSet = new Set(layers.map((layer) => layer.id))
+      const next = previous
+        .filter((piece) => shapeIdSet.has(piece.boundaryShapeId) && layerIdSet.has(piece.layerId))
+        .map((piece) => {
+          const internalShapeIds = piece.internalShapeIds.filter((shapeId) => shapeIdSet.has(shapeId))
+          return internalShapeIds.length === piece.internalShapeIds.length
+            ? piece
+            : {
+                ...piece,
+                internalShapeIds,
+              }
+        })
+      if (next.length !== previous.length) {
+        return next
+      }
+      const unchanged = next.every((piece, index) => piece === previous[index])
+      return unchanged ? previous : next
+    })
+  }, [shapes, layers, setPatternPieces])
+
+  useEffect(() => {
+    setSeamAllowances((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const pieceIdSet = new Set(currentSnapshot.patternPieces.map((piece) => piece.id))
+      const next = previous.filter((entry) => pieceIdSet.has(entry.pieceId))
       return next.length === previous.length ? previous : next
     })
-  }, [shapes, setSeamAllowances])
+  }, [currentSnapshot.patternPieces, setSeamAllowances])
+
+  useEffect(() => {
+    setPieceNotches((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const pieceIdSet = new Set(currentSnapshot.patternPieces.map((piece) => piece.id))
+      const next = previous.filter((entry) => pieceIdSet.has(entry.pieceId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [currentSnapshot.patternPieces, setPieceNotches])
+
+  useEffect(() => {
+    setPieceGrainlines((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const pieceIdSet = new Set(currentSnapshot.patternPieces.map((piece) => piece.id))
+      const next = previous.filter((entry) => pieceIdSet.has(entry.pieceId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [currentSnapshot.patternPieces, setPieceGrainlines])
+
+  useEffect(() => {
+    setPieceLabels((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const pieceIdSet = new Set(currentSnapshot.patternPieces.map((piece) => piece.id))
+      const next = previous.filter((entry) => pieceIdSet.has(entry.pieceId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [currentSnapshot.patternPieces, setPieceLabels])
 
   useEffect(() => {
     setConstraints((previous) => {

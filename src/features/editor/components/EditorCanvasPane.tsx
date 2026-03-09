@@ -50,6 +50,8 @@ type EditorCanvasPaneProps = {
   printPlan: PrintPlan | null
   seamGuides: SeamGuide[]
   showAnnotations: boolean
+  pieceGrainlineSegments: Array<{ pieceId: string; start: Point; end: Point }>
+  pieceNotchLines: Array<{ id: string; pieceId: string; start: Point; end: Point; showOnSeam: boolean }>
   visibleShapes: Shape[]
   linkedShapes: Shape[]
   sketchWorkspaceMode: SketchWorkspaceMode
@@ -110,6 +112,8 @@ export function EditorCanvasPane({
   printPlan,
   seamGuides,
   showAnnotations,
+  pieceGrainlineSegments,
+  pieceNotchLines,
   visibleShapes,
   linkedShapes,
   sketchWorkspaceMode,
@@ -619,8 +623,48 @@ export function EditorCanvasPane({
             />
           ))}
 
+          {pieceGrainlineSegments.map((segment) => (
+            <g key={`piece-grainline-${segment.pieceId}`} className="piece-grainline" style={{ pointerEvents: 'none' }}>
+              <line
+                x1={segment.start.x}
+                y1={segment.start.y}
+                x2={segment.end.x}
+                y2={segment.end.y}
+                stroke="#0f766e"
+                strokeWidth={1.25 / viewport.scale}
+                strokeDasharray={`${6 / viewport.scale} ${4 / viewport.scale}`}
+              />
+              <polyline
+                points={`${segment.end.x},${segment.end.y} ${segment.end.x - 3 / viewport.scale},${segment.end.y - 1.5 / viewport.scale} ${segment.end.x - 3 / viewport.scale},${segment.end.y + 1.5 / viewport.scale}`}
+                fill="none"
+                stroke="#0f766e"
+                strokeWidth={1.25 / viewport.scale}
+              />
+            </g>
+          ))}
+
+          {pieceNotchLines.map((notch) => (
+            <line
+              key={notch.id}
+              x1={notch.start.x}
+              y1={notch.start.y}
+              x2={notch.end.x}
+              y2={notch.end.y}
+              stroke={notch.showOnSeam ? '#7c2d12' : '#0f172a'}
+              strokeWidth={1.4 / viewport.scale}
+              style={{ pointerEvents: 'none' }}
+            />
+          ))}
+
           {annotationLabels.map((label) => (
-            <text key={label.id} x={label.point.x} y={label.point.y} className="annotation-label">
+            <text
+              key={label.id}
+              x={label.point.x}
+              y={label.point.y}
+              className="annotation-label"
+              style={label.fontSizeMm ? { fontSize: `${Math.max(4, label.fontSizeMm)}px` } : undefined}
+              transform={label.rotationDeg ? `rotate(${round(label.rotationDeg)} ${label.point.x} ${label.point.y})` : undefined}
+            >
               {label.text}
             </text>
           ))}

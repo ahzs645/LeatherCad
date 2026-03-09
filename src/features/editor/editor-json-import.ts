@@ -5,10 +5,15 @@ import type {
   DocFile,
   FoldLine,
   HardwareMarker,
+  LegacySeamAllowance,
   LineType,
+  PatternPiece,
   ParametricConstraint,
+  PieceGrainline,
+  PieceLabel,
+  PieceNotch,
+  PieceSeamAllowance,
   PrintArea,
-  SeamAllowance,
   Shape,
   SketchGroup,
   StitchHole,
@@ -27,8 +32,13 @@ import {
   parseFoldLine,
   parseHardwareMarker,
   parseLayer,
+  parseLegacySeamAllowance,
+  parsePatternPiece,
+  parsePieceGrainline,
+  parsePieceLabel,
+  parsePieceNotch,
+  parsePieceSeamAllowance,
   parsePrintArea,
-  parseSeamAllowance,
   parseSketchGroup,
   parseSnapSettings,
   parseTracingOverlay,
@@ -36,6 +46,7 @@ import {
 import { DEFAULT_SNAP_SETTINGS } from './editor-constants'
 import { normalizeStitchHoleSequences, parseStitchHole } from './ops/stitch-hole-ops'
 import { sanitizeSketchGroupLinks } from './ops/sketch-link-ops'
+import { migrateLegacySeamAllowances } from './ops/pattern-piece-ops'
 
 type ImportedJsonCandidate = {
   objects?: unknown[]
@@ -43,6 +54,10 @@ type ImportedJsonCandidate = {
   stitchHoles?: unknown[]
   constraints?: unknown[]
   seamAllowances?: unknown[]
+  patternPieces?: unknown[]
+  pieceGrainlines?: unknown[]
+  pieceLabels?: unknown[]
+  pieceNotches?: unknown[]
   hardwareMarkers?: unknown[]
   sketchGroups?: unknown[]
   activeSketchGroupId?: unknown
@@ -308,16 +323,53 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         })
     : []
 
-  const nextSeamAllowances = Array.isArray(parsed.seamAllowances)
+  const nextPatternPieces = Array.isArray(parsed.patternPieces)
+    ? parsed.patternPieces
+        .map(parsePatternPiece)
+        .filter((piece): piece is PatternPiece => piece !== null)
+        .map((piece) => ({
+          ...piece,
+          boundaryShapeId: shapeIdMap.get(piece.boundaryShapeId) ?? '',
+          internalShapeIds: piece.internalShapeIds
+            .map((shapeId) => shapeIdMap.get(shapeId) ?? '')
+            .filter((shapeId) => nextShapeIdSet.has(shapeId)),
+        }))
+        .filter((piece) => nextShapeIdSet.has(piece.boundaryShapeId) && nextLayerIdSet.has(piece.layerId))
+    : []
+
+  const nextPatternPieceIdSet = new Set(nextPatternPieces.map((piece) => piece.id))
+  const nextPieceGrainlines = Array.isArray(parsed.pieceGrainlines)
+    ? parsed.pieceGrainlines
+        .map(parsePieceGrainline)
+        .filter((grainline): grainline is PieceGrainline => grainline !== null && nextPatternPieceIdSet.has(grainline.pieceId))
+    : []
+  const nextPieceLabels = Array.isArray(parsed.pieceLabels)
+    ? parsed.pieceLabels
+        .map(parsePieceLabel)
+        .filter((label): label is PieceLabel => label !== null && nextPatternPieceIdSet.has(label.pieceId))
+    : []
+  const nextPieceNotches = Array.isArray(parsed.pieceNotches)
+    ? parsed.pieceNotches
+        .map(parsePieceNotch)
+        .filter((notch): notch is PieceNotch => notch !== null && nextPatternPieceIdSet.has(notch.pieceId))
+    : []
+
+  const nextLegacySeamAllowances = Array.isArray(parsed.seamAllowances)
     ? parsed.seamAllowances
-        .map(parseSeamAllowance)
-        .filter((entry): entry is SeamAllowance => entry !== null)
+        .map(parseLegacySeamAllowance)
+        .filter((entry): entry is LegacySeamAllowance => entry !== null)
         .map((entry) => ({
           ...entry,
           shapeId: shapeIdMap.get(entry.shapeId) ?? '',
         }))
         .filter((entry) => nextShapeIdSet.has(entry.shapeId))
     : []
+  const nextPieceSeamAllowances = Array.isArray(parsed.seamAllowances)
+    ? parsed.seamAllowances
+        .map(parsePieceSeamAllowance)
+        .filter((entry): entry is PieceSeamAllowance => entry !== null && nextPatternPieceIdSet.has(entry.pieceId))
+    : []
+  const nextSeamAllowances = [...nextPieceSeamAllowances, ...migrateLegacySeamAllowances(nextLegacySeamAllowances, nextPatternPieces)]
 
   const nextHardwareMarkers = Array.isArray(parsed.hardwareMarkers)
     ? parsed.hardwareMarkers
@@ -369,7 +421,11 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       foldLines: nextFoldLines,
       stitchHoles: normalizedStitchHoles,
       constraints: nextConstraints,
+      patternPieces: nextPatternPieces,
+      pieceGrainlines: nextPieceGrainlines,
+      pieceLabels: nextPieceLabels,
       seamAllowances: nextSeamAllowances,
+      pieceNotches: nextPieceNotches,
       hardwareMarkers: nextHardwareMarkers,
       snapSettings: nextSnapSettings,
       showAnnotations: nextShowAnnotations,
