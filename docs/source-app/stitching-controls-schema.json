@@ -1,0 +1,388 @@
+{
+  "generatedAt": "2026-03-09",
+  "scope": "stitching",
+  "sources": [
+    "/Users/ahmadjalil/Downloads/leather-making/extracted-rsrc/rsrc_form_details.txt",
+    "/Users/ahmadjalil/Downloads/leather-making/extracted-app/Leathercraft_CAD_v2.8.3_macOS_ARM/LeathercraftCAD.app/Contents/Resources/StartUp/ReadMe_en.txt",
+    "/Users/ahmadjalil/Downloads/leather-making/ghidra_feature_functions_pseudoc.txt"
+  ],
+  "forms": {
+    "TfrmStitchingHoleSettings": {
+      "purpose": "Per-hole shape and geometry editor for stitching hole settings.",
+      "controls": [
+        {
+          "id": "chkInverted",
+          "inferredType": "checkbox",
+          "meaning": "Invert currently selected hole orientation.",
+          "confidence": "high"
+        },
+        {
+          "id": "cmbStitchingHoleType",
+          "inferredType": "combo",
+          "meaning": "Select stitch hole shape type.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbAngle",
+          "inferredType": "numeric",
+          "meaning": "Hole rotation angle.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbWidth",
+          "inferredType": "numeric",
+          "meaning": "Hole blade width.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbHeight",
+          "inferredType": "numeric",
+          "meaning": "Hole blade height or slit length.",
+          "confidence": "high"
+        }
+      ],
+      "behaviorGroups": {
+        "stitchHoleAppearance": [
+          "cmbStitchingHoleType",
+          "chkInverted",
+          "nbAngle",
+          "nbWidth",
+          "nbHeight"
+        ]
+      }
+    },
+    "TfrmChangeStitchingHoleType": {
+      "purpose": "Pricking iron toolbox and batch stitch-hole change dialog.",
+      "controls": [
+        {
+          "id": "lbPrickingIronGroups",
+          "inferredType": "listbox",
+          "meaning": "Preset group selector.",
+          "confidence": "high"
+        },
+        {
+          "id": "btnCreateNewGroup",
+          "inferredType": "button",
+          "meaning": "Create a pricking iron group.",
+          "confidence": "high"
+        },
+        {
+          "id": "btnDeletePrickingIronGroup",
+          "inferredType": "button",
+          "meaning": "Delete a pricking iron group, with system-group protections.",
+          "confidence": "high"
+        },
+        {
+          "id": "btnUp",
+          "inferredType": "button",
+          "meaning": "Move group or preset up.",
+          "confidence": "medium"
+        },
+        {
+          "id": "btnDown",
+          "inferredType": "button",
+          "meaning": "Move group or preset down.",
+          "confidence": "medium"
+        },
+        {
+          "id": "cmbStitchingHoleType",
+          "inferredType": "combo",
+          "meaning": "Select blade or hole shape family.",
+          "confidence": "high"
+        },
+        {
+          "id": "edPrickingIronName",
+          "inferredType": "text",
+          "meaning": "Preset display name.",
+          "confidence": "high"
+        },
+        {
+          "id": "edNumOfBlades",
+          "inferredType": "text",
+          "meaning": "Blade count for the preset.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbPitch",
+          "inferredType": "numeric",
+          "meaning": "Pricking iron pitch.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbWidth",
+          "inferredType": "numeric",
+          "meaning": "Blade width.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbHeight",
+          "inferredType": "numeric",
+          "meaning": "Blade height or slit length.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbAngle",
+          "inferredType": "numeric",
+          "meaning": "Blade angle.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkPTB_Invert",
+          "inferredType": "checkbox",
+          "meaning": "Invert preset orientation.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkShow5mm",
+          "inferredType": "checkbox",
+          "meaning": "Likely preview scale / 5 mm visualization aid.",
+          "confidence": "medium"
+        },
+        {
+          "id": "btnPTB_ApplyChange",
+          "inferredType": "button",
+          "meaning": "Apply preset or batch change.",
+          "confidence": "high"
+        }
+      ],
+      "behaviorGroups": {
+        "prickingIronGroups": [
+          "lbPrickingIronGroups",
+          "btnCreateNewGroup",
+          "btnDeletePrickingIronGroup",
+          "btnUp",
+          "btnDown"
+        ],
+        "prickingIronGeometry": [
+          "cmbStitchingHoleType",
+          "edPrickingIronName",
+          "edNumOfBlades",
+          "nbPitch",
+          "nbWidth",
+          "nbHeight",
+          "nbAngle",
+          "chkPTB_Invert"
+        ]
+      }
+    },
+    "TfrmOptions": {
+      "purpose": "Application settings including auto pitch and box stitch defaults.",
+      "controls": [
+        {
+          "id": "rbAutoPitchAuto",
+          "inferredType": "radio",
+          "meaning": "Default to variable or automatic pitch mode.",
+          "confidence": "high"
+        },
+        {
+          "id": "rbAutoPitchFixed",
+          "inferredType": "radio",
+          "meaning": "Default to fixed pitch mode.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkForceFitLastPrick",
+          "inferredType": "checkbox",
+          "meaning": "Force the last hole to align with the path end.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbOP_AutoPitchSteps",
+          "inferredType": "numeric",
+          "meaning": "Auto pitch iteration or subdivision count.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbOP_AutoPitchPrecision",
+          "inferredType": "numeric",
+          "meaning": "Auto pitch precision threshold.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbOP_AutoPitchGapAllowance",
+          "inferredType": "numeric",
+          "meaning": "Allowed residual gap near the end of a path.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbBoxStitchDistance",
+          "inferredType": "numeric",
+          "meaning": "Search distance for finding box-stitch pair lines.",
+          "confidence": "high"
+        }
+      ],
+      "behaviorGroups": {
+        "autoPitchDefaults": [
+          "rbAutoPitchAuto",
+          "rbAutoPitchFixed",
+          "chkForceFitLastPrick",
+          "nbOP_AutoPitchSteps",
+          "nbOP_AutoPitchPrecision",
+          "nbOP_AutoPitchGapAllowance"
+        ],
+        "boxStitchHelper": [
+          "nbBoxStitchDistance"
+        ]
+      }
+    },
+    "TfrmPreview": {
+      "purpose": "Print preview and print tiling dialog.",
+      "controls": [
+        {
+          "id": "chkPrintSelectedShapesOnly",
+          "inferredType": "checkbox",
+          "meaning": "Print selected shapes only.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkPreview_RulerInside",
+          "inferredType": "checkbox",
+          "meaning": "Print ruler inside page bounds.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkPrintInColor",
+          "inferredType": "checkbox",
+          "meaning": "Color print toggle.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkPrintStitchingHoleAsDot",
+          "inferredType": "checkbox",
+          "meaning": "Print stitch holes as dots.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbPreview_TileX",
+          "inferredType": "numeric",
+          "meaning": "Horizontal tiling count.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbTileOverlapLen",
+          "inferredType": "numeric",
+          "meaning": "Tile overlap length.",
+          "confidence": "high"
+        },
+        {
+          "id": "nbPrintLineThickFactor",
+          "inferredType": "numeric",
+          "meaning": "Preview line-thickness multiplier.",
+          "confidence": "high"
+        }
+      ],
+      "behaviorGroups": {
+        "printExport": [
+          "chkPrintSelectedShapesOnly",
+          "chkPreview_RulerInside",
+          "chkPrintInColor",
+          "chkPrintStitchingHoleAsDot",
+          "nbPreview_TileX",
+          "nbTileOverlapLen",
+          "nbPrintLineThickFactor"
+        ]
+      }
+    },
+    "TfrmSVGExportOptions": {
+      "purpose": "SVG and DXF export dialog with stitch-hole specific settings.",
+      "controls": [
+        {
+          "id": "chkSVGOPT_ExportOnlySelected",
+          "inferredType": "checkbox",
+          "meaning": "Export selected shapes only.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkSVGOPT_DoNotOutputStrokeDash",
+          "inferredType": "checkbox",
+          "meaning": "Flatten dashed and dotted strokes to solid lines.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkSVG_Out_Text",
+          "inferredType": "checkbox",
+          "meaning": "Include text in export.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkSVG_Out_Template",
+          "inferredType": "checkbox",
+          "meaning": "Include template objects in export.",
+          "confidence": "high"
+        },
+        {
+          "id": "chkDXFExportFlipY",
+          "inferredType": "checkbox",
+          "meaning": "Flip Y axis on DXF export.",
+          "confidence": "high"
+        },
+        {
+          "id": "rbDxfR14Change",
+          "inferredType": "radio",
+          "meaning": "Use DXF R14 mode.",
+          "confidence": "medium"
+        },
+        {
+          "id": "nbSVGDotRadius",
+          "inferredType": "numeric",
+          "meaning": "Dot radius when exporting stitch holes as dots.",
+          "confidence": "high"
+        },
+        {
+          "id": "gbSVG_StitchingHole",
+          "inferredType": "group",
+          "meaning": "Stitch-hole export options group.",
+          "confidence": "high"
+        },
+        {
+          "id": "lblSVG_BladeAsLine",
+          "inferredType": "label",
+          "meaning": "Source hint that zero-width blades export as lines instead of dots.",
+          "confidence": "high"
+        }
+      ],
+      "behaviorGroups": {
+        "stitchHoleExport": [
+          "gbSVG_StitchingHole",
+          "nbSVGDotRadius",
+          "lblSVG_BladeAsLine"
+        ],
+        "svgDxfOptions": [
+          "chkSVGOPT_ExportOnlySelected",
+          "chkSVGOPT_DoNotOutputStrokeDash",
+          "chkSVG_Out_Text",
+          "chkSVG_Out_Template",
+          "chkDXFExportFlipY",
+          "rbDxfR14Change"
+        ]
+      }
+    }
+  },
+  "derivedConfigKeys": {
+    "100a28850_save": [
+      "AutoPricking.IsFixedPitchDefault",
+      "AutoPitch.ForceFitLastPrick",
+      "AutoPitch.AutoPitchSteps2",
+      "AutoPitch.AutoPitchPrecision2",
+      "AutoPitch.AutoPitchStopGap",
+      "BoxStitch.Distance",
+      "Stitch.ShowStitchPattern",
+      "Stitch.ThreadThickness",
+      "SVG.AsDots",
+      "SVG.DotRadius",
+      "Print.PrintInColor",
+      "Print.PrintRulerInside"
+    ],
+    "100a2a05c_load": [
+      "AutoPricking.IsFixedPitchDefault",
+      "AutoPitch.ForceFitLastPrick",
+      "AutoPitch.AutoPitchSteps2",
+      "AutoPitch.AutoPitchPrecision2",
+      "AutoPitch.AutoPitchStopGap",
+      "BoxStitch.Distance",
+      "Stitch.ThreadThickness",
+      "SVG.AsDots",
+      "SVG.DotRadius"
+    ]
+  }
+}
