@@ -1,20 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import '../../app/styles/App.css'
 import type {
-  DimensionLine,
   DocFile,
-  FoldLine,
-  HardwareMarker,
-  LineType,
-  ParametricConstraint,
-  PrintArea,
-  SeamAllowance,
   Shape,
-  SketchGroup,
-  SnapSettings,
-  StitchHole,
-  TextureSource,
-  TracingOverlay,
 } from './cad/cad-types'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -32,46 +20,23 @@ const NestingModal = lazy(() =>
   import('./components/NestingModal').then((mod) => ({ default: mod.NestingModal })),
 )
 import {
-  DEFAULT_ACTIVE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
-  createDefaultLineTypes,
 } from './cad/line-types'
-import { DEFAULT_PRESET_ID } from './data/sample-doc'
 import { safeLocalStorageGet, safeLocalStorageRemove } from './ops/safe-storage'
 import { parseImportedJsonDocument } from './editor-json-import'
 import {
-  hasTemplateRepositoryStorage,
-  loadTemplateRepository,
-  type TemplateRepositoryEntry,
-} from './templates/template-repository'
-import { createBuiltinTemplateRepository } from './templates/template-builtins'
-import {
-  loadBundledCatalogRepository,
-  loadCatalogRepository,
   saveCatalogRepository,
   type CatalogRepositoryShop,
 } from './templates/catalog-repository'
-import type { ClipboardPayload } from './ops/shape-selection-ops'
 
 import {
   DESKTOP_TOOL_ICON_ITEMS,
   DEFAULT_EXPORT_ROLE_FILTERS,
-  DEFAULT_GRID_SPACING,
-  DEFAULT_SNAP_SETTINGS,
 } from './editor-constants'
 import { detectOutlines, type OutlineChain } from './ops/outline-detection'
 import { openPrintTilesWindow } from './preview/print-output'
 import type {
-  DesktopRibbonTab,
-  LegendMode,
-  MobileFileAction,
-  MobileLayerAction,
-  MobileOptionsTab,
-  MobileViewMode,
   ResolvedThemeMode,
-  SidePanelTab,
-  SketchWorkspaceMode,
-  ThemeMode,
 } from './editor-types'
 import {
   toolLabel,
@@ -109,60 +74,85 @@ import { useEditorViewport, DESKTOP_SPLITTER_WIDTH_PX } from './hooks/useEditorV
 import { useEditorLayers } from './hooks/useEditorLayers'
 import { useEditorTools } from './hooks/useEditorTools'
 import { useEditorHistory } from './hooks/useEditorHistory'
-import type { DisplayUnit } from './ops/unit-ops'
+import { useEditorDocumentState } from './hooks/useEditorDocumentState'
+import { useEditorUIState } from './hooks/useEditorUIState'
+import { useEditorSelectionState } from './hooks/useEditorSelectionState'
+import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
-const getSystemThemeMode = (): ResolvedThemeMode => {
-  if (typeof window === 'undefined') {
-    return 'dark'
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-}
-
 export function EditorApp() {
-  const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
-  const [activeLineTypeId, setActiveLineTypeId] = useState(DEFAULT_ACTIVE_LINE_TYPE_ID)
-  const [shapes, setShapes] = useState<Shape[]>([])
-  const [foldLines, setFoldLines] = useState<FoldLine[]>([])
-  const [stitchHoles, setStitchHoles] = useState<StitchHole[]>([])
-  const [sketchGroups, setSketchGroups] = useState<SketchGroup[]>([])
-  const [activeSketchGroupId, setActiveSketchGroupId] = useState<string | null>(null)
-  const [constraints, setConstraints] = useState<ParametricConstraint[]>([])
-  const [seamAllowances, setSeamAllowances] = useState<SeamAllowance[]>([])
-  const [hardwareMarkers, setHardwareMarkers] = useState<HardwareMarker[]>([])
-  const [dimensionLines, setDimensionLines] = useState<DimensionLine[]>([])
-  const [printAreas, setPrintAreas] = useState<PrintArea[]>([])
-  const [snapSettings, setSnapSettings] = useState<SnapSettings>(DEFAULT_SNAP_SETTINGS)
-  const [showAnnotations, setShowAnnotations] = useState(true)
-  const [status, setStatus] = useState('Ready')
-  const [showThreePreview, setShowThreePreview] = useState(true)
-  const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>('3d')
-  const [show3dInMain, setShow3dInMain] = useState(false)
-  const [isMobileLayout, setIsMobileLayout] = useState(false)
-  const [mobileViewMode, setMobileViewMode] = useState<MobileViewMode>('editor')
-  const [showMobileMenu, setShowMobileMenu] = useState(false)
-  const [mobileOptionsTab, setMobileOptionsTab] = useState<MobileOptionsTab>('view')
-  const [showPrecisionModal, setShowPrecisionModal] = useState(false)
-  const [showProjectMemoModal, setShowProjectMemoModal] = useState(false)
-  const [showNestingModal, setShowNestingModal] = useState(false)
-  const [loadedFontUrl, setLoadedFontUrl] = useState<string | null>(null)
-  const [constraintSuggestions, setConstraintSuggestions] = useState<import('./ops/auto-constraint-ops').ConstraintSuggestion[]>([])
-  const [autoConstraintSettings] = useState(() => ({
-    enabled: true,
-    horizontal: true,
-    vertical: true,
-    parallel: true,
-    perpendicular: true,
-    equalLength: true,
-    tangent: true,
-    angleTolerance: 3,
-    distanceTolerance: 0.5,
-  }))
-  const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
-  const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
-  const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
-  const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('mm')
+  // Document state: shapes, constraints, layers, overlays, etc.
+  const {
+    lineTypes, setLineTypes,
+    activeLineTypeId, setActiveLineTypeId,
+    shapes, setShapes,
+    foldLines, setFoldLines,
+    stitchHoles, setStitchHoles,
+    sketchGroups, setSketchGroups,
+    activeSketchGroupId, setActiveSketchGroupId,
+    constraints, setConstraints,
+    seamAllowances, setSeamAllowances,
+    hardwareMarkers, setHardwareMarkers,
+    dimensionLines, setDimensionLines,
+    printAreas, setPrintAreas,
+    snapSettings, setSnapSettings,
+    showAnnotations, setShowAnnotations,
+    tracingOverlays, setTracingOverlays,
+    activeTracingOverlayId, setActiveTracingOverlayId,
+    projectMemo, setProjectMemo,
+    stitchAlwaysShapeIds, setStitchAlwaysShapeIds,
+    stitchThreadColor, setStitchThreadColor,
+    threeTextureSource, setThreeTextureSource,
+    threeTextureShapeIds, setThreeTextureShapeIds,
+    showCanvasRuler, setShowCanvasRuler,
+    showDimensions, setShowDimensions,
+  } = useEditorDocumentState()
+
+  // UI state: layout, modals, theme, display settings
+  const {
+    status, setStatus,
+    showThreePreview, setShowThreePreview,
+    sidePanelTab, setSidePanelTab,
+    show3dInMain, setShow3dInMain,
+    isMobileLayout, setIsMobileLayout,
+    mobileViewMode, setMobileViewMode,
+    showMobileMenu, setShowMobileMenu,
+    mobileOptionsTab, setMobileOptionsTab,
+    showPrecisionModal, setShowPrecisionModal,
+    showProjectMemoModal, setShowProjectMemoModal,
+    showNestingModal, setShowNestingModal,
+    desktopRibbonTab, setDesktopRibbonTab,
+    mobileLayerAction, setMobileLayerAction,
+    mobileFileAction, setMobileFileAction,
+    displayUnit, setDisplayUnit,
+    gridSpacing, setGridSpacing,
+    legendMode, setLegendMode,
+    sketchWorkspaceMode, setSketchWorkspaceMode,
+    selectedPresetId, setSelectedPresetId,
+    themeMode, setThemeMode,
+    systemThemeMode, setSystemThemeMode,
+    loadedFontUrl, setLoadedFontUrl,
+    constraintSuggestions, setConstraintSuggestions,
+    autoConstraintSettings,
+  } = useEditorUIState()
+
+  // Selection state: selected shapes, stitch holes, hardware markers, clipboard
+  const {
+    selectedShapeIds, setSelectedShapeIds,
+    selectedStitchHoleId, setSelectedStitchHoleId,
+    selectedHardwareMarkerId, setSelectedHardwareMarkerId,
+    clipboardPayload, setClipboardPayload,
+  } = useEditorSelectionState()
+
+  // Repository state: templates, catalogs
+  const {
+    templateRepository, setTemplateRepository,
+    selectedTemplateEntryId, setSelectedTemplateEntryId,
+    catalogRepository, setCatalogRepository,
+    bundledCatalogRepository,
+    selectedCatalogShopId, setSelectedCatalogShopId,
+  } = useEditorRepositoryState()
   const {
     showLayerColorModal,
     setShowLayerColorModal,
@@ -235,38 +225,6 @@ export function EditorApp() {
     customHardwareSpacingMm,
     setCustomHardwareSpacingMm,
   } = useEditorPanelState()
-  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([])
-  const [selectedStitchHoleId, setSelectedStitchHoleId] = useState<string | null>(null)
-  const [selectedHardwareMarkerId, setSelectedHardwareMarkerId] = useState<string | null>(null)
-  const [themeMode, setThemeMode] = useState<ThemeMode>('system')
-  const [systemThemeMode, setSystemThemeMode] = useState<ResolvedThemeMode>(() => getSystemThemeMode())
-  const [gridSpacing, setGridSpacing] = useState(DEFAULT_GRID_SPACING)
-  const [legendMode, setLegendMode] = useState<LegendMode>('layer')
-  const [sketchWorkspaceMode, setSketchWorkspaceMode] = useState<SketchWorkspaceMode>('assembly')
-  const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET_ID)
-  const [projectMemo, setProjectMemo] = useState('')
-  const [stitchAlwaysShapeIds, setStitchAlwaysShapeIds] = useState<string[]>([])
-  const [stitchThreadColor, setStitchThreadColor] = useState('#fb923c')
-  const [threeTextureSource, setThreeTextureSource] = useState<TextureSource | null>(null)
-  const [threeTextureShapeIds, setThreeTextureShapeIds] = useState<string[]>([])
-  const [showCanvasRuler, setShowCanvasRuler] = useState(true)
-  const [showDimensions, setShowDimensions] = useState(false)
-  const [tracingOverlays, setTracingOverlays] = useState<TracingOverlay[]>([])
-  const [activeTracingOverlayId, setActiveTracingOverlayId] = useState<string | null>(null)
-  const [templateRepository, setTemplateRepository] = useState<TemplateRepositoryEntry[]>(() => {
-    const saved = loadTemplateRepository()
-    if (saved.length > 0 || hasTemplateRepositoryStorage()) {
-      return saved
-    }
-    return createBuiltinTemplateRepository()
-  })
-  const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
-  const [catalogRepository, setCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadCatalogRepository())
-  const [bundledCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadBundledCatalogRepository())
-  const [selectedCatalogShopId, setSelectedCatalogShopId] = useState<string | null>(
-    () => catalogRepository[0]?.id ?? bundledCatalogRepository[0]?.id ?? null,
-  )
-  const [clipboardPayload, setClipboardPayload] = useState<ClipboardPayload | null>(null)
   const {
     layers,
     setLayers,
