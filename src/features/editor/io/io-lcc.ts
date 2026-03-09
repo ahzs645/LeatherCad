@@ -288,7 +288,7 @@ export type LccImportResult = {
 export function importLccDocument(raw: string): LccImportResult {
   // Strip UTF-8 BOM if present
   const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
-  const data: LccFile = JSON.parse(cleaned)
+  const data = JSON.parse(cleaned) as LccFile
   const warnings: string[] = []
 
   // Validate meta

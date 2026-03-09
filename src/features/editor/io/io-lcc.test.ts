@@ -277,7 +277,7 @@ describe('importLccDocument', () => {
           guid: '{TEXT1}',
           nm: '',
           gid: '0',
-          dim: '-1',
+          dim: '0',
           arst: '0',
           ared: '0',
           layer: '4',
