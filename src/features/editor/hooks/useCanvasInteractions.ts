@@ -16,6 +16,7 @@ import type {
   PatternPiece,
   PieceNotch,
   Point,
+  SeamConnection,
   Shape,
   SketchGroup,
   SnapSettings,
@@ -84,6 +85,7 @@ type UseCanvasInteractionsParams = {
   stitchHoles: StitchHole[]
   patternPieces: PatternPiece[]
   pieceNotches: PieceNotch[]
+  seamConnections: SeamConnection[]
   hardwareMarkers: HardwareMarker[]
   selectedShapeIds: string[]
   selectedStitchHoleId: string | null
@@ -96,6 +98,7 @@ type UseCanvasInteractionsParams = {
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
+  setSeamConnections: Dispatch<SetStateAction<SeamConnection[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
@@ -196,6 +199,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     stitchHoles,
     patternPieces,
     pieceNotches,
+    seamConnections,
     hardwareMarkers,
     selectedShapeIds,
     selectedStitchHoleId,
@@ -208,6 +212,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setStitchHoles,
     setSelectedStitchHoleId,
     setPieceNotches,
+    setSeamConnections,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setFoldLines,
@@ -221,6 +226,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   const referencePointRef = useRef<Point>({ x: 0, y: 0 })
   const shapeDragRef = useRef<ShapeDragState | null>(null)
   const handleDragRef = useRef<HandleDragState | null>(null)
+
+  useEffect(() => {
+    toolManager.resetTransientState(tool)
+  }, [tool, toolManager])
 
   useEffect(() => {
     const svg = svgRef.current
@@ -297,6 +306,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     layers,
     stitchHoles,
     pieceNotches,
+    seamConnections,
     setDraftPoints,
     clearDraft,
     setStatus,
@@ -305,10 +315,12 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setStitchHoles,
     setSelectedStitchHoleId,
     setPieceNotches,
+    setSeamConnections,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
+    toolManager,
     pointPicked: (point) => {
       referencePointRef.current = point
       setCursorPoint(point)

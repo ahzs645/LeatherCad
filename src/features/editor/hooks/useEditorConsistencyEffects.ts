@@ -6,11 +6,13 @@ import type {
   Layer,
   PatternPiece,
   ParametricConstraint,
+  PiecePlacement3D,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  SeamConnection,
   Shape,
   SketchGroup,
   StitchHole,
@@ -22,6 +24,7 @@ import { HISTORY_LIMIT } from '../editor-constants'
 import type { EditorSnapshot } from '../editor-types'
 import { saveTemplateRepository, type TemplateRepositoryEntry } from '../templates/template-repository'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
+import { getPatternPieceChain, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
 
 type UseEditorConsistencyEffectsParams = {
   layers: Layer[]
@@ -40,6 +43,8 @@ type UseEditorConsistencyEffectsParams = {
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
   setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
+  setPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  setSeamConnections: Dispatch<SetStateAction<SeamConnection[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
@@ -83,6 +88,8 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -231,6 +238,46 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
       return next.length === previous.length ? previous : next
     })
   }, [currentSnapshot.patternPieces, setPiecePlacementLabels])
+
+  useEffect(() => {
+    setPiecePlacements3d((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const pieceIdSet = new Set(currentSnapshot.patternPieces.map((piece) => piece.id))
+      const next = previous.filter((entry) => pieceIdSet.has(entry.pieceId))
+      return next.length === previous.length ? previous : next
+    })
+  }, [currentSnapshot.patternPieces, setPiecePlacements3d])
+
+  useEffect(() => {
+    setSeamConnections((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+
+      const pieceChains = resolvePatternPieceChains(currentSnapshot.shapes, currentSnapshot.lineTypes)
+      const edgeCountByPieceId = new Map(
+        currentSnapshot.patternPieces.map((piece) => [
+          piece.id,
+          Math.max(0, (getPatternPieceChain(piece, pieceChains.byShapeId)?.polygon.length ?? 1) - 1),
+        ]),
+      )
+
+      const next = previous.filter((connection) => {
+        const fromEdgeCount = edgeCountByPieceId.get(connection.from.pieceId) ?? 0
+        const toEdgeCount = edgeCountByPieceId.get(connection.to.pieceId) ?? 0
+        return (
+          connection.from.edgeIndex >= 0 &&
+          connection.to.edgeIndex >= 0 &&
+          connection.from.edgeIndex < fromEdgeCount &&
+          connection.to.edgeIndex < toEdgeCount
+        )
+      })
+
+      return next.length === previous.length ? previous : next
+    })
+  }, [currentSnapshot.patternPieces, currentSnapshot.shapes, currentSnapshot.lineTypes, setSeamConnections])
 
   useEffect(() => {
     setConstraints((previous) => {

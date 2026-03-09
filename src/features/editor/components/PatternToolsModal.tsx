@@ -105,6 +105,7 @@ type PatternToolsModalProps = {
   onClipperOffset: (offsetMm: number, joinType: OffsetJoinType) => void
   // Text to path
   onTextToPath: () => void
+  onOpenAiBuilder: () => void
   // Nesting
   onOpenNesting: () => void
 }
@@ -186,6 +187,7 @@ export function PatternToolsModal({
   onBooleanOp,
   onClipperOffset,
   onTextToPath,
+  onOpenAiBuilder,
   onOpenNesting,
 }: PatternToolsModalProps) {
   const [clipperOffsetMm, setClipperOffsetMm] = useState(3)
@@ -838,6 +840,16 @@ export function PatternToolsModal({
           ) : (
             <p className="hint">Select a hardware marker in Move tool to edit metadata.</p>
           )}
+        </div>
+
+        <div className="control-block">
+          <h3>AI Builder</h3>
+          <p className="hint">
+            Generate a copyable prompt with supported primitives, then validate pasted AI JSON before loading or inserting it.
+          </p>
+          <div className="line-type-modal-actions">
+            <button onClick={onOpenAiBuilder}>Open AI Builder</button>
+          </div>
         </div>
 
         <div className="control-block">

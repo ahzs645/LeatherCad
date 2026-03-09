@@ -6,9 +6,15 @@ import type {
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  SeamConnection,
   Shape,
 } from '../cad/cad-types'
 import { AVAILABLE_PIECE_LABEL_TOKENS } from '../ops/pattern-piece-ops'
+
+type PieceSeamConnectionEntry = {
+  connection: SeamConnection
+  counterpartPieceName: string
+}
 
 type PieceInspectorModalProps = {
   open: boolean
@@ -17,6 +23,7 @@ type PieceInspectorModalProps = {
   pieceLabel: PieceLabel | null
   patternLabel: PieceLabel | null
   seamAllowance: PieceSeamAllowance | null
+  seamConnections: PieceSeamConnectionEntry[]
   notches: PieceNotch[]
   placementLabels: PiecePlacementLabel[]
   edgeCount: number
@@ -29,6 +36,8 @@ type PieceInspectorModalProps = {
   onUpdatePieceLabel: (patch: Partial<PieceLabel>) => void
   onUpdatePatternLabel: (patch: Partial<PieceLabel>) => void
   onUpdateSeamAllowance: (patch: Partial<PieceSeamAllowance>) => void
+  onUpdateSeamConnection: (connectionId: string, patch: Partial<SeamConnection>) => void
+  onDeleteSeamConnection: (connectionId: string) => void
   onUpdateNotch: (notchId: string, patch: Partial<PieceNotch>) => void
   onDeleteNotch: (notchId: string) => void
   onAddPlacementLabel: () => void
@@ -48,6 +57,7 @@ export function PieceInspectorModal({
   pieceLabel,
   patternLabel,
   seamAllowance,
+  seamConnections,
   notches,
   placementLabels,
   edgeCount,
@@ -60,6 +70,8 @@ export function PieceInspectorModal({
   onUpdatePieceLabel,
   onUpdatePatternLabel,
   onUpdateSeamAllowance,
+  onUpdateSeamConnection,
+  onDeleteSeamConnection,
   onUpdateNotch,
   onDeleteNotch,
   onAddPlacementLabel,
@@ -395,6 +407,66 @@ export function PieceInspectorModal({
             )}
           </div>
         )}
+
+        <div className="control-block">
+          <h3>Seam Connections</h3>
+          {seamConnections.length === 0 ? (
+            <p className="hint">Use the Seam tool to connect this piece edge to another piece edge.</p>
+          ) : (
+            <div className="pattern-toggle-grid">
+              {seamConnections.map(({ connection, counterpartPieceName }, index) => {
+                const localRef = connection.from.pieceId === piece.id ? connection.from : connection.to
+                const remoteRef = connection.from.pieceId === piece.id ? connection.to : connection.from
+                return (
+                  <div key={connection.id} className="layer-toggle-item">
+                    <span>{`${index + 1}. Edge ${localRef.edgeIndex + 1} to ${counterpartPieceName} edge ${remoteRef.edgeIndex + 1}`}</span>
+                    <label className="layer-field">
+                      <span>Kind</span>
+                      <select
+                        value={connection.kind}
+                        onChange={(event) =>
+                          onUpdateSeamConnection(connection.id, {
+                            kind: event.target.value as SeamConnection['kind'],
+                          })
+                        }
+                      >
+                        <option value="sewn">Sewn</option>
+                        <option value="aligned">Aligned</option>
+                        <option value="hinge">Hinge</option>
+                      </select>
+                    </label>
+                    <label className="layer-field">
+                      <span>Stitch spacing (mm)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.1}
+                        value={connection.stitchSpacingMm ?? ''}
+                        onChange={(event) => {
+                          const nextValue = event.target.value.trim()
+                          onUpdateSeamConnection(connection.id, {
+                            stitchSpacingMm: nextValue.length > 0 ? Math.max(0, parseNumber(nextValue, connection.stitchSpacingMm ?? 0)) : undefined,
+                          })
+                        }}
+                      />
+                    </label>
+                    <label className="layer-toggle-item">
+                      <input
+                        type="checkbox"
+                        checked={connection.reversed === true}
+                        onChange={(event) => onUpdateSeamConnection(connection.id, { reversed: event.target.checked })}
+                      />
+                      <span>Reverse edge direction</span>
+                    </label>
+                    <button type="button" onClick={() => onDeleteSeamConnection(connection.id)}>
+                      Delete
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
 
         <div className="control-block">
           <h3>Notches</h3>

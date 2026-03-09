@@ -57,6 +57,7 @@ type UseEditorModalStackPropsParams = {
   showExportOptionsModal: boolean
   setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
   handleSaveJson: () => void
+  handleExportGarmentJson: () => void
   handleSaveLcc: () => void
   handleExportSvg: () => void
   handleExportPdf: () => void
@@ -98,6 +99,8 @@ type UseEditorModalStackPropsParams = {
   handleDeleteCatalogShop: (shopId: string) => void
   showPatternToolsModal: boolean
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
+  showAiBuilderModal: boolean
+  setShowAiBuilderModal: Dispatch<SetStateAction<boolean>>
   snapSettings: SnapSettings
   setSnapSettings: Dispatch<SetStateAction<SnapSettings>>
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
@@ -221,6 +224,9 @@ type UseEditorModalStackPropsParams = {
   setShowPrintAreas: Dispatch<SetStateAction<boolean>>
   handleFitView: () => void
   handleOpenPrintTiles: () => void
+  handleLoadAiBuilderDocument: (doc: import('../cad/cad-types').DocFile, documentName: string) => void
+  handleInsertAiBuilderDocument: (doc: import('../cad/cad-types').DocFile, documentName: string) => void
+  setStatus: Dispatch<SetStateAction<string>>
 }
 
 export function useEditorModalStackProps(params: UseEditorModalStackPropsParams): ComponentProps<typeof EditorModalStack> {
@@ -260,6 +266,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showExportOptionsModal,
     setShowExportOptionsModal,
     handleSaveJson,
+    handleExportGarmentJson,
     handleSaveLcc,
     handleExportSvg,
     handleExportPdf,
@@ -301,6 +308,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleDeleteCatalogShop,
     showPatternToolsModal,
     setShowPatternToolsModal,
+    showAiBuilderModal,
+    setShowAiBuilderModal,
     snapSettings,
     setSnapSettings,
     handleAlignSelection,
@@ -415,6 +424,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setShowPrintAreas,
     handleFitView,
     handleOpenPrintTiles,
+    handleLoadAiBuilderDocument,
+    handleInsertAiBuilderDocument,
+    setStatus,
   } = params
 
   return {
@@ -472,6 +484,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onOpenExportOptions: () => setShowExportOptionsModal(true),
       onOpenPrintPreview: () => setShowPrintPreviewModal(true),
       onSaveJson: handleSaveJson,
+      onExportGarmentJson: handleExportGarmentJson,
       onSaveLcc: handleSaveLcc,
       onExportSvg: handleExportSvg,
       onExportPdf: handleExportPdf,
@@ -599,7 +612,18 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onBooleanOp: handleBooleanOp,
       onClipperOffset: handleClipperOffset,
       onTextToPath: handleTextToPath,
+      onOpenAiBuilder: () => {
+        setShowPatternToolsModal(false)
+        setShowAiBuilderModal(true)
+      },
       onOpenNesting: handleOpenNesting,
+    },
+    aiBuilderModalProps: {
+      open: showAiBuilderModal,
+      onClose: () => setShowAiBuilderModal(false),
+      onLoadDocument: handleLoadAiBuilderDocument,
+      onInsertDocument: handleInsertAiBuilderDocument,
+      onSetStatus: (message) => setStatus(message),
     },
     tracingModalProps: {
       open: showTracingModal,

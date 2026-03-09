@@ -5,11 +5,13 @@ import type {
   HardwareMarker,
   ParametricConstraint,
   PatternPiece,
+  PiecePlacement3D,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  SeamConnection,
   Shape,
   SketchGroup,
   StitchHole,
@@ -59,6 +61,8 @@ type UseSelectionActionsParams = {
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
   setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
+  setPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  setSeamConnections: Dispatch<SetStateAction<SeamConnection[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
   setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>

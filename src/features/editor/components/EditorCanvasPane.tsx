@@ -28,6 +28,14 @@ type StackLegendEntry = {
   swatchBackground: string
 }
 
+type PieceEdgeLabel = {
+  id: string
+  x: number
+  y: number
+  label: string
+  active: boolean
+}
+
 type EditorCanvasPaneProps = {
   hideCanvasPane: boolean
   svgRef: RefObject<SVGSVGElement | null>
@@ -49,6 +57,7 @@ type EditorCanvasPaneProps = {
   dimensionLines: DimensionLine[]
   printPlan: PrintPlan | null
   seamGuides: SeamGuide[]
+  pieceEdgeLabels: PieceEdgeLabel[]
   showAnnotations: boolean
   pieceGrainlineSegments: Array<{ pieceId: string; start: Point; end: Point }>
   pieceNotchLines: Array<{ id: string; pieceId: string; start: Point; end: Point; showOnSeam: boolean }>
@@ -112,6 +121,7 @@ export function EditorCanvasPane({
   dimensionLines,
   printPlan,
   seamGuides,
+  pieceEdgeLabels,
   showAnnotations,
   pieceGrainlineSegments,
   pieceNotchLines,
@@ -406,6 +416,33 @@ export function EditorCanvasPane({
                   {`${guide.offsetMm.toFixed(1)}mm seam`}
                 </text>
               )}
+            </g>
+          ))}
+
+          {pieceEdgeLabels.map((entry) => (
+            <g key={entry.id} style={{ pointerEvents: 'none' }}>
+              <circle
+                cx={entry.x}
+                cy={entry.y}
+                r={5.5}
+                fill={entry.active ? 'rgba(249, 115, 22, 0.92)' : 'rgba(15, 23, 42, 0.8)'}
+                stroke={entry.active ? '#fed7aa' : 'rgba(255,255,255,0.24)'}
+                strokeWidth={0.7}
+              />
+              <text
+                x={entry.x}
+                y={entry.y + 0.4}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{
+                  fill: '#f8fafc',
+                  fontSize: '5px',
+                  fontFamily: 'monospace',
+                  fontWeight: 700,
+                }}
+              >
+                {entry.label}
+              </text>
             </g>
           ))}
 

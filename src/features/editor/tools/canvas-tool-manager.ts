@@ -7,6 +7,7 @@ import type {
   PatternPiece,
   PieceNotch,
   Point,
+  SeamConnection,
   Shape,
   SketchGroup,
   StitchHole,
@@ -57,6 +58,7 @@ export type ToolRuntime = {
   layers: Layer[]
   stitchHoles: StitchHole[]
   pieceNotches: PieceNotch[]
+  seamConnections: SeamConnection[]
   setDraftPoints: (updater: Point[] | ((previous: Point[]) => Point[])) => void
   clearDraft: () => void
   setStatus: (status: string) => void
@@ -65,10 +67,12 @@ export type ToolRuntime = {
   setStitchHoles: (updater: StitchHole[] | ((previous: StitchHole[]) => StitchHole[])) => void
   setSelectedStitchHoleId: (value: string | null) => void
   setPieceNotches: (updater: PieceNotch[] | ((previous: PieceNotch[]) => PieceNotch[])) => void
+  setSeamConnections: (updater: SeamConnection[] | ((previous: SeamConnection[]) => SeamConnection[])) => void
   setHardwareMarkers: (updater: HardwareMarker[] | ((previous: HardwareMarker[]) => HardwareMarker[])) => void
   setSelectedHardwareMarkerId: (value: string | null) => void
   ensureActiveLayerWritable: () => boolean
   ensureActiveLineTypeWritable: () => boolean
+  toolManager: CanvasToolManager
   pointPicked: (point: Point) => void
 }
 
@@ -593,6 +597,86 @@ const pieceNotchTool: CanvasToolHandler = {
   },
 }
 
+type PendingSeamSelection = {
+  pieceId: string
+  pieceName: string
+  edgeIndex: number
+}
+
+const seamTool: CanvasToolHandler = {
+  pointerDown(point, runtime) {
+    if (!runtime.ensureActiveLayerWritable()) {
+      return
+    }
+
+    const pieceChains = resolvePatternPieceChains(runtime.stitchTargetShapes, Object.values(runtime.lineTypesById))
+    const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId)
+    if (!nearest) {
+      runtime.setStatus('Seam: click a pattern piece edge')
+      return
+    }
+
+    const manager = runtime.toolManager
+    const pending = manager.getPendingSeamSelection()
+    const selectedEdge = {
+      pieceId: nearest.piece.id,
+      pieceName: nearest.piece.name,
+      edgeIndex: nearest.edgeIndex,
+    }
+
+    if (!pending) {
+      manager.setPendingSeamSelection(selectedEdge)
+      runtime.pointPicked(point)
+      runtime.setStatus(`Seam start set: ${nearest.piece.name} edge ${nearest.edgeIndex + 1}. Click the matching edge.`)
+      return
+    }
+
+    if (pending.pieceId === selectedEdge.pieceId && pending.edgeIndex === selectedEdge.edgeIndex) {
+      manager.clearPendingSeamSelection()
+      runtime.setStatus('Seam selection cleared')
+      return
+    }
+
+    const duplicate = runtime.seamConnections.some(
+      (connection) =>
+        (connection.from.pieceId === pending.pieceId &&
+          connection.from.edgeIndex === pending.edgeIndex &&
+          connection.to.pieceId === selectedEdge.pieceId &&
+          connection.to.edgeIndex === selectedEdge.edgeIndex) ||
+        (connection.to.pieceId === pending.pieceId &&
+          connection.to.edgeIndex === pending.edgeIndex &&
+          connection.from.pieceId === selectedEdge.pieceId &&
+          connection.from.edgeIndex === selectedEdge.edgeIndex),
+    )
+
+    if (duplicate) {
+      manager.clearPendingSeamSelection()
+      runtime.setStatus('A seam connection already exists between those edges')
+      return
+    }
+
+    const connection: SeamConnection = {
+      id: uid(),
+      from: {
+        pieceId: pending.pieceId,
+        edgeIndex: pending.edgeIndex,
+      },
+      to: {
+        pieceId: selectedEdge.pieceId,
+        edgeIndex: selectedEdge.edgeIndex,
+      },
+      kind: 'sewn',
+      reversed: false,
+    }
+    runtime.setSeamConnections((previous) => [...previous, connection])
+    manager.clearPendingSeamSelection()
+    runtime.pointPicked(point)
+    runtime.setStatus(
+      `Created seam: ${pending.pieceName} edge ${pending.edgeIndex + 1} to ${selectedEdge.pieceName} edge ${selectedEdge.edgeIndex + 1}`,
+    )
+  },
+}
+
 const freehandTool: CanvasToolHandler = {
   pointerDown(point, runtime) {
     if (!withWritableShapeTarget(runtime)) {
@@ -693,6 +777,7 @@ const TOOL_HANDLERS: Record<Exclude<Tool, 'pan'>, CanvasToolHandler> = {
   fold: foldTool,
   'stitch-hole': stitchHoleTool,
   hardware: hardwareTool,
+  seam: seamTool,
   'piece-notch': pieceNotchTool,
   text: textTool,
   freehand: freehandTool,
@@ -785,6 +870,26 @@ function processEllipseCommand(command: string, context: ToolCommandContext): st
 }
 
 export class CanvasToolManager {
+  private pendingSeamSelection: PendingSeamSelection | null = null
+
+  getPendingSeamSelection() {
+    return this.pendingSeamSelection
+  }
+
+  setPendingSeamSelection(selection: PendingSeamSelection) {
+    this.pendingSeamSelection = selection
+  }
+
+  clearPendingSeamSelection() {
+    this.pendingSeamSelection = null
+  }
+
+  resetTransientState(nextTool?: Tool) {
+    if (nextTool !== 'seam') {
+      this.pendingSeamSelection = null
+    }
+  }
+
   pointerDown(tool: Tool, point: Point, runtime: ToolRuntime) {
     if (tool === 'pan') {
       return
@@ -861,6 +966,9 @@ export function getCanvasToolHint(tool: Tool, draftPoints: Point[]) {
   }
   if (tool === 'piece-notch') {
     return 'Piece Notch: click a pattern piece edge'
+  }
+  if (tool === 'seam') {
+    return 'Seam: click one piece edge, then the matching edge to create a seam'
   }
   return null
 }

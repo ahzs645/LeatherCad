@@ -38,6 +38,7 @@ type EditorPreviewPaneProps = {
   avatars: AvatarSpec[]
   onSetPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
   onSetThreePreviewSettings: Dispatch<SetStateAction<ThreePreviewSettings>>
+  onSetAvatars: Dispatch<SetStateAction<AvatarSpec[]>>
   threeTextureSource: TextureSource | null
   onSetThreeTextureSource: (source: TextureSource | null) => void
   threeTextureShapeIds: string[]
@@ -85,6 +86,7 @@ export function EditorPreviewPane({
   avatars,
   onSetPiecePlacements3d,
   onSetThreePreviewSettings,
+  onSetAvatars,
   threeTextureSource,
   onSetThreeTextureSource,
   threeTextureShapeIds,
@@ -181,6 +183,7 @@ export function EditorPreviewPane({
             avatars={avatars}
             onSetPiecePlacements3d={onSetPiecePlacements3d}
             onSetThreePreviewSettings={onSetThreePreviewSettings}
+            onSetAvatars={onSetAvatars}
             threeTextureSource={threeTextureSource}
             onSetThreeTextureSource={onSetThreeTextureSource}
             threeTextureShapeIds={threeTextureShapeIds}

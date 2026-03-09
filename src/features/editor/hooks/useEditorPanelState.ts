@@ -17,6 +17,7 @@ export function useEditorPanelState() {
   const [dxfVersion, setDxfVersion] = useState<DxfVersion>('r12')
   const [showTracingModal, setShowTracingModal] = useState(false)
   const [showPatternToolsModal, setShowPatternToolsModal] = useState(false)
+  const [showAiBuilderModal, setShowAiBuilderModal] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState(false)
   const [showTemplateRepositoryModal, setShowTemplateRepositoryModal] = useState(false)
   const [printPaper, setPrintPaper] = useState<PrintPaper>('letter')
@@ -66,6 +67,8 @@ export function useEditorPanelState() {
     setShowTracingModal,
     showPatternToolsModal,
     setShowPatternToolsModal,
+    showAiBuilderModal,
+    setShowAiBuilderModal,
     showHelpModal,
     setShowHelpModal,
     showTemplateRepositoryModal,

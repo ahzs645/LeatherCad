@@ -92,6 +92,7 @@ import { useEditorDocumentState } from './hooks/useEditorDocumentState'
 import { useEditorUIState } from './hooks/useEditorUIState'
 import { useEditorSelectionState } from './hooks/useEditorSelectionState'
 import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
+import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
@@ -201,6 +202,8 @@ export function EditorApp() {
     setShowTracingModal,
     showPatternToolsModal,
     setShowPatternToolsModal,
+    showAiBuilderModal,
+    setShowAiBuilderModal,
     showHelpModal,
     setShowHelpModal,
     showTemplateRepositoryModal,
@@ -645,6 +648,8 @@ export function EditorApp() {
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -753,6 +758,27 @@ export function EditorApp() {
     setActiveLayerId,
     setStatus,
   })
+  const {
+    handleLoadAiBuilderDocument,
+    handleInsertAiBuilderDocument,
+  } = useAiBuilderActions({
+    applyLoadedDocument,
+    layers,
+    lineTypes,
+    shapes,
+    foldLines,
+    stitchHoles,
+    clearDraft,
+    setLayers,
+    setLineTypes,
+    setActiveLineTypeId,
+    setShapes,
+    setFoldLines,
+    setStitchHoles,
+    setSelectedShapeIds,
+    setActiveLayerId,
+    setStatus,
+  })
 
   useEffect(() => {
     saveCatalogRepository(catalogRepository)
@@ -795,6 +821,8 @@ export function EditorApp() {
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -901,6 +929,7 @@ export function EditorApp() {
     stitchHoles,
     patternPieces,
     pieceNotches,
+    seamConnections,
     hardwareMarkers,
     selectedShapeIds,
     selectedStitchHoleId,
@@ -913,6 +942,7 @@ export function EditorApp() {
     setStitchHoles,
     setSelectedStitchHoleId,
     setPieceNotches,
+    setSeamConnections,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setFoldLines,
@@ -946,7 +976,15 @@ export function EditorApp() {
     setStatus,
   })
 
-  const { handleSaveJson, handleSaveLcc, handleLoadJson, handleImportSvg, handleLoadPreset, handleOpenInNewTab } = useFileActions({
+  const {
+    handleSaveJson,
+    handleSaveLcc,
+    handleExportGarmentJson,
+    handleLoadJson,
+    handleImportSvg,
+    handleLoadPreset,
+    handleOpenInNewTab,
+  } = useFileActions({
     buildCurrentDocFile,
     applyLoadedDocument,
     selectedPresetId,
@@ -1133,6 +1171,25 @@ export function EditorApp() {
     () => (selectedPatternPiece ? seamAllowances.find((entry) => entry.pieceId === selectedPatternPiece.id) ?? null : null),
     [selectedPatternPiece, seamAllowances],
   )
+  const selectedPieceSeamConnections = useMemo(
+    () =>
+      selectedPatternPiece
+        ? seamConnections
+            .filter(
+              (connection) =>
+                connection.from.pieceId === selectedPatternPiece.id || connection.to.pieceId === selectedPatternPiece.id,
+            )
+            .map((connection) => {
+              const counterpartId =
+                connection.from.pieceId === selectedPatternPiece.id ? connection.to.pieceId : connection.from.pieceId
+              return {
+                connection,
+                counterpartPieceName: patternPiecesById[counterpartId]?.name ?? 'Unknown piece',
+              }
+            })
+        : [],
+    [selectedPatternPiece, seamConnections, patternPiecesById],
+  )
   const selectedPieceNotches = useMemo(
     () => (selectedPatternPiece ? pieceNotches.filter((entry) => entry.pieceId === selectedPatternPiece.id) : []),
     [selectedPatternPiece, pieceNotches],
@@ -1152,6 +1209,30 @@ export function EditorApp() {
     const chain = getPatternPieceChain(selectedPatternPiece, patternPieceChains.byShapeId)
     return chain ? Math.max(0, chain.polygon.length - 1) : 0
   }, [selectedPatternPiece, patternPieceChains.byShapeId])
+  const pieceEdgeLabels = useMemo(() => {
+    if (!(tool === 'seam' || showPieceInspectorModal)) {
+      return []
+    }
+
+    return patternPieces
+      .filter((piece) => visibleLayerIdSet.has(piece.layerId))
+      .flatMap((piece) => {
+        const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
+        if (!chain) {
+          return []
+        }
+        return chain.polygon.slice(0, -1).map((point, index) => {
+          const next = chain.polygon[index + 1]
+          return {
+            id: `${piece.id}-edge-${index}`,
+            x: (point.x + next.x) / 2,
+            y: (point.y + next.y) / 2,
+            label: `${index + 1}`,
+            active: piece.id === selectedPatternPiece?.id,
+          }
+        })
+      })
+  }, [tool, showPieceInspectorModal, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, selectedPatternPiece])
   const selectedPieceAvailableInternalShapes = useMemo(() => {
     if (!selectedPatternPiece) {
       return []
@@ -1322,6 +1403,32 @@ export function EditorApp() {
             }
           : entry,
       ),
+    )
+  }
+
+  const handleUpdateSelectedPieceSeamConnection = (connectionId: string, patch: Partial<(typeof seamConnections)[number]>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setSeamConnections((previous) =>
+      previous.map((connection) => {
+        if (
+          connection.id !== connectionId ||
+          (connection.from.pieceId !== selectedPatternPiece.id && connection.to.pieceId !== selectedPatternPiece.id)
+        ) {
+          return connection
+        }
+        return {
+          ...connection,
+          ...patch,
+          stitchSpacingMm:
+            'stitchSpacingMm' in patch
+              ? typeof patch.stitchSpacingMm === 'number'
+                ? Math.max(0, patch.stitchSpacingMm)
+                : undefined
+              : connection.stitchSpacingMm,
+        }
+      }),
     )
   }
 
@@ -1817,6 +1924,7 @@ export function EditorApp() {
     showExportOptionsModal,
     setShowExportOptionsModal,
     handleSaveJson,
+    handleExportGarmentJson,
     handleSaveLcc,
     handleExportSvg,
     handleExportPdf,
@@ -1858,6 +1966,8 @@ export function EditorApp() {
     handleDeleteCatalogShop,
     showPatternToolsModal,
     setShowPatternToolsModal,
+    showAiBuilderModal,
+    setShowAiBuilderModal,
     snapSettings,
     setSnapSettings,
     handleAlignSelection,
@@ -2032,6 +2142,9 @@ export function EditorApp() {
     setShowPrintAreas,
     handleFitView,
     handleOpenPrintTiles,
+    handleLoadAiBuilderDocument,
+    handleInsertAiBuilderDocument,
+    setStatus,
   })
   const previewPaneProps = useEditorPreviewPaneProps({
     showSidePanel: showThreePreview,
@@ -2052,6 +2165,7 @@ export function EditorApp() {
     avatars,
     onSetPiecePlacements3d: setPiecePlacements3d,
     onSetThreePreviewSettings: setThreePreviewSettings,
+    onSetAvatars: setAvatars,
     threeTextureSource,
     onSetThreeTextureSource: setThreeTextureSource,
     threeTextureShapeIds,
@@ -2155,6 +2269,7 @@ export function EditorApp() {
               dimensionLines={dimensionLines}
               printPlan={printOutputPlan}
               seamGuides={seamGuides}
+              pieceEdgeLabels={pieceEdgeLabels}
               showAnnotations={showAnnotations}
               pieceGrainlineSegments={pieceGrainlineSegments}
               pieceNotchLines={pieceNotchLines}
@@ -2258,6 +2373,7 @@ export function EditorApp() {
         pieceLabel={selectedPieceLabel}
         patternLabel={selectedPatternLabel}
         seamAllowance={selectedPieceSeamAllowance}
+        seamConnections={selectedPieceSeamConnections}
         notches={selectedPieceNotches}
         placementLabels={selectedPiecePlacementLabels}
         edgeCount={selectedPatternPieceEdgeCount}
@@ -2270,6 +2386,10 @@ export function EditorApp() {
         onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
         onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
         onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
+        onUpdateSeamConnection={handleUpdateSelectedPieceSeamConnection}
+        onDeleteSeamConnection={(connectionId) =>
+          setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId))
+        }
         onUpdateNotch={handleUpdateSelectedPieceNotch}
         onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
         onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}

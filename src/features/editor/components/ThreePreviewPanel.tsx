@@ -39,6 +39,7 @@ type ThreePreviewPanelProps = {
   avatars: AvatarSpec[]
   onSetPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
   onSetThreePreviewSettings: Dispatch<SetStateAction<ThreePreviewSettings>>
+  onSetAvatars: Dispatch<SetStateAction<AvatarSpec[]>>
   threeTextureSource: TextureSource | null
   onSetThreeTextureSource: (source: TextureSource | null) => void
   threeTextureShapeIds: string[]
@@ -79,6 +80,24 @@ function normalizeTextureSource(value: TextureSource): TextureSource {
   return source
 }
 
+function defaultPiecePlacement(pieceId: string): PiecePlacement3D {
+  return {
+    pieceId,
+    translationMm: { x: 0, y: 0, z: 0 },
+    rotationDeg: { x: 0, y: 0, z: 0 },
+    flipped: false,
+  }
+}
+
+function defaultAvatarForm() {
+  return {
+    id: '',
+    name: 'Avatar',
+    sourceUrl: '',
+    scaleMm: 1700,
+  } satisfies AvatarSpec
+}
+
 export function ThreePreviewPanel({
   shapes,
   selectedShapeIds,
@@ -92,6 +111,7 @@ export function ThreePreviewPanel({
   avatars,
   onSetPiecePlacements3d,
   onSetThreePreviewSettings,
+  onSetAvatars,
   threeTextureSource,
   onSetThreeTextureSource,
   threeTextureShapeIds,
@@ -111,6 +131,7 @@ export function ThreePreviewPanel({
   const [textureStatus, setTextureStatus] = useState('Default leather material active')
   const [showControls, setShowControls] = useState(!isMobileLayout)
   const [hidden3dLayerIds, setHidden3dLayerIds] = useState<string[]>([])
+  const [avatarForm, setAvatarForm] = useState<AvatarSpec>(() => defaultAvatarForm())
   const effectiveHidden3dLayerIds = useMemo(
     () => hidden3dLayerIds.filter((layerId) => layers.some((layer) => layer.id === layerId)),
     [hidden3dLayerIds, layers],
@@ -194,6 +215,19 @@ export function ThreePreviewPanel({
     () => patternPieces.filter((piece) => visible3dLayerIdSet.has(piece.layerId)),
     [patternPieces, visible3dLayerIdSet],
   )
+  const invalidPatternPieces = useMemo(
+    () =>
+      visiblePatternPieces.filter(
+        (piece) => !outlinePolygons.some((outline) => outline.shapeIds.includes(piece.boundaryShapeId)),
+      ),
+    [visiblePatternPieces, outlinePolygons],
+  )
+  const activeAvatarId = threePreviewSettings.avatarId ?? avatars[0]?.id ?? ''
+
+  useEffect(() => {
+    const activeAvatar = avatars.find((entry) => entry.id === activeAvatarId)
+    setAvatarForm(activeAvatar ?? defaultAvatarForm())
+  }, [avatars, activeAvatarId])
 
   const selectedClosedShapeIds = useMemo(
     () => selectedShapeIds.filter((shapeId) => closedShapeIdSet.has(shapeId)),
@@ -275,16 +309,107 @@ export function ThreePreviewPanel({
 
   const updatePlacement = (pieceId: string, updater: (current: PiecePlacement3D) => PiecePlacement3D) => {
     onSetPiecePlacements3d((previous) => {
-      const existing = previous.find((entry) => entry.pieceId === pieceId) ?? {
-        pieceId,
-        translationMm: { x: 0, y: 0, z: 0 },
-        rotationDeg: { x: 0, y: 0, z: 0 },
-        flipped: false,
-      }
+      const existing = previous.find((entry) => entry.pieceId === pieceId) ?? defaultPiecePlacement(pieceId)
       const next = updater(existing)
       const others = previous.filter((entry) => entry.pieceId !== pieceId)
       return [...others, next]
     })
+  }
+
+  const updateVisiblePlacements = (factory: (piece: PatternPiece, index: number, total: number) => PiecePlacement3D) => {
+    onSetPiecePlacements3d((previous) => {
+      const nextById = new Map(previous.map((entry) => [entry.pieceId, entry]))
+      visiblePatternPieces.forEach((piece, index) => {
+        nextById.set(piece.id, factory(piece, index, visiblePatternPieces.length))
+      })
+      return Array.from(nextById.values())
+    })
+  }
+
+  const handleSpreadPieces = () => {
+    updateVisiblePlacements((piece, index, total) => ({
+      ...(piecePlacementById[piece.id] ?? defaultPiecePlacement(piece.id)),
+      translationMm: {
+        x: (index - (total - 1) / 2) * 140,
+        y: 0,
+        z: 0,
+      },
+      rotationDeg: { x: 0, y: 0, z: 0 },
+    }))
+  }
+
+  const handleStackByLayer = () => {
+    const layerOrder = new Map(layers.map((layer, index) => [layer.id, index]))
+    updateVisiblePlacements((piece, index) => ({
+      ...(piecePlacementById[piece.id] ?? defaultPiecePlacement(piece.id)),
+      translationMm: {
+        x: 0,
+        y: 0,
+        z: (layerOrder.get(piece.layerId) ?? index) * 12,
+      },
+      rotationDeg: { x: 0, y: 0, z: 0 },
+      flipped: false,
+    }))
+  }
+
+  const handleMirrorPairLayout = () => {
+    const mirrorPieces = visiblePatternPieces.filter((piece) => piece.mirrorPair)
+    updateVisiblePlacements((piece, index) => {
+      const mirrorIndex = mirrorPieces.findIndex((entry) => entry.id === piece.id)
+      const mirrored = mirrorIndex >= 0
+      const spreadIndex = mirrored ? mirrorIndex : index
+      const direction = spreadIndex % 2 === 0 ? -1 : 1
+      return {
+        ...(piecePlacementById[piece.id] ?? defaultPiecePlacement(piece.id)),
+        translationMm: {
+          x: mirrored ? direction * (120 + Math.floor(spreadIndex / 2) * 55) : 0,
+          y: 0,
+          z: mirrored ? Math.floor(spreadIndex / 2) * 18 : 0,
+        },
+        rotationDeg: { x: 0, y: mirrored ? direction * 8 : 0, z: 0 },
+        flipped: mirrored ? direction < 0 : false,
+      }
+    })
+  }
+
+  const handleResetAssembly = () => {
+    onSetPiecePlacements3d((previous) => previous.filter((entry) => !visiblePatternPieces.some((piece) => piece.id === entry.pieceId)))
+  }
+
+  const handleSaveAvatar = () => {
+    const trimmedId = avatarForm.id.trim()
+    const trimmedName = avatarForm.name.trim()
+    if (!trimmedId || !trimmedName) {
+      return
+    }
+    const nextAvatar: AvatarSpec = {
+      id: trimmedId,
+      name: trimmedName,
+      sourceUrl: avatarForm.sourceUrl.trim(),
+      scaleMm: Math.max(200, avatarForm.scaleMm),
+    }
+    onSetAvatars((previous) => {
+      const existingIndex = previous.findIndex((entry) => entry.id === nextAvatar.id)
+      if (existingIndex === -1) {
+        return [...previous, nextAvatar]
+      }
+      return previous.map((entry, index) => (index === existingIndex ? nextAvatar : entry))
+    })
+    onSetThreePreviewSettings((previous) => ({
+      ...previous,
+      avatarId: nextAvatar.id,
+    }))
+  }
+
+  const handleDeleteAvatar = () => {
+    if (!activeAvatarId) {
+      return
+    }
+    onSetAvatars((previous) => previous.filter((entry) => entry.id !== activeAvatarId))
+    onSetThreePreviewSettings((previous) => ({
+      ...previous,
+      avatarId: previous.avatarId === activeAvatarId ? undefined : previous.avatarId,
+    }))
   }
 
   useEffect(() => {
@@ -336,6 +461,7 @@ export function ThreePreviewPanel({
           <p>2D shapes: {shapesIn3dView.length} | pieces: {visiblePatternPieces.length}</p>
           <p>Mode: {threePreviewSettings.mode} | fold lines: {foldLines.length} | seams: {seamConnections.length}</p>
           <p>Stitch holes: {stitchHoles.length}</p>
+          {invalidPatternPieces.length > 0 ? <p className="hint">{invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.</p> : null}
           <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
         </div>
         {isMobileLayout && (
@@ -630,12 +756,7 @@ export function ThreePreviewPanel({
                   {visiblePatternPieces.length} piece{visiblePatternPieces.length === 1 ? '' : 's'} in the current 3D view.
                 </p>
                 {visiblePatternPieces.map((piece) => {
-                  const placement = piecePlacementById[piece.id] ?? {
-                    pieceId: piece.id,
-                    translationMm: { x: 0, y: 0, z: 0 },
-                    rotationDeg: { x: 0, y: 0, z: 0 },
-                    flipped: false,
-                  }
+                  const placement = piecePlacementById[piece.id] ?? defaultPiecePlacement(piece.id)
 
                   return (
                     <div key={piece.id} className="fold-control-card">
@@ -772,8 +893,83 @@ export function ThreePreviewPanel({
                     </div>
                   )
                 })}
+                <div className="button-row">
+                  <button onClick={handleSpreadPieces}>Spread Pieces</button>
+                  <button onClick={handleStackByLayer}>Stack by Layer</button>
+                  <button onClick={handleMirrorPairLayout}>Mirror Pair Layout</button>
+                  <button onClick={handleResetAssembly}>Reset Assembly</button>
+                </div>
               </>
             )}
+          </div>
+
+          <div className="control-block">
+            <h3>Avatar Assets</h3>
+            <label className="field-row">
+              <span>Active avatar</span>
+              <select
+                value={activeAvatarId}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    avatarId: event.target.value || undefined,
+                  }))
+                }
+              >
+                <option value="">Built-in mannequin</option>
+                {avatars.map((avatar) => (
+                  <option key={avatar.id} value={avatar.id}>
+                    {avatar.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Avatar ID</span>
+              <input
+                value={avatarForm.id}
+                placeholder="mannequin-a"
+                onChange={(event) => setAvatarForm((previous) => ({ ...previous, id: event.target.value }))}
+              />
+            </label>
+            <label className="field-row">
+              <span>Name</span>
+              <input
+                value={avatarForm.name}
+                placeholder="Workshop mannequin"
+                onChange={(event) => setAvatarForm((previous) => ({ ...previous, name: event.target.value }))}
+              />
+            </label>
+            <label className="field-row">
+              <span>glTF/glb URL</span>
+              <input
+                value={avatarForm.sourceUrl}
+                placeholder="https://.../avatar.glb"
+                onChange={(event) => setAvatarForm((previous) => ({ ...previous, sourceUrl: event.target.value }))}
+              />
+            </label>
+            <label className="field-row">
+              <span>Height (mm)</span>
+              <input
+                type="number"
+                min={200}
+                step={10}
+                value={avatarForm.scaleMm}
+                onChange={(event) =>
+                  setAvatarForm((previous) => ({
+                    ...previous,
+                    scaleMm: Number(event.target.value),
+                  }))
+                }
+              />
+            </label>
+            <div className="button-row">
+              <button onClick={handleSaveAvatar}>Save Avatar</button>
+              <button onClick={handleDeleteAvatar} disabled={!activeAvatarId}>
+                Delete Avatar
+              </button>
+            </div>
+            <p className="hint">Avatar mode loads the selected glTF/GLB asset when a URL is configured. Otherwise the built-in mannequin is used.</p>
           </div>
 
           <div className="control-block">

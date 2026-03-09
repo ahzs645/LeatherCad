@@ -10,6 +10,7 @@ export type Tool =
   | 'fold'
   | 'stitch-hole'
   | 'hardware'
+  | 'seam'
   | 'piece-notch'
   | 'text'
   | 'freehand'

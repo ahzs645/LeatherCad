@@ -2,6 +2,7 @@ import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
 import type { DocFile, Layer, Shape, SketchGroup } from '../cad/cad-types'
 import { importSvgAsShapes } from '../io/io-svg'
 import { importLccDocument, exportLccDocument } from '../io/io-lcc'
+import { exportGarmentInterchangeDocument } from '../io/io-garment'
 import { DEFAULT_PRESET_ID, PRESET_DOCS } from '../data/sample-doc'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { uid } from '../cad/cad-geometry'
@@ -57,6 +58,13 @@ export function useFileActions(params: UseFileActionsParams) {
     const lccContent = exportLccDocument(doc)
     downloadFile('leathercraft-doc.lcc', lccContent, 'application/json;charset=utf-8')
     setStatus('Document saved as LCC')
+  }
+
+  const handleExportGarmentJson = () => {
+    const doc = buildCurrentDocFile()
+    const garment = exportGarmentInterchangeDocument(doc)
+    downloadFile('leathercraft-garment.json', JSON.stringify(garment, null, 2), 'application/json;charset=utf-8')
+    setStatus('Garment interchange JSON exported')
   }
 
   const handleLoadJson = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -187,6 +195,7 @@ export function useFileActions(params: UseFileActionsParams) {
   return {
     handleSaveJson,
     handleSaveLcc,
+    handleExportGarmentJson,
     handleLoadJson,
     handleImportSvg,
     handleLoadPreset,

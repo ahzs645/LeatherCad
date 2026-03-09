@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-type ExportFormat = 'json' | 'lcc' | 'svg' | 'pdf' | 'dxf' | 'laser-svg'
+type ExportFormat = 'json' | 'garment-json' | 'lcc' | 'svg' | 'pdf' | 'dxf' | 'laser-svg'
 
 type ExportModalProps = {
   open: boolean
@@ -10,6 +10,7 @@ type ExportModalProps = {
   onOpenExportOptions: () => void
   onOpenPrintPreview: () => void
   onSaveJson: () => void
+  onExportGarmentJson: () => void
   onSaveLcc: () => void
   onExportSvg: () => void
   onExportPdf: () => void
@@ -19,6 +20,7 @@ type ExportModalProps = {
 
 const FORMAT_OPTIONS: Array<{ value: ExportFormat; label: string; description: string }> = [
   { value: 'json', label: 'JSON Document', description: 'Saves the editable project state as a JSON file.' },
+  { value: 'garment-json', label: 'Garment JSON', description: 'Exports ordered piece geometry, seams, and 3D placements for interchange.' },
   { value: 'lcc', label: 'LCC (LeathercraftCAD)', description: 'Saves in LeathercraftCAD v2.8 format for cross-app compatibility.' },
   { value: 'svg', label: 'SVG', description: 'Vector export for editing, plotting, and browser preview.' },
   { value: 'pdf', label: 'PDF', description: 'Print-friendly export for sharing and archive workflows.' },
@@ -34,6 +36,7 @@ export function ExportModal({
   onOpenExportOptions,
   onOpenPrintPreview,
   onSaveJson,
+  onExportGarmentJson,
   onSaveLcc,
   onExportSvg,
   onExportPdf,
@@ -47,7 +50,8 @@ export function ExportModal({
   }
 
   const selectedFormat = FORMAT_OPTIONS.find((option) => option.value === format) ?? FORMAT_OPTIONS[0]
-  const primaryActionLabel = format === 'json' ? 'Save JSON' : format === 'lcc' ? 'Save LCC' : `Export ${selectedFormat.label}`
+  const primaryActionLabel =
+    format === 'json' ? 'Save JSON' : format === 'garment-json' ? 'Export Garment JSON' : format === 'lcc' ? 'Save LCC' : `Export ${selectedFormat.label}`
 
   const handleRunExport = () => {
     if (format === 'json') {
@@ -58,6 +62,12 @@ export function ExportModal({
 
     if (format === 'lcc') {
       onSaveLcc()
+      onClose()
+      return
+    }
+
+    if (format === 'garment-json') {
+      onExportGarmentJson()
       onClose()
       return
     }

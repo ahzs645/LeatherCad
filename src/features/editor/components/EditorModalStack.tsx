@@ -19,6 +19,9 @@ const TemplateRepositoryModal = lazy(() =>
 const PatternToolsModal = lazy(() =>
   import('./PatternToolsModal').then((mod) => ({ default: mod.PatternToolsModal })),
 )
+const AiBuilderModal = lazy(() =>
+  import('./AiBuilderModal').then((mod) => ({ default: mod.AiBuilderModal })),
+)
 const TracingModal = lazy(() =>
   import('./TracingModal').then((mod) => ({ default: mod.TracingModal })),
 )
@@ -34,6 +37,7 @@ type EditorModalStackProps = {
   exportOptionsModalProps: ComponentProps<typeof ExportOptionsModal>
   templateRepositoryModalProps: ComponentProps<typeof TemplateRepositoryModal>
   patternToolsModalProps: ComponentProps<typeof PatternToolsModal>
+  aiBuilderModalProps: ComponentProps<typeof AiBuilderModal>
   tracingModalProps: ComponentProps<typeof TracingModal>
   printPreviewModalProps: ComponentProps<typeof PrintPreviewModal>
 }
@@ -46,6 +50,7 @@ export function EditorModalStack({
   exportOptionsModalProps,
   templateRepositoryModalProps,
   patternToolsModalProps,
+  aiBuilderModalProps,
   tracingModalProps,
   printPreviewModalProps,
 }: EditorModalStackProps) {
@@ -69,6 +74,9 @@ export function EditorModalStack({
       </Suspense>
       <Suspense fallback={null}>
         <PatternToolsModal {...patternToolsModalProps} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <AiBuilderModal {...aiBuilderModalProps} />
       </Suspense>
       <Suspense fallback={null}>
         <TracingModal {...tracingModalProps} />

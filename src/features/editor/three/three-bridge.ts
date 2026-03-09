@@ -304,6 +304,8 @@ export class ThreeBridge {
   private patternPieces: PatternPiece[] = []
   private piecePlacements3d: PiecePlacement3D[] = []
   private seamConnections: SeamConnection[] = []
+  private avatars: AvatarSpec[] = []
+  private avatarLoadVersion = 0
   private threePreviewSettings: ThreePreviewSettings = {
     mode: 'fold',
     explodedFactor: 0.35,
@@ -553,6 +555,95 @@ export class ThreeBridge {
     avatar.add(rightArm)
 
     return avatar
+  }
+
+  private activeAvatarSpec() {
+    if (this.threePreviewSettings.avatarId) {
+      const match = this.avatars.find((entry) => entry.id === this.threePreviewSettings.avatarId)
+      if (match) {
+        return match
+      }
+    }
+    return this.avatars[0] ?? null
+  }
+
+  private styleLoadedAvatar(root: THREE.Object3D) {
+    root.traverse((object) => {
+      const mesh = object as THREE.Mesh
+      if (!(mesh.geometry instanceof THREE.BufferGeometry)) {
+        return
+      }
+
+      const sourceMaterial = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
+      const material =
+        sourceMaterial instanceof THREE.MeshStandardMaterial
+          ? sourceMaterial.clone()
+          : new THREE.MeshStandardMaterial({
+              color: '#94a3b8',
+              roughness: 0.92,
+              metalness: 0.04,
+            })
+      material.transparent = true
+      material.opacity = Math.min(material.opacity ?? 1, 0.34)
+      material.depthWrite = false
+      mesh.material = material
+    })
+  }
+
+  private async loadAvatarAsset(spec: AvatarSpec) {
+    const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
+    const loader = new GLTFLoader()
+    const loaded = await loader.loadAsync(spec.sourceUrl)
+    const avatar = loaded.scene.clone(true)
+    this.styleLoadedAvatar(avatar)
+
+    const bounds = new THREE.Box3().setFromObject(avatar)
+    const size = bounds.getSize(new THREE.Vector3())
+    const safeHeight = Math.max(size.y, EPSILON)
+    const targetHeight = Math.max(spec.scaleMm, 200) * this.transform.scale
+    const scale = targetHeight / safeHeight
+    avatar.scale.setScalar(scale)
+
+    const scaledBounds = new THREE.Box3().setFromObject(avatar)
+    avatar.position.set(0, -scaledBounds.min.y, 0)
+    return avatar
+  }
+
+  private async rebuildAvatarModel() {
+    const mode = this.threePreviewSettings.mode
+    const version = ++this.avatarLoadVersion
+    clearGroup(this.avatarGroup, this.preservedMaterials)
+
+    if (mode !== 'avatar') {
+      return
+    }
+
+    const spec = this.activeAvatarSpec()
+    if (!spec?.sourceUrl.trim()) {
+      const fallback = this.createProceduralAvatar(1.05)
+      fallback.position.set(0, 0.22, 0)
+      this.avatarGroup.add(fallback)
+      this.fitControlsToModel()
+      return
+    }
+
+    try {
+      const avatar = await this.loadAvatarAsset(spec)
+      if (version !== this.avatarLoadVersion || this.threePreviewSettings.mode !== 'avatar') {
+        disposeObjectGraph(avatar, this.preservedMaterials)
+        return
+      }
+      this.avatarGroup.add(avatar)
+      this.fitControlsToModel()
+    } catch {
+      if (version !== this.avatarLoadVersion || this.threePreviewSettings.mode !== 'avatar') {
+        return
+      }
+      const fallback = this.createProceduralAvatar(1.05)
+      fallback.position.set(0, 0.22, 0)
+      this.avatarGroup.add(fallback)
+      this.fitControlsToModel()
+    }
   }
 
   private foldAxisFromLine(lineStart: THREE.Vector2, lineEnd: THREE.Vector2) {
@@ -1176,12 +1267,7 @@ export class ThreeBridge {
       }
     }
 
-    if (this.threePreviewSettings.mode === 'avatar') {
-      const avatar = this.createProceduralAvatar(1.05)
-      avatar.position.set(0, 0.22, 0)
-      this.avatarGroup.add(avatar)
-    }
-
+    void this.rebuildAvatarModel()
     this.fitControlsToModel()
   }
 
@@ -1473,7 +1559,7 @@ export class ThreeBridge {
     piecePlacements3d: PiecePlacement3D[] = [],
     seamConnections: SeamConnection[] = [],
     threePreviewSettings?: ThreePreviewSettings,
-    _avatars: AvatarSpec[] = [],
+    avatars: AvatarSpec[] = [],
   ) {
     this.layers = [...layers]
     this.lineTypes = [...lineTypes]
@@ -1484,6 +1570,7 @@ export class ThreeBridge {
     this.patternPieces = [...patternPieces]
     this.piecePlacements3d = [...piecePlacements3d]
     this.seamConnections = [...seamConnections]
+    this.avatars = [...avatars]
     this.threePreviewSettings = threePreviewSettings ? { ...threePreviewSettings } : this.threePreviewSettings
     const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
     this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
@@ -1692,6 +1779,7 @@ export class ThreeBridge {
       cancelAnimationFrame(this.frameId)
       this.frameId = null
     }
+    this.avatarLoadVersion += 1
 
     clearGroup(this.staticSideGroup, this.preservedMaterials)
     clearGroup(this.foldingSideGroup, this.preservedMaterials)
