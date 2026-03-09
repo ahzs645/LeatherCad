@@ -461,7 +461,7 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
       return
     }
 
-    const prevSnapshot = lastSnapshotRef.current as EditorSnapshot
+    const prevSnapshot = lastSnapshotRef.current
     setHistoryState((previousHistory) =>
       pushHistorySnapshot(previousHistory, prevSnapshot, HISTORY_LIMIT),
     )

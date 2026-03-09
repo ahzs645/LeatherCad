@@ -341,7 +341,7 @@ export function EditorApp() {
     return () => {
       mediaQuery.removeEventListener('change', handlePreferenceChange)
     }
-  }, [])
+  }, [setSystemThemeMode])
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -873,10 +873,14 @@ export function EditorApp() {
     if (shapes.length > prevShapeCountRef.current && shapes.length > 1) {
       const newest = shapes[shapes.length - 1]
       const rest = shapes.slice(0, -1)
-      import('./ops/auto-constraint-ops').then(({ detectAutoConstraints }) => {
-        const suggestions = detectAutoConstraints(newest, rest, autoConstraintSettings)
-        setConstraintSuggestions(suggestions)
-      })
+      void import('./ops/auto-constraint-ops')
+        .then(({ detectAutoConstraints }) => {
+          const suggestions = detectAutoConstraints(newest, rest, autoConstraintSettings)
+          setConstraintSuggestions(suggestions)
+        })
+        .catch(() => {
+          setConstraintSuggestions([])
+        })
     } else if (shapes.length < prevShapeCountRef.current) {
       // Shapes were removed, clear suggestions
       setConstraintSuggestions([])
@@ -2039,34 +2043,42 @@ export function EditorApp() {
     handleUpdateSelectedHardwareMarker,
     handleDeleteSelectedHardwareMarker,
     handleBooleanOp: (op: import('./ops/clipper-ops').BooleanOp) => {
-      import('./ops/clipper-ops').then(({ booleanOpOnShapes }) => {
-        const result = booleanOpOnShapes(
-          shapes,
-          new Set(selectedShapeIds),
-          op,
-          activeLayer?.id ?? '',
-          activeLineTypeId,
-        )
-        if (result.ok) {
-          setShapes(result.nextShapes)
-        }
-        setStatus(result.message)
-      })
+      void import('./ops/clipper-ops')
+        .then(({ booleanOpOnShapes }) => {
+          const result = booleanOpOnShapes(
+            shapes,
+            new Set(selectedShapeIds),
+            op,
+            activeLayer?.id ?? '',
+            activeLineTypeId,
+          )
+          if (result.ok) {
+            setShapes(result.nextShapes)
+          }
+          setStatus(result.message)
+        })
+        .catch(() => {
+          setStatus('Boolean operation tools failed to load')
+        })
     },
     handleClipperOffset: (offsetMm: number, joinType: import('./ops/clipper-ops').OffsetJoinType) => {
-      import('./ops/clipper-ops').then(({ clipperOffsetForSelection }) => {
-        const result = clipperOffsetForSelection(
-          shapes,
-          new Set(selectedShapeIds),
-          offsetMm,
-          joinType,
-          activeLineTypeId,
-        )
-        if (result.ok) {
-          setShapes((prev) => [...prev, ...result.created])
-        }
-        setStatus(result.message)
-      })
+      void import('./ops/clipper-ops')
+        .then(({ clipperOffsetForSelection }) => {
+          const result = clipperOffsetForSelection(
+            shapes,
+            new Set(selectedShapeIds),
+            offsetMm,
+            joinType,
+            activeLineTypeId,
+          )
+          if (result.ok) {
+            setShapes((prev) => [...prev, ...result.created])
+          }
+          setStatus(result.message)
+        })
+        .catch(() => {
+          setStatus('Offset tools failed to load')
+        })
     },
     handleTextToPath: () => {
       if (!loadedFontUrl) {
@@ -2079,25 +2091,29 @@ export function EditorApp() {
         setStatus('Select at least one text shape to convert')
         return
       }
-      import('./ops/opentype-ops').then(({ textToPathShapes }) => {
-        const created: Shape[] = []
-        const convertedIds = new Set<string>()
-        for (const ts of textShapes) {
-          if (ts.type !== 'text') continue
-          const result = textToPathShapes(ts, loadedFontUrl)
-          if (result.ok) {
-            created.push(...result.shapes)
-            convertedIds.add(ts.id)
+      void import('./ops/opentype-ops')
+        .then(({ textToPathShapes }) => {
+          const created: Shape[] = []
+          const convertedIds = new Set<string>()
+          for (const ts of textShapes) {
+            if (ts.type !== 'text') continue
+            const result = textToPathShapes(ts, loadedFontUrl)
+            if (result.ok) {
+              created.push(...result.shapes)
+              convertedIds.add(ts.id)
+            }
           }
-        }
-        if (created.length > 0) {
-          setShapes((prev) => [...prev.filter((s) => !convertedIds.has(s.id)), ...created])
-          setSelectedShapeIds([])
-          setStatus(`Converted ${convertedIds.size} text shape(s) to ${created.length} path shapes`)
-        } else {
-          setStatus('No paths generated. Ensure font is loaded and text shapes are selected.')
-        }
-      })
+          if (created.length > 0) {
+            setShapes((prev) => [...prev.filter((s) => !convertedIds.has(s.id)), ...created])
+            setSelectedShapeIds([])
+            setStatus(`Converted ${convertedIds.size} text shape(s) to ${created.length} path shapes`)
+          } else {
+            setStatus('No paths generated. Ensure font is loaded and text shapes are selected.')
+          }
+        })
+        .catch(() => {
+          setStatus('Text-to-path tools failed to load')
+        })
     },
     handleOpenNesting: () => {
       setShowNestingModal(true)
@@ -2439,16 +2455,20 @@ export function EditorApp() {
           if (!file) return
           const reader = new FileReader()
           reader.onload = () => {
-            import('./ops/opentype-ops').then(({ loadFontFromBuffer }) => {
-              try {
-                const key = `font:${file.name}`
-                loadFontFromBuffer(reader.result as ArrayBuffer, key)
-                setLoadedFontUrl(key)
-                setStatus(`Font loaded: ${file.name}`)
-              } catch (err) {
-                setStatus(`Failed to load font: ${err instanceof Error ? err.message : 'unknown error'}`)
-              }
-            })
+            void import('./ops/opentype-ops')
+              .then(({ loadFontFromBuffer }) => {
+                try {
+                  const key = `font:${file.name}`
+                  loadFontFromBuffer(reader.result as ArrayBuffer, key)
+                  setLoadedFontUrl(key)
+                  setStatus(`Font loaded: ${file.name}`)
+                } catch (err) {
+                  setStatus(`Failed to load font: ${err instanceof Error ? err.message : 'unknown error'}`)
+                }
+              })
+              .catch(() => {
+                setStatus('Failed to load font: could not initialize font tools')
+              })
           }
           reader.readAsArrayBuffer(file)
           e.target.value = ''

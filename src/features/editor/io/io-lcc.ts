@@ -555,7 +555,7 @@ export function importLccDocument(raw: string): LccImportResult {
   const lccPrintAreas = Array.isArray(data.printareas) ? data.printareas : []
   for (const lccPa of lccPrintAreas) {
     if (!lccPa || typeof lccPa !== 'object') continue
-    const pa = lccPa as LccPrintArea
+    const pa = lccPa
     const offset = Array.isArray(pa.offset) ? pa.offset : [0, 0]
     // LCC scalepos: 0 = 100%, higher values are different scales
     const scalePercent = pa.scalepos === 0 ? 100 : pa.scalepos === 1 ? 50 : 100

@@ -104,6 +104,8 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -216,6 +218,12 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPieceGrainlines((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPieceLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPiecePlacementLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPiecePlacements3d((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setSeamConnections((previous) =>
+      previous.filter(
+        (entry) => !deletedPieceIdSet.has(entry.from.pieceId) && !deletedPieceIdSet.has(entry.to.pieceId),
+      ),
+    )
     setSeamAllowances((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPieceNotches((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setConstraints((previous) =>
@@ -242,6 +250,9 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -267,6 +278,13 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPatternPieces((previous) => previous.filter((piece) => !deletedPieceIdSet.has(piece.id)))
     setPieceGrainlines((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPieceLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPiecePlacementLabels((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setPiecePlacements3d((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
+    setSeamConnections((previous) =>
+      previous.filter(
+        (entry) => !deletedPieceIdSet.has(entry.from.pieceId) && !deletedPieceIdSet.has(entry.to.pieceId),
+      ),
+    )
     setSeamAllowances((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setPieceNotches((previous) => previous.filter((entry) => !deletedPieceIdSet.has(entry.pieceId)))
     setConstraints((previous) =>
@@ -293,6 +311,9 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setPatternPieces,
     setPieceGrainlines,
     setPieceLabels,
+    setPiecePlacementLabels,
+    setPiecePlacements3d,
+    setSeamConnections,
     setSeamAllowances,
     setPieceNotches,
     setConstraints,
@@ -323,6 +344,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       setPatternPieces,
       setPieceGrainlines,
       setPieceLabels,
+      setPiecePlacementLabels,
       setSeamAllowances,
       setPieceNotches,
       setSelectedShapeIds,

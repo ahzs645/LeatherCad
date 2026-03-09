@@ -3,6 +3,19 @@ import { importLccDocument, exportLccDocument } from './io-lcc'
 import type { DocFile } from '../cad/cad-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 
+type ExportedLccPayload = {
+  meta: {
+    file_type: string
+  }
+  layers: Array<{
+    nam: string
+  }>
+}
+
+function parseExportedLcc(output: string): ExportedLccPayload {
+  return JSON.parse(output.slice(1)) as ExportedLccPayload
+}
+
 const MINIMAL_LCC = JSON.stringify({
   meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
   layers: [
@@ -566,7 +579,7 @@ describe('exportLccDocument', () => {
     const doc = makeMinimalDoc()
     const output = exportLccDocument(doc)
     expect(output.charCodeAt(0)).toBe(0xfeff)
-    const parsed = JSON.parse(output.slice(1))
+    const parsed = parseExportedLcc(output)
     expect(parsed.meta.file_type).toBe('LeathercraftCAD')
   })
 
@@ -635,7 +648,7 @@ describe('exportLccDocument', () => {
   it('exports layers matching LCC format', () => {
     const doc = makeMinimalDoc()
     const output = exportLccDocument(doc)
-    const parsed = JSON.parse(output.slice(1))
+    const parsed = parseExportedLcc(output)
     expect(parsed.layers).toBeDefined()
     expect(parsed.layers.length).toBeGreaterThan(0)
     expect(parsed.layers[0].nam).toBe('Cut/Holes')

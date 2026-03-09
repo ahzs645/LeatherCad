@@ -101,7 +101,7 @@ function loadTexture(loader: THREE.TextureLoader, url: string): Promise<THREE.Te
       url,
       (texture: THREE.Texture) => resolve(texture),
       undefined,
-      (error: unknown) => reject(error),
+      (error: unknown) => reject(error instanceof Error ? error : new Error('Texture load failed')),
     )
   })
 }

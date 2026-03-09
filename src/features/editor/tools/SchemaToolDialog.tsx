@@ -71,6 +71,32 @@ const applyBtnStyle: React.CSSProperties = {
   cursor: 'pointer',
 }
 
+function stringifyInputValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  return ''
+}
+
+function stringifyPointValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (Array.isArray(value) && value.length >= 2 && typeof value[0] === 'number' && typeof value[1] === 'number') {
+    return `${value[0]},${value[1]}`
+  }
+  if (typeof value === 'object' && value !== null) {
+    const point = value as { x?: unknown; y?: unknown }
+    if (typeof point.x === 'number' && typeof point.y === 'number') {
+      return `${point.x},${point.y}`
+    }
+  }
+  return '0,0'
+}
+
 function renderField(
   field: ToolFieldDef,
   value: unknown,
@@ -96,7 +122,7 @@ function renderField(
         <input
           style={inputStyle}
           type="text"
-          value={value != null ? String(value) : ''}
+          value={stringifyInputValue(value)}
           onChange={(e) => onChange(field.key, e.target.value)}
           aria-label={field.label}
         />
@@ -106,7 +132,7 @@ function renderField(
       return (
         <select
           style={selectStyle}
-          value={value != null ? String(value) : ''}
+          value={stringifyInputValue(value)}
           onChange={(e) => onChange(field.key, e.target.value)}
           aria-label={field.label}
         >
@@ -133,7 +159,7 @@ function renderField(
         <input
           style={inputStyle}
           type="text"
-          value={value != null ? String(value) : '0,0'}
+          value={stringifyPointValue(value)}
           placeholder="x,y"
           onChange={(e) => onChange(field.key, e.target.value)}
           aria-label={field.label}
