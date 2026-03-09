@@ -192,8 +192,13 @@ export type PatternPiece = {
   internalShapeIds: string[]
   layerId: string
   quantity: number
+  code?: string
   annotation?: string
+  material?: string
+  materialSide?: 'grain' | 'flesh' | 'either'
+  notes?: string
   onFold: boolean
+  mirrorPair?: boolean
   orientation: PatternPieceOrientation
   allowFlip: boolean
   includeInLayout: boolean

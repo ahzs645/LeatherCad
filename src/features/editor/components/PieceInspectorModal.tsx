@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { PatternPiece, PieceGrainline, PieceLabel, PieceNotch, PieceSeamAllowance, Shape } from '../cad/cad-types'
+import { AVAILABLE_PIECE_LABEL_TOKENS } from '../ops/pattern-piece-ops'
 
 type PieceInspectorModalProps = {
   open: boolean
@@ -9,6 +10,7 @@ type PieceInspectorModalProps = {
   patternLabel: PieceLabel | null
   seamAllowance: PieceSeamAllowance | null
   notches: PieceNotch[]
+  edgeCount: number
   availableInternalShapes: Shape[]
   selectedInternalShapeIds: Set<string>
   onClose: () => void
@@ -18,6 +20,7 @@ type PieceInspectorModalProps = {
   onUpdatePieceLabel: (patch: Partial<PieceLabel>) => void
   onUpdatePatternLabel: (patch: Partial<PieceLabel>) => void
   onUpdateSeamAllowance: (patch: Partial<PieceSeamAllowance>) => void
+  onUpdateNotch: (notchId: string, patch: Partial<PieceNotch>) => void
   onDeleteNotch: (notchId: string) => void
 }
 
@@ -34,6 +37,7 @@ export function PieceInspectorModal({
   patternLabel,
   seamAllowance,
   notches,
+  edgeCount,
   availableInternalShapes,
   selectedInternalShapeIds,
   onClose,
@@ -43,6 +47,7 @@ export function PieceInspectorModal({
   onUpdatePieceLabel,
   onUpdatePatternLabel,
   onUpdateSeamAllowance,
+  onUpdateNotch,
   onDeleteNotch,
 }: PieceInspectorModalProps) {
   const nameRef = useRef<HTMLInputElement | null>(null)
@@ -110,8 +115,27 @@ export function PieceInspectorModal({
             />
           </label>
           <label className="layer-field">
+            <span>Code</span>
+            <input value={piece.code ?? ''} onChange={(event) => onUpdatePiece({ code: event.target.value || undefined })} />
+          </label>
+          <label className="layer-field">
             <span>Annotation</span>
             <input value={piece.annotation ?? ''} onChange={(event) => onUpdatePiece({ annotation: event.target.value })} />
+          </label>
+          <label className="layer-field">
+            <span>Material</span>
+            <input value={piece.material ?? ''} onChange={(event) => onUpdatePiece({ material: event.target.value || undefined })} />
+          </label>
+          <label className="layer-field">
+            <span>Material Side</span>
+            <select
+              value={piece.materialSide ?? 'either'}
+              onChange={(event) => onUpdatePiece({ materialSide: event.target.value as PatternPiece['materialSide'] })}
+            >
+              <option value="either">Either</option>
+              <option value="grain">Grain</option>
+              <option value="flesh">Flesh</option>
+            </select>
           </label>
           <label className="layer-field">
             <span>Orientation</span>
@@ -121,9 +145,17 @@ export function PieceInspectorModal({
               <option value="vertical">Vertical</option>
             </select>
           </label>
+          <label className="layer-field">
+            <span>Notes</span>
+            <input value={piece.notes ?? ''} onChange={(event) => onUpdatePiece({ notes: event.target.value || undefined })} />
+          </label>
           <label className="layer-toggle-item">
             <input type="checkbox" checked={piece.onFold} onChange={(event) => onUpdatePiece({ onFold: event.target.checked })} />
             <span>On fold</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input type="checkbox" checked={piece.mirrorPair === true} onChange={(event) => onUpdatePiece({ mirrorPair: event.target.checked })} />
+            <span>Mirror pair</span>
           </label>
           <label className="layer-toggle-item">
             <input type="checkbox" checked={piece.allowFlip} onChange={(event) => onUpdatePiece({ allowFlip: event.target.checked })} />
@@ -212,6 +244,20 @@ export function PieceInspectorModal({
               <span>Offset Y</span>
               <input type="number" value={pieceLabel.offsetY} onChange={(event) => onUpdatePieceLabel({ offsetY: parseNumber(event.target.value, pieceLabel.offsetY) })} />
             </label>
+            <label className="layer-field">
+              <span>Rotation (deg)</span>
+              <input type="number" value={pieceLabel.rotationDeg} onChange={(event) => onUpdatePieceLabel({ rotationDeg: parseNumber(event.target.value, pieceLabel.rotationDeg) })} />
+            </label>
+            <label className="layer-field">
+              <span>Font size (mm)</span>
+              <input
+                type="number"
+                min={2}
+                value={pieceLabel.fontSizeMm}
+                onChange={(event) => onUpdatePieceLabel({ fontSizeMm: Math.max(2, parseNumber(event.target.value, pieceLabel.fontSizeMm)) })}
+              />
+            </label>
+            <p className="hint">Tokens: {AVAILABLE_PIECE_LABEL_TOKENS.join(', ')}</p>
           </div>
         )}
 
@@ -225,6 +271,19 @@ export function PieceInspectorModal({
             <label className="layer-field">
               <span>Template</span>
               <input value={patternLabel.textTemplate} onChange={(event) => onUpdatePatternLabel({ textTemplate: event.target.value })} />
+            </label>
+            <label className="layer-field">
+              <span>Rotation (deg)</span>
+              <input type="number" value={patternLabel.rotationDeg} onChange={(event) => onUpdatePatternLabel({ rotationDeg: parseNumber(event.target.value, patternLabel.rotationDeg) })} />
+            </label>
+            <label className="layer-field">
+              <span>Font size (mm)</span>
+              <input
+                type="number"
+                min={2}
+                value={patternLabel.fontSizeMm}
+                onChange={(event) => onUpdatePatternLabel({ fontSizeMm: Math.max(2, parseNumber(event.target.value, patternLabel.fontSizeMm)) })}
+              />
             </label>
           </div>
         )}
@@ -245,6 +304,79 @@ export function PieceInspectorModal({
                 onChange={(event) => onUpdateSeamAllowance({ defaultOffsetMm: Math.max(0, parseNumber(event.target.value, seamAllowance.defaultOffsetMm)) })}
               />
             </label>
+            <div className="line-type-modal-actions">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateSeamAllowance({
+                    edgeOverrides: [
+                      ...seamAllowance.edgeOverrides,
+                      {
+                        edgeIndex: Math.min(edgeCount > 0 ? edgeCount - 1 : 0, seamAllowance.edgeOverrides.length),
+                        offsetMm: seamAllowance.defaultOffsetMm,
+                      },
+                    ],
+                  })
+                }
+                disabled={edgeCount <= 0}
+              >
+                Add edge override
+              </button>
+            </div>
+            {seamAllowance.edgeOverrides.length === 0 ? (
+              <p className="hint">No edge overrides yet. Add one to vary seam width by boundary segment.</p>
+            ) : (
+              <div className="pattern-toggle-grid">
+                {seamAllowance.edgeOverrides.map((override, index) => (
+                  <div key={`${override.edgeIndex}-${index}`} className="layer-toggle-item">
+                    <label className="layer-field">
+                      <span>Edge</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={Math.max(1, edgeCount)}
+                        value={override.edgeIndex + 1}
+                        onChange={(event) => {
+                          const next = seamAllowance.edgeOverrides.map((entry, entryIndex) =>
+                            entryIndex === index
+                              ? { ...entry, edgeIndex: Math.max(0, Math.min(Math.max(1, edgeCount) - 1, Math.round(parseNumber(event.target.value, entry.edgeIndex + 1) - 1))) }
+                              : entry,
+                          )
+                          onUpdateSeamAllowance({ edgeOverrides: next })
+                        }}
+                      />
+                    </label>
+                    <label className="layer-field">
+                      <span>Offset</span>
+                      <input
+                        type="number"
+                        min={0.1}
+                        step={0.1}
+                        value={override.offsetMm}
+                        onChange={(event) => {
+                          const next = seamAllowance.edgeOverrides.map((entry, entryIndex) =>
+                            entryIndex === index
+                              ? { ...entry, offsetMm: Math.max(0.1, parseNumber(event.target.value, entry.offsetMm)) }
+                              : entry,
+                          )
+                          onUpdateSeamAllowance({ edgeOverrides: next })
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onUpdateSeamAllowance({
+                          edgeOverrides: seamAllowance.edgeOverrides.filter((_, entryIndex) => entryIndex !== index),
+                        })
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -256,7 +388,63 @@ export function PieceInspectorModal({
             <div className="pattern-toggle-grid">
               {notches.map((notch, index) => (
                 <div key={notch.id} className="layer-toggle-item">
-                  <span>{`${index + 1}. ${notch.style} notch on edge ${notch.edgeIndex + 1}`}</span>
+                  <span>{`${index + 1}. ${notch.style} notch`}</span>
+                  <label className="layer-field">
+                    <span>Edge</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={Math.max(1, edgeCount)}
+                      value={notch.edgeIndex + 1}
+                      onChange={(event) => onUpdateNotch(notch.id, {
+                        edgeIndex: Math.max(0, Math.min(Math.max(1, edgeCount) - 1, Math.round(parseNumber(event.target.value, notch.edgeIndex + 1) - 1))),
+                      })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Position (%)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={Math.round(notch.t * 100)}
+                      onChange={(event) => onUpdateNotch(notch.id, {
+                        t: Math.max(0, Math.min(1, parseNumber(event.target.value, notch.t * 100) / 100)),
+                      })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Style</span>
+                    <select value={notch.style} onChange={(event) => onUpdateNotch(notch.id, { style: event.target.value as PieceNotch['style'] })}>
+                      <option value="single">Single</option>
+                      <option value="double">Double</option>
+                      <option value="v">V</option>
+                    </select>
+                  </label>
+                  <label className="layer-field">
+                    <span>Length</span>
+                    <input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      value={notch.lengthMm}
+                      onChange={(event) => onUpdateNotch(notch.id, { lengthMm: Math.max(0.5, parseNumber(event.target.value, notch.lengthMm)) })}
+                    />
+                  </label>
+                  <label className="layer-field">
+                    <span>Width</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      value={notch.widthMm}
+                      onChange={(event) => onUpdateNotch(notch.id, { widthMm: Math.max(0, parseNumber(event.target.value, notch.widthMm)) })}
+                    />
+                  </label>
+                  <label className="layer-toggle-item">
+                    <input type="checkbox" checked={notch.showOnSeam} onChange={(event) => onUpdateNotch(notch.id, { showOnSeam: event.target.checked })} />
+                    <span>Show on seam</span>
+                  </label>
                   <button type="button" onClick={() => onDeleteNotch(notch.id)}>
                     Delete
                   </button>

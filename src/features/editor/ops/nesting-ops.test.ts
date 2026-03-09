@@ -4,9 +4,11 @@ import {
   shapesToNestingPieces,
   computeNFP,
   DEFAULT_NESTING_CONFIG,
+  patternPiecesToNestingPieces,
   type NestingPiece,
 } from './nesting-ops'
-import type { Shape } from '../cad/cad-types'
+import type { PatternPiece, PieceGrainline, Shape } from '../cad/cad-types'
+import type { OutlineChain } from './outline-detection'
 
 const smallSquare: NestingPiece = {
   id: 'sq1',
@@ -87,5 +89,55 @@ describe('shapesToNestingPieces', () => {
     ]
     const pieces = shapesToNestingPieces(shapes, new Set())
     expect(pieces).toHaveLength(0)
+  })
+})
+
+describe('patternPiecesToNestingPieces', () => {
+  it('filters allowed rotations based on piece orientation and grainline', () => {
+    const piece: PatternPiece = {
+      id: 'piece-1',
+      name: 'Tall Panel',
+      boundaryShapeId: 'shape-1',
+      internalShapeIds: [],
+      layerId: 'layer-1',
+      quantity: 1,
+      onFold: false,
+      mirrorPair: false,
+      orientation: 'vertical',
+      allowFlip: true,
+      includeInLayout: true,
+      locked: false,
+    }
+    const grainlines: PieceGrainline[] = [
+      { pieceId: piece.id, visible: true, mode: 'fixed', lengthMm: 30, rotationDeg: 90, anchor: 'center' },
+    ]
+    const chain: OutlineChain = {
+      id: 'chain-1',
+      shapeIds: ['shape-1'],
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 30 },
+        { x: 0, y: 30 },
+        { x: 0, y: 0 },
+      ],
+      isClosed: true,
+      area: 300,
+    }
+
+    const pieces = patternPiecesToNestingPieces(
+      [piece],
+      new Map([['shape-1', chain]]),
+      new Set(),
+      grainlines,
+      {
+        rotations: [0, 90, 180, 270],
+        respectGrainline: true,
+        hideGrainAxis: 'vertical',
+      },
+    )
+
+    expect(pieces).toHaveLength(1)
+    expect(pieces[0].allowedRotations).toEqual([0, 180])
   })
 })

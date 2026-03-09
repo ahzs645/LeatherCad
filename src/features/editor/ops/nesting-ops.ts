@@ -10,7 +10,7 @@
  *  - Waste percentage calculation
  */
 
-import type { PatternPiece, Point, Shape } from '../cad/cad-types'
+import type { PatternPiece, PieceGrainline, Point, Shape } from '../cad/cad-types'
 import {
   type Polygon,
   shapesToPolygons,
@@ -31,6 +31,7 @@ export type NestingPiece = {
   id: string
   polygon: Polygon
   quantity: number
+  allowedRotations?: number[]
 }
 
 export type NestingConfig = {
@@ -40,6 +41,10 @@ export type NestingConfig = {
   spacing: number
   /** Number of optimization passes */
   iterations: number
+  /** Align piece grainlines with the hide axis when available */
+  respectGrainline: boolean
+  /** Primary hide grain axis */
+  hideGrainAxis: 'horizontal' | 'vertical'
 }
 
 export type PlacedPiece = {
@@ -63,6 +68,66 @@ export const DEFAULT_NESTING_CONFIG: NestingConfig = {
   rotations: [0, 90, 180, 270],
   spacing: 2,
   iterations: 3,
+  respectGrainline: true,
+  hideGrainAxis: 'vertical',
+}
+
+function normalizeRotationDeg(value: number) {
+  const normalized = value % 360
+  return normalized < 0 ? normalized + 360 : normalized
+}
+
+function sameAxis(leftDeg: number, rightDeg: number) {
+  const leftAxis = normalizeRotationDeg(leftDeg) % 180
+  const rightAxis = normalizeRotationDeg(rightDeg) % 180
+  return Math.abs(leftAxis - rightAxis) < 1e-6
+}
+
+function inferPieceGrainlineRotation(polygon: Polygon, grainline: PieceGrainline | undefined) {
+  if (!grainline?.visible) {
+    return null
+  }
+  if (grainline.mode === 'fixed') {
+    return normalizeRotationDeg(grainline.rotationDeg)
+  }
+
+  const bounds = polygonBounds(polygon)
+  return bounds.height >= bounds.width ? 90 : 0
+}
+
+function resolveAllowedPieceRotations(
+  piece: PatternPiece,
+  polygon: Polygon,
+  grainline: PieceGrainline | undefined,
+  config: Pick<NestingConfig, 'rotations' | 'respectGrainline' | 'hideGrainAxis'>,
+) {
+  const baseRotations = Array.from(new Set(config.rotations.map(normalizeRotationDeg)))
+  if (baseRotations.length === 0) {
+    return [0]
+  }
+
+  let allowedRotations = [...baseRotations]
+  const centroid = polygonCentroid(polygon)
+
+  if (piece.orientation !== 'any') {
+    allowedRotations = allowedRotations.filter((rotationDeg) => {
+      const rotated = rotationDeg === 0 ? polygon : rotatePolygon(polygon, centroid, rotationDeg)
+      const bounds = polygonBounds(rotated)
+      return piece.orientation === 'horizontal' ? bounds.width >= bounds.height : bounds.height >= bounds.width
+    })
+  }
+
+  if (config.respectGrainline) {
+    const pieceGrainlineRotation = inferPieceGrainlineRotation(polygon, grainline)
+    if (pieceGrainlineRotation !== null) {
+      const hideAxisRotation = config.hideGrainAxis === 'vertical' ? 90 : 0
+      allowedRotations = allowedRotations.filter((rotationDeg) =>
+        sameAxis(pieceGrainlineRotation + rotationDeg, hideAxisRotation),
+      )
+    }
+  }
+
+  return allowedRotations.length > 0 ? allowedRotations : baseRotations
 }
 
 // ---------------------------------------------------------------------------
@@ -288,12 +353,13 @@ export function nestPieces(
   }
 
   // Expand pieces by quantity
-  const expandedPieces: { id: string; polygon: Polygon }[] = []
+  const expandedPieces: Array<{ id: string; polygon: Polygon; allowedRotations?: number[] }> = []
   for (const piece of pieces) {
     for (let q = 0; q < piece.quantity; q++) {
       expandedPieces.push({
         id: `${piece.id}${piece.quantity > 1 ? `_${q + 1}` : ''}`,
         polygon: piece.polygon,
+        allowedRotations: piece.allowedRotations,
       })
     }
   }
@@ -334,7 +400,8 @@ export function nestPieces(
     for (const piece of order) {
       let placed = false
 
-      for (const rotDeg of config.rotations) {
+      const allowedRotations = piece.allowedRotations?.length ? piece.allowedRotations : config.rotations
+      for (const rotDeg of allowedRotations) {
         const centroid = polygonCentroid(piece.polygon)
         const rotated = rotDeg === 0
           ? piece.polygon
@@ -445,8 +512,11 @@ export function patternPiecesToNestingPieces(
   patternPieces: PatternPiece[],
   chainsByShapeId: Map<string, OutlineChain>,
   selectedShapeIds: Set<string>,
+  pieceGrainlines: PieceGrainline[] = [],
+  config: Pick<NestingConfig, 'rotations' | 'respectGrainline' | 'hideGrainAxis'> = DEFAULT_NESTING_CONFIG,
 ): NestingPiece[] {
   const hasSelection = selectedShapeIds.size > 0
+  const grainlineByPieceId = new Map(pieceGrainlines.map((entry) => [entry.pieceId, entry]))
   return patternPieces
     .filter((piece) => {
       if (!piece.includeInLayout) {
@@ -470,6 +540,12 @@ export function patternPiecesToNestingPieces(
           id: piece.id,
           polygon: chain.polygon,
           quantity: Math.max(1, piece.quantity),
+          allowedRotations: resolveAllowedPieceRotations(
+            piece,
+            chain.polygon,
+            grainlineByPieceId.get(piece.id),
+            config,
+          ),
         },
       ]
     })

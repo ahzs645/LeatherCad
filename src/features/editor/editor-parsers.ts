@@ -233,8 +233,16 @@ export function parsePatternPiece(value: unknown): PatternPiece | null {
       typeof candidate.quantity === 'number' && Number.isFinite(candidate.quantity)
         ? Math.max(1, Math.round(candidate.quantity))
         : 1,
+    code: typeof candidate.code === 'string' && candidate.code.trim().length > 0 ? candidate.code.trim() : undefined,
     annotation: typeof candidate.annotation === 'string' ? candidate.annotation : undefined,
+    material: typeof candidate.material === 'string' && candidate.material.trim().length > 0 ? candidate.material.trim() : undefined,
+    materialSide:
+      candidate.materialSide === 'grain' || candidate.materialSide === 'flesh' || candidate.materialSide === 'either'
+        ? candidate.materialSide
+        : 'either',
+    notes: typeof candidate.notes === 'string' && candidate.notes.trim().length > 0 ? candidate.notes.trim() : undefined,
     onFold: candidate.onFold === true,
+    mirrorPair: candidate.mirrorPair === true,
     orientation:
       candidate.orientation === 'horizontal' || candidate.orientation === 'vertical' || candidate.orientation === 'any'
         ? candidate.orientation

@@ -41,7 +41,9 @@ import {
   createDefaultPieceGrainline,
   createDefaultPieceLabels,
   createDefaultPieceSeamAllowance,
+  getPatternPieceChain,
 } from './ops/pattern-piece-ops'
+import { clamp } from './cad/cad-geometry'
 import { buildAnnotationExportShapes } from './ops/annotation-export-shapes'
 import { openPrintTilesWindow } from './preview/print-output'
 import { buildPrintPlan } from './preview/print-preview'
@@ -1101,6 +1103,13 @@ export function EditorApp() {
     () => new Set(selectedPatternPiece?.internalShapeIds ?? []),
     [selectedPatternPiece],
   )
+  const selectedPatternPieceEdgeCount = useMemo(() => {
+    if (!selectedPatternPiece) {
+      return 0
+    }
+    const chain = getPatternPieceChain(selectedPatternPiece, patternPieceChains.byShapeId)
+    return chain ? Math.max(0, chain.polygon.length - 1) : 0
+  }, [selectedPatternPiece, patternPieceChains.byShapeId])
   const selectedPieceAvailableInternalShapes = useMemo(() => {
     if (!selectedPatternPiece) {
       return []
@@ -1253,15 +1262,48 @@ export function EditorApp() {
     if (!selectedPatternPiece) {
       return
     }
+    const nextEdgeOverrides = Array.isArray(patch.edgeOverrides)
+      ? patch.edgeOverrides
+          .map((entry) => ({
+            edgeIndex: Math.max(0, Math.min(Math.max(0, selectedPatternPieceEdgeCount - 1), Math.round(entry.edgeIndex))),
+            offsetMm: Math.max(0.1, entry.offsetMm),
+          }))
+          .sort((left, right) => left.edgeIndex - right.edgeIndex)
+      : undefined
     setSeamAllowances((previous) =>
       previous.map((entry) =>
         entry.pieceId === selectedPatternPiece.id
           ? {
               ...entry,
               ...patch,
+              edgeOverrides: nextEdgeOverrides ?? entry.edgeOverrides,
             }
           : entry,
       ),
+    )
+  }
+
+  const handleUpdateSelectedPieceNotch = (notchId: string, patch: Partial<(typeof pieceNotches)[number]>) => {
+    if (!selectedPatternPiece) {
+      return
+    }
+    setPieceNotches((previous) =>
+      previous.map((entry) => {
+        if (entry.id !== notchId || entry.pieceId !== selectedPatternPiece.id) {
+          return entry
+        }
+        return {
+          ...entry,
+          ...patch,
+          edgeIndex:
+            typeof patch.edgeIndex === 'number'
+              ? Math.max(0, Math.min(Math.max(0, selectedPatternPieceEdgeCount - 1), Math.round(patch.edgeIndex)))
+              : entry.edgeIndex,
+          t: typeof patch.t === 'number' ? clamp(patch.t, 0, 1) : entry.t,
+          lengthMm: typeof patch.lengthMm === 'number' ? Math.max(0.5, patch.lengthMm) : entry.lengthMm,
+          widthMm: typeof patch.widthMm === 'number' ? Math.max(0, patch.widthMm) : entry.widthMm,
+        }
+      }),
     )
   }
 
@@ -2130,6 +2172,7 @@ export function EditorApp() {
         patternLabel={selectedPatternLabel}
         seamAllowance={selectedPieceSeamAllowance}
         notches={selectedPieceNotches}
+        edgeCount={selectedPatternPieceEdgeCount}
         availableInternalShapes={selectedPieceAvailableInternalShapes}
         selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
         onClose={() => setShowPieceInspectorModal(false)}
@@ -2139,6 +2182,7 @@ export function EditorApp() {
         onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
         onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
         onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
+        onUpdateNotch={handleUpdateSelectedPieceNotch}
         onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
       />
 
@@ -2147,6 +2191,7 @@ export function EditorApp() {
           open={showNestingModal}
           onClose={() => setShowNestingModal(false)}
           patternPieces={patternPieces}
+          pieceGrainlines={pieceGrainlines}
           patternPieceChainsByShapeId={patternPieceChains.byShapeId}
           selectedShapeIds={selectedShapeIdSet}
           activeLayerId={activeLayerId}

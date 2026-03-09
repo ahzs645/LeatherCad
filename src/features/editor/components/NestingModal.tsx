@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { PatternPiece, Shape } from '../cad/cad-types'
+import type { PatternPiece, PieceGrainline, Shape } from '../cad/cad-types'
 import type { OutlineChain } from '../ops/outline-detection'
 import { nestPieces, patternPiecesToNestingPieces, type NestingResult, type NestingConfig, DEFAULT_NESTING_CONFIG } from '../ops/nesting-ops'
 import { polygonToLineShapes } from '../ops/polygon-ops'
@@ -8,6 +8,7 @@ type NestingModalProps = {
   open: boolean
   onClose: () => void
   patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
   patternPieceChainsByShapeId: Map<string, OutlineChain>
   selectedShapeIds: Set<string>
   activeLayerId: string
@@ -19,6 +20,7 @@ export function NestingModal({
   open,
   onClose,
   patternPieces,
+  pieceGrainlines,
   patternPieceChainsByShapeId,
   selectedShapeIds,
   activeLayerId,
@@ -30,36 +32,48 @@ export function NestingModal({
   const [spacing, setSpacing] = useState(DEFAULT_NESTING_CONFIG.spacing)
   const [iterations, setIterations] = useState(DEFAULT_NESTING_CONFIG.iterations)
   const [rotations, setRotations] = useState('0,90,180,270')
+  const [respectGrainline, setRespectGrainline] = useState(DEFAULT_NESTING_CONFIG.respectGrainline)
+  const [hideGrainAxis, setHideGrainAxis] = useState<NestingConfig['hideGrainAxis']>(DEFAULT_NESTING_CONFIG.hideGrainAxis)
   const [result, setResult] = useState<NestingResult | null>(null)
   const [status, setStatus] = useState('')
 
   if (!open) return null
 
   function runNesting() {
-    const pieces = patternPiecesToNestingPieces(patternPieces, patternPieceChainsByShapeId, selectedShapeIds)
+    const config: NestingConfig = {
+      rotations: rotations
+        .split(',')
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isFinite(n)),
+      spacing: Math.max(0, spacing),
+      iterations: Math.max(1, iterations),
+      respectGrainline,
+      hideGrainAxis,
+    }
+    const pieces = patternPiecesToNestingPieces(
+      patternPieces,
+      patternPieceChainsByShapeId,
+      selectedShapeIds,
+      pieceGrainlines,
+      config,
+    )
     if (pieces.length === 0) {
       setStatus('No valid pattern pieces found. Select piece boundaries or mark pieces for layout.')
       setResult(null)
       return
     }
-
-    const rotArray = rotations
-      .split(',')
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isFinite(n))
-
-    const config: NestingConfig = {
-      rotations: rotArray.length > 0 ? rotArray : [0],
-      spacing: Math.max(0, spacing),
-      iterations: Math.max(1, iterations),
-    }
+    config.rotations = config.rotations.length > 0 ? config.rotations : [0]
 
     const nestResult = nestPieces(pieces, hideWidth, hideHeight, config)
+    const constrainedPieceCount = pieces.filter(
+      (piece) => piece.allowedRotations?.length && piece.allowedRotations.length < config.rotations.length,
+    ).length
     setResult(nestResult)
     setStatus(
       `Placed ${nestResult.placements.length} piece(s), ` +
       `waste: ${nestResult.wastePercent.toFixed(1)}%, ` +
-      `${nestResult.unplaced.length} unplaced`,
+      `${nestResult.unplaced.length} unplaced` +
+      (constrainedPieceCount > 0 ? `, ${constrainedPieceCount} with grain/orientation limits` : ''),
     )
   }
 
@@ -185,7 +199,28 @@ export function NestingModal({
                 placeholder="0,90,180,270"
               />
             </label>
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={respectGrainline}
+                onChange={(e) => setRespectGrainline(e.target.checked)}
+              />
+              <span>Respect piece grainlines</span>
+            </label>
+            <label className="field-row">
+              <span>Hide grain axis</span>
+              <select
+                value={hideGrainAxis}
+                onChange={(e) => setHideGrainAxis(e.target.value as NestingConfig['hideGrainAxis'])}
+                disabled={!respectGrainline}
+                style={{ width: 120 }}
+              >
+                <option value="vertical">Vertical</option>
+                <option value="horizontal">Horizontal</option>
+              </select>
+            </label>
           </div>
+          <p className="hint">Piece orientation and fixed/auto grainline settings can reduce each piece’s allowed rotations.</p>
         </div>
 
         <div className="control-block">
