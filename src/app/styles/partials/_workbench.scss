@@ -559,8 +559,7 @@
   color: var(--text-muted-strong);
 }
 
-.workbench-tree-section > summary::before,
-.workbench-tree-branch > summary::before {
+.workbench-tree-section > summary::before {
   content: '▸';
   flex: 0 0 auto;
   font-size: 10px;
@@ -569,8 +568,7 @@
   transition: transform 120ms ease;
 }
 
-.workbench-tree-section[open] > summary::before,
-.workbench-tree-branch[open] > summary::before {
+.workbench-tree-section[open] > summary::before {
   transform: rotate(90deg);
 }
 
@@ -580,6 +578,13 @@
 
 .workbench-tree-branch {
   display: block;
+}
+
+.workbench-tree-branch-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
 }
 
 .workbench-tree-branch.depth-1 {
@@ -594,14 +599,12 @@
   margin-left: 24px;
 }
 
-.workbench-tree-branch > summary {
-  list-style: none;
+.workbench-tree-branch-summary {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 7px 8px;
   border-radius: 8px;
-  cursor: pointer;
   font-size: 12px;
   color: var(--text-subtle);
   width: 100%;
@@ -609,17 +612,25 @@
   box-sizing: border-box;
 }
 
-.workbench-tree-branch > summary::-webkit-details-marker {
-  display: none;
+.workbench-tree-branch-chevron {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
 }
 
-.workbench-tree-branch.selected > summary {
+.workbench-tree-branch.open .workbench-tree-branch-chevron {
+  transform: rotate(90deg);
+}
+
+.workbench-tree-branch.selected .workbench-tree-branch-summary {
   background: rgba(41, 100, 184, 0.2);
   border-color: var(--accent-border);
   color: var(--text-muted-strong);
 }
 
-.workbench-tree-branch.dimmed > summary {
+.workbench-tree-branch.dimmed .workbench-tree-branch-summary {
   opacity: 0.58;
 }
 
@@ -635,7 +646,12 @@
 }
 
 .workbench-tree-branch-actions {
-  margin-left: auto;
+  margin-left: 0;
+}
+
+.workbench-tree-branch.collapsed > .workbench-tree-children {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .workbench-tree-node {

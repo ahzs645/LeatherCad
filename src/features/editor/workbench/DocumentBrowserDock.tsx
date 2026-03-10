@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react'
+import { useState, type MouseEvent } from 'react'
 import type { DocumentBrowserNode } from './workbench-types'
 
 type DocumentBrowserDockProps = {
@@ -14,6 +14,8 @@ type DocumentBrowserDockProps = {
 function renderNode(
   node: DocumentBrowserNode,
   props: DocumentBrowserDockProps,
+  branchOpenState: Record<string, boolean>,
+  onToggleBranch: (nodeId: string) => void,
   depth = 0,
 ) {
   const isSection = node.kind === 'section'
@@ -35,7 +37,7 @@ function renderNode(
           {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
         </summary>
         <div className="workbench-tree-children">
-          {(node.children ?? []).map((child) => renderNode(child, props, depth + 1))}
+          {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, depth + 1))}
         </div>
       </details>
     )
@@ -47,22 +49,32 @@ function renderNode(
       .map((child) => child.id.split(':')[1] ?? '')
       .filter((layerId) => layerId.length > 0)
 
+    const isOpen = branchOpenState[node.id] ?? true
+
     return (
-      <details
+      <div
         key={node.id}
-        className={`workbench-tree-branch depth-${depth}${node.selected ? ' selected' : ''}${node.dimmed ? ' dimmed' : ''}`}
+        className={`workbench-tree-branch depth-${depth}${node.selected ? ' selected' : ''}${node.dimmed ? ' dimmed' : ''}${isOpen ? ' open' : ' collapsed'}`}
         data-node-kind={node.kind}
-        open
       >
-        <summary>
-          <span className="workbench-tree-branch-label">{node.label}</span>
-          {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
+        <div className="workbench-tree-branch-header">
+          <button
+            type="button"
+            className="workbench-tree-branch-summary"
+            data-testid={`browser-node-${node.id}`}
+            onClick={() => onToggleBranch(node.id)}
+          >
+            <span className="workbench-tree-branch-chevron" aria-hidden="true">
+              ▸
+            </span>
+            <span className="workbench-tree-branch-label">{node.label}</span>
+            {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
+          </button>
           {showLayerGroupActions && (
             <span className="workbench-tree-actions workbench-tree-branch-actions">
               <button
                 type="button"
                 onClick={(event) => {
-                  event.preventDefault()
                   event.stopPropagation()
                   props.onToggleLayerGroupVisibility(childLayerIds)
                 }}
@@ -72,11 +84,11 @@ function renderNode(
               </button>
             </span>
           )}
-        </summary>
-        <div className="workbench-tree-children">
-          {(node.children ?? []).map((child) => renderNode(child, props, depth + 1))}
         </div>
-      </details>
+        <div className="workbench-tree-children">
+          {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, depth + 1))}
+        </div>
+      </div>
     )
   }
 
@@ -112,7 +124,7 @@ function renderNode(
       )}
       {node.children && node.children.length > 0 && (
         <div className="workbench-tree-children">
-          {node.children.map((child) => renderNode(child, props, depth + 1))}
+          {node.children.map((child) => renderNode(child, props, branchOpenState, onToggleBranch, depth + 1))}
         </div>
       )}
     </div>
@@ -120,6 +132,15 @@ function renderNode(
 }
 
 export function DocumentBrowserDock(props: DocumentBrowserDockProps) {
+  const [branchOpenState, setBranchOpenState] = useState<Record<string, boolean>>({})
+
+  const handleToggleBranch = (nodeId: string) => {
+    setBranchOpenState((previous) => ({
+      ...previous,
+      [nodeId]: !(previous[nodeId] ?? true),
+    }))
+  }
+
   return (
     <aside className="workbench-browser-dock" aria-label="Document browser">
       <div className="workbench-browser-header">
@@ -127,7 +148,7 @@ export function DocumentBrowserDock(props: DocumentBrowserDockProps) {
         <p>Pieces, layers, sketches, tracing, and 3D assets</p>
       </div>
       <div className="workbench-browser-tree">
-        {props.nodes.map((node) => renderNode(node, props))}
+        {props.nodes.map((node) => renderNode(node, props, branchOpenState, handleToggleBranch))}
       </div>
     </aside>
   )
