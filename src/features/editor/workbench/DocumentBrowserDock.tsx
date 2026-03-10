@@ -55,23 +55,24 @@ function renderNode(
         open
       >
         <summary>
-          <span>{node.label}</span>
+          <span className="workbench-tree-branch-label">{node.label}</span>
           {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
+          {showLayerGroupActions && (
+            <span className="workbench-tree-actions workbench-tree-branch-actions">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  props.onToggleLayerGroupVisibility(childLayerIds)
+                }}
+                title="Toggle group visibility"
+              >
+                V
+              </button>
+            </span>
+          )}
         </summary>
-        {showLayerGroupActions && (
-          <div className="workbench-tree-actions">
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation()
-                props.onToggleLayerGroupVisibility(childLayerIds)
-              }}
-              title="Toggle group visibility"
-            >
-              V
-            </button>
-          </div>
-        )}
         <div className="workbench-tree-children">
           {(node.children ?? []).map((child) => renderNode(child, props, depth + 1))}
         </div>
