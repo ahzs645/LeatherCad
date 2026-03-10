@@ -105,8 +105,8 @@ import type { DocumentBrowserNode } from './workbench/workbench-types'
 import {
   WorkbenchThreePreviewInspector,
   WorkbenchThreePreviewViewport,
-  useWorkbenchThreePreviewController,
 } from './workbench/WorkbenchThreePreview'
+import { useWorkbenchThreePreviewController } from './workbench/useWorkbenchThreePreviewController'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
@@ -2426,7 +2426,7 @@ export function EditorApp() {
         handleCopySelection()
         break
       case 'paste':
-        handlePasteClipboard()
+        void handlePasteClipboard()
         break
       case 'delete':
         handleDeleteSelection()

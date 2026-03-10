@@ -1,4 +1,4 @@
-import { createElement, createRef, useRef, useState } from 'react'
+import { createElement, useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { changeValue, cleanupRender, renderForTest } from '../../../test/render'
 import {
@@ -15,9 +15,9 @@ afterEach(() => {
 
 function createPreviewHarness() {
   function Harness() {
-    const containerRef = useRef<HTMLDivElement | null>(null)
-    const canvasRef = useRef<HTMLCanvasElement | null>(null)
-    const bridgeRef = createRef(null)
+    const containerRef = { current: null as HTMLDivElement | null }
+    const canvasRef = { current: null as HTMLCanvasElement | null }
+    const bridgeRef = { current: null }
     const [threePreviewSettings, onSetThreePreviewSettings] = useState({
       mode: 'fold',
       explodedFactor: 0,

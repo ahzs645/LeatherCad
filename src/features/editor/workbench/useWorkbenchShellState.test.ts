@@ -1,6 +1,7 @@
 import { createElement, useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupRender, click, renderForTest } from '../../../test/render'
+import type { DockLayoutState } from './workbench-types'
 import { clampDockLayoutState, useWorkbenchShellState } from './useWorkbenchShellState'
 
 const STORAGE_KEY = 'leathercad.workbench.layout.v1'
@@ -93,23 +94,33 @@ describe('useWorkbenchShellState', () => {
     storage.clear()
   })
 
+  const readStoredLayout = (): Partial<DockLayoutState> => {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) {
+      return {}
+    }
+
+    const parsed: unknown = JSON.parse(raw)
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Partial<DockLayoutState>) : {}
+  }
+
   it('persists the active inspector tab and clamped dock layout', () => {
     function Harness() {
-      const shell = useWorkbenchShellState({
+      const { shellRef, setActiveInspectorTab } = useWorkbenchShellState({
         enabled: true,
         secondaryPreviewMode: '3d-peek',
       })
 
       useEffect(() => {
-        shell.setActiveInspectorTab('piece')
-      }, [])
+        setActiveInspectorTab('piece')
+      }, [setActiveInspectorTab])
 
-      return createElement('main', { ref: shell.shellRef, 'data-testid': 'shell-harness' })
+      return createElement('main', { ref: shellRef, 'data-testid': 'shell-harness' })
     }
 
     lastRender = renderForTest(createElement(Harness))
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
+    const stored = readStoredLayout()
     expect(stored.activeInspectorTab).toBe('piece')
     expect(stored.browserWidth).toBe(260)
     expect(stored.inspectorWidth).toBe(340)
@@ -141,7 +152,7 @@ describe('useWorkbenchShellState', () => {
     lastRender = renderForTest(createElement(Harness))
     click(lastRender.container.querySelector('button'))
 
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')
+    const stored = readStoredLayout()
     expect(stored.activeInspectorTab).toBe('document')
   })
 })

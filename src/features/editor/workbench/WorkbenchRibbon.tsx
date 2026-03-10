@@ -1,5 +1,6 @@
 import type { RibbonCommandGroup } from './workbench-types'
-import { WorkbenchIcon, resolveRibbonCommandIcon } from './workbench-icons'
+import { WorkbenchIcon } from './workbench-icons'
+import { resolveRibbonCommandIcon } from './workbench-icon-resolvers'
 
 type WorkbenchRibbonProps = {
   groups: RibbonCommandGroup[]

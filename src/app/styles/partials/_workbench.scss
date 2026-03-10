@@ -56,13 +56,15 @@
 
 .workbench-header {
   display: grid;
+  position: relative;
+  z-index: 2;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   min-height: 40px;
   padding: 0 10px;
   border-bottom: 1px solid var(--border-color);
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),

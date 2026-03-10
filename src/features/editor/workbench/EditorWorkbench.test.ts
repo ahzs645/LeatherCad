@@ -1,4 +1,4 @@
-import { createElement, useMemo, useRef, useState } from 'react'
+import { createElement, useMemo, useState } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PieceInspectorContent } from '../components/PieceInspectorContent'
 import { cleanupRender, changeValue, click, getByText, pointerDown, renderForTest } from '../../../test/render'
@@ -20,7 +20,7 @@ afterEach(() => {
 
 function createHarnessElement() {
   function Harness() {
-    const shellRef = useRef<HTMLElement | null>(null)
+    const shellRef = { current: null as HTMLElement | null }
     const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('2d')
     const [secondaryPreviewMode, setSecondaryPreviewMode] = useState<SecondaryPreviewMode>('3d-peek')
     const [activeRibbonTab, setActiveRibbonTab] = useState<WorkbenchRibbonTab>('draft')

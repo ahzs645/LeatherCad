@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ThemeMode } from '../editor-types'
 import type { QuickAction, SecondaryPreviewMode, WorkspaceMode, WorkbenchRibbonTab } from './workbench-types'
-import { WorkbenchIcon, resolvePeekIcon, resolveQuickActionIcon } from './workbench-icons'
+import { WorkbenchIcon } from './workbench-icons'
+import { resolvePeekIcon, resolveQuickActionIcon } from './workbench-icon-resolvers'
 
 type WorkbenchHeaderProps = {
   docLabel: string
