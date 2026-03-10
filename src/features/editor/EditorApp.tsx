@@ -113,6 +113,7 @@ const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 export function EditorApp() {
   // Document state: shapes, constraints, layers, overlays, etc.
   const {
+    documentName, setDocumentName,
     lineTypes, setLineTypes,
     activeLineTypeId, setActiveLineTypeId,
     shapes, setShapes,
@@ -506,6 +507,7 @@ export function EditorApp() {
     activeSketchGroup,
     activeLineType,
     clearDraft,
+    setDocumentName,
     setLayers,
     setActiveLayerId,
     setSketchGroups,
@@ -549,6 +551,7 @@ export function EditorApp() {
 
   const { applyLoadedDocument } = useLoadedDocumentActions({
     clearDraft,
+    setDocumentName,
     setLayers,
     setActiveLayerId,
     setSketchGroups,
@@ -713,6 +716,7 @@ export function EditorApp() {
   const buildCurrentDocFile = (): DocFile => ({
     version: 1,
     units: 'mm',
+    ...(documentName ? { documentName } : {}),
     layers,
     activeLayerId,
     sketchGroups,
@@ -2357,7 +2361,7 @@ export function EditorApp() {
         ),
       ),
   })
-  const docLabel = selectedTemplateEntry?.name ?? patternPieces[0]?.name ?? 'Current Draft'
+  const docLabel = documentName ?? patternPieces[0]?.name ?? 'Current Draft'
   const selectionText =
     selectedShapeCount > 0
       ? `${selectedShapeCount} shape${selectedShapeCount === 1 ? '' : 's'}`
@@ -2932,6 +2936,27 @@ export function EditorApp() {
           browserNodes={browserNodes}
           onActivateNode={handleWorkbenchActivateNode}
           onToggleLayerVisibility={handleToggleLayerVisibilityById}
+          onToggleLayerGroupVisibility={(layerIds) => {
+            if (layerIds.length === 0) {
+              return
+            }
+            setLayers((previous) => {
+              const layerIdSet = new Set(layerIds)
+              const targetLayers = previous.filter((layer) => layerIdSet.has(layer.id))
+              if (targetLayers.length === 0) {
+                return previous
+              }
+              const shouldShow = targetLayers.some((layer) => !layer.visible)
+              return previous.map((layer) =>
+                layerIdSet.has(layer.id)
+                  ? {
+                      ...layer,
+                      visible: shouldShow,
+                    }
+                  : layer,
+              )
+            })
+          }}
           onToggleLayerLock={handleToggleLayerLockById}
           onToggleTracingVisibility={handleToggleTracingVisibilityById}
           onToggleTracingLock={handleToggleTracingLockById}

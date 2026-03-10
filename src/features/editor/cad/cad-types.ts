@@ -415,6 +415,7 @@ export type PrintArea = {
 export type DocFile = {
   version: 1
   units: 'mm'
+  documentName?: string
   layers: Layer[]
   activeLayerId: string
   sketchGroups?: SketchGroup[]

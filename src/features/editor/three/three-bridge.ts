@@ -19,6 +19,7 @@ import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } fro
 import { LEATHER_PRESETS } from './material-presets'
 import { buildOutlineRegions } from './outline-regions'
 import { isPhysicalCutShape, shouldUseOutlineRegions } from './physical-layer-heuristics'
+import { buildPhysicalLayerRegions } from './physical-layer-regions'
 import { buildPieceMeshes, createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 
 export type OutlinePolygon = {
@@ -1413,12 +1414,27 @@ export class ThreeBridge {
           outlineRegions,
           fallbackBoundsArea: fallbackLayerArea,
         })
+        const physicalLayerRegions = canUseDetectedOutlines
+          ? []
+          : buildPhysicalLayerRegions({
+              layerId: layerSlice.layerId,
+              shapes: layerSlice.shapes,
+              lineTypeById,
+              closedCutOutlines: layerOutlines,
+            })
 
         if (canUseDetectedOutlines) {
           const regions = outlineRegions
           panelRegions = regions.map((region) => ({
             outer: region.outer.polygon.map((point) => this.projectPoint(point)),
             holes: region.holes.map((hole) => hole.polygon.map((point) => this.projectPoint(point))),
+          }))
+          const allPoints = panelRegions.flatMap((region) => [region.outer, ...region.holes]).flat()
+          layerProjectedBounds = polygonBounds(allPoints)
+        } else if (physicalLayerRegions.length > 0) {
+          panelRegions = physicalLayerRegions.map((region) => ({
+            outer: region.outer.map((point) => this.projectPoint(point)),
+            holes: region.holes.map((hole) => hole.map((point) => this.projectPoint(point))),
           }))
           const allPoints = panelRegions.flatMap((region) => [region.outer, ...region.holes]).flat()
           layerProjectedBounds = polygonBounds(allPoints)

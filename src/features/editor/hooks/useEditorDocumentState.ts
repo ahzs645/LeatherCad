@@ -30,6 +30,7 @@ import {
 import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 
 export function useEditorDocumentState() {
+  const [documentName, setDocumentName] = useState<string | null>(null)
   const [lineTypes, setLineTypes] = useState<LineType[]>(() => createDefaultLineTypes())
   const [activeLineTypeId, setActiveLineTypeId] = useState(DEFAULT_ACTIVE_LINE_TYPE_ID)
   const [shapes, setShapes] = useState<Shape[]>([])
@@ -64,6 +65,7 @@ export function useEditorDocumentState() {
   const [showDimensions, setShowDimensions] = useState(false)
 
   return {
+    documentName, setDocumentName,
     lineTypes, setLineTypes,
     activeLineTypeId, setActiveLineTypeId,
     shapes, setShapes,

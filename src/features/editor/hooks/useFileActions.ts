@@ -12,6 +12,16 @@ import type { MobileViewMode } from '../editor-types'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
+export function resolveDocumentNameFromFileName(fileName: string): string | null {
+  const trimmed = fileName.trim()
+  if (trimmed.length === 0) {
+    return null
+  }
+
+  const withoutExtension = trimmed.replace(/\.[^.]+$/, '').trim()
+  return withoutExtension.length > 0 ? withoutExtension : trimmed
+}
+
 type UseFileActionsParams = {
   buildCurrentDocFile: () => DocFile
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
@@ -81,17 +91,19 @@ export function useFileActions(params: UseFileActionsParams) {
 
       if (isLcc) {
         const result = importLccDocument(raw)
+        const documentName = result.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
         const warningNote = result.warnings.length > 0 ? ` (${result.warnings.length} warning(s))` : ''
         applyLoadedDocument(
-          result.doc,
+          documentName ? { ...result.doc, documentName } : result.doc,
           `Loaded LCC (${result.summary.shapeCount} shapes, ${result.summary.stitchHoleCount} holes, ${result.summary.layerCount} layers)${warningNote}`,
         )
         return
       }
 
       const imported = parseImportedJsonDocument(raw)
+      const documentName = imported.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
       applyLoadedDocument(
-        imported.doc,
+        documentName ? { ...imported.doc, documentName } : imported.doc,
         `Loaded JSON (${imported.summary.shapeCount} shapes, ${imported.summary.foldCount} folds, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers, ${imported.summary.hardwareMarkerCount} hardware markers)`,
       )
     } catch (error) {
@@ -161,6 +173,7 @@ export function useFileActions(params: UseFileActionsParams) {
       typeof structuredClone === 'function'
         ? structuredClone(preset.doc)
         : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
+    sample.documentName = sample.documentName?.trim() || preset.label
 
     const loadedMessage =
       preset.id === requestedPresetId

@@ -58,6 +58,7 @@ import { sanitizeSketchGroupLinks } from './ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from './ops/pattern-piece-ops'
 
 type ImportedJsonCandidate = {
+  documentName?: unknown
   objects?: unknown[]
   foldLines?: unknown[]
   stitchHoles?: unknown[]
@@ -446,11 +447,15 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         .map(parsePrintArea)
         .filter((area): area is PrintArea => area !== null)
     : []
+  const documentName = typeof parsed.documentName === 'string' && parsed.documentName.trim().length > 0
+    ? parsed.documentName.trim()
+    : undefined
 
   return {
     doc: {
       version: 1,
       units: 'mm',
+      documentName,
       layers: nextLayers,
       activeLayerId: nextActiveLayerId,
       sketchGroups: nextSketchGroups,

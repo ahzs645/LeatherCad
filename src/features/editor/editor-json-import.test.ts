@@ -102,4 +102,22 @@ describe('parseImportedJsonDocument', () => {
     expect(imported.doc.threePreviewSettings?.avatarId).toBe('avatar-1')
     expect(imported.doc.avatars?.[0].sourceUrl).toBe('https://example.com/avatar.glb')
   })
+
+  it('preserves documentName when present', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      units: 'mm',
+      documentName: 'YubiKey Sleeve',
+      layers: [{ id: 'layer-1', name: 'Main', visible: true, locked: false }],
+      activeLayerId: 'layer-1',
+      lineTypes: createDefaultLineTypes(),
+      activeLineTypeId: 'type-cut',
+      objects: [],
+      foldLines: [],
+    })
+
+    const imported = parseImportedJsonDocument(raw)
+
+    expect(imported.doc.documentName).toBe('YubiKey Sleeve')
+  })
 })

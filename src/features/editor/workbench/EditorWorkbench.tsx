@@ -41,6 +41,7 @@ type EditorWorkbenchProps = {
   browserNodes: DocumentBrowserNode[]
   onActivateNode: (node: DocumentBrowserNode, multi: boolean) => void
   onToggleLayerVisibility: (layerId: string) => void
+  onToggleLayerGroupVisibility: (layerIds: string[]) => void
   onToggleLayerLock: (layerId: string) => void
   onToggleTracingVisibility: (overlayId: string) => void
   onToggleTracingLock: (overlayId: string) => void
@@ -91,6 +92,7 @@ export function EditorWorkbench({
   browserNodes,
   onActivateNode,
   onToggleLayerVisibility,
+  onToggleLayerGroupVisibility,
   onToggleLayerLock,
   onToggleTracingVisibility,
   onToggleTracingLock,
@@ -155,6 +157,7 @@ export function EditorWorkbench({
           nodes={browserNodes}
           onActivateNode={onActivateNode}
           onToggleLayerVisibility={onToggleLayerVisibility}
+          onToggleLayerGroupVisibility={onToggleLayerGroupVisibility}
           onToggleLayerLock={onToggleLayerLock}
           onToggleTracingVisibility={onToggleTracingVisibility}
           onToggleTracingLock={onToggleTracingLock}

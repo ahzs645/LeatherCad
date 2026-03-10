@@ -148,6 +148,7 @@ function createHarnessElement() {
           }
         },
         onToggleLayerVisibility: () => undefined,
+        onToggleLayerGroupVisibility: () => undefined,
         onToggleLayerLock: () => undefined,
         onToggleTracingVisibility: () => undefined,
         onToggleTracingLock: () => undefined,

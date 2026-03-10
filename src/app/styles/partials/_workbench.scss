@@ -559,6 +559,21 @@
   color: var(--text-muted-strong);
 }
 
+.workbench-tree-section > summary::before,
+.workbench-tree-branch > summary::before {
+  content: '▸';
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  transform: rotate(0deg);
+  transition: transform 120ms ease;
+}
+
+.workbench-tree-section[open] > summary::before,
+.workbench-tree-branch[open] > summary::before {
+  transform: rotate(90deg);
+}
+
 .workbench-tree-section > summary::-webkit-details-marker {
   display: none;
 }
@@ -566,6 +581,8 @@
 .workbench-tree-branch {
   display: grid;
   gap: 4px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
 }
 
 .workbench-tree-branch.depth-1 {
@@ -591,6 +608,7 @@
   cursor: pointer;
   font-size: 12px;
   color: var(--text-subtle);
+  grid-column: 1;
 }
 
 .workbench-tree-branch > summary::-webkit-details-marker {
@@ -611,6 +629,16 @@
   display: grid;
   gap: 3px;
   padding: 0 6px 6px;
+}
+
+.workbench-tree-branch > .workbench-tree-actions {
+  grid-column: 2;
+  align-self: center;
+  padding-right: 2px;
+}
+
+.workbench-tree-branch > .workbench-tree-children {
+  grid-column: 1 / -1;
 }
 
 .workbench-tree-node {

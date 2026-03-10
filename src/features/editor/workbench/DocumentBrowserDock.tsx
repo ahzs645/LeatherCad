@@ -5,6 +5,7 @@ type DocumentBrowserDockProps = {
   nodes: DocumentBrowserNode[]
   onActivateNode: (node: DocumentBrowserNode, multi: boolean) => void
   onToggleLayerVisibility: (layerId: string) => void
+  onToggleLayerGroupVisibility: (layerIds: string[]) => void
   onToggleLayerLock: (layerId: string) => void
   onToggleTracingVisibility: (overlayId: string) => void
   onToggleTracingLock: (overlayId: string) => void
@@ -22,6 +23,7 @@ function renderNode(
   }
 
   const showLayerActions = node.kind === 'layer'
+  const showLayerGroupActions = node.kind === 'layer-group'
   const showTracingActions = node.kind === 'tracing-overlay'
   const targetId = node.id.split(':')[1] ?? ''
 
@@ -40,6 +42,11 @@ function renderNode(
   }
 
   if (isBranch) {
+    const childLayerIds = (node.children ?? [])
+      .filter((child) => child.kind === 'layer')
+      .map((child) => child.id.split(':')[1] ?? '')
+      .filter((layerId) => layerId.length > 0)
+
     return (
       <details
         key={node.id}
@@ -51,6 +58,20 @@ function renderNode(
           <span>{node.label}</span>
           {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
         </summary>
+        {showLayerGroupActions && (
+          <div className="workbench-tree-actions">
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation()
+                props.onToggleLayerGroupVisibility(childLayerIds)
+              }}
+              title="Toggle group visibility"
+            >
+              V
+            </button>
+          </div>
+        )}
         <div className="workbench-tree-children">
           {(node.children ?? []).map((child) => renderNode(child, props, depth + 1))}
         </div>

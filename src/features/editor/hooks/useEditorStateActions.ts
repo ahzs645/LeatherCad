@@ -37,6 +37,7 @@ type UseEditorStateActionsParams = {
   activeSketchGroup: SketchGroup | null
   activeLineType: LineType | null
   clearDraft: () => void
+  setDocumentName: Dispatch<SetStateAction<string | null>>
   setLayers: Dispatch<SetStateAction<Layer[]>>
   setActiveLayerId: Dispatch<SetStateAction<string>>
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
@@ -84,6 +85,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     activeSketchGroup,
     activeLineType,
     clearDraft,
+    setDocumentName,
     setLayers,
     setActiveLayerId,
     setSketchGroups,
@@ -254,6 +256,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
   const resetDocument = useCallback((statusMessage = 'Document cleared and reset to Layer 1') => {
     const baseLayerId = uid()
     const defaultLineTypes = createDefaultLineTypes()
+    setDocumentName(null)
     setLayers([createDefaultLayer(baseLayerId)])
     setActiveLayerId(baseLayerId)
     setSketchGroups([])
@@ -294,6 +297,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setStatus(statusMessage)
   }, [
     clearDraft,
+    setDocumentName,
     setLayers,
     setActiveLayerId,
     setSketchGroups,

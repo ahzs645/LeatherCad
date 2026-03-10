@@ -105,7 +105,13 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
       setStatus('Select a template first')
       return
     }
-    applyLoadedDocument(selectedTemplateEntry.doc, `Loaded template: ${selectedTemplateEntry.name}`)
+    applyLoadedDocument(
+      {
+        ...selectedTemplateEntry.doc,
+        documentName: selectedTemplateEntry.doc.documentName?.trim() || selectedTemplateEntry.name,
+      },
+      `Loaded template: ${selectedTemplateEntry.name}`,
+    )
   }
 
   const handleInsertTemplateIntoDocument = () => {

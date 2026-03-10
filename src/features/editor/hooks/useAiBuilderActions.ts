@@ -56,7 +56,10 @@ export function useAiBuilderActions(params: UseAiBuilderActionsParams) {
   const handleLoadAiBuilderDocument = (doc: DocFile, documentName: string) => {
     const resolvedName = resolveDocumentName(documentName)
     applyLoadedDocument(
-      doc,
+      {
+        ...doc,
+        documentName: resolvedName,
+      },
       `Loaded AI Builder document: ${resolvedName} (${doc.objects.length} shapes, ${doc.foldLines.length} folds, ${doc.layers.length} layers)`,
     )
   }

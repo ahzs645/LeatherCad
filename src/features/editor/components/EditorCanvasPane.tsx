@@ -276,7 +276,9 @@ export function EditorCanvasPane({
     )
   }
 
-  const dimensionShapes = showDimensions
+  const hasImportedDimensions = dimensionLines.length > 0
+
+  const dimensionShapes = showDimensions && !hasImportedDimensions
     ? selectedShapeIdSet.size > 0
       ? visibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
       : visibleShapes.slice(0, 40)
@@ -867,7 +869,9 @@ export function EditorCanvasPane({
                     className="dimension-measure-line"
                     style={{ markerStart: 'url(#arrow-start)', markerEnd: 'url(#arrow-end)' }}
                   />
-                  <text x={mx + 3} y={my - 3} className="dimension-label">{dimText}</text>
+                  <text x={mx} y={my} textAnchor="middle" dominantBaseline="middle" className="dimension-label">
+                    {dimText}
+                  </text>
                 </g>
               )
             })}
