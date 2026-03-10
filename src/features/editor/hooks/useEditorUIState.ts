@@ -11,6 +11,7 @@ import type {
   SketchWorkspaceMode,
   ThemeMode,
 } from '../editor-types'
+import type { SecondaryPreviewMode, WorkbenchRibbonTab, WorkspaceMode } from '../workbench/workbench-types'
 import { DEFAULT_GRID_SPACING } from '../editor-constants'
 import { DEFAULT_PRESET_ID } from '../data/sample-doc'
 import type { DisplayUnit } from '../ops/unit-ops'
@@ -35,6 +36,9 @@ export function useEditorUIState() {
   const [showProjectMemoModal, setShowProjectMemoModal] = useState(false)
   const [showNestingModal, setShowNestingModal] = useState(false)
   const [desktopRibbonTab, setDesktopRibbonTab] = useState<DesktopRibbonTab>('build')
+  const [workbenchRibbonTab, setWorkbenchRibbonTab] = useState<WorkbenchRibbonTab>('draft')
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('2d')
+  const [secondaryPreviewMode, setSecondaryPreviewMode] = useState<SecondaryPreviewMode>('3d-peek')
   const [mobileLayerAction, setMobileLayerAction] = useState<MobileLayerAction>('add')
   const [mobileFileAction, setMobileFileAction] = useState<MobileFileAction>('save-json')
   const [displayUnit, setDisplayUnit] = useState<DisplayUnit>('mm')
@@ -71,6 +75,9 @@ export function useEditorUIState() {
     showProjectMemoModal, setShowProjectMemoModal,
     showNestingModal, setShowNestingModal,
     desktopRibbonTab, setDesktopRibbonTab,
+    workbenchRibbonTab, setWorkbenchRibbonTab,
+    workspaceMode, setWorkspaceMode,
+    secondaryPreviewMode, setSecondaryPreviewMode,
     mobileLayerAction, setMobileLayerAction,
     mobileFileAction, setMobileFileAction,
     displayUnit, setDisplayUnit,

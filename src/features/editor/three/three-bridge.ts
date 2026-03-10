@@ -17,6 +17,7 @@ import type {
 } from '../cad/cad-types'
 import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
 import { LEATHER_PRESETS } from './material-presets'
+import { buildOutlineRegions } from './outline-regions'
 import { buildPieceMeshes, createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 
 export type OutlinePolygon = {
@@ -1372,27 +1373,30 @@ export class ThreeBridge {
       // Check for actual outline polygons for this layer
       const layerOutlines = this.outlinePolygons.filter((o) => o.layerId === layerSlice.layerId)
 
-      let panelPolygons: THREE.Vector2[][]
+      let panelRegions: Array<{ outer: THREE.Vector2[]; holes: THREE.Vector2[][] }>
       let layerProjectedBounds: Bounds2
 
       if (layerOutlines.length > 0) {
-        // Use actual closed-shape geometry instead of bounding-box rectangles
-        panelPolygons = layerOutlines.map((o) => o.polygon.map((p) => this.projectPoint(p)))
-        // Compute combined bounds from all outline polygons
-        const allPoints = panelPolygons.flat()
+        const regions = buildOutlineRegions(layerOutlines)
+        panelRegions = regions.map((region) => ({
+          outer: region.outer.polygon.map((point) => this.projectPoint(point)),
+          holes: region.holes.map((hole) => hole.polygon.map((point) => this.projectPoint(point))),
+        }))
+        const allPoints = panelRegions.flatMap((region) => [region.outer, ...region.holes]).flat()
         layerProjectedBounds = polygonBounds(allPoints)
       } else {
         // Fall back to bounding-box rectangle
         const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
-        panelPolygons = [
-          [
+        panelRegions = [{
+          outer: [
             this.projectPoint({ x: layerBounds.minX, y: layerBounds.minY }),
             this.projectPoint({ x: layerBounds.maxX, y: layerBounds.minY }),
             this.projectPoint({ x: layerBounds.maxX, y: layerBounds.maxY }),
             this.projectPoint({ x: layerBounds.minX, y: layerBounds.maxY }),
           ],
-        ]
-        layerProjectedBounds = polygonBounds(panelPolygons[0])
+          holes: [],
+        }]
+        layerProjectedBounds = polygonBounds(panelRegions[0].outer)
       }
 
       const stackLevel = layerStackLevels.get(layerSlice.layerId) ?? index
@@ -1403,16 +1407,32 @@ export class ThreeBridge {
       const staticMaterial = hasTexturedShape ? this.leftTextureMaterial : this.leftMaterial
       const foldingMaterial = hasTexturedShape ? this.rightTextureMaterial : this.rightMaterial
 
-      for (const panelPoly of panelPolygons) {
+      for (const panelRegion of panelRegions) {
+        const panelPoly = panelRegion.outer
         let positivePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, true)
         let negativePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, false)
+        let positiveHoles = panelRegion.holes
+          .map((hole) => clipPolygonByLine(hole, foldStart, foldEnd, true))
+          .filter((hole) => hole.length >= 3)
+        let negativeHoles = panelRegion.holes
+          .map((hole) => clipPolygonByLine(hole, foldStart, foldEnd, false))
+          .filter((hole) => hole.length >= 3)
         if (positivePolygon.length < 3 && negativePolygon.length < 3) {
           positivePolygon = []
           negativePolygon = panelPoly.map((point) => point.clone())
+          positiveHoles = []
+          negativeHoles = panelRegion.holes.map((hole) => hole.map((point) => point.clone()))
         }
 
         if (negativePolygon.length >= 3) {
-          const staticPanel = this.createPanelMesh(negativePolygon, staticMaterial, layerProjectedBounds, null, yOffset)
+          const staticPanel = this.createPanelMesh(
+            negativePolygon,
+            staticMaterial,
+            layerProjectedBounds,
+            null,
+            yOffset,
+            negativeHoles,
+          )
           if (staticPanel) {
             this.staticPanels.push(staticPanel)
             this.staticSideGroup.add(staticPanel)
@@ -1421,7 +1441,14 @@ export class ThreeBridge {
         }
 
         if (positivePolygon.length >= 3) {
-          const foldingPanel = this.createPanelMesh(positivePolygon, foldingMaterial, layerProjectedBounds, foldMid, yOffset)
+          const foldingPanel = this.createPanelMesh(
+            positivePolygon,
+            foldingMaterial,
+            layerProjectedBounds,
+            foldMid,
+            yOffset,
+            positiveHoles,
+          )
           if (foldingPanel) {
             this.foldingPanels.push(foldingPanel)
             this.foldingSideGroup.add(foldingPanel)

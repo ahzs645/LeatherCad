@@ -34,6 +34,7 @@ export type DesktopRibbonTab = 'build' | 'edit' | 'stitch' | 'output' | 'view'
 export type SidePanelTab = '3d' | 'layers'
 export type SketchWorkspaceMode = 'assembly' | 'sketch'
 export type ExportRoleFilters = Record<LineTypeRole, boolean>
+export type { SecondaryPreviewMode, WorkbenchInspectorTab, WorkbenchRibbonTab, WorkspaceMode } from './workbench/workbench-types'
 
 export type MobileLayerAction =
   | 'add'

@@ -5,6 +5,7 @@ type PrecisionCommandPanelProps = {
   onClose: () => void
   toolHint: string | null
   onRunCommand: (command: string) => string
+  variant?: 'modal' | 'drawer'
 }
 
 type CommandLogLine = {
@@ -13,7 +14,13 @@ type CommandLogLine = {
   result: string
 }
 
-export function PrecisionCommandPanel({ open, onClose, toolHint, onRunCommand }: PrecisionCommandPanelProps) {
+export function PrecisionCommandPanel({
+  open,
+  onClose,
+  toolHint,
+  onRunCommand,
+  variant = 'modal',
+}: PrecisionCommandPanelProps) {
   const [command, setCommand] = useState('')
   const [logs, setLogs] = useState<CommandLogLine[]>([])
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -61,45 +68,53 @@ export function PrecisionCommandPanel({ open, onClose, toolHint, onRunCommand }:
     setCommand('')
   }
 
+  const panel = (
+    <section
+      className={`precision-panel ${variant === 'drawer' ? 'precision-drawer' : 'precision-modal'}`}
+      role="dialog"
+      aria-modal={variant === 'modal' ? 'true' : 'false'}
+      aria-label="Precision input"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <div className="precision-modal-header">
+        <h2>Precision Input</h2>
+        <button type="button" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      <form className="precision-form" onSubmit={run}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={command}
+          onChange={(event) => setCommand(event.target.value)}
+          placeholder="x,y  |  @x,y  |  r<deg"
+          aria-label="Precision command input"
+        />
+        <button type="submit">Run</button>
+      </form>
+      <p className="precision-help">Commands: `help`, `finish`, `x,y`, `@x,y`, `r&lt;deg`</p>
+      {toolHint && <p className="precision-hint">{toolHint}</p>}
+      {logs.length > 0 && (
+        <div className="precision-log">
+          {logs.map((line) => (
+            <div key={line.id} className="precision-log-line">
+              <span className="precision-log-command">&gt; {line.command}</span>
+              <span className="precision-log-result">{line.result}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+
+  if (variant === 'drawer') {
+    return panel
+  }
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="precision-panel precision-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Precision input"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="precision-modal-header">
-          <h2>Precision Input</h2>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-        </div>
-        <form className="precision-form" onSubmit={run}>
-          <input
-            ref={inputRef}
-            type="text"
-            value={command}
-            onChange={(event) => setCommand(event.target.value)}
-            placeholder="x,y  |  @x,y  |  r<deg"
-            aria-label="Precision command input"
-          />
-          <button type="submit">Run</button>
-        </form>
-        <p className="precision-help">Commands: `help`, `finish`, `x,y`, `@x,y`, `r&lt;deg`</p>
-        {toolHint && <p className="precision-hint">{toolHint}</p>}
-        {logs.length > 0 && (
-          <div className="precision-log">
-            {logs.map((line) => (
-              <div key={line.id} className="precision-log-line">
-                <span className="precision-log-command">&gt; {line.command}</span>
-                <span className="precision-log-result">{line.result}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {panel}
     </div>
   )
 }

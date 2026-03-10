@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import '../../app/styles/App.css'
 import type {
   DocFile,
@@ -11,10 +11,10 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { EditorHiddenInputs } from './components/EditorHiddenInputs'
 import { EditorModalStack } from './components/EditorModalStack'
 import { PieceInspectorModal } from './components/PieceInspectorModal'
+import { PieceInspectorContent } from './components/PieceInspectorContent'
 import { EditorPreviewPane } from './components/EditorPreviewPane'
 import { EditorStatusBar } from './components/EditorStatusBar'
 import { EditorTopbar } from './components/EditorTopbar'
-import { ContextualActionsPanel } from './components/ContextualActionsPanel'
 import { PrecisionCommandPanel } from './components/PrecisionCommandPanel'
 const ProjectMemoModal = lazy(() =>
   import('./components/ProjectMemoModal').then((mod) => ({ default: mod.ProjectMemoModal })),
@@ -33,7 +33,6 @@ import {
 } from './templates/catalog-repository'
 
 import {
-  DESKTOP_TOOL_ICON_ITEMS,
   DEFAULT_EXPORT_ROLE_FILTERS,
 } from './editor-constants'
 import { detectOutlines, type OutlineChain } from './ops/outline-detection'
@@ -84,7 +83,7 @@ import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
-import { useEditorViewport, DESKTOP_SPLITTER_WIDTH_PX } from './hooks/useEditorViewport'
+import { useEditorViewport } from './hooks/useEditorViewport'
 import { useEditorLayers } from './hooks/useEditorLayers'
 import { useEditorTools } from './hooks/useEditorTools'
 import { useEditorHistory } from './hooks/useEditorHistory'
@@ -93,6 +92,22 @@ import { useEditorUIState } from './hooks/useEditorUIState'
 import { useEditorSelectionState } from './hooks/useEditorSelectionState'
 import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
+import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
+import { EditorWorkbench } from './workbench/EditorWorkbench'
+import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
+import {
+  useDocumentBrowserModel,
+  useInspectorModel,
+  useQuickActions,
+  useRibbonModel,
+} from './workbench/workbench-hooks'
+import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
+import type { DocumentBrowserNode } from './workbench/workbench-types'
+import {
+  WorkbenchThreePreviewInspector,
+  WorkbenchThreePreviewViewport,
+  useWorkbenchThreePreviewController,
+} from './workbench/WorkbenchThreePreview'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
@@ -147,6 +162,9 @@ export function EditorApp() {
     showProjectMemoModal, setShowProjectMemoModal,
     showNestingModal, setShowNestingModal,
     desktopRibbonTab, setDesktopRibbonTab,
+    workbenchRibbonTab, setWorkbenchRibbonTab,
+    workspaceMode, setWorkspaceMode,
+    secondaryPreviewMode, setSecondaryPreviewMode,
     mobileLayerAction, setMobileLayerAction,
     mobileFileAction, setMobileFileAction,
     displayUnit, setDisplayUnit,
@@ -310,11 +328,23 @@ export function EditorApp() {
   const {
     viewport,
     setViewport,
-    desktopPreviewWidthPx,
-    isDesktopPreviewResizing,
     workspaceRef,
-    handleDesktopSplitterPointerDown,
   } = useEditorViewport({ isMobileLayout, showThreePreview })
+  const {
+    shellRef,
+    showPeek,
+    effectiveSecondaryPreviewMode,
+    effectiveLayout,
+    setActiveInspectorTab,
+    handleBrowserResizeStart,
+    handlePeekResizeStart,
+    handleInspectorResizeStart,
+    splitterWidth,
+    toolRailWidth,
+  } = useWorkbenchShellState({
+    enabled: !isMobileLayout,
+    secondaryPreviewMode,
+  })
 
   const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
   const mergedCatalogRepository = useMemo(() => {
@@ -899,7 +929,6 @@ export function EditorApp() {
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
-    handleWheel,
     runPrecisionCommand,
     toolHint,
   } = useCanvasInteractions({
@@ -1281,7 +1310,11 @@ export function EditorApp() {
       return
     }
     ensurePatternPieceSupportRecords(selectedPatternPiece)
-    setShowPieceInspectorModal(true)
+    if (isMobileLayout) {
+      setShowPieceInspectorModal(true)
+    } else {
+      setActiveInspectorTab('piece')
+    }
   }
 
   const handleCreatePatternPieceFromSelection = () => {
@@ -1298,7 +1331,11 @@ export function EditorApp() {
     const existingPiece = patternPieceByBoundaryShapeId[boundaryShapeId]
     if (existingPiece) {
       ensurePatternPieceSupportRecords(existingPiece)
-      setShowPieceInspectorModal(true)
+      if (isMobileLayout) {
+        setShowPieceInspectorModal(true)
+      } else {
+        setActiveInspectorTab('piece')
+      }
       setStatus('Pattern piece already exists for this boundary')
       return
     }
@@ -1313,7 +1350,11 @@ export function EditorApp() {
     setPieceGrainlines((previous) => [...previous, createDefaultPieceGrainline(piece.id)])
     setPieceLabels((previous) => [...previous, ...createDefaultPieceLabels(piece)])
     setSeamAllowances((previous) => [...previous, createDefaultPieceSeamAllowance(piece.id)])
-    setShowPieceInspectorModal(true)
+    if (isMobileLayout) {
+      setShowPieceInspectorModal(true)
+    } else {
+      setActiveInspectorTab('piece')
+    }
     setStatus(`Created pattern piece "${piece.name}"`)
   }
 
@@ -1546,6 +1587,30 @@ export function EditorApp() {
     )
   }
 
+  const handleUpdateSelectedStitchHole = (patch: Partial<(typeof stitchHoles)[number]>) => {
+    if (!selectedStitchHole) {
+      return
+    }
+    setStitchHoles((previous) =>
+      previous.map((entry) =>
+        entry.id === selectedStitchHole.id
+          ? {
+              ...entry,
+              ...patch,
+              sequence:
+                typeof patch.sequence === 'number'
+                  ? Math.max(1, Math.round(patch.sequence))
+                  : entry.sequence,
+              diameterMm:
+                typeof patch.diameterMm === 'number'
+                  ? Math.max(0, patch.diameterMm)
+                  : entry.diameterMm,
+            }
+          : entry,
+      ),
+    )
+  }
+
   const handleApplyTextDefaultsToSelection = () => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more text shapes first')
@@ -1753,19 +1818,6 @@ export function EditorApp() {
     mobileOptionsTab,
     desktopRibbonTab,
   })
-  const effectiveDesktopPreviewWidthPx = desktopPreviewWidthPx
-  const workspaceStyle: CSSProperties | undefined = isMobileLayout
-    ? undefined
-    : show3dInMain
-      ? { gridTemplateColumns: 'minmax(0, 1fr)' }
-      : showThreePreview
-        ? {
-            gridTemplateColumns: `minmax(0, 1fr) ${DESKTOP_SPLITTER_WIDTH_PX}px ${effectiveDesktopPreviewWidthPx}px`,
-          }
-        : {
-            gridTemplateColumns: 'minmax(0, 1fr)',
-          }
-
   const topbarProps = useEditorTopbarProps({
     topbarClassName,
     isMobileLayout,
@@ -2232,146 +2284,687 @@ export function EditorApp() {
     tracingOverlayCount: tracingOverlays.length,
     templateCount: templateRepository.length,
   })
+  const selectedPieceIds = useMemo(
+    () =>
+      patternPieces
+        .filter((piece) => selectedShapeIdSet.has(piece.boundaryShapeId))
+        .map((piece) => piece.id),
+    [patternPieces, selectedShapeIdSet],
+  )
+  const selectionContext = useInspectorModel({
+    selectedShapes,
+    selectedPatternPiece,
+    selectedStitchHole,
+    selectedHardwareMarker,
+  })
+  const browserNodes = useDocumentBrowserModel({
+    patternPieces,
+    pieceLabels,
+    seamAllowances,
+    pieceNotches,
+    piecePlacementLabels,
+    seamConnections,
+    selectedPieceIds,
+    layers,
+    activeLayerId,
+    sketchGroups,
+    activeSketchGroupId,
+    tracingOverlays,
+    activeTracingOverlayId,
+    avatars,
+    threeTextureSource,
+  })
+  const quickActions = useQuickActions({ canUndo, canRedo })
+  const ribbonGroups = useRibbonModel({
+    activeTab: workbenchRibbonTab,
+    canUndo,
+    canRedo,
+    canPaste: true,
+    selectedShapeCount,
+    selectedPatternPiece: selectedPatternPiece !== null,
+    selectedStitchHole: selectedStitchHole !== null,
+  })
+  const threePreviewController = useWorkbenchThreePreviewController({
+    shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
+    selectedShapeIds,
+    stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
+    stitchThreadColor,
+    onSetStitchThreadColor: setStitchThreadColor,
+    patternPieces,
+    piecePlacements3d,
+    seamConnections,
+    threePreviewSettings,
+    avatars,
+    onSetPiecePlacements3d: setPiecePlacements3d,
+    onSetThreePreviewSettings: setThreePreviewSettings,
+    onSetAvatars: setAvatars,
+    threeTextureSource,
+    onSetThreeTextureSource: setThreeTextureSource,
+    threeTextureShapeIds,
+    onSetThreeTextureShapeIds: setThreeTextureShapeIds,
+    foldLines,
+    layers,
+    lineTypes,
+    themeMode: resolvedThemeMode,
+    onUpdateFoldLine: (foldLineId, updates) =>
+      setFoldLines((previous) =>
+        previous.map((foldLine) =>
+          foldLine.id === foldLineId
+            ? {
+                ...foldLine,
+                ...updates,
+              }
+            : foldLine,
+        ),
+      ),
+  })
+  const docLabel = selectedTemplateEntry?.name ?? patternPieces[0]?.name ?? 'Current Draft'
+  const selectionText =
+    selectedShapeCount > 0
+      ? `${selectedShapeCount} shape${selectedShapeCount === 1 ? '' : 's'}`
+      : selectedStitchHole
+        ? `Stitch hole ${selectedStitchHole.sequence}`
+        : selectedHardwareMarker
+          ? selectedHardwareMarker.label || 'Hardware marker'
+          : 'No selection'
+
+  useEffect(() => {
+    if (!isMobileLayout && workspaceMode === '3d') {
+      setActiveInspectorTab('preview3d')
+    }
+  }, [isMobileLayout, workspaceMode, setActiveInspectorTab])
+
+  const handleWorkbenchQuickAction = (actionId: string) => {
+    switch (actionId) {
+      case 'save-json':
+        handleSaveJson()
+        break
+      case 'undo':
+        handleUndo()
+        break
+      case 'redo':
+        handleRedo()
+        break
+      case 'help':
+        setShowHelpModal(true)
+        break
+      default:
+        break
+    }
+  }
+
+  const handleWorkbenchRibbonCommand = (commandId: string) => {
+    switch (commandId) {
+      case 'fit-view':
+        handleFitView()
+        break
+      case 'reset-view':
+        handleResetView()
+        break
+      case 'toggle-ruler':
+        setShowCanvasRuler((previous) => !previous)
+        break
+      case 'toggle-dimensions':
+        setShowDimensions((previous) => !previous)
+        break
+      case 'load-preset':
+        handleLoadPreset()
+        break
+      case 'toggle-annotations':
+        setShowAnnotations((previous) => !previous)
+        break
+      case 'undo':
+        handleUndo()
+        break
+      case 'redo':
+        handleRedo()
+        break
+      case 'copy':
+        handleCopySelection()
+        break
+      case 'paste':
+        handlePasteClipboard()
+        break
+      case 'delete':
+        handleDeleteSelection()
+        break
+      case 'move-distance':
+        handleMoveSelectionByDistance()
+        break
+      case 'rotate':
+      case 'rotate-5':
+        handleRotateSelection(5)
+        break
+      case 'scale-up':
+        handleScaleSelection(1.05)
+        break
+      case 'create-piece':
+        handleCreatePatternPieceFromSelection()
+        break
+      case 'open-piece':
+      case 'piece-tab':
+        openSelectedPatternPieceInspector()
+        break
+      case 'apply-seam-allowance':
+        handleApplySeamAllowanceToSelection()
+        break
+      case 'open-nesting':
+        setShowNestingModal(true)
+        break
+      case 'place-fixed-stitch':
+        handleAutoPlaceFixedPitchStitchHoles()
+        break
+      case 'place-variable-stitch':
+        handleAutoPlaceVariablePitchStitchHoles()
+        break
+      case 'count-stitches':
+        handleCountStitchHolesOnSelectedShapes()
+        break
+      case 'resequence-stitches':
+        handleResequenceSelectedStitchHoles(false)
+        break
+      case 'next-stitch':
+        handleSelectNextStitchHole()
+        break
+      case 'clear-stitches':
+        handleClearAllStitchHoles()
+        break
+      case 'save-json':
+        handleSaveJson()
+        break
+      case 'load-json':
+        fileInputRef.current?.click()
+        break
+      case 'import-svg':
+        svgInputRef.current?.click()
+        break
+      case 'export-svg':
+        handleExportSvg()
+        break
+      case 'export-pdf':
+        handleExportPdf()
+        break
+      case 'export-dxf':
+        handleExportDxf()
+        break
+      case 'print-preview':
+        setShowPrintPreviewModal(true)
+        break
+      case 'template-repository':
+        setShowTemplateRepositoryModal(true)
+        break
+      case 'tracing':
+        setShowTracingModal(true)
+        break
+      case 'ai-builder':
+        setShowAiBuilderModal(true)
+        break
+      default:
+        break
+    }
+  }
+
+  const handleWorkbenchActivateNode = (node: DocumentBrowserNode, multi: boolean) => {
+    const parts = node.id.split(':')
+    switch (node.kind) {
+      case 'piece':
+      case 'piece-label':
+      case 'pattern-label':
+      case 'seam-allowance':
+      case 'notch':
+      case 'placement-label':
+      case 'seam-connection': {
+        const pieceId = node.kind === 'piece' ? parts[1] : parts[1]
+        const piece = patternPiecesById[pieceId]
+        if (!piece) {
+          return
+        }
+        ensurePatternPieceSupportRecords(piece)
+        setSelectedShapeIds((previous) => {
+          if (!multi) {
+            return [piece.boundaryShapeId]
+          }
+          const next = previous.includes(piece.boundaryShapeId)
+            ? previous.filter((entry) => entry !== piece.boundaryShapeId)
+            : [...previous, piece.boundaryShapeId]
+          return next
+        })
+        setActiveInspectorTab('piece')
+        break
+      }
+      case 'layer': {
+        const layerId = parts[1]
+        setActiveLayerId(layerId)
+        clearDraft()
+        setActiveInspectorTab('document')
+        break
+      }
+      case 'sketch': {
+        const sketchId = parts[1]
+        setActiveSketchGroupId(sketchId)
+        setActiveInspectorTab('document')
+        break
+      }
+      case 'tracing-overlay': {
+        const overlayId = parts[1]
+        setActiveTracingOverlayId(overlayId)
+        setActiveInspectorTab('document')
+        break
+      }
+      case 'avatar':
+      case 'texture-source':
+      case 'preview-settings':
+        setActiveInspectorTab('preview3d')
+        break
+      default:
+        break
+    }
+  }
+
+  const handleToggleLayerVisibilityById = (layerId: string) =>
+    setLayers((previous) =>
+      previous.map((layer) =>
+        layer.id === layerId
+          ? {
+              ...layer,
+              visible: !layer.visible,
+            }
+          : layer,
+      ),
+    )
+
+  const handleToggleLayerLockById = (layerId: string) =>
+    setLayers((previous) =>
+      previous.map((layer) =>
+        layer.id === layerId
+          ? {
+              ...layer,
+              locked: !layer.locked,
+            }
+          : layer,
+      ),
+    )
+
+  const handleToggleTracingVisibilityById = (overlayId: string) =>
+    setTracingOverlays((previous) =>
+      previous.map((overlay) =>
+        overlay.id === overlayId
+          ? {
+              ...overlay,
+              visible: !overlay.visible,
+            }
+          : overlay,
+      ),
+    )
+
+  const handleToggleTracingLockById = (overlayId: string) =>
+    setTracingOverlays((previous) =>
+      previous.map((overlay) =>
+        overlay.id === overlayId
+          ? {
+              ...overlay,
+              locked: !overlay.locked,
+            }
+          : overlay,
+      ),
+    )
+
+  const handleToggleWorkbenchPeek = () => {
+    setSecondaryPreviewMode((previous) => {
+      if (previous !== 'hidden') {
+        return 'hidden'
+      }
+      return workspaceMode === '2d' ? '3d-peek' : '2d-peek'
+    })
+  }
+
+  const handleSetWorkbenchMode = (mode: '2d' | '3d') => {
+    setWorkspaceMode(mode)
+    setSecondaryPreviewMode((previous) => {
+      if (previous === 'hidden') {
+        return previous
+      }
+      return mode === '2d' ? '3d-peek' : '2d-peek'
+    })
+  }
+
+  const workbenchTwoDPane = (
+    <ErrorBoundary>
+      <EditorCanvasPane
+        hideCanvasPane={false}
+        svgRef={svgRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        viewport={viewport}
+        displayUnit={displayUnit}
+        gridLines={gridLines}
+        showCanvasRuler={showCanvasRuler}
+        showDimensions={showDimensions}
+        onZoomOut={() => handleZoomStep(0.85)}
+        onZoomIn={() => handleZoomStep(1.15)}
+        onFitView={handleFitView}
+        onResetView={handleResetView}
+        tracingOverlays={tracingOverlays}
+        showPrintAreas={showPrintAreas}
+        dimensionLines={dimensionLines}
+        printPlan={printOutputPlan}
+        seamGuides={seamGuides}
+        pieceEdgeLabels={pieceEdgeLabels}
+        showAnnotations={showAnnotations}
+        pieceGrainlineSegments={pieceGrainlineSegments}
+        pieceNotchLines={pieceNotchLines}
+        piecePlacementGuides={piecePlacementGuides}
+        visibleShapes={workspaceEditableShapes}
+        linkedShapes={workspaceLinkedShapes}
+        sketchWorkspaceMode={sketchWorkspaceMode}
+        lineTypes={lineTypes}
+        lineTypesById={lineTypesById}
+        selectedShapeIdSet={selectedShapeIdSet}
+        stitchStrokeColor={stitchStrokeColor}
+        foldStrokeColor={foldStrokeColor}
+        cutStrokeColor={cutStrokeColor}
+        displayLayerColorsById={displayLayerColorsById}
+        onShapePointerDown={handleShapePointerDown}
+        onShapeHandlePointerDown={handleShapeHandlePointerDown}
+        showShapeHandles={tool === 'pan'}
+        visibleStitchHoles={workspaceStitchHoles}
+        selectedStitchHoleId={selectedStitchHoleId}
+        showStitchSequenceLabels={showStitchSequenceLabels}
+        onStitchHolePointerDown={handleStitchHolePointerDown}
+        visibleHardwareMarkers={workspaceHardwareMarkers}
+        selectedHardwareMarkerId={selectedHardwareMarkerId}
+        onHardwarePointerDown={handleHardwarePointerDown}
+        foldLines={foldLines}
+        annotationLabels={annotationLabels}
+        constraintSuggestions={constraintSuggestions}
+        previewElement={previewElement}
+        showLayerLegend={showLayerLegend}
+        legendMode={legendMode}
+        onSetLegendMode={setLegendMode}
+        layers={layers}
+        layerColorsById={layerColorsById}
+        fallbackLayerStroke={fallbackLayerStroke}
+        stackLegendEntries={stackLegendEntries}
+        outlineChains={outlineChains}
+      />
+    </ErrorBoundary>
+  )
+
+  const workbenchThreeDPane = (
+    <ErrorBoundary>
+      <WorkbenchThreePreviewViewport
+        controller={threePreviewController}
+        compact={workspaceMode !== '3d'}
+        interactive={workspaceMode === '3d'}
+      />
+    </ErrorBoundary>
+  )
+
+  const workbenchInspectContent = (
+    <SelectionInspectorPanel
+      context={selectionContext}
+      selectedShapeCount={selectedShapeCount}
+      selectedEditableShape={selectedEditableShape}
+      selectedStitchHole={selectedStitchHole}
+      selectedHardwareMarker={selectedHardwareMarker}
+      shapeCount={shapes.length}
+      layerCount={layers.length}
+      onAlignX={() => handleAlignSelection('x')}
+      onAlignY={() => handleAlignSelection('y')}
+      onAlignBoth={() => handleAlignSelection('both')}
+      onAlignToGrid={handleAlignSelectionToGrid}
+      onCreateOffset={handleCreateOffsetGeometryFromSelection}
+      onCreateBoxStitch={handleCreateBoxStitchFromSelection}
+      onBevelCorner={handleBevelSelectedCorner}
+      onRoundCorner={handleRoundSelectedCorner}
+      onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
+      onAddAlignConstraints={handleAddAlignConstraintsFromSelection}
+      onApplyConstraints={handleApplyConstraints}
+      onCreatePatternPiece={handleCreatePatternPieceFromSelection}
+      onOpenPieceTab={openSelectedPatternPieceInspector}
+      canOpenPieceTab={selectedPatternPiece !== null}
+      onApplySeamAllowance={handleApplySeamAllowanceToSelection}
+      onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
+      onApplyTextDefaults={handleApplyTextDefaultsToSelection}
+      onUpdateSelectedShapePoint={handleUpdateSelectedShapePoint}
+      onUpdateSelectedStitchHole={handleUpdateSelectedStitchHole}
+      onUpdateSelectedHardwareMarker={handleUpdateSelectedHardwareMarker}
+      onDeleteSelectedHardwareMarker={handleDeleteSelectedHardwareMarker}
+    />
+  )
+
+  const workbenchPieceContent = (
+    <PieceInspectorContent
+      piece={selectedPatternPiece}
+      grainline={selectedPieceGrainline}
+      pieceLabel={selectedPieceLabel}
+      patternLabel={selectedPatternLabel}
+      seamAllowance={selectedPieceSeamAllowance}
+      seamConnections={selectedPieceSeamConnections}
+      notches={selectedPieceNotches}
+      placementLabels={selectedPiecePlacementLabels}
+      edgeCount={selectedPatternPieceEdgeCount}
+      availableInternalShapes={selectedPieceAvailableInternalShapes}
+      selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
+      onUpdatePiece={handleUpdateSelectedPatternPiece}
+      onToggleInternalShape={handleToggleSelectedPieceInternalShape}
+      onUpdateGrainline={handleUpdateSelectedPieceGrainline}
+      onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
+      onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
+      onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
+      onUpdateSeamConnection={handleUpdateSelectedPieceSeamConnection}
+      onDeleteSeamConnection={(connectionId) =>
+        setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId))
+      }
+      onUpdateNotch={handleUpdateSelectedPieceNotch}
+      onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
+      onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}
+      onUpdatePlacementLabel={handleUpdateSelectedPiecePlacementLabel}
+      onDeletePlacementLabel={handleDeleteSelectedPiecePlacementLabel}
+    />
+  )
+
+  const workbenchPreviewContent = <WorkbenchThreePreviewInspector controller={threePreviewController} />
+
+  const workbenchDocumentContent = (
+    <DocumentInspectorPanel
+      displayUnit={displayUnit}
+      onSetDisplayUnit={setDisplayUnit}
+      gridSpacing={gridSpacing}
+      onSetGridSpacing={setGridSpacing}
+      showCanvasRuler={showCanvasRuler}
+      onToggleCanvasRuler={() => setShowCanvasRuler((previous) => !previous)}
+      showDimensions={showDimensions}
+      onToggleDimensions={() => setShowDimensions((previous) => !previous)}
+      showAnnotations={showAnnotations}
+      onToggleAnnotations={() => setShowAnnotations((previous) => !previous)}
+      sketchWorkspaceMode={sketchWorkspaceMode}
+      onSetSketchWorkspaceMode={setSketchWorkspaceMode}
+      themeMode={themeMode}
+      onSetThemeMode={handleSetThemeMode}
+      snapSettings={snapSettings}
+      onUpdateSnapSettings={(patch) => setSnapSettings((previous) => ({ ...previous, ...patch }))}
+      projectMemo={projectMemo}
+      onProjectMemoChange={setProjectMemo}
+      activeLineType={activeLineType}
+      lineTypes={lineTypes}
+      shapeCountsByLineType={shapeCountsByLineType}
+      selectedShapeCount={selectedShapeCount}
+      onAssignSelectedToActiveType={handleAssignSelectedToActiveLineType}
+      onClearSelection={handleClearShapeSelection}
+      onIsolateActiveType={handleIsolateActiveLineType}
+      onSelectShapesByActiveType={handleSelectShapesByActiveLineType}
+      onSetActiveLineTypeId={setActiveLineTypeId}
+      onShowAllTypes={handleShowAllLineTypes}
+      onToggleLineTypeVisibility={(lineTypeId) =>
+        setLineTypes((previous) =>
+          previous.map((lineType) =>
+            lineType.id === lineTypeId ? { ...lineType, visible: !lineType.visible } : lineType,
+          ),
+        )
+      }
+      onUpdateActiveLineTypeColor={handleUpdateActiveLineTypeColor}
+      onUpdateActiveLineTypeRole={handleUpdateActiveLineTypeRole}
+      onUpdateActiveLineTypeStyle={handleUpdateActiveLineTypeStyle}
+      layers={layers}
+      layerColorsById={layerColorsById}
+      layerColorOverrides={layerColorOverrides}
+      frontLayerColor={frontLayerColor}
+      backLayerColor={backLayerColor}
+      onFrontLayerColorChange={setFrontLayerColor}
+      onBackLayerColorChange={setBackLayerColor}
+      onSetLayerColorOverride={handleSetLayerColorOverride}
+      onClearLayerColorOverride={handleClearLayerColorOverride}
+      onResetLayerColors={handleResetLayerColors}
+    />
+  )
 
   return (
-    <div className={`app-shell ${resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'}`}>
-      <EditorTopbar {...topbarProps} />
+    <div className={`app-shell ${resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!isMobileLayout ? 'app-shell-workbench' : ''}`}>
+      {isMobileLayout ? (
+        <>
+          <EditorTopbar {...topbarProps} />
 
-      <main ref={workspaceRef} className={workspaceClassName} style={workspaceStyle}>
-        {!show3dInMain && <div className="canvas-stage">
-          {!isMobileLayout && (
-            <aside className="canvas-tool-rail" aria-label="Geometry tools">
-              <div className="group tool-group ribbon-section canvas-tool-sidebar">
-                <div className="tool-icon-grid">
-                  {DESKTOP_TOOL_ICON_ITEMS.map((toolItem) => (
-                    <button
-                      key={toolItem.value}
-                      type="button"
-                      className={tool === toolItem.value ? 'tool-icon-button active' : 'tool-icon-button'}
-                      onClick={() => setActiveTool(toolItem.value)}
-                      title={toolItem.label}
-                      aria-label={toolItem.label}
-                      data-tooltip={toolItem.label}
-                    >
-                      <span className="tool-icon-badge" aria-hidden="true">
-                        <img src={toolItem.iconSrc} alt="" />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </aside>
-          )}
+          <main ref={workspaceRef} className={workspaceClassName}>
+            <div className="canvas-stage">
+              <ErrorBoundary>
+                <EditorCanvasPane
+                  hideCanvasPane={hideCanvasPane}
+                  svgRef={svgRef}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  viewport={viewport}
+                  displayUnit={displayUnit}
+                  gridLines={gridLines}
+                  showCanvasRuler={showCanvasRuler}
+                  showDimensions={showDimensions}
+                  onZoomOut={() => handleZoomStep(0.85)}
+                  onZoomIn={() => handleZoomStep(1.15)}
+                  onFitView={handleFitView}
+                  onResetView={handleResetView}
+                  tracingOverlays={tracingOverlays}
+                  showPrintAreas={showPrintAreas}
+                  dimensionLines={dimensionLines}
+                  printPlan={printOutputPlan}
+                  seamGuides={seamGuides}
+                  pieceEdgeLabels={pieceEdgeLabels}
+                  showAnnotations={showAnnotations}
+                  pieceGrainlineSegments={pieceGrainlineSegments}
+                  pieceNotchLines={pieceNotchLines}
+                  piecePlacementGuides={piecePlacementGuides}
+                  visibleShapes={workspaceEditableShapes}
+                  linkedShapes={workspaceLinkedShapes}
+                  sketchWorkspaceMode={sketchWorkspaceMode}
+                  lineTypes={lineTypes}
+                  lineTypesById={lineTypesById}
+                  selectedShapeIdSet={selectedShapeIdSet}
+                  stitchStrokeColor={stitchStrokeColor}
+                  foldStrokeColor={foldStrokeColor}
+                  cutStrokeColor={cutStrokeColor}
+                  displayLayerColorsById={displayLayerColorsById}
+                  onShapePointerDown={handleShapePointerDown}
+                  onShapeHandlePointerDown={handleShapeHandlePointerDown}
+                  showShapeHandles={tool === 'pan'}
+                  visibleStitchHoles={workspaceStitchHoles}
+                  selectedStitchHoleId={selectedStitchHoleId}
+                  showStitchSequenceLabels={showStitchSequenceLabels}
+                  onStitchHolePointerDown={handleStitchHolePointerDown}
+                  visibleHardwareMarkers={workspaceHardwareMarkers}
+                  selectedHardwareMarkerId={selectedHardwareMarkerId}
+                  onHardwarePointerDown={handleHardwarePointerDown}
+                  foldLines={foldLines}
+                  annotationLabels={annotationLabels}
+                  constraintSuggestions={constraintSuggestions}
+                  previewElement={previewElement}
+                  showLayerLegend={showLayerLegend}
+                  legendMode={legendMode}
+                  onSetLegendMode={setLegendMode}
+                  layers={layers}
+                  layerColorsById={layerColorsById}
+                  fallbackLayerStroke={fallbackLayerStroke}
+                  stackLegendEntries={stackLegendEntries}
+                  outlineChains={outlineChains}
+                />
+              </ErrorBoundary>
+            </div>
 
-          <ErrorBoundary>
-            <EditorCanvasPane
-              hideCanvasPane={hideCanvasPane}
-              svgRef={svgRef}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onWheel={handleWheel}
-              viewport={viewport}
-              displayUnit={displayUnit}
-              gridLines={gridLines}
-              showCanvasRuler={showCanvasRuler}
-              showDimensions={showDimensions}
-              onZoomOut={() => handleZoomStep(0.85)}
-              onZoomIn={() => handleZoomStep(1.15)}
-              onFitView={handleFitView}
-              onResetView={handleResetView}
-              tracingOverlays={tracingOverlays}
-              showPrintAreas={showPrintAreas}
-              dimensionLines={dimensionLines}
-              printPlan={printOutputPlan}
-              seamGuides={seamGuides}
-              pieceEdgeLabels={pieceEdgeLabels}
-              showAnnotations={showAnnotations}
-              pieceGrainlineSegments={pieceGrainlineSegments}
-              pieceNotchLines={pieceNotchLines}
-              piecePlacementGuides={piecePlacementGuides}
-              visibleShapes={workspaceEditableShapes}
-              linkedShapes={workspaceLinkedShapes}
-              sketchWorkspaceMode={sketchWorkspaceMode}
-              lineTypes={lineTypes}
-              lineTypesById={lineTypesById}
-              selectedShapeIdSet={selectedShapeIdSet}
-              stitchStrokeColor={stitchStrokeColor}
-              foldStrokeColor={foldStrokeColor}
-              cutStrokeColor={cutStrokeColor}
-              displayLayerColorsById={displayLayerColorsById}
-              onShapePointerDown={handleShapePointerDown}
-              onShapeHandlePointerDown={handleShapeHandlePointerDown}
-              showShapeHandles={tool === 'pan'}
-              visibleStitchHoles={workspaceStitchHoles}
-              selectedStitchHoleId={selectedStitchHoleId}
-              showStitchSequenceLabels={showStitchSequenceLabels}
-              onStitchHolePointerDown={handleStitchHolePointerDown}
-              visibleHardwareMarkers={workspaceHardwareMarkers}
-              selectedHardwareMarkerId={selectedHardwareMarkerId}
-              onHardwarePointerDown={handleHardwarePointerDown}
-              foldLines={foldLines}
-              annotationLabels={annotationLabels}
-              constraintSuggestions={constraintSuggestions}
-              previewElement={previewElement}
-              showLayerLegend={showLayerLegend}
-              legendMode={legendMode}
-              onSetLegendMode={setLegendMode}
-              layers={layers}
-              layerColorsById={layerColorsById}
-              fallbackLayerStroke={fallbackLayerStroke}
-              stackLegendEntries={stackLegendEntries}
-              outlineChains={outlineChains}
-            />
-          </ErrorBoundary>
-        </div>}
+            <ErrorBoundary>
+              <EditorPreviewPane {...previewPaneProps} />
+            </ErrorBoundary>
+          </main>
 
-        {!isMobileLayout && showThreePreview && !show3dInMain && (
-          <div
-            className={`workspace-splitter ${isDesktopPreviewResizing ? 'active' : ''}`}
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize 3D panel"
-            onPointerDown={handleDesktopSplitterPointerDown}
+          <PrecisionCommandPanel
+            open={showPrecisionModal}
+            onClose={() => setShowPrecisionModal(false)}
+            toolHint={toolHint}
+            onRunCommand={runPrecisionCommand}
           />
-        )}
 
-        <ErrorBoundary>
-          <EditorPreviewPane {...previewPaneProps} />
-        </ErrorBoundary>
-      </main>
+          <EditorStatusBar {...statusBarProps} />
+        </>
+      ) : (
+        <EditorWorkbench
+          docLabel={docLabel}
+          shellRef={shellRef}
+          workspaceMode={workspaceMode}
+          secondaryPreviewMode={effectiveSecondaryPreviewMode}
+          showPeek={showPeek}
+          browserWidth={effectiveLayout.browserWidth}
+          inspectorWidth={effectiveLayout.inspectorWidth}
+          peekWidth={effectiveLayout.peekWidth}
+          splitterWidth={splitterWidth}
+          toolRailWidth={toolRailWidth}
+          quickActions={quickActions}
+          onInvokeQuickAction={handleWorkbenchQuickAction}
+          onSetWorkspaceMode={handleSetWorkbenchMode}
+          onTogglePeek={handleToggleWorkbenchPeek}
+          activeRibbonTab={workbenchRibbonTab}
+          ribbonGroups={ribbonGroups}
+          onSetRibbonTab={setWorkbenchRibbonTab}
+          onInvokeRibbonCommand={handleWorkbenchRibbonCommand}
+          browserNodes={browserNodes}
+          onActivateNode={handleWorkbenchActivateNode}
+          onToggleLayerVisibility={handleToggleLayerVisibilityById}
+          onToggleLayerLock={handleToggleLayerLockById}
+          onToggleTracingVisibility={handleToggleTracingVisibilityById}
+          onToggleTracingLock={handleToggleTracingLockById}
+          tool={tool}
+          onSetActiveTool={setActiveTool}
+          activeInspectorTab={effectiveLayout.activeInspectorTab}
+          onSetActiveInspectorTab={setActiveInspectorTab}
+          inspectContent={workbenchInspectContent}
+          pieceContent={workbenchPieceContent}
+          previewContent={workbenchPreviewContent}
+          documentContent={workbenchDocumentContent}
+          twoDPane={workbenchTwoDPane}
+          threeDPane={workbenchThreeDPane}
+          precisionDrawer={
+            <PrecisionCommandPanel
+              open={showPrecisionModal}
+              onClose={() => setShowPrecisionModal(false)}
+              toolHint={toolHint}
+              onRunCommand={runPrecisionCommand}
+              variant="drawer"
+            />
+          }
+          onStartBrowserResize={handleBrowserResizeStart}
+          onStartPeekResize={handlePeekResizeStart}
+          onStartInspectorResize={handleInspectorResizeStart}
+          toolLabel={toolLabel(tool)}
+          selectionText={selectionText}
+          zoomPercent={Math.round(viewport.scale * 100)}
+          displayUnit={displayUnit}
+          activeLayerName={activeLayer?.name ?? 'None'}
+          activeLineTypeName={activeLineType?.name ?? 'None'}
+          onTogglePrecision={() => setShowPrecisionModal((previous) => !previous)}
+        />
+      )}
 
       <ErrorBoundary>
         <EditorModalStack {...modalStackProps} />
       </ErrorBoundary>
-
-      <ContextualActionsPanel
-        selectedShapes={selectedShapes}
-        onAlignX={() => handleAlignSelection('x')}
-        onAlignY={() => handleAlignSelection('y')}
-        onAlignBoth={() => handleAlignSelection('both')}
-        onAlignToGrid={handleAlignSelectionToGrid}
-        onCreateOffset={handleCreateOffsetGeometryFromSelection}
-        onCreateBoxStitch={handleCreateBoxStitchFromSelection}
-        onBevelCorner={handleBevelSelectedCorner}
-        onRoundCorner={handleRoundSelectedCorner}
-        onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
-        onAddAlignConstraints={handleAddAlignConstraintsFromSelection}
-        onApplyConstraints={handleApplyConstraints}
-        onCreatePatternPiece={handleCreatePatternPieceFromSelection}
-        onEditPatternPiece={openSelectedPatternPieceInspector}
-        canEditPatternPiece={selectedPatternPiece !== null}
-        onApplySeamAllowance={handleApplySeamAllowanceToSelection}
-        onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
-        onApplyTextDefaults={handleApplyTextDefaultsToSelection}
-      />
-
-      <PrecisionCommandPanel
-        open={showPrecisionModal}
-        onClose={() => setShowPrecisionModal(false)}
-        toolHint={toolHint}
-        onRunCommand={runPrecisionCommand}
-      />
 
       <Suspense fallback={null}>
         <ProjectMemoModal
@@ -2382,36 +2975,38 @@ export function EditorApp() {
         />
       </Suspense>
 
-      <PieceInspectorModal
-        open={showPieceInspectorModal && selectedPatternPiece !== null}
-        piece={selectedPatternPiece}
-        grainline={selectedPieceGrainline}
-        pieceLabel={selectedPieceLabel}
-        patternLabel={selectedPatternLabel}
-        seamAllowance={selectedPieceSeamAllowance}
-        seamConnections={selectedPieceSeamConnections}
-        notches={selectedPieceNotches}
-        placementLabels={selectedPiecePlacementLabels}
-        edgeCount={selectedPatternPieceEdgeCount}
-        availableInternalShapes={selectedPieceAvailableInternalShapes}
-        selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
-        onClose={() => setShowPieceInspectorModal(false)}
-        onUpdatePiece={handleUpdateSelectedPatternPiece}
-        onToggleInternalShape={handleToggleSelectedPieceInternalShape}
-        onUpdateGrainline={handleUpdateSelectedPieceGrainline}
-        onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
-        onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
-        onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
-        onUpdateSeamConnection={handleUpdateSelectedPieceSeamConnection}
-        onDeleteSeamConnection={(connectionId) =>
-          setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId))
-        }
-        onUpdateNotch={handleUpdateSelectedPieceNotch}
-        onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
-        onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}
-        onUpdatePlacementLabel={handleUpdateSelectedPiecePlacementLabel}
-        onDeletePlacementLabel={handleDeleteSelectedPiecePlacementLabel}
-      />
+      {isMobileLayout && (
+        <PieceInspectorModal
+          open={showPieceInspectorModal && selectedPatternPiece !== null}
+          piece={selectedPatternPiece}
+          grainline={selectedPieceGrainline}
+          pieceLabel={selectedPieceLabel}
+          patternLabel={selectedPatternLabel}
+          seamAllowance={selectedPieceSeamAllowance}
+          seamConnections={selectedPieceSeamConnections}
+          notches={selectedPieceNotches}
+          placementLabels={selectedPiecePlacementLabels}
+          edgeCount={selectedPatternPieceEdgeCount}
+          availableInternalShapes={selectedPieceAvailableInternalShapes}
+          selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
+          onClose={() => setShowPieceInspectorModal(false)}
+          onUpdatePiece={handleUpdateSelectedPatternPiece}
+          onToggleInternalShape={handleToggleSelectedPieceInternalShape}
+          onUpdateGrainline={handleUpdateSelectedPieceGrainline}
+          onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
+          onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
+          onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
+          onUpdateSeamConnection={handleUpdateSelectedPieceSeamConnection}
+          onDeleteSeamConnection={(connectionId) =>
+            setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId))
+          }
+          onUpdateNotch={handleUpdateSelectedPieceNotch}
+          onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
+          onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}
+          onUpdatePlacementLabel={handleUpdateSelectedPiecePlacementLabel}
+          onDeletePlacementLabel={handleDeleteSelectedPiecePlacementLabel}
+        />
+      )}
 
       <Suspense fallback={null}>
         <NestingModal
@@ -2430,8 +3025,6 @@ export function EditorApp() {
           }}
         />
       </Suspense>
-
-      <EditorStatusBar {...statusBarProps} />
 
       <EditorHiddenInputs
         fileInputRef={fileInputRef}

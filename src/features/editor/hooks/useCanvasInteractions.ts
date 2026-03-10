@@ -4,7 +4,6 @@ import type {
   PointerEvent as ReactPointerEvent,
   RefObject,
   SetStateAction,
-  WheelEvent as ReactWheelEvent,
 } from 'react'
 import { clamp, getBounds } from '../cad/cad-geometry'
 import type {
@@ -261,6 +260,38 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       svg.removeEventListener('touchmove', preventMultiTouchDefault)
     }
   }, [svgRef])
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) {
+      return
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const rect = svg.getBoundingClientRect()
+      const screenX = event.clientX - rect.left
+      const screenY = event.clientY - rect.top
+      const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9
+
+      setViewport((previous) => {
+        const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
+        const worldX = (screenX - previous.x) / previous.scale
+        const worldY = (screenY - previous.y) / previous.scale
+        return {
+          x: screenX - worldX * nextScale,
+          y: screenY - worldY * nextScale,
+          scale: nextScale,
+        }
+      })
+    }
+
+    svg.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      svg.removeEventListener('wheel', handleWheel)
+    }
+  }, [setViewport, svgRef])
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current
@@ -673,20 +704,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     }
   }
 
-  const handleWheel = (event: ReactWheelEvent<SVGSVGElement>) => {
-    event.preventDefault()
-    const svg = svgRef.current
-    if (!svg) {
-      return
-    }
-
-    const rect = svg.getBoundingClientRect()
-    const screenX = event.clientX - rect.left
-    const screenY = event.clientY - rect.top
-    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9
-    zoomAtScreenPoint(screenX, screenY, zoomFactor)
-  }
-
   const runPrecisionCommand = (command: string) => {
     const message = toolManager.processCommand(command, {
       tool,
@@ -710,7 +727,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
-    handleWheel,
     runPrecisionCommand,
     toolHint,
   }

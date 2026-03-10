@@ -1,4 +1,4 @@
-import type { PointerEvent, PointerEventHandler, ReactElement, RefObject, WheelEventHandler } from 'react'
+import type { PointerEvent, PointerEventHandler, ReactElement, RefObject } from 'react'
 import { arcPath, round, sampleShapePoints } from '../cad/cad-geometry'
 import type {
   DimensionLine,
@@ -42,7 +42,6 @@ type EditorCanvasPaneProps = {
   onPointerDown: PointerEventHandler<SVGSVGElement>
   onPointerMove: PointerEventHandler<SVGSVGElement>
   onPointerUp: PointerEventHandler<SVGSVGElement>
-  onWheel: WheelEventHandler<SVGSVGElement>
   viewport: Viewport
   displayUnit: DisplayUnit
   gridLines: ReactElement[]
@@ -106,7 +105,6 @@ export function EditorCanvasPane({
   onPointerDown,
   onPointerMove,
   onPointerUp,
-  onWheel,
   viewport,
   displayUnit,
   gridLines,
@@ -325,7 +323,6 @@ export function EditorCanvasPane({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onWheel={onWheel}
         onContextMenu={(event) => event.preventDefault()}
       >
         <defs>
