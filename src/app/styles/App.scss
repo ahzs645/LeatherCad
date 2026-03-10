@@ -1,0 +1,8 @@
+// Legacy editor chrome and shared drawing UI.
+@use './partials/legacy-editor';
+
+// Compact workbench desktop shell.
+@use './partials/workbench';
+
+// Shared mobile and breakpoint rules.
+@use './partials/responsive';

@@ -8,6 +8,28 @@ import type {
   WorkbenchRibbonTab,
 } from './workbench-types'
 
+const LCC_SEMANTIC_LAYER_NAMES = new Set([
+  'Cut/Holes',
+  'Fold/Crease',
+  'Marking',
+  'Stitching',
+  'Dimensions',
+])
+
+function buildLayerChildren(
+  layers: DocumentBrowserModelParams['layers'],
+  activeLayerId: string,
+) {
+  return layers.map((layer, index) => ({
+    id: `layer:${layer.id}`,
+    kind: 'layer' as const,
+    label: layer.name,
+    meta: `z${layer.stackLevel ?? index}`,
+    selected: activeLayerId === layer.id,
+    dimmed: !layer.visible,
+  }))
+}
+
 export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): DocumentBrowserNode[] {
   const {
     patternPieces,
@@ -98,19 +120,26 @@ export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): D
     })),
   }
 
+  const layerChildren = buildLayerChildren(layers, activeLayerId)
+  const isFlatLccSemanticLayerStack =
+    layers.length > 0 && layers.every((layer) => LCC_SEMANTIC_LAYER_NAMES.has(layer.name))
+
   const layerSection: DocumentBrowserNode = {
     id: 'section-layers',
     kind: 'section',
     label: 'Layers',
-    meta: `${layers.length}`,
-    children: layers.map((layer, index) => ({
-      id: `layer:${layer.id}`,
-      kind: 'layer',
-      label: layer.name,
-      meta: `z${layer.stackLevel ?? index}`,
-      selected: activeLayerId === layer.id,
-      dimmed: !layer.visible,
-    })),
+    meta: isFlatLccSemanticLayerStack ? '1' : `${layers.length}`,
+    children: isFlatLccSemanticLayerStack
+      ? [{
+          id: 'layer-group:lcc-material-1',
+          kind: 'layer-group',
+          label: 'Material Layer 1',
+          meta: `${layers.length} sublayers`,
+          selected: layerChildren.some((child) => child.selected),
+          dimmed: layerChildren.every((child) => child.dimmed),
+          children: layerChildren,
+        }]
+      : layerChildren,
   }
 
   const sketchSection: DocumentBrowserNode = {

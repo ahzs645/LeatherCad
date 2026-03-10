@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import '../../app/styles/App.css'
 import type {
   DocFile,
   PatternPiece,
@@ -2539,6 +2538,10 @@ export function EditorApp() {
         setActiveInspectorTab('document')
         break
       }
+      case 'layer-group': {
+        setActiveInspectorTab('document')
+        break
+      }
       case 'sketch': {
         const sketchId = parts[1]
         setActiveSketchGroupId(sketchId)
@@ -2921,9 +2924,11 @@ export function EditorApp() {
           onSetWorkspaceMode={handleSetWorkbenchMode}
           onTogglePeek={handleToggleWorkbenchPeek}
           activeRibbonTab={workbenchRibbonTab}
+          themeMode={themeMode}
           ribbonGroups={ribbonGroups}
           onSetRibbonTab={setWorkbenchRibbonTab}
           onInvokeRibbonCommand={handleWorkbenchRibbonCommand}
+          onSetThemeMode={handleSetThemeMode}
           browserNodes={browserNodes}
           onActivateNode={handleWorkbenchActivateNode}
           onToggleLayerVisibility={handleToggleLayerVisibilityById}

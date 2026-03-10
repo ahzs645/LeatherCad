@@ -1,0 +1,160 @@
+/* Shared responsive overrides for editor and workbench layouts. */
+
+@media (max-width: 1100px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace.mobile-editor,
+  .workspace.mobile-preview {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .workspace.mobile-split {
+    grid-template-rows: minmax(0, 1fr) minmax(250px, 40vh);
+  }
+
+  .canvas-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .canvas-view-controls {
+    left: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    padding: 5px;
+    gap: 5px;
+  }
+
+  .canvas-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .canvas-tool-rail,
+  .canvas-tool-sidebar {
+    display: none;
+  }
+
+  .preview-pane {
+    border-top: 1px solid var(--border-soft);
+  }
+
+  .preset-controls,
+  .zoom-controls,
+  .edit-controls {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .preset-controls button,
+  .zoom-controls button,
+  .edit-controls button {
+    flex: 0 0 auto;
+  }
+
+  .statusbar {
+    display: none;
+  }
+
+  .legend-stack {
+    width: min(270px, 72vw);
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .legend-panel {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 800px) {
+  .layer-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .line-type-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .preset-select {
+    min-width: 130px;
+  }
+
+  .topbar-mobile {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .tool-select-mobile {
+    min-width: 0;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .action-select {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .topbar-mobile .tool-group button,
+  .topbar-mobile .mobile-view-inline-tabs button {
+    font-size: 12px;
+    padding: 6px 9px;
+  }
+
+  .topbar-mobile .tool-group .help-button {
+    padding: 0;
+    font-size: 16px;
+  }
+
+  .statusbar {
+    font-size: 11px;
+  }
+
+  .three-preview-controls {
+    max-height: 34vh;
+  }
+
+  .layer-color-range {
+    grid-template-columns: 1fr;
+  }
+
+  .layer-color-item {
+    grid-template-columns: auto 1fr;
+  }
+
+  .layer-color-item input[type='color'] {
+    grid-column: 2;
+  }
+
+  .layer-color-item button {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .line-type-modal-list,
+  .line-type-edit-grid,
+  .export-role-grid,
+  .pattern-toggle-grid,
+  .catalog-split-layout,
+  .catalog-preview-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-split-layout {
+    max-height: none;
+  }
+
+  .catalog-split-shops-list {
+    max-height: 20vh;
+  }
+
+  .catalog-preview-item-list,
+  .catalog-preview-detail {
+    max-height: 24vh;
+  }
+}

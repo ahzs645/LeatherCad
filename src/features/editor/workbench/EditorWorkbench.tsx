@@ -15,6 +15,7 @@ import { WorkbenchRibbon } from './WorkbenchRibbon'
 import { WorkbenchStatusbar } from './WorkbenchStatusbar'
 import { WorkbenchToolRail } from './WorkbenchToolRail'
 import type { Tool } from '../cad/cad-types'
+import type { ThemeMode } from '../editor-types'
 
 type EditorWorkbenchProps = {
   docLabel: string
@@ -32,9 +33,11 @@ type EditorWorkbenchProps = {
   onSetWorkspaceMode: (mode: WorkspaceMode) => void
   onTogglePeek: () => void
   activeRibbonTab: WorkbenchRibbonTab
+  themeMode: ThemeMode
   ribbonGroups: RibbonCommandGroup[]
   onSetRibbonTab: (tab: WorkbenchRibbonTab) => void
   onInvokeRibbonCommand: (commandId: string) => void
+  onSetThemeMode: (mode: ThemeMode) => void
   browserNodes: DocumentBrowserNode[]
   onActivateNode: (node: DocumentBrowserNode, multi: boolean) => void
   onToggleLayerVisibility: (layerId: string) => void
@@ -80,9 +83,11 @@ export function EditorWorkbench({
   onSetWorkspaceMode,
   onTogglePeek,
   activeRibbonTab,
+  themeMode,
   ribbonGroups,
   onSetRibbonTab,
   onInvokeRibbonCommand,
+  onSetThemeMode,
   browserNodes,
   onActivateNode,
   onToggleLayerVisibility,
@@ -123,9 +128,11 @@ export function EditorWorkbench({
         workspaceMode={workspaceMode}
         secondaryPreviewMode={secondaryPreviewMode}
         activeRibbonTab={activeRibbonTab}
+        themeMode={themeMode}
         onInvokeQuickAction={onInvokeQuickAction}
         onSetRibbonTab={onSetRibbonTab}
         onSetWorkspaceMode={onSetWorkspaceMode}
+        onSetThemeMode={onSetThemeMode}
         onTogglePeek={onTogglePeek}
       />
 

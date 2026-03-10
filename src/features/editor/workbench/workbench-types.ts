@@ -68,6 +68,7 @@ export type DockLayoutState = {
 
 export type DocumentBrowserNodeKind =
   | 'section'
+  | 'layer-group'
   | 'piece'
   | 'piece-label'
   | 'pattern-label'

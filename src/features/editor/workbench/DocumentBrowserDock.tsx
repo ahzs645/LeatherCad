@@ -16,6 +16,7 @@ function renderNode(
   depth = 0,
 ) {
   const isSection = node.kind === 'section'
+  const isBranch = node.kind === 'layer-group'
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     props.onActivateNode(node, event.metaKey || event.ctrlKey)
   }
@@ -27,6 +28,25 @@ function renderNode(
   if (isSection) {
     return (
       <details key={node.id} className="workbench-tree-section" open>
+        <summary>
+          <span>{node.label}</span>
+          {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
+        </summary>
+        <div className="workbench-tree-children">
+          {(node.children ?? []).map((child) => renderNode(child, props, depth + 1))}
+        </div>
+      </details>
+    )
+  }
+
+  if (isBranch) {
+    return (
+      <details
+        key={node.id}
+        className={`workbench-tree-branch depth-${depth}${node.selected ? ' selected' : ''}${node.dimmed ? ' dimmed' : ''}`}
+        data-node-kind={node.kind}
+        open
+      >
         <summary>
           <span>{node.label}</span>
           {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}

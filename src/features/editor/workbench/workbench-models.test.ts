@@ -88,6 +88,43 @@ describe('buildDocumentBrowserModel', () => {
     expect(nodes[1]?.children?.[1]?.dimmed).toBe(true)
     expect(nodes[4]?.children?.[1]?.meta).toBe('configured')
   })
+
+  it('groups standard LCC semantic layers under one material-layer parent', () => {
+    const nodes = buildDocumentBrowserModel({
+      patternPieces: [],
+      pieceLabels: [],
+      seamAllowances: [],
+      pieceNotches: [],
+      piecePlacementLabels: [],
+      seamConnections: [],
+      selectedPieceIds: [],
+      layers: [
+        { id: 'layer-1', name: 'Cut/Holes', visible: true, locked: false, stackLevel: 0 } as never,
+        { id: 'layer-2', name: 'Fold/Crease', visible: true, locked: false, stackLevel: 1 } as never,
+        { id: 'layer-3', name: 'Marking', visible: true, locked: false, stackLevel: 2 } as never,
+        { id: 'layer-4', name: 'Stitching', visible: true, locked: false, stackLevel: 3 } as never,
+        { id: 'layer-5', name: 'Dimensions', visible: true, locked: false, stackLevel: 4 } as never,
+      ],
+      activeLayerId: 'layer-1',
+      sketchGroups: [],
+      activeSketchGroupId: null,
+      tracingOverlays: [],
+      activeTracingOverlayId: null,
+      avatars: [],
+      threeTextureSource: null,
+    })
+
+    expect(nodes[1]?.meta).toBe('1')
+    expect(nodes[1]?.children?.[0]?.kind).toBe('layer-group')
+    expect(nodes[1]?.children?.[0]?.label).toBe('Material Layer 1')
+    expect(nodes[1]?.children?.[0]?.children?.map((child) => child.label)).toEqual([
+      'Cut/Holes',
+      'Fold/Crease',
+      'Marking',
+      'Stitching',
+      'Dimensions',
+    ])
+  })
 })
 
 describe('buildInspectorContext', () => {

@@ -18,6 +18,7 @@ import type {
 import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
 import { LEATHER_PRESETS } from './material-presets'
 import { buildOutlineRegions } from './outline-regions'
+import { isPhysicalCutShape, shouldUseOutlineRegions } from './physical-layer-heuristics'
 import { buildPieceMeshes, createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 
 export type OutlinePolygon = {
@@ -1346,60 +1347,47 @@ export class ThreeBridge {
       maxStackLevel = Math.max(maxStackLevel, stackLevel)
     }
 
-    const layerSlices: Array<{ layerId: string; shapes: Shape[] }> = []
+    const lineTypeById = new Map(this.lineTypes.map((lineType) => [lineType.id, lineType]))
+    const layerPhysicalAnchorId = new Map<string, string>()
+    const layerSlices: Array<{ layerId: string; shapes: Shape[]; hasPhysicalGeometry: boolean }> = []
+    let currentPhysicalLayerId: string | null = null
 
     for (const layerId of layerOrder) {
       const layerShapes = this.shapes.filter((shape) => shape.layerId === layerId)
+      const hasPhysicalGeometry = layerShapes.some((shape) => isPhysicalCutShape(shape, lineTypeById))
+      if (hasPhysicalGeometry) {
+        currentPhysicalLayerId = layerId
+      }
+      layerPhysicalAnchorId.set(layerId, currentPhysicalLayerId ?? layerId)
       if (layerShapes.length > 0) {
-        layerSlices.push({ layerId, shapes: layerShapes })
+        layerSlices.push({ layerId, shapes: layerShapes, hasPhysicalGeometry })
       }
     }
 
     const orphanShapes = this.shapes.filter((shape) => !layerOrder.includes(shape.layerId))
     if (orphanShapes.length > 0) {
+      const hasPhysicalGeometry = orphanShapes.some((shape) => isPhysicalCutShape(shape, lineTypeById))
       layerStackLevels.set('__orphan__', maxStackLevel + 1)
       maxStackLevel += 1
-      layerSlices.push({ layerId: '__orphan__', shapes: orphanShapes })
+      if (hasPhysicalGeometry) {
+        currentPhysicalLayerId = '__orphan__'
+      }
+      layerPhysicalAnchorId.set('__orphan__', currentPhysicalLayerId ?? '__orphan__')
+      layerSlices.push({ layerId: '__orphan__', shapes: orphanShapes, hasPhysicalGeometry })
     }
 
     if (layerSlices.length === 0 && this.shapes.length > 0) {
+      const hasPhysicalGeometry = this.shapes.some((shape) => isPhysicalCutShape(shape, lineTypeById))
       layerStackLevels.set('__all__', maxStackLevel + 1)
       maxStackLevel += 1
-      layerSlices.push({ layerId: '__all__', shapes: this.shapes })
+      layerPhysicalAnchorId.set('__all__', hasPhysicalGeometry ? '__all__' : currentPhysicalLayerId ?? '__all__')
+      layerSlices.push({ layerId: '__all__', shapes: this.shapes, hasPhysicalGeometry })
     }
 
     let maxYOffset = 0
     for (const [index, layerSlice] of layerSlices.entries()) {
-      // Check for actual outline polygons for this layer
-      const layerOutlines = this.outlinePolygons.filter((o) => o.layerId === layerSlice.layerId)
-
-      let panelRegions: Array<{ outer: THREE.Vector2[]; holes: THREE.Vector2[][] }>
-      let layerProjectedBounds: Bounds2
-
-      if (layerOutlines.length > 0) {
-        const regions = buildOutlineRegions(layerOutlines)
-        panelRegions = regions.map((region) => ({
-          outer: region.outer.polygon.map((point) => this.projectPoint(point)),
-          holes: region.holes.map((hole) => hole.polygon.map((point) => this.projectPoint(point))),
-        }))
-        const allPoints = panelRegions.flatMap((region) => [region.outer, ...region.holes]).flat()
-        layerProjectedBounds = polygonBounds(allPoints)
-      } else {
-        // Fall back to bounding-box rectangle
-        const layerBounds = this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
-        panelRegions = [{
-          outer: [
-            this.projectPoint({ x: layerBounds.minX, y: layerBounds.minY }),
-            this.projectPoint({ x: layerBounds.maxX, y: layerBounds.minY }),
-            this.projectPoint({ x: layerBounds.maxX, y: layerBounds.maxY }),
-            this.projectPoint({ x: layerBounds.minX, y: layerBounds.maxY }),
-          ],
-          holes: [],
-        }]
-        layerProjectedBounds = polygonBounds(panelRegions[0].outer)
-      }
-
-      const stackLevel = layerStackLevels.get(layerSlice.layerId) ?? index
+      const physicalAnchorId = layerPhysicalAnchorId.get(layerSlice.layerId) ?? layerSlice.layerId
+      const stackLevel = layerStackLevels.get(physicalAnchorId) ?? layerStackLevels.get(layerSlice.layerId) ?? index
       const yOffset = stackLevel * dynamicLayerStep
       maxYOffset = Math.max(maxYOffset, yOffset)
       const hasTexturedShape =
@@ -1407,52 +1395,93 @@ export class ThreeBridge {
       const staticMaterial = hasTexturedShape ? this.leftTextureMaterial : this.leftMaterial
       const foldingMaterial = hasTexturedShape ? this.rightTextureMaterial : this.rightMaterial
 
-      for (const panelRegion of panelRegions) {
-        const panelPoly = panelRegion.outer
-        let positivePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, true)
-        let negativePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, false)
-        let positiveHoles = panelRegion.holes
-          .map((hole) => clipPolygonByLine(hole, foldStart, foldEnd, true))
-          .filter((hole) => hole.length >= 3)
-        let negativeHoles = panelRegion.holes
-          .map((hole) => clipPolygonByLine(hole, foldStart, foldEnd, false))
-          .filter((hole) => hole.length >= 3)
-        if (positivePolygon.length < 3 && negativePolygon.length < 3) {
-          positivePolygon = []
-          negativePolygon = panelPoly.map((point) => point.clone())
-          positiveHoles = []
-          negativeHoles = panelRegion.holes.map((hole) => hole.map((point) => point.clone()))
+      if (layerSlice.hasPhysicalGeometry) {
+        const cutShapes = layerSlice.shapes.filter((shape) => isPhysicalCutShape(shape, lineTypeById))
+        const layerOutlines = this.outlinePolygons.filter((outline) => outline.layerId === layerSlice.layerId)
+        let panelRegions: Array<{ outer: THREE.Vector2[]; holes: THREE.Vector2[][] }>
+        let layerProjectedBounds: Bounds2
+
+        const fallbackLayerBounds = this.buildBoundsFromShapes(cutShapes) ?? this.buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
+        const fallbackLayerArea = Math.max(
+          0,
+          (fallbackLayerBounds.maxX - fallbackLayerBounds.minX) * (fallbackLayerBounds.maxY - fallbackLayerBounds.minY),
+        )
+        const outlineRegions = layerOutlines.length > 0 ? buildOutlineRegions(layerOutlines) : []
+        const canUseDetectedOutlines = shouldUseOutlineRegions({
+          cutShapes,
+          layerOutlines,
+          outlineRegions,
+          fallbackBoundsArea: fallbackLayerArea,
+        })
+
+        if (canUseDetectedOutlines) {
+          const regions = outlineRegions
+          panelRegions = regions.map((region) => ({
+            outer: region.outer.polygon.map((point) => this.projectPoint(point)),
+            holes: region.holes.map((hole) => hole.polygon.map((point) => this.projectPoint(point))),
+          }))
+          const allPoints = panelRegions.flatMap((region) => [region.outer, ...region.holes]).flat()
+          layerProjectedBounds = polygonBounds(allPoints)
+        } else {
+          panelRegions = [{
+            outer: [
+              this.projectPoint({ x: fallbackLayerBounds.minX, y: fallbackLayerBounds.minY }),
+              this.projectPoint({ x: fallbackLayerBounds.maxX, y: fallbackLayerBounds.minY }),
+              this.projectPoint({ x: fallbackLayerBounds.maxX, y: fallbackLayerBounds.maxY }),
+              this.projectPoint({ x: fallbackLayerBounds.minX, y: fallbackLayerBounds.maxY }),
+            ],
+            holes: [],
+          }]
+          layerProjectedBounds = polygonBounds(panelRegions[0].outer)
         }
 
-        if (negativePolygon.length >= 3) {
-          const staticPanel = this.createPanelMesh(
-            negativePolygon,
-            staticMaterial,
-            layerProjectedBounds,
-            null,
-            yOffset,
-            negativeHoles,
-          )
-          if (staticPanel) {
-            this.staticPanels.push(staticPanel)
-            this.staticSideGroup.add(staticPanel)
-            this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null, yOffset)
+        for (const panelRegion of panelRegions) {
+          const panelPoly = panelRegion.outer
+          let positivePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, true)
+          let negativePolygon = clipPolygonByLine(panelPoly, foldStart, foldEnd, false)
+          let positiveHoles = panelRegion.holes
+            .map((hole) => clipPolygonByLine(hole, foldStart, foldEnd, true))
+            .filter((hole) => hole.length >= 3)
+          let negativeHoles = panelRegion.holes
+            .map((hole) => clipPolygonByLine(hole, foldStart, foldEnd, false))
+            .filter((hole) => hole.length >= 3)
+          if (positivePolygon.length < 3 && negativePolygon.length < 3) {
+            positivePolygon = []
+            negativePolygon = panelPoly.map((point) => point.clone())
+            positiveHoles = []
+            negativeHoles = panelRegion.holes.map((hole) => hole.map((point) => point.clone()))
           }
-        }
 
-        if (positivePolygon.length >= 3) {
-          const foldingPanel = this.createPanelMesh(
-            positivePolygon,
-            foldingMaterial,
-            layerProjectedBounds,
-            foldMid,
-            yOffset,
-            positiveHoles,
-          )
-          if (foldingPanel) {
-            this.foldingPanels.push(foldingPanel)
-            this.foldingSideGroup.add(foldingPanel)
-            this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid, yOffset)
+          if (negativePolygon.length >= 3) {
+            const staticPanel = this.createPanelMesh(
+              negativePolygon,
+              staticMaterial,
+              layerProjectedBounds,
+              null,
+              yOffset,
+              negativeHoles,
+            )
+            if (staticPanel) {
+              this.staticPanels.push(staticPanel)
+              this.staticSideGroup.add(staticPanel)
+              this.addPanelOutline(negativePolygon, this.staticSideGroup, '#e2e8f0', null, yOffset)
+            }
+          }
+
+          if (positivePolygon.length >= 3) {
+            const foldingPanel = this.createPanelMesh(
+              positivePolygon,
+              foldingMaterial,
+              layerProjectedBounds,
+              foldMid,
+              yOffset,
+              positiveHoles,
+            )
+            if (foldingPanel) {
+              this.foldingPanels.push(foldingPanel)
+              this.foldingSideGroup.add(foldingPanel)
+              this.addPanelOutline(positivePolygon, this.foldingSideGroup, '#e2e8f0', foldMid, yOffset)
+            }
           }
         }
       }
