@@ -68,7 +68,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
-import { useDraftPreviewElement, useGridLines } from './hooks/useDraftCanvasElements'
+import { useDraftPreviewElement } from './hooks/useDraftCanvasElements'
+import { useCanvasGrid } from './hooks/useCanvasGrid'
 import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
 import { useEditorLayoutFlags } from './hooks/useEditorLayoutFlags'
 import { useLoadedDocumentActions } from './hooks/useLoadedDocumentActions'
@@ -622,7 +623,11 @@ export function EditorApp() {
     }
   }, [applyLoadedDocument])
 
-  const gridLines = useGridLines(gridSpacing)
+  const { canvasRef: gridCanvasRef } = useCanvasGrid({
+    viewport,
+    gridSpacing,
+    darkMode: resolvedThemeMode === 'dark',
+  })
   const previewElement = useDraftPreviewElement({
     cursorPoint,
     draftPoints,
@@ -2645,7 +2650,7 @@ export function EditorApp() {
         onPointerUp={handlePointerUp}
         viewport={viewport}
         displayUnit={displayUnit}
-        gridLines={gridLines}
+        gridCanvasRef={gridCanvasRef}
         showCanvasRuler={showCanvasRuler}
         showDimensions={showDimensions}
         onZoomOut={() => handleZoomStep(0.85)}
@@ -2844,7 +2849,7 @@ export function EditorApp() {
                   onPointerUp={handlePointerUp}
                   viewport={viewport}
                   displayUnit={displayUnit}
-                  gridLines={gridLines}
+                  gridCanvasRef={gridCanvasRef}
                   showCanvasRuler={showCanvasRuler}
                   showDimensions={showDimensions}
                   onZoomOut={() => handleZoomStep(0.85)}

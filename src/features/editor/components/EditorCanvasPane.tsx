@@ -1,4 +1,4 @@
-import type { PointerEvent, PointerEventHandler, ReactElement, RefObject } from 'react'
+import type { PointerEvent, PointerEventHandler, ReactElement, RefObject, Ref } from 'react'
 import { arcPath, round, sampleShapePoints } from '../cad/cad-geometry'
 import type {
   DimensionLine,
@@ -44,7 +44,7 @@ type EditorCanvasPaneProps = {
   onPointerUp: PointerEventHandler<SVGSVGElement>
   viewport: Viewport
   displayUnit: DisplayUnit
-  gridLines: ReactElement[]
+  gridCanvasRef: Ref<HTMLCanvasElement>
   showCanvasRuler: boolean
   showDimensions: boolean
   onZoomOut: () => void
@@ -107,7 +107,7 @@ export function EditorCanvasPane({
   onPointerUp,
   viewport,
   displayUnit,
-  gridLines,
+  gridCanvasRef,
   showCanvasRuler,
   showDimensions,
   onZoomOut,
@@ -318,6 +318,7 @@ export function EditorCanvasPane({
 
   return (
     <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`}>
+      <canvas ref={gridCanvasRef} className="canvas-grid-layer" />
       <svg
         ref={svgRef}
         className="canvas"
@@ -336,8 +337,6 @@ export function EditorCanvasPane({
           </marker>
         </defs>
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
-          {gridLines}
-
           {showCanvasRuler && (
             <g className="xy-ruler-overlay">
               <line x1={-2400} y1={0} x2={2400} y2={0} className="xy-ruler-axis" />
