@@ -246,6 +246,98 @@ function renderIcon(name: WorkbenchIconName) {
           <path {...STROKE_PROPS} d="M12 4.25v2M12 17.75v2M19.75 12h-2M6.25 12h-2M17.5 6.5l-1.4 1.4M7.9 16.1l-1.4 1.4M17.5 17.5l-1.4-1.4M7.9 7.9L6.5 6.5" />
         </>
       )
+    case 'wizard':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M12 3.5l2 5.5h5.5l-4.5 3.5 1.75 5.5L12 14.5 7.25 18l1.75-5.5L4.5 9h5.5z" />
+        </>
+      )
+    case 'mandala':
+      return (
+        <>
+          <circle {...STROKE_PROPS} cx="12" cy="12" r="7.5" />
+          <circle {...STROKE_PROPS} cx="12" cy="12" r="3.5" />
+          <path {...STROKE_PROPS} d="M12 4.5v15M4.5 12h15M6.7 6.7l10.6 10.6M17.3 6.7L6.7 17.3" />
+        </>
+      )
+    case 'spiral':
+      return (
+        <path {...STROKE_PROPS} d="M12 12c0-1.1.9-2 2-2s2 .9 2 2-1.3 3.5-3.5 3.5S7 14.1 7 11.5s2.2-5 5-5 5.5 2.5 5.5 5.5-2.7 6.5-6.5 6.5" />
+      )
+    case 'mirror':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M12 4v16" strokeDasharray="2 2" />
+          <path {...STROKE_PROPS} d="M7 8l-2 4 2 4M17 8l2 4-2 4" />
+          <path {...STROKE_PROPS} d="M5 8h4M5 16h4M15 8h4M15 16h4" />
+        </>
+      )
+    case 'trim':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M5 17L19 5" />
+          <path {...STROKE_PROPS} d="M5 7h14" />
+          <circle cx="12" cy="7" r="1.5" fill="currentColor" />
+        </>
+      )
+    case 'convert':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M5 16a7.5 7.5 0 0 1 14 0" />
+          <path {...STROKE_PROPS} d="M13 7l3-2.5M13 7l3 2.5" />
+        </>
+      )
+    case 'bezier-cp':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M4 18Q12 2 20 18" />
+          <path {...STROKE_PROPS} d="M4 18l8-16" strokeDasharray="2 2" />
+          <path {...STROKE_PROPS} d="M20 18l-8-16" strokeDasharray="2 2" />
+          <circle cx="12" cy="2" r="1.5" fill="currentColor" />
+        </>
+      )
+    case 'simulator':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M5 12h14" strokeDasharray="1 3" />
+          <path {...STROKE_PROPS} d="M7 9v6M11 9v6M15 9v6M19 9v6" />
+          <path {...STROKE_PROPS} d="M7 9l4 6M11 9l4 6" stroke="currentColor" strokeWidth="1.2" />
+        </>
+      )
+    case 'box-stitch':
+      return (
+        <>
+          <rect {...STROKE_PROPS} x="5" y="7" width="14" height="10" rx="1" />
+          <path {...STROKE_PROPS} d="M5 12h14" strokeDasharray="2 2" />
+          <path {...STROKE_PROPS} d="M12 7v10" strokeDasharray="2 2" />
+        </>
+      )
+    case 'stamp':
+      return (
+        <>
+          <rect {...STROKE_PROPS} x="6" y="4.5" width="12" height="10" rx="1" />
+          <path {...STROKE_PROPS} d="M8.5 11.5h7M8.5 8.5h5" />
+          <path {...STROKE_PROPS} d="M9 14.5v4h6v-4" />
+          <path {...STROKE_PROPS} d="M7 18.5h10" />
+        </>
+      )
+    case 'resize':
+      return (
+        <>
+          <rect {...STROKE_PROPS} x="5.5" y="5.5" width="8" height="8" rx="1" />
+          <path {...STROKE_PROPS} d="M16 8.5h2.5V18a1 1 0 0 1-1 1H8.5v-2.5" />
+          <path {...STROKE_PROPS} d="M14.5 14.5l4 4M16.25 14.5h2.25v2.25" />
+        </>
+      )
+    case 'export-options':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M7 4.75h7l4.25 4.25V19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5.75a1 1 0 0 1 1-1z" />
+          <path {...STROKE_PROPS} d="M14 4.75V9h4.25" />
+          <circle {...STROKE_PROPS} cx="12" cy="14.5" r="2.5" />
+          <path {...STROKE_PROPS} d="M12 12v-1M12 17v1M14.5 14.5h1M9.5 14.5h-1" />
+        </>
+      )
   }
 }
 

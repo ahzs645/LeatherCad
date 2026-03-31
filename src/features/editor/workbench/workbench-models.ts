@@ -325,6 +325,18 @@ export function buildRibbonModel(params: {
           { id: 'move-distance', label: 'Move', icon: 'move', disabled: selectedShapeCount === 0 },
           { id: 'rotate-5', label: 'Rotate', icon: 'rotate', disabled: selectedShapeCount === 0 },
           { id: 'scale-up', label: 'Scale', icon: 'scale', disabled: selectedShapeCount === 0 },
+          { id: 'resize-shape', label: 'Resize', icon: 'resize', disabled: selectedShapeCount === 0 },
+        ],
+      },
+      {
+        id: 'modify-geometry',
+        title: 'Geometry',
+        items: [
+          { id: 'arc-to-bezier', label: 'Arc→Bez', icon: 'convert', disabled: selectedShapeCount === 0 },
+          { id: 'extend-trim', label: 'Trim', icon: 'trim', disabled: selectedShapeCount < 2 },
+          { id: 'mirror-shapes', label: 'Mirror', icon: 'mirror', disabled: selectedShapeCount === 0 },
+          { id: 'bezier-cp-symmetric', label: 'Symm CP', icon: 'bezier-cp', disabled: selectedShapeCount < 2 },
+          { id: 'toggle-bezier-lines', label: 'Offset', icon: 'bezier-cp' },
         ],
       },
     ],
@@ -366,6 +378,14 @@ export function buildRibbonModel(params: {
           { id: 'clear-stitches', label: 'Clear', icon: 'clear' },
         ],
       },
+      {
+        id: 'stitch-tools',
+        title: 'Tools',
+        items: [
+          { id: 'stitch-simulator', label: 'Simulate', icon: 'simulator' },
+          { id: 'box-stitch', label: 'Box Stitch', icon: 'box-stitch' },
+        ],
+      },
     ],
     output: [
       {
@@ -394,6 +414,15 @@ export function buildRibbonModel(params: {
           { id: 'template-repository', label: 'Templates', icon: 'templates' },
           { id: 'tracing', label: 'Tracing', icon: 'tracing' },
           { id: 'ai-builder', label: 'AI', icon: 'ai' },
+        ],
+      },
+      {
+        id: 'output-wizards',
+        title: 'Wizards',
+        items: [
+          { id: 'pattern-wizard', label: 'Wizard', icon: 'wizard' },
+          { id: 'mandala', label: 'Mandala', icon: 'mandala' },
+          { id: 'letter-stamp', label: 'Stamp', icon: 'stamp' },
         ],
       },
     ],

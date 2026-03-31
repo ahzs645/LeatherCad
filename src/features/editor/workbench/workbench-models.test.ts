@@ -172,6 +172,7 @@ describe('buildRibbonModel', () => {
       'modify-history',
       'modify-clipboard',
       'modify-transform',
+      'modify-geometry',
     ])
     expect(groups[0]?.items.find((item) => item.id === 'undo')?.disabled).toBe(true)
     expect(groups[1]?.items.find((item) => item.id === 'paste')?.disabled).toBe(true)

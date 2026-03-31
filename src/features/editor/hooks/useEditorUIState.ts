@@ -50,6 +50,14 @@ export function useEditorUIState() {
   const [systemThemeMode, setSystemThemeMode] = useState<ResolvedThemeMode>(() => getSystemThemeMode())
   const [loadedFontUrl, setLoadedFontUrl] = useState<string | null>(null)
   const [constraintSuggestions, setConstraintSuggestions] = useState<import('../ops/auto-constraint-ops').ConstraintSuggestion[]>([])
+  const [showStitchSimulatorModal, setShowStitchSimulatorModal] = useState(false)
+  const [showBoxStitchModal, setShowBoxStitchModal] = useState(false)
+  const [showMandalaModal, setShowMandalaModal] = useState(false)
+  const [showWizardModal, setShowWizardModal] = useState(false)
+  const [showLetterStampModal, setShowLetterStampModal] = useState(false)
+  const [showChangeShapeSizeModal, setShowChangeShapeSizeModal] = useState(false)
+  const [showBezierOffsetLines, setShowBezierOffsetLines] = useState(false)
+
   const [autoConstraintSettings] = useState(() => ({
     enabled: true,
     horizontal: true,
@@ -90,5 +98,12 @@ export function useEditorUIState() {
     loadedFontUrl, setLoadedFontUrl,
     constraintSuggestions, setConstraintSuggestions,
     autoConstraintSettings,
+    showStitchSimulatorModal, setShowStitchSimulatorModal,
+    showBoxStitchModal, setShowBoxStitchModal,
+    showMandalaModal, setShowMandalaModal,
+    showWizardModal, setShowWizardModal,
+    showLetterStampModal, setShowLetterStampModal,
+    showChangeShapeSizeModal, setShowChangeShapeSizeModal,
+    showBezierOffsetLines, setShowBezierOffsetLines,
   }
 }

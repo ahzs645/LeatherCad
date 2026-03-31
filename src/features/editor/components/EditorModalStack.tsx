@@ -28,6 +28,24 @@ const TracingModal = lazy(() =>
 const LayerColorModal = lazy(() =>
   import('./LayerColorModal').then((mod) => ({ default: mod.LayerColorModal })),
 )
+const StitchSimulatorModal = lazy(() =>
+  import('./StitchSimulatorModal').then((mod) => ({ default: mod.StitchSimulatorModal })),
+)
+const BoxStitchModal = lazy(() =>
+  import('./BoxStitchModal').then((mod) => ({ default: mod.BoxStitchModal })),
+)
+const MandalaModal = lazy(() =>
+  import('./MandalaModal').then((mod) => ({ default: mod.MandalaModal })),
+)
+const WizardModal = lazy(() =>
+  import('./WizardModal').then((mod) => ({ default: mod.WizardModal })),
+)
+const LetterStampModal = lazy(() =>
+  import('./LetterStampModal').then((mod) => ({ default: mod.LetterStampModal })),
+)
+const ChangeShapeSizeModal = lazy(() =>
+  import('./ChangeShapeSizeModal').then((mod) => ({ default: mod.ChangeShapeSizeModal })),
+)
 
 type EditorModalStackProps = {
   lineTypePaletteProps: ComponentProps<typeof LineTypePalette>
@@ -40,6 +58,12 @@ type EditorModalStackProps = {
   aiBuilderModalProps: ComponentProps<typeof AiBuilderModal>
   tracingModalProps: ComponentProps<typeof TracingModal>
   printPreviewModalProps: ComponentProps<typeof PrintPreviewModal>
+  stitchSimulatorModalProps?: ComponentProps<typeof StitchSimulatorModal>
+  boxStitchModalProps?: ComponentProps<typeof BoxStitchModal>
+  mandalaModalProps?: ComponentProps<typeof MandalaModal>
+  wizardModalProps?: ComponentProps<typeof WizardModal>
+  letterStampModalProps?: ComponentProps<typeof LetterStampModal>
+  changeShapeSizeModalProps?: ComponentProps<typeof ChangeShapeSizeModal>
 }
 
 export function EditorModalStack({
@@ -53,6 +77,12 @@ export function EditorModalStack({
   aiBuilderModalProps,
   tracingModalProps,
   printPreviewModalProps,
+  stitchSimulatorModalProps,
+  boxStitchModalProps,
+  mandalaModalProps,
+  wizardModalProps,
+  letterStampModalProps,
+  changeShapeSizeModalProps,
 }: EditorModalStackProps) {
   return (
     <>
@@ -84,6 +114,36 @@ export function EditorModalStack({
       <Suspense fallback={null}>
         <PrintPreviewModal {...printPreviewModalProps} />
       </Suspense>
+      {stitchSimulatorModalProps && (
+        <Suspense fallback={null}>
+          <StitchSimulatorModal {...stitchSimulatorModalProps} />
+        </Suspense>
+      )}
+      {boxStitchModalProps && (
+        <Suspense fallback={null}>
+          <BoxStitchModal {...boxStitchModalProps} />
+        </Suspense>
+      )}
+      {mandalaModalProps && (
+        <Suspense fallback={null}>
+          <MandalaModal {...mandalaModalProps} />
+        </Suspense>
+      )}
+      {wizardModalProps && (
+        <Suspense fallback={null}>
+          <WizardModal {...wizardModalProps} />
+        </Suspense>
+      )}
+      {letterStampModalProps && (
+        <Suspense fallback={null}>
+          <LetterStampModal {...letterStampModalProps} />
+        </Suspense>
+      )}
+      {changeShapeSizeModalProps && (
+        <Suspense fallback={null}>
+          <ChangeShapeSizeModal {...changeShapeSizeModalProps} />
+        </Suspense>
+      )}
     </>
   )
 }

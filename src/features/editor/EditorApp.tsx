@@ -43,7 +43,7 @@ import {
   createDefaultPieceSeamAllowance,
   getPatternPieceChain,
 } from './ops/pattern-piece-ops'
-import { clamp } from './cad/cad-geometry'
+import { clamp, getBounds } from './cad/cad-geometry'
 import { buildAnnotationExportShapes } from './ops/annotation-export-shapes'
 import { openPrintTilesWindow } from './preview/print-output'
 import { buildPrintPlan } from './preview/print-preview'
@@ -91,6 +91,12 @@ import { useEditorUIState } from './hooks/useEditorUIState'
 import { useEditorSelectionState } from './hooks/useEditorSelectionState'
 import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
+import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
+import { generateBoxStitchPattern, type BoxStitchParams } from './ops/box-stitch-ops'
+import { generateRadialCopies, generateGoldenSpiral, generateGoldenRatioGuides, generateMandalaGuideCircle, type MandalaSettings, type GoldenSpiralParams } from './ops/mandala-ops'
+import { generateWatchStrap, generatePassCase, generateBoxJoint, generateJigsaw, generateDiceCup, type WizardType, type WatchStrapParams, type PassCaseParams, type BoxJointParams, type JigsawParams, type DiceCupParams } from './ops/wizard-ops'
+import { generateLetterStampPreview, type LetterStampParams } from './ops/letter-stamp-ops'
+import { simulateStitches, getDefaultStitchSimulatorSettings, type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
 import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
 import { EditorWorkbench } from './workbench/EditorWorkbench'
 import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
@@ -177,6 +183,13 @@ export function EditorApp() {
     loadedFontUrl, setLoadedFontUrl,
     constraintSuggestions, setConstraintSuggestions,
     autoConstraintSettings,
+    showStitchSimulatorModal, setShowStitchSimulatorModal,
+    showBoxStitchModal, setShowBoxStitchModal,
+    showMandalaModal, setShowMandalaModal,
+    showWizardModal, setShowWizardModal,
+    showLetterStampModal, setShowLetterStampModal,
+    showChangeShapeSizeModal, setShowChangeShapeSizeModal,
+    showBezierOffsetLines, setShowBezierOffsetLines,
   } = useEditorUIState()
 
   // Selection state: selected shapes, stitch holes, hardware markers, clipboard
@@ -1174,6 +1187,11 @@ export function EditorApp() {
     () => selectedShapeIds.map((shapeId) => shapesById[shapeId]).filter((shape): shape is Shape => shape !== undefined),
     [selectedShapeIds, shapesById],
   )
+  const selectionBounds = useMemo(() => {
+    if (selectedShapes.length === 0) return null
+    const bounds = getBounds(selectedShapes)
+    return { width: bounds.width - 200, height: bounds.height - 200 }
+  }, [selectedShapes])
   const selectedPatternPiece = useMemo(() => {
     if (selectedShapeIds.length !== 1) {
       return null
@@ -1679,6 +1697,85 @@ export function EditorApp() {
     layers,
     stitchHoleCountsByShape,
   })
+
+  const {
+    handleConvertArcToBezier,
+    handleMakeBezierCpSymmetric,
+    handleExtendOrTrimLines,
+    handleMirrorShapes,
+    handleToggleBezierOffsetLines,
+    handleResizeShapes,
+  } = useGeometryEditingActions({
+    shapes,
+    setShapes,
+    selectedShapeIdSet,
+    setStatus,
+    showBezierOffsetLines,
+    setShowBezierOffsetLines,
+  })
+
+  const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() => getDefaultStitchSimulatorSettings())
+
+  const stitchSimulatorResult = useMemo(() => {
+    if (!showStitchSimulatorModal && stitchHoles.length === 0) return null
+    return simulateStitches(stitchHoles, stitchSimulatorSettings.stitchType)
+  }, [stitchHoles, stitchSimulatorSettings.stitchType, showStitchSimulatorModal])
+
+  const handleGenerateBoxStitch = (params: BoxStitchParams) => {
+    const result = generateBoxStitchPattern(params)
+    setShapes((prev) => [...prev, ...result.guideLines])
+    setStitchHoles((prev) => [...prev, ...result.stitchHoles])
+    setShowBoxStitchModal(false)
+    setStatus(`Generated box stitch: ${result.guideLines.length} guides, ${result.stitchHoles.length} holes`)
+  }
+
+  const handleGenerateMandalaRadial = (settings: MandalaSettings) => {
+    const selectedShapes = shapes.filter((s) => selectedShapeIdSet.has(s.id))
+    if (selectedShapes.length === 0) {
+      setStatus('Select shapes first for radial copy')
+      return
+    }
+    const guides = generateMandalaGuideCircle(settings.center, settings.radius, settings.segmentCount, activeLayerId, activeLineTypeId)
+    const copies = generateRadialCopies(selectedShapes, settings)
+    setShapes((prev) => [...prev, ...guides, ...copies])
+    setShowMandalaModal(false)
+    setStatus(`Generated ${copies.length} radial copies with ${guides.length} guides`)
+  }
+
+  const handleGenerateSpiral = (params: GoldenSpiralParams) => {
+    const arcs = generateGoldenSpiral(params)
+    setShapes((prev) => [...prev, ...arcs])
+    setShowMandalaModal(false)
+    setStatus(`Generated golden spiral with ${arcs.length} arc segments`)
+  }
+
+  const handleGenerateGoldenGuides = (center: { x: number; y: number }, size: number) => {
+    const guides = generateGoldenRatioGuides(center, size, activeLayerId, activeLineTypeId)
+    setShapes((prev) => [...prev, ...guides])
+    setShowMandalaModal(false)
+    setStatus(`Generated ${guides.length} golden ratio guide lines`)
+  }
+
+  const handleGenerateWizardPattern = (type: WizardType, params: WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams) => {
+    let result: { shapes: Shape[]; description: string }
+    switch (type) {
+      case 'watch-strap': result = generateWatchStrap(params as WatchStrapParams); break
+      case 'pass-case': result = generatePassCase(params as PassCaseParams); break
+      case 'box-joint': result = generateBoxJoint(params as BoxJointParams); break
+      case 'jigsaw': result = generateJigsaw(params as JigsawParams); break
+      case 'dice-cup': result = generateDiceCup(params as DiceCupParams); break
+    }
+    setShapes((prev) => [...prev, ...result.shapes])
+    setShowWizardModal(false)
+    setStatus(result.description)
+  }
+
+  const handleGenerateLetterStamp = (params: LetterStampParams) => {
+    const result = generateLetterStampPreview({ ...params, layerId: activeLayerId, lineTypeId: activeLineTypeId })
+    setShapes((prev) => [...prev, ...result.textShapes, ...result.guideLines])
+    setShowLetterStampModal(false)
+    setStatus(`Generated letter stamp: ${result.placements.length} characters`)
+  }
 
   const { handleRunMobileLayerAction, handleRunMobileFileAction } = useMobileActions({
     mobileLayerAction,
@@ -2502,6 +2599,39 @@ export function EditorApp() {
       case 'ai-builder':
         setShowAiBuilderModal(true)
         break
+      case 'arc-to-bezier':
+        handleConvertArcToBezier()
+        break
+      case 'extend-trim':
+        handleExtendOrTrimLines()
+        break
+      case 'mirror-shapes':
+        handleMirrorShapes()
+        break
+      case 'bezier-cp-symmetric':
+        handleMakeBezierCpSymmetric()
+        break
+      case 'toggle-bezier-lines':
+        handleToggleBezierOffsetLines()
+        break
+      case 'resize-shape':
+        setShowChangeShapeSizeModal(true)
+        break
+      case 'stitch-simulator':
+        setShowStitchSimulatorModal(true)
+        break
+      case 'box-stitch':
+        setShowBoxStitchModal(true)
+        break
+      case 'pattern-wizard':
+        setShowWizardModal(true)
+        break
+      case 'mandala':
+        setShowMandalaModal(true)
+        break
+      case 'letter-stamp':
+        setShowLetterStampModal(true)
+        break
       default:
         break
     }
@@ -2995,7 +3125,54 @@ export function EditorApp() {
       )}
 
       <ErrorBoundary>
-        <EditorModalStack {...modalStackProps} />
+        <EditorModalStack
+          {...modalStackProps}
+          stitchSimulatorModalProps={{
+            open: showStitchSimulatorModal,
+            onClose: () => setShowStitchSimulatorModal(false),
+            settings: stitchSimulatorSettings,
+            onApply: (settings) => { setStitchSimulatorSettings(settings); setStatus('Stitch simulator settings updated') },
+            stitchHoleCount: stitchHoles.length,
+            threadLength: stitchSimulatorResult?.threadLength ?? null,
+          }}
+          boxStitchModalProps={{
+            open: showBoxStitchModal,
+            onClose: () => setShowBoxStitchModal(false),
+            onGenerate: handleGenerateBoxStitch,
+            defaultLayerId: activeLayerId,
+            defaultLineTypeId: activeLineTypeId,
+          }}
+          mandalaModalProps={{
+            open: showMandalaModal,
+            onClose: () => setShowMandalaModal(false),
+            onGenerateRadial: handleGenerateMandalaRadial,
+            onGenerateSpiral: handleGenerateSpiral,
+            onGenerateGoldenGuides: handleGenerateGoldenGuides,
+            defaultLayerId: activeLayerId,
+            defaultLineTypeId: activeLineTypeId,
+          }}
+          wizardModalProps={{
+            open: showWizardModal,
+            onClose: () => setShowWizardModal(false),
+            onGenerate: handleGenerateWizardPattern,
+            defaultLayerId: activeLayerId,
+            defaultLineTypeId: activeLineTypeId,
+          }}
+          letterStampModalProps={{
+            open: showLetterStampModal,
+            onClose: () => setShowLetterStampModal(false),
+            onGenerate: handleGenerateLetterStamp,
+            defaultLayerId: activeLayerId,
+            defaultLineTypeId: activeLineTypeId,
+          }}
+          changeShapeSizeModalProps={{
+            open: showChangeShapeSizeModal,
+            onClose: () => setShowChangeShapeSizeModal(false),
+            onApply: (w, h, lock) => { handleResizeShapes(w, h, lock); setShowChangeShapeSizeModal(false) },
+            currentWidth: selectionBounds?.width ?? 0,
+            currentHeight: selectionBounds?.height ?? 0,
+          }}
+        />
       </ErrorBoundary>
 
       <Suspense fallback={null}>

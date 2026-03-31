@@ -94,6 +94,28 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
       return 'tracing'
     case 'ai-builder':
       return 'ai'
+    case 'arc-to-bezier':
+      return 'convert'
+    case 'extend-trim':
+      return 'trim'
+    case 'mirror-shapes':
+      return 'mirror'
+    case 'bezier-cp-symmetric':
+      return 'bezier-cp'
+    case 'toggle-bezier-lines':
+      return 'bezier-cp'
+    case 'resize-shape':
+      return 'resize'
+    case 'stitch-simulator':
+      return 'simulator'
+    case 'box-stitch':
+      return 'box-stitch'
+    case 'pattern-wizard':
+      return 'wizard'
+    case 'mandala':
+      return 'mandala'
+    case 'letter-stamp':
+      return 'stamp'
     default:
       return 'settings'
   }
