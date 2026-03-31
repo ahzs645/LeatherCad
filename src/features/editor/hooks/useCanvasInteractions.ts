@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   Dispatch,
   PointerEvent as ReactPointerEvent,
@@ -45,7 +45,21 @@ type ShapeDragState = {
   didMove: boolean
 }
 
-type HandlePointKey = 'start' | 'mid' | 'control' | 'end'
+export type HandlePointKey = 'start' | 'mid' | 'control' | 'end'
+
+export type CanvasInteractionPreview =
+  | {
+      kind: 'move'
+      shapeIds: string[]
+      deltaX: number
+      deltaY: number
+    }
+  | {
+      kind: 'handle'
+      shapeId: string
+      pointKey: HandlePointKey
+      point: Point
+    }
 
 type HandleDragState = {
   pointerId: number
@@ -166,6 +180,16 @@ function withUpdatedHandlePoint(shape: Shape, pointKey: HandlePointKey, point: P
   return shape
 }
 
+function getHandlePoint(shape: Shape, pointKey: HandlePointKey): Point | null {
+  if (shape.type === 'line' || shape.type === 'text') {
+    return pointKey === 'start' || pointKey === 'end' ? shape[pointKey] : null
+  }
+  if (shape.type === 'arc') {
+    return pointKey === 'start' || pointKey === 'mid' || pointKey === 'end' ? shape[pointKey] : null
+  }
+  return pointKey === 'start' || pointKey === 'control' || pointKey === 'end' ? shape[pointKey] : null
+}
+
 export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   const {
     svgRef,
@@ -225,6 +249,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   const referencePointRef = useRef<Point>({ x: 0, y: 0 })
   const shapeDragRef = useRef<ShapeDragState | null>(null)
   const handleDragRef = useRef<HandleDragState | null>(null)
+  const [interactionPreview, setInteractionPreview] = useState<CanvasInteractionPreview | null>(null)
 
   useEffect(() => {
     toolManager.resetTransientState(tool)
@@ -415,6 +440,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   }
 
   const beginPan = (clientX: number, clientY: number, pointerId: number) => {
+    setInteractionPreview(null)
     panRef.current = {
       startX: clientX,
       startY: clientY,
@@ -454,6 +480,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     if (!rawPoint) {
       return
     }
+    setInteractionPreview(null)
     const point = getSnappedPoint(rawPoint).point
     setCursorPoint(point)
 
@@ -517,6 +544,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       initialShapesById,
       didMove: false,
     }
+    setInteractionPreview(null)
 
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
@@ -546,6 +574,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       shapeId,
       pointKey,
     }
+    setInteractionPreview(null)
 
     try {
       event.currentTarget.setPointerCapture(event.pointerId)
@@ -626,11 +655,23 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       }
       const snapped = getSnappedPoint(point).point
       setCursorPoint(snapped)
-      setShapes((previous) =>
-        previous.map((shape) =>
-          shape.id === handleDragState.shapeId ? withUpdatedHandlePoint(shape, handleDragState.pointKey, snapped) : shape,
-        ),
-      )
+      setInteractionPreview((previous) => {
+        if (
+          previous?.kind === 'handle' &&
+          previous.shapeId === handleDragState.shapeId &&
+          previous.pointKey === handleDragState.pointKey &&
+          Math.abs(previous.point.x - snapped.x) < 1e-4 &&
+          Math.abs(previous.point.y - snapped.y) < 1e-4
+        ) {
+          return previous
+        }
+        return {
+          kind: 'handle',
+          shapeId: handleDragState.shapeId,
+          pointKey: handleDragState.pointKey,
+          point: snapped,
+        }
+      })
       return
     }
 
@@ -650,15 +691,22 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
         shapeDragState.didMove = true
       }
       setCursorPoint(point)
-      setShapes((previous) =>
-        previous.map((shape) => {
-          const initial = shapeDragState.initialShapesById.get(shape.id)
-          if (!initial) {
-            return shape
-          }
-          return translateShape(initial, deltaX, deltaY)
-        }),
-      )
+      setInteractionPreview((previous) => {
+        if (
+          previous?.kind === 'move' &&
+          previous.shapeIds === shapeDragState.shapeIds &&
+          Math.abs(previous.deltaX - deltaX) < 1e-4 &&
+          Math.abs(previous.deltaY - deltaY) < 1e-4
+        ) {
+          return previous
+        }
+        return {
+          kind: 'move',
+          shapeIds: shapeDragState.shapeIds,
+          deltaX,
+          deltaY,
+        }
+      })
       return
     }
 
@@ -680,17 +728,55 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
     const handleDragState = handleDragRef.current
     if (handleDragState && !(event.pointerType === 'touch' && event.pointerId !== handleDragState.pointerId)) {
+      const preview = interactionPreview
+      if (preview?.kind === 'handle' && preview.shapeId === handleDragState.shapeId && preview.pointKey === handleDragState.pointKey) {
+        const targetShape = shapesById[handleDragState.shapeId]
+        const originalPoint = targetShape ? getHandlePoint(targetShape, handleDragState.pointKey) : null
+        if (
+          targetShape &&
+          originalPoint &&
+          (Math.abs(originalPoint.x - preview.point.x) > 1e-4 || Math.abs(originalPoint.y - preview.point.y) > 1e-4)
+        ) {
+          setShapes((previous) =>
+            previous.map((shape) =>
+              shape.id === handleDragState.shapeId
+                ? withUpdatedHandlePoint(shape, handleDragState.pointKey, preview.point)
+                : shape,
+            ),
+          )
+          setStatus('Updated shape handle')
+        }
+      }
       handleDragRef.current = null
     }
 
     const shapeDragState = shapeDragRef.current
     if (shapeDragState && !(event.pointerType === 'touch' && event.pointerId !== shapeDragState.pointerId)) {
+      const preview = interactionPreview
       shapeDragRef.current = null
+      if (
+        preview?.kind === 'move' &&
+        preview.shapeIds === shapeDragState.shapeIds &&
+        (Math.abs(preview.deltaX) > 1e-4 || Math.abs(preview.deltaY) > 1e-4)
+      ) {
+        setShapes((previous) =>
+          previous.map((shape) => {
+            const initial = shapeDragState.initialShapesById.get(shape.id)
+            if (!initial) {
+              return shape
+            }
+            return translateShape(initial, preview.deltaX, preview.deltaY)
+          }),
+        )
+      }
       if (shapeDragState.didMove) {
         setStatus(
           `Moved ${shapeDragState.shapeIds.length} shape${shapeDragState.shapeIds.length === 1 ? '' : 's'}`,
         )
       }
+    }
+    if (handleDragState || shapeDragState) {
+      setInteractionPreview(null)
     }
 
     if (event.pointerType !== 'touch') {
@@ -727,6 +813,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
+    interactionPreview,
     runPrecisionCommand,
     toolHint,
   }

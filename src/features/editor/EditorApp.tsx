@@ -69,7 +69,6 @@ import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
 import { useDraftPreviewElement } from './hooks/useDraftCanvasElements'
-import { useCanvasGrid } from './hooks/useCanvasGrid'
 import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
 import { useEditorLayoutFlags } from './hooks/useEditorLayoutFlags'
 import { useLoadedDocumentActions } from './hooks/useLoadedDocumentActions'
@@ -623,11 +622,6 @@ export function EditorApp() {
     }
   }, [applyLoadedDocument])
 
-  const { canvasRef: gridCanvasRef } = useCanvasGrid({
-    viewport,
-    gridSpacing,
-    darkMode: resolvedThemeMode === 'dark',
-  })
   const previewElement = useDraftPreviewElement({
     cursorPoint,
     draftPoints,
@@ -937,6 +931,7 @@ export function EditorApp() {
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
+    interactionPreview,
     runPrecisionCommand,
     toolHint,
   } = useCanvasInteractions({
@@ -2650,7 +2645,7 @@ export function EditorApp() {
         onPointerUp={handlePointerUp}
         viewport={viewport}
         displayUnit={displayUnit}
-        gridCanvasRef={gridCanvasRef}
+        gridSpacing={gridSpacing}
         showCanvasRuler={showCanvasRuler}
         showDimensions={showDimensions}
         onZoomOut={() => handleZoomStep(0.85)}
@@ -2691,6 +2686,7 @@ export function EditorApp() {
         annotationLabels={annotationLabels}
         constraintSuggestions={constraintSuggestions}
         previewElement={previewElement}
+        interactionPreview={interactionPreview}
         showLayerLegend={showLayerLegend}
         legendMode={legendMode}
         onSetLegendMode={setLegendMode}
@@ -2849,7 +2845,7 @@ export function EditorApp() {
                   onPointerUp={handlePointerUp}
                   viewport={viewport}
                   displayUnit={displayUnit}
-                  gridCanvasRef={gridCanvasRef}
+                  gridSpacing={gridSpacing}
                   showCanvasRuler={showCanvasRuler}
                   showDimensions={showDimensions}
                   onZoomOut={() => handleZoomStep(0.85)}
@@ -2890,6 +2886,7 @@ export function EditorApp() {
                   annotationLabels={annotationLabels}
                   constraintSuggestions={constraintSuggestions}
                   previewElement={previewElement}
+                  interactionPreview={interactionPreview}
                   showLayerLegend={showLayerLegend}
                   legendMode={legendMode}
                   onSetLegendMode={setLegendMode}

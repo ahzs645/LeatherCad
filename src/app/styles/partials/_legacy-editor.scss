@@ -1272,12 +1272,25 @@ button:disabled {
   vector-effect: non-scaling-stroke;
 }
 
+.shape-preview-source {
+  opacity: 0.2;
+}
+
+.shape-live-preview {
+  filter: drop-shadow(0 0 0.45rem rgba(56, 189, 248, 0.22));
+}
+
 .shape-handle {
   fill: #f8fafc;
   stroke: #1d4ed8;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
   cursor: pointer;
+}
+
+.shape-handle-preview {
+  fill: #dbeafe;
+  stroke: #0ea5e9;
 }
 
 .contextual-actions-panel {
