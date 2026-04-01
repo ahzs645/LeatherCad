@@ -139,9 +139,12 @@ export function EditorModalStack({
           <LetterStampModal {...letterStampModalProps} />
         </Suspense>
       )}
-      {changeShapeSizeModalProps && (
+      {changeShapeSizeModalProps?.open && (
         <Suspense fallback={null}>
-          <ChangeShapeSizeModal {...changeShapeSizeModalProps} />
+          <ChangeShapeSizeModal
+            key={`${changeShapeSizeModalProps.currentWidth}-${changeShapeSizeModalProps.currentHeight}`}
+            {...changeShapeSizeModalProps}
+          />
         </Suspense>
       )}
     </>

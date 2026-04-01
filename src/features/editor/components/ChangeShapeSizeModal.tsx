@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 type ChangeShapeSizeModalProps = {
   open: boolean
@@ -18,11 +18,6 @@ export function ChangeShapeSizeModal({
   const [newWidth, setNewWidth] = useState(currentWidth)
   const [newHeight, setNewHeight] = useState(currentHeight)
   const [lockAspectRatio, setLockAspectRatio] = useState(false)
-
-  useEffect(() => {
-    setNewWidth(currentWidth)
-    setNewHeight(currentHeight)
-  }, [currentWidth, currentHeight])
 
   if (!open) {
     return null
