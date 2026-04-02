@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   WizardType,
   WatchStrapParams,
@@ -37,6 +37,8 @@ export function WizardModal({
   defaultLineTypeId,
 }: WizardModalProps) {
   const [activeType, setActiveType] = useState<WizardType>('watch-strap')
+  const [isGenerating, setIsGenerating] = useState(false)
+  const isGeneratingRef = useRef(false)
 
   // Watch Strap
   const [strapTotalLength, setStrapTotalLength] = useState(220)
@@ -79,11 +81,24 @@ export function WizardModal({
   const [segments, setSegments] = useState(8)
   const [includeBottom, setIncludeBottom] = useState(true)
 
+  useEffect(() => {
+    if (!open) {
+      setIsGenerating(false)
+      isGeneratingRef.current = false
+    }
+  }, [open])
+
   if (!open) {
     return null
   }
 
   function handleGenerate() {
+    if (isGeneratingRef.current) {
+      return
+    }
+    isGeneratingRef.current = true
+    setIsGenerating(true)
+
     switch (activeType) {
       case 'watch-strap':
         onGenerate('watch-strap', {
@@ -204,7 +219,7 @@ export function WizardModal({
               <span>Tip Shape</span>
               <select value={tipShape} onChange={(e) => setTipShape(e.target.value as 'pointed' | 'round' | 'square')}>
                 <option value="pointed">Pointed</option>
-                <option value="rounded">Rounded</option>
+                <option value="round">Rounded</option>
                 <option value="square">Square</option>
               </select>
             </label>
@@ -325,7 +340,9 @@ export function WizardModal({
 
         <div className="modal-actions">
           <button onClick={onClose}>Cancel</button>
-          <button onClick={handleGenerate}>Generate</button>
+          <button onClick={handleGenerate} disabled={isGenerating}>
+            {isGenerating ? 'Generating…' : 'Generate'}
+          </button>
         </div>
       </div>
     </div>
