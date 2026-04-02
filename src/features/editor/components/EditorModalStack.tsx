@@ -129,7 +129,7 @@ export function EditorModalStack({
           <MandalaModal {...mandalaModalProps} />
         </Suspense>
       )}
-      {wizardModalProps && (
+      {wizardModalProps?.open && (
         <Suspense fallback={null}>
           <WizardModal {...wizardModalProps} />
         </Suspense>

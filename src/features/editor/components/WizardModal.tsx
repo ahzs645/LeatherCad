@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type {
   WizardType,
   WatchStrapParams,
@@ -80,13 +80,6 @@ export function WizardModal({
   const [cupHeight, setCupHeight] = useState(100)
   const [segments, setSegments] = useState(8)
   const [includeBottom, setIncludeBottom] = useState(true)
-
-  useEffect(() => {
-    if (!open) {
-      setIsGenerating(false)
-      isGeneratingRef.current = false
-    }
-  }, [open])
 
   if (!open) {
     return null
