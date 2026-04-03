@@ -18,6 +18,7 @@ export function WorkbenchToolRail({ tool, onSetActiveTool }: WorkbenchToolRailPr
             onClick={() => onSetActiveTool(toolItem.value)}
             title={toolItem.label}
             aria-label={toolItem.label}
+            data-tooltip={toolItem.label}
           >
             <span className="tool-icon-badge" aria-hidden="true">
               <img src={toolItem.iconSrc} alt="" />

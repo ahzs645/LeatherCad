@@ -465,9 +465,10 @@ const stitchHoleTool: CanvasToolHandler = {
       runtime.stitchTargetShapes,
       runtime.lineTypesById,
       16 / Math.max(0.1, runtime.viewportScale),
+      { allowNonStitchShapes: true },
     )
     if (!nearestStitchAnchor) {
-      runtime.setStatus('No stitch path near pointer. Tap near a visible stitch line.')
+      runtime.setStatus('No shape near pointer. Tap near a visible line, curve, or stitch path.')
       return
     }
 
@@ -498,7 +499,12 @@ const stitchHoleTool: CanvasToolHandler = {
     })
     runtime.setSelectedStitchHoleId(createdHoleId)
     runtime.pointPicked(point)
-    runtime.setStatus(`Stitch hole placed (${runtime.stitchHoleType})`)
+    const targetLineTypeRole = runtime.lineTypesById[targetShape.lineTypeId]?.role ?? 'cut'
+    runtime.setStatus(
+      targetLineTypeRole === 'stitch'
+        ? `Stitch hole placed (${runtime.stitchHoleType})`
+        : `Stitch hole placed on ${targetLineTypeRole} path (${runtime.stitchHoleType})`,
+    )
   },
 }
 

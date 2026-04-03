@@ -9,6 +9,10 @@ type StitchAnchor = {
   angleDeg: number
 }
 
+type FindNearestStitchAnchorOptions = {
+  allowNonStitchShapes?: boolean
+}
+
 type Projection = {
   point: Point
   distance: number
@@ -57,6 +61,10 @@ function isStitchShape(shape: Shape, lineTypesById: Record<string, LineType>) {
   return lineTypeRole === 'stitch'
 }
 
+function canAnchorStitchHole(shape: Shape) {
+  return shape.type !== 'text'
+}
+
 export function parseStitchHole(value: unknown): StitchHole | null {
   if (typeof value !== 'object' || value === null) {
     return null
@@ -102,34 +110,48 @@ export function findNearestStitchAnchor(
   shapes: Shape[],
   lineTypesById: Record<string, LineType>,
   maxDistance: number,
+  options: FindNearestStitchAnchorOptions = {},
 ) {
-  let best: StitchAnchor | null = null
-  let bestDistance = Number.POSITIVE_INFINITY
+  const findBestAnchor = (matches: (shape: Shape) => boolean) => {
+    let best: StitchAnchor | null = null
+    let bestDistance = Number.POSITIVE_INFINITY
 
-  for (const shape of shapes) {
-    if (!isStitchShape(shape, lineTypesById)) {
-      continue
-    }
+    for (const shape of shapes) {
+      if (!matches(shape)) {
+        continue
+      }
 
-    const sampled = sampleShapePoints(shape, LINE_SAMPLE_SEGMENTS)
-    for (let index = 0; index < sampled.length - 1; index += 1) {
-      const projection = projectPointToSegment(point, sampled[index], sampled[index + 1])
-      if (projection.distance < bestDistance) {
-        bestDistance = projection.distance
-        best = {
-          shapeId: shape.id,
-          point: projection.point,
-          angleDeg: projection.angleDeg,
+      const sampled = sampleShapePoints(shape, LINE_SAMPLE_SEGMENTS)
+      for (let index = 0; index < sampled.length - 1; index += 1) {
+        const projection = projectPointToSegment(point, sampled[index], sampled[index + 1])
+        if (projection.distance < bestDistance) {
+          bestDistance = projection.distance
+          best = {
+            shapeId: shape.id,
+            point: projection.point,
+            angleDeg: projection.angleDeg,
+          }
         }
       }
     }
+
+    if (!best || bestDistance > maxDistance) {
+      return null
+    }
+
+    return best
   }
 
-  if (!best || bestDistance > maxDistance) {
+  const stitchAnchor = findBestAnchor((shape) => canAnchorStitchHole(shape) && isStitchShape(shape, lineTypesById))
+  if (stitchAnchor) {
+    return stitchAnchor
+  }
+
+  if (!options.allowNonStitchShapes) {
     return null
   }
 
-  return best
+  return findBestAnchor((shape) => canAnchorStitchHole(shape))
 }
 
 export function createStitchHole(anchor: StitchAnchor, holeType: StitchHoleType): StitchHole {
