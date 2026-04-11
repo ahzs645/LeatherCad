@@ -1,6 +1,7 @@
 import { sampleShapePoints, uid } from '../cad/cad-geometry'
 import type { Point, Shape } from '../cad/cad-types'
 import { computeBoundsFromShapes } from './pattern-ops'
+import { extractBoxStitchGuideLines } from './box-stitch-ops'
 
 type CornerPointMatch = {
   corner: Point
@@ -295,7 +296,7 @@ export function createOffsetGeometryForSelection(
 export function createBoxStitchFromSelection(
   shapes: Shape[],
   selectedShapeIds: Set<string>,
-  insetMm: number,
+  distanceMm: number,
   stitchLineTypeId: string,
   fallbackLayerId: string | null,
 ) {
@@ -304,24 +305,6 @@ export function createBoxStitchFromSelection(
     return {
       ok: false as const,
       message: 'Select one or more shapes to create a box stitch',
-      created: [] as Shape[],
-    }
-  }
-
-  const bounds = computeBoundsFromShapes(selected)
-  if (!bounds) {
-    return {
-      ok: false as const,
-      message: 'Could not compute bounds from selected shapes',
-      created: [] as Shape[],
-    }
-  }
-
-  const safeInset = Math.max(0.1, Math.abs(insetMm))
-  if (bounds.maxX - bounds.minX <= safeInset * 2 || bounds.maxY - bounds.minY <= safeInset * 2) {
-    return {
-      ok: false as const,
-      message: 'Inset is too large for the selected bounds',
       created: [] as Shape[],
     }
   }
@@ -337,23 +320,32 @@ export function createBoxStitchFromSelection(
   }
 
   const groupId = firstShape?.groupId
-  const minX = bounds.minX + safeInset
-  const minY = bounds.minY + safeInset
-  const maxX = bounds.maxX - safeInset
-  const maxY = bounds.maxY - safeInset
   const lineType = stitchLineTypeId || firstShape?.lineTypeId || ''
+  const extracted = extractBoxStitchGuideLines(selected, distanceMm, layerId, lineType, groupId)
+  if (extracted.guideLines.length === 0) {
+    const bounds = computeBoundsFromShapes(selected)
+    const safeDistance = Math.max(0.1, Math.abs(distanceMm))
+    if (
+      !bounds ||
+      bounds.maxX - bounds.minX <= safeDistance * 2 ||
+      bounds.maxY - bounds.minY <= safeDistance * 2
+    ) {
+      return {
+        ok: false as const,
+        message: 'Box stitch distance is too large for the selected bounds',
+        created: [] as Shape[],
+      }
+    }
+  }
 
-  const created: Shape[] = [
-    { id: uid(), type: 'line', layerId, lineTypeId: lineType, groupId, start: { x: minX, y: minY }, end: { x: maxX, y: minY } },
-    { id: uid(), type: 'line', layerId, lineTypeId: lineType, groupId, start: { x: maxX, y: minY }, end: { x: maxX, y: maxY } },
-    { id: uid(), type: 'line', layerId, lineTypeId: lineType, groupId, start: { x: maxX, y: maxY }, end: { x: minX, y: maxY } },
-    { id: uid(), type: 'line', layerId, lineTypeId: lineType, groupId, start: { x: minX, y: maxY }, end: { x: minX, y: minY } },
-  ]
+  const created: Shape[] = extracted.guideLines
 
   return {
     ok: true as const,
-    message: 'Box stitch generated',
+    message:
+      extracted.extractedEdgeCount > 0
+        ? `Box stitch extracted from ${extracted.extractedEdgeCount} candidate edge${extracted.extractedEdgeCount === 1 ? '' : 's'}${extracted.usedFallback ? ' with fallback guides' : ''}`
+        : 'Box stitch generated from selection bounds',
     created,
   }
 }
-

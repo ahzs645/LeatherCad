@@ -11,7 +11,7 @@ import type {
   Shape,
   SketchGroup,
   StitchHole,
-  StitchHoleType,
+  StitchHoleDefaults,
   TextTransformMode,
   Tool,
 } from '../cad/cad-types'
@@ -41,7 +41,7 @@ export type ToolRuntime = {
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
   viewportScale: number
-  stitchHoleType: StitchHoleType
+  stitchHoleDefaults: StitchHoleDefaults
   hardwarePreset: HardwareKind
   customHardwareDiameterMm: number
   customHardwareSpacingMm: number
@@ -491,7 +491,7 @@ const stitchHoleTool: CanvasToolHandler = {
           .filter((stitchHole) => stitchHole.shapeId === nearestStitchAnchor.shapeId)
           .reduce((maximum, stitchHole) => Math.max(maximum, stitchHole.sequence), -1) + 1
       const createdHole = {
-        ...createStitchHole(nearestStitchAnchor, runtime.stitchHoleType),
+        ...createStitchHole(nearestStitchAnchor, runtime.stitchHoleDefaults),
         sequence: nextSequence,
       }
       createdHoleId = createdHole.id
@@ -502,8 +502,8 @@ const stitchHoleTool: CanvasToolHandler = {
     const targetLineTypeRole = runtime.lineTypesById[targetShape.lineTypeId]?.role ?? 'cut'
     runtime.setStatus(
       targetLineTypeRole === 'stitch'
-        ? `Stitch hole placed (${runtime.stitchHoleType})`
-        : `Stitch hole placed on ${targetLineTypeRole} path (${runtime.stitchHoleType})`,
+        ? `Stitch hole placed (${runtime.stitchHoleDefaults.presetName ?? runtime.stitchHoleDefaults.renderShape ?? runtime.stitchHoleDefaults.holeType})`
+        : `Stitch hole placed on ${targetLineTypeRole} path (${runtime.stitchHoleDefaults.presetName ?? runtime.stitchHoleDefaults.renderShape ?? runtime.stitchHoleDefaults.holeType})`,
     )
   },
 }

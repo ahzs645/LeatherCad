@@ -30,6 +30,16 @@ export type ResolvedThemeMode = 'dark' | 'light'
 export type ThemeMode = ResolvedThemeMode | 'system'
 export type LegendMode = 'layer' | 'stack'
 export type DxfVersion = 'r12' | 'r14'
+export type StitchHoleExportRenderMode = 'native' | 'dots' | 'single-lines'
+export type AutoPitchMode = 'fixed' | 'variable'
+export type StitchAutoPitchSettings = {
+  defaultMode: AutoPitchMode
+  forceFitLastHole: boolean
+  solverSteps: number
+  precisionMm: number
+  stopGapMm: number
+  continueFromSelectedHole: boolean
+}
 export type DesktopRibbonTab = 'build' | 'edit' | 'stitch' | 'output' | 'view'
 export type SidePanelTab = '3d' | 'layers'
 export type SketchWorkspaceMode = 'assembly' | 'sketch'

@@ -20,7 +20,7 @@ import type {
   SketchGroup,
   SnapSettings,
   StitchHole,
-  StitchHoleType,
+  StitchHoleDefaults,
   TextTransformMode,
   Tool,
   Viewport,
@@ -88,7 +88,7 @@ type UseCanvasInteractionsParams = {
   hardwarePreset: HardwareKind
   customHardwareDiameterMm: number
   customHardwareSpacingMm: number
-  stitchHoleType: StitchHoleType
+  stitchHoleDefaults: StitchHoleDefaults
   textDraftValue: string
   textFontFamily: string
   textFontSizeMm: number
@@ -212,7 +212,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     hardwarePreset,
     customHardwareDiameterMm,
     customHardwareSpacingMm,
-    stitchHoleType,
+    stitchHoleDefaults,
     textDraftValue,
     textFontFamily,
     textFontSizeMm,
@@ -345,7 +345,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     activeLineTypeId,
     activeSketchGroup,
     viewportScale: viewport.scale,
-    stitchHoleType,
+    stitchHoleDefaults,
     hardwarePreset,
     customHardwareDiameterMm,
     customHardwareSpacingMm,

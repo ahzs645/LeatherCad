@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Layer, LineType, Point, Shape, StitchHole } from '../cad/cad-types'
+import type { Layer, LineType, Shape, StitchHole } from '../cad/cad-types'
 import { CanvasToolManager, type ToolRuntime } from './canvas-tool-manager'
 
 function createLineType(id: string, role: LineType['role']): LineType {
@@ -39,7 +39,15 @@ describe('CanvasToolManager stitch tool', () => {
       activeLineTypeId: 'cut',
       activeSketchGroup: null,
       viewportScale: 1,
-      stitchHoleType: 'round',
+      stitchHoleDefaults: {
+        holeType: 'round',
+        renderShape: 'round',
+        diameterMm: 1.2,
+        widthMm: 1.2,
+        heightMm: 1.2,
+        tiltDeg: 0,
+        inverted: false,
+      },
       hardwarePreset: 'custom',
       customHardwareDiameterMm: 4,
       customHardwareSpacingMm: 0,
@@ -77,7 +85,7 @@ describe('CanvasToolManager stitch tool', () => {
       ensureActiveLayerWritable: () => true,
       ensureActiveLineTypeWritable: () => true,
       toolManager: manager,
-      pointPicked: (_point: Point) => undefined,
+      pointPicked: () => undefined,
     }
 
     manager.pointerDown('stitch-hole', { x: 40, y: 2 }, runtime)

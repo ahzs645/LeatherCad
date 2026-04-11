@@ -96,7 +96,8 @@ import { generateBoxStitchPattern, type BoxStitchParams } from './ops/box-stitch
 import { generateRadialCopies, generateGoldenSpiral, generateGoldenRatioGuides, generateMandalaGuideCircle, type MandalaSettings, type GoldenSpiralParams } from './ops/mandala-ops'
 import { generateWatchStrap, generatePassCase, generateBoxJoint, generateJigsaw, generateDiceCup, type WizardType, type WatchStrapParams, type PassCaseParams, type BoxJointParams, type JigsawParams, type DiceCupParams } from './ops/wizard-ops'
 import { generateLetterStampPreview, type LetterStampParams } from './ops/letter-stamp-ops'
-import { simulateStitches, getDefaultStitchSimulatorSettings, type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
+import { simulateStitches, type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
+import { loadStitchSimulatorSettings, saveStitchSimulatorSettings } from './ops/stitch-simulator-settings'
 import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
 import { EditorWorkbench } from './workbench/EditorWorkbench'
 import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
@@ -225,6 +226,10 @@ export function EditorApp() {
     setExportRoleFilters,
     exportForceSolidStrokes,
     setExportForceSolidStrokes,
+    exportStitchHoleRenderMode,
+    setExportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
+    setExportStitchDotRadiusMm,
     dxfFlipY,
     setDxfFlipY,
     dxfVersion,
@@ -316,14 +321,16 @@ export function EditorApp() {
     setTextRadiusMm,
     textSweepDeg,
     setTextSweepDeg,
-    stitchHoleType,
-    setStitchHoleType,
+    stitchHoleDefaults,
+    setStitchHoleDefaults,
     stitchPitchMm,
     setStitchPitchMm,
     stitchVariablePitchStartMm,
     setStitchVariablePitchStartMm,
     stitchVariablePitchEndMm,
     setStitchVariablePitchEndMm,
+    stitchAutoPitchSettings,
+    setStitchAutoPitchSettings,
     showStitchSequenceLabels,
     setShowStitchSequenceLabels,
   } = useEditorTools({ setStatus })
@@ -968,7 +975,7 @@ export function EditorApp() {
     hardwarePreset,
     customHardwareDiameterMm,
     customHardwareSpacingMm,
-    stitchHoleType,
+    stitchHoleDefaults,
     textDraftValue,
     textFontFamily,
     textFontSizeMm,
@@ -1003,6 +1010,7 @@ export function EditorApp() {
   const { handleExportSvg, handleExportDxf, handleExportPdf, handleExportLaserSvg } = useExportActions({
     shapes: assemblyShapes,
     foldLines,
+    stitchHoles,
     lineTypes,
     lineTypesById,
     patternPiecesById,
@@ -1019,6 +1027,9 @@ export function EditorApp() {
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
     exportForceSolidStrokes,
+    stitchAlwaysShapeIdSet: new Set(stitchAlwaysShapeIds),
+    exportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
     dxfFlipY,
     dxfVersion,
     exportUnit: displayUnit,
@@ -1626,6 +1637,22 @@ export function EditorApp() {
                 typeof patch.diameterMm === 'number'
                   ? Math.max(0, patch.diameterMm)
                   : entry.diameterMm,
+              widthMm:
+                typeof patch.widthMm === 'number'
+                  ? Math.max(0, patch.widthMm)
+                  : entry.widthMm,
+              heightMm:
+                typeof patch.heightMm === 'number'
+                  ? Math.max(0, patch.heightMm)
+                  : entry.heightMm,
+              tiltDeg:
+                typeof patch.tiltDeg === 'number'
+                  ? Math.max(-89, Math.min(89, patch.tiltDeg))
+                  : entry.tiltDeg,
+              inverted:
+                typeof patch.inverted === 'boolean'
+                  ? patch.inverted
+                  : entry.inverted,
             }
           : entry,
       ),
@@ -1674,6 +1701,7 @@ export function EditorApp() {
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
     handleClearAllStitchHoles,
+    handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
     handleResequenceSelectedStitchHoles,
@@ -1691,7 +1719,8 @@ export function EditorApp() {
     stitchPitchMm,
     stitchVariablePitchStartMm,
     stitchVariablePitchEndMm,
-    stitchHoleType,
+    stitchAutoPitchSettings,
+    stitchHoleDefaults,
     selectedStitchHole,
     shapesById,
     layers,
@@ -1714,12 +1743,19 @@ export function EditorApp() {
     setShowBezierOffsetLines,
   })
 
-  const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() => getDefaultStitchSimulatorSettings())
+  const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
+    loadStitchSimulatorSettings(),
+  )
 
   const stitchSimulatorResult = useMemo(() => {
-    if (!showStitchSimulatorModal && stitchHoles.length === 0) return null
-    return simulateStitches(stitchHoles, stitchSimulatorSettings.stitchType)
-  }, [stitchHoles, stitchSimulatorSettings.stitchType, showStitchSimulatorModal])
+    if (stitchHoles.length === 0) {
+      return null
+    }
+    if (!showStitchSimulatorModal && !stitchSimulatorSettings.showSimulatorPattern) {
+      return null
+    }
+    return simulateStitches(stitchHoles, stitchSimulatorSettings)
+  }, [showStitchSimulatorModal, stitchHoles, stitchSimulatorSettings])
 
   const handleGenerateBoxStitch = (params: BoxStitchParams) => {
     const result = generateBoxStitchPattern(params)
@@ -1819,6 +1855,8 @@ export function EditorApp() {
     setExportOnlyVisibleLineTypes(true)
     setExportRoleFilters({ ...DEFAULT_EXPORT_ROLE_FILTERS })
     setExportForceSolidStrokes(false)
+    setExportStitchHoleRenderMode('native')
+    setExportStitchDotRadiusMm(0.6)
     setDxfFlipY(false)
     setDxfVersion('r12')
   }
@@ -1983,14 +2021,17 @@ export function EditorApp() {
     handleToggleActiveLineTypeVisibility,
     setShowLineTypePalette,
     showStitchSection,
-    stitchHoleType,
-    setStitchHoleType,
+    stitchHoleDefaults,
+    setStitchHoleDefaults,
     stitchPitchMm,
     setStitchPitchMm,
     stitchVariablePitchStartMm,
     stitchVariablePitchEndMm,
     setStitchVariablePitchStartMm,
     setStitchVariablePitchEndMm,
+    stitchAutoPitchSettings,
+    setStitchAutoPitchSettings,
+    handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
     handleResequenceSelectedStitchHoles,
@@ -2093,6 +2134,10 @@ export function EditorApp() {
     setExportOnlyVisibleLineTypes,
     exportForceSolidStrokes,
     setExportForceSolidStrokes,
+    exportStitchHoleRenderMode,
+    setExportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
+    setExportStitchDotRadiusMm,
     exportRoleFilters,
     setExportRoleFilters,
     dxfVersion,
@@ -2809,6 +2854,11 @@ export function EditorApp() {
         selectedStitchHoleId={selectedStitchHoleId}
         showStitchSequenceLabels={showStitchSequenceLabels}
         onStitchHolePointerDown={handleStitchHolePointerDown}
+        simulatedStitchSegments={
+          stitchSimulatorSettings.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : []
+        }
+        stitchSimulatorSettings={stitchSimulatorSettings}
+        stitchSimulatorTerminalHoleId={stitchSimulatorResult?.terminalHoleId ?? null}
         visibleHardwareMarkers={workspaceHardwareMarkers}
         selectedHardwareMarkerId={selectedHardwareMarkerId}
         onHardwarePointerDown={handleHardwarePointerDown}
@@ -3009,6 +3059,11 @@ export function EditorApp() {
                   selectedStitchHoleId={selectedStitchHoleId}
                   showStitchSequenceLabels={showStitchSequenceLabels}
                   onStitchHolePointerDown={handleStitchHolePointerDown}
+                  simulatedStitchSegments={
+                    stitchSimulatorSettings.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : []
+                  }
+                  stitchSimulatorSettings={stitchSimulatorSettings}
+                  stitchSimulatorTerminalHoleId={stitchSimulatorResult?.terminalHoleId ?? null}
                   visibleHardwareMarkers={workspaceHardwareMarkers}
                   selectedHardwareMarkerId={selectedHardwareMarkerId}
                   onHardwarePointerDown={handleHardwarePointerDown}
@@ -3131,9 +3186,21 @@ export function EditorApp() {
             open: showStitchSimulatorModal,
             onClose: () => setShowStitchSimulatorModal(false),
             settings: stitchSimulatorSettings,
-            onApply: (settings) => { setStitchSimulatorSettings(settings); setStatus('Stitch simulator settings updated') },
+            onApply: (settings) => {
+              setStitchSimulatorSettings(settings)
+              saveStitchSimulatorSettings(settings)
+              setStatus('Stitch simulator settings updated')
+            },
             stitchHoleCount: stitchHoles.length,
             threadLength: stitchSimulatorResult?.threadLength ?? null,
+            selectedHoleId: selectedStitchHole?.id ?? null,
+            selectedHoleLabel: selectedStitchHole ? `Hole ${selectedStitchHole.sequence + 1}` : null,
+            terminalHoleLabel:
+              stitchSimulatorResult?.terminalHoleId
+                ? `Hole ${
+                    (stitchHoles.find((hole) => hole.id === stitchSimulatorResult.terminalHoleId)?.sequence ?? 0) + 1
+                  }`
+                : null,
           }}
           boxStitchModalProps={{
             open: showBoxStitchModal,

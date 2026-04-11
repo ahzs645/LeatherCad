@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import type {
   Point,
-  StitchHoleType,
+  StitchHoleDefaults,
   TextTransformMode,
   Tool,
 } from '../cad/cad-types'
 import { toolLabel } from '../editor-utils'
 import type { Dispatch, SetStateAction } from 'react'
+import type { StitchAutoPitchSettings } from '../editor-types'
+import {
+  getDefaultStitchAutoPitchSettings,
+  loadStitchAutoPitchSettings,
+  saveStitchAutoPitchSettings,
+} from '../ops/stitch-auto-pitch-settings'
 
 type UseEditorToolsParams = {
   setStatus: Dispatch<SetStateAction<string>>
@@ -28,11 +34,32 @@ export function useEditorTools(params: UseEditorToolsParams) {
   const [textSweepDeg, setTextSweepDeg] = useState(140)
 
   // Stitch tool state
-  const [stitchHoleType, setStitchHoleType] = useState<StitchHoleType>('round')
+  const [stitchHoleDefaults, setStitchHoleDefaults] = useState<StitchHoleDefaults>({
+    holeType: 'round',
+    renderShape: 'round',
+    diameterMm: 1.2,
+    widthMm: 1.2,
+    heightMm: 1.2,
+    tiltDeg: 0,
+    inverted: false,
+  })
   const [stitchPitchMm, setStitchPitchMm] = useState(4)
   const [stitchVariablePitchStartMm, setStitchVariablePitchStartMm] = useState(3)
   const [stitchVariablePitchEndMm, setStitchVariablePitchEndMm] = useState(5)
   const [showStitchSequenceLabels, setShowStitchSequenceLabels] = useState(false)
+  const [stitchAutoPitchSettingsState, setStitchAutoPitchSettingsState] =
+    useState<StitchAutoPitchSettings>(() => loadStitchAutoPitchSettings())
+
+  const setStitchAutoPitchSettings: Dispatch<SetStateAction<StitchAutoPitchSettings>> = (nextValue) =>
+    setStitchAutoPitchSettingsState((previous) => {
+      const resolved = typeof nextValue === 'function' ? nextValue(previous) : nextValue
+      const merged = {
+        ...getDefaultStitchAutoPitchSettings(),
+        ...resolved,
+      }
+      saveStitchAutoPitchSettings(merged)
+      return merged
+    })
 
   const clearDraft = () => {
     setDraftPoints([])
@@ -70,8 +97,8 @@ export function useEditorTools(params: UseEditorToolsParams) {
     setTextSweepDeg,
 
     // Stitch tool state
-    stitchHoleType,
-    setStitchHoleType,
+    stitchHoleDefaults,
+    setStitchHoleDefaults,
     stitchPitchMm,
     setStitchPitchMm,
     stitchVariablePitchStartMm,
@@ -80,5 +107,7 @@ export function useEditorTools(params: UseEditorToolsParams) {
     setStitchVariablePitchEndMm,
     showStitchSequenceLabels,
     setShowStitchSequenceLabels,
+    stitchAutoPitchSettings: stitchAutoPitchSettingsState,
+    setStitchAutoPitchSettings,
   }
 }

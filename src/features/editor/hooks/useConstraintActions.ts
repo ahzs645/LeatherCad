@@ -20,6 +20,7 @@ import {
   alignSelectedShapesToGrid,
   applyParametricConstraints,
 } from '../ops/pattern-ops'
+import { loadBoxStitchDistanceMm, saveBoxStitchDistanceMm } from '../ops/box-stitch-settings'
 
 type UseConstraintActionsParams = {
   activeLayer: Layer | null
@@ -283,15 +284,18 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
   }
 
   const handleCreateBoxStitchFromSelection = () => {
-    const input = Number(window.prompt('Inset distance for box stitch (mm)', '6'))
+    const defaultDistance = loadBoxStitchDistanceMm()
+    const input = Number(window.prompt('Box stitch distance / search distance (mm)', defaultDistance.toFixed(1)))
     if (!Number.isFinite(input) || input <= 0) {
       setStatus('Box stitch cancelled')
       return
     }
+    const safeDistance = clamp(input, 0.1, 200)
+    saveBoxStitchDistanceMm(safeDistance)
     const result = createBoxStitchFromSelection(
       shapes,
       selectedShapeIdSet,
-      input,
+      safeDistance,
       stitchLineTypeId,
       activeLayerId,
     )

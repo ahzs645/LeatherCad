@@ -8,6 +8,9 @@ type StitchSimulatorModalProps = {
   onApply: (settings: StitchSimulatorSettings) => void
   stitchHoleCount: number
   threadLength: number | null
+  selectedHoleId: string | null
+  selectedHoleLabel: string | null
+  terminalHoleLabel: string | null
 }
 
 const STITCH_TYPES: { value: StitchType; label: string }[] = [
@@ -24,25 +27,18 @@ export function StitchSimulatorModal({
   onApply,
   stitchHoleCount,
   threadLength,
+  selectedHoleId,
+  selectedHoleLabel,
+  terminalHoleLabel,
 }: StitchSimulatorModalProps) {
-  const [stitchType, setStitchType] = useState<StitchType>(settings.stitchType)
-  const [threadColor, setThreadColor] = useState(settings.threadColor)
-  const [secondThreadColor, setSecondThreadColor] = useState(settings.secondThreadColor)
-  const [threadWidthMm, setThreadWidthMm] = useState(settings.threadWidthMm)
-  const [showBackStitches, setShowBackStitches] = useState(settings.showBackStitches)
+  const [draftSettings, setDraftSettings] = useState<StitchSimulatorSettings>(settings)
 
   if (!open) {
     return null
   }
 
   function handleApply() {
-    onApply({
-      stitchType,
-      threadColor,
-      secondThreadColor,
-      threadWidthMm,
-      showBackStitches,
-    })
+    onApply(draftSettings)
   }
 
   return (
@@ -56,10 +52,22 @@ export function StitchSimulatorModal({
             <> | Estimated thread length: <strong>{threadLength.toFixed(1)} mm</strong></>
           )}
         </p>
+        <p>
+          Selected hole: <strong>{selectedHoleLabel ?? 'None'}</strong>
+          {' '}| Active stitch end: <strong>{terminalHoleLabel ?? 'Path end'}</strong>
+        </p>
 
         <label className="field-row">
           <span>Stitch Type</span>
-          <select value={stitchType} onChange={(e) => setStitchType(e.target.value as StitchType)}>
+          <select
+            value={draftSettings.stitchType}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                stitchType: e.target.value as StitchType,
+              }))
+            }
+          >
             {STITCH_TYPES.map((st) => (
               <option key={st.value} value={st.value}>{st.label}</option>
             ))}
@@ -70,18 +78,28 @@ export function StitchSimulatorModal({
           <span>Thread Color</span>
           <input
             type="color"
-            value={threadColor}
-            onChange={(e) => setThreadColor(e.target.value)}
+            value={draftSettings.threadColor}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                threadColor: e.target.value,
+              }))
+            }
           />
         </label>
 
-        {stitchType === 'saddle' && (
+        {draftSettings.stitchType === 'saddle' && (
           <label className="field-row">
             <span>Second Thread Color</span>
             <input
               type="color"
-              value={secondThreadColor}
-              onChange={(e) => setSecondThreadColor(e.target.value)}
+              value={draftSettings.secondThreadColor}
+              onChange={(e) =>
+                setDraftSettings((previous) => ({
+                  ...previous,
+                  secondThreadColor: e.target.value,
+                }))
+              }
             />
           </label>
         )}
@@ -93,19 +111,112 @@ export function StitchSimulatorModal({
             min={0.3}
             max={2.0}
             step={0.1}
-            value={threadWidthMm}
-            onChange={(e) => setThreadWidthMm(Number(e.target.value))}
+            value={draftSettings.threadWidthMm}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                threadWidthMm: Number(e.target.value),
+              }))
+            }
           />
         </label>
 
         <label className="layer-toggle-item">
           <input
             type="checkbox"
-            checked={showBackStitches}
-            onChange={(e) => setShowBackStitches(e.target.checked)}
+            checked={draftSettings.showSimulatorPattern}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                showSimulatorPattern: e.target.checked,
+              }))
+            }
+          />
+          <span>Show stitch pattern</span>
+        </label>
+
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={draftSettings.showBackStitches}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                showBackStitches: e.target.checked,
+              }))
+            }
           />
           <span>Show back stitches</span>
         </label>
+
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={draftSettings.showEvenStitches}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                showEvenStitches: e.target.checked,
+              }))
+            }
+          />
+          <span>Show even stitches</span>
+        </label>
+
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={draftSettings.showOddStitches}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                showOddStitches: e.target.checked,
+              }))
+            }
+          />
+          <span>Show odd stitches</span>
+        </label>
+
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={draftSettings.showDirectionArrows}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                showDirectionArrows: e.target.checked,
+              }))
+            }
+          />
+          <span>Show direction arrows</span>
+        </label>
+
+        <div className="modal-actions">
+          <button
+            type="button"
+            onClick={() =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                endHoleId: selectedHoleId,
+              }))
+            }
+            disabled={!selectedHoleId}
+          >
+            Use Selected Hole
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                endHoleId: null,
+              }))
+            }
+            disabled={!draftSettings.endHoleId}
+          >
+            Clear Stitch End
+          </button>
+        </div>
 
         <div className="modal-actions">
           <button onClick={onClose}>Cancel</button>

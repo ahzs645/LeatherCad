@@ -1,5 +1,6 @@
 import { sampleShapePoints } from '../cad/cad-geometry'
-import type { LineTypeStyle, Shape } from '../cad/cad-types'
+import type { LineTypeStyle, Shape, StitchHole } from '../cad/cad-types'
+import { createStitchHolePrimitive, type StitchHoleRenderMode } from '../ops/stitch-hole-render'
 
 type DxfVersion = 'r12' | 'r14'
 type DxfExportOptions = {
@@ -8,6 +9,9 @@ type DxfExportOptions = {
   unit?: 'mm' | 'in'
   forceSolidLineStyle?: boolean
   lineTypeStyles?: Record<string, LineTypeStyle>
+  stitchHoles?: StitchHole[]
+  stitchHoleRenderMode?: StitchHoleRenderMode
+  stitchDotRadiusMm?: number
 }
 
 type Segment = {
@@ -40,34 +44,108 @@ function dxfLineTypeFromStyle(style: LineTypeStyle) {
   return 'CONTINUOUS' as const
 }
 
+function approximateCirclePoints(center: { x: number; y: number }, radius: number, steps = 24) {
+  return Array.from({ length: steps }, (_, index) => {
+    const angle = (index / steps) * Math.PI * 2
+    return {
+      x: center.x + Math.cos(angle) * radius,
+      y: center.y + Math.sin(angle) * radius,
+    }
+  })
+}
+
+function createSegment(
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  meta: Pick<Segment, 'layerName' | 'lineTypeName'>,
+  options: Required<Pick<DxfExportOptions, 'flipY'>> & { unit: 'mm' | 'in' },
+): Segment {
+  const signY = options.flipY ? -1 : 1
+  const unitScale = options.unit === 'in' ? 1 / 25.4 : 1
+  return {
+    layerName: meta.layerName,
+    lineTypeName: meta.lineTypeName,
+    x1: start.x * unitScale,
+    y1: start.y * signY * unitScale,
+    x2: end.x * unitScale,
+    y2: end.y * signY * unitScale,
+  }
+}
+
+function pointsToSegments(
+  points: Array<{ x: number; y: number }>,
+  meta: Pick<Segment, 'layerName' | 'lineTypeName'>,
+  options: Required<Pick<DxfExportOptions, 'flipY'>> & { unit: 'mm' | 'in' },
+  close = false,
+) {
+  const segments: Segment[] = []
+  if (points.length < 2) {
+    return segments
+  }
+
+  for (let index = 1; index < points.length; index += 1) {
+    segments.push(createSegment(points[index - 1], points[index], meta, options))
+  }
+
+  if (close) {
+    segments.push(createSegment(points[points.length - 1], points[0], meta, options))
+  }
+
+  return segments
+}
+
+function buildShapeSegmentMeta(
+  shape: Shape,
+  options: Required<Pick<DxfExportOptions, 'forceSolidLineStyle'>> & {
+    lineTypeStyles: Record<string, LineTypeStyle>
+  },
+) {
+  const style = options.lineTypeStyles[shape.lineTypeId] ?? 'solid'
+  return {
+    layerName: sanitizeLayerName(shape.layerId),
+    lineTypeName: options.forceSolidLineStyle ? ('CONTINUOUS' as const) : dxfLineTypeFromStyle(style),
+  }
+}
+
 function toSegments(shape: Shape, options: Required<Pick<DxfExportOptions, 'flipY' | 'forceSolidLineStyle'>> & {
   unit: 'mm' | 'in'
   lineTypeStyles: Record<string, LineTypeStyle>
 }) {
   const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 72)
-  const segments: Segment[] = []
-  if (sampled.length < 2) {
-    return segments
+  return pointsToSegments(sampled, buildShapeSegmentMeta(shape, options), options)
+}
+
+function stitchHoleToSegments(
+  stitchHole: StitchHole,
+  parentShape: Shape | undefined,
+  options: Required<Pick<DxfExportOptions, 'flipY'>> & {
+    unit: 'mm' | 'in'
+    stitchHoleRenderMode: StitchHoleRenderMode
+    stitchDotRadiusMm: number
+  },
+) {
+  if (!parentShape) {
+    return []
   }
 
-  const signY = options.flipY ? -1 : 1
-  const unitScale = options.unit === 'in' ? 1 / 25.4 : 1
-  const style = options.lineTypeStyles[shape.lineTypeId] ?? 'solid'
-  const lineTypeName = options.forceSolidLineStyle ? 'CONTINUOUS' : dxfLineTypeFromStyle(style)
-  for (let index = 1; index < sampled.length; index += 1) {
-    const start = sampled[index - 1]
-    const end = sampled[index]
-    segments.push({
-      layerName: sanitizeLayerName(shape.layerId),
-      lineTypeName,
-      x1: start.x * unitScale,
-      y1: start.y * signY * unitScale,
-      x2: end.x * unitScale,
-      y2: end.y * signY * unitScale,
-    })
+  const primitive = createStitchHolePrimitive(stitchHole, {
+    mode: options.stitchHoleRenderMode,
+    dotRadiusMm: options.stitchDotRadiusMm,
+  })
+  const meta = {
+    layerName: sanitizeLayerName(parentShape.layerId),
+    lineTypeName: 'CONTINUOUS' as const,
   }
 
-  return segments
+  if (primitive.kind === 'circle') {
+    return pointsToSegments(approximateCirclePoints(primitive.center, primitive.radiusMm), meta, options, true)
+  }
+
+  if (primitive.kind === 'segment') {
+    return [createSegment(primitive.start, primitive.end, meta, options)]
+  }
+
+  return pointsToSegments(primitive.points, meta, options, true)
 }
 
 function encodeLineEntity(segment: Segment) {
@@ -215,7 +293,21 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
   const version = options.version ?? 'r12'
   const unit = options.unit ?? 'mm'
   const lineTypeStyles = options.lineTypeStyles ?? {}
-  const segments = shapes.flatMap((shape) => toSegments(shape, { flipY, forceSolidLineStyle, unit, lineTypeStyles }))
+  const shapeOptions = { flipY, forceSolidLineStyle, unit, lineTypeStyles }
+  const stitchHoleRenderMode = options.stitchHoleRenderMode ?? 'native'
+  const stitchDotRadiusMm = options.stitchDotRadiusMm ?? 0.6
+  const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
+  const segments = [
+    ...shapes.flatMap((shape) => toSegments(shape, shapeOptions)),
+    ...(options.stitchHoles ?? []).flatMap((stitchHole) =>
+      stitchHoleToSegments(stitchHole, shapesById[stitchHole.shapeId], {
+        flipY,
+        unit,
+        stitchHoleRenderMode,
+        stitchDotRadiusMm,
+      }),
+    ),
+  ]
   const usedLineTypes = new Set<Segment['lineTypeName']>(segments.map((segment) => segment.lineTypeName))
   usedLineTypes.add('CONTINUOUS')
   const versionCode = version === 'r14' ? 'AC1014' : 'AC1009'

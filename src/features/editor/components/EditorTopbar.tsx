@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { clamp } from '../cad/cad-geometry'
-import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
+import type { Layer, LineType, StitchHoleDefaults, Tool } from '../cad/cad-types'
 import { DESKTOP_RIBBON_TABS, DESKTOP_TOOL_ICON_ITEMS, GRID_SPACING_OPTIONS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
 import type { DisplayUnit } from '../ops/unit-ops'
 import type {
+  StitchAutoPitchSettings,
   DesktopRibbonTab,
   MobileFileAction,
   MobileLayerAction,
@@ -85,14 +86,17 @@ type EditorTopbarProps = {
   onToggleActiveLineTypeVisibility: () => void
   onOpenLineTypePalette: () => void
   showStitchSection: boolean
-  stitchHoleType: StitchHoleType
-  onSetStitchHoleType: (type: StitchHoleType) => void
+  stitchHoleDefaults: StitchHoleDefaults
+  onUpdateStitchHoleDefaults: (patch: Partial<StitchHoleDefaults>) => void
   stitchPitchMm: number
   onSetStitchPitchMm: (value: number) => void
   stitchVariablePitchStartMm: number
   stitchVariablePitchEndMm: number
   onSetStitchVariablePitchStartMm: (value: number) => void
   onSetStitchVariablePitchEndMm: (value: number) => void
+  stitchAutoPitchSettings: StitchAutoPitchSettings
+  onUpdateStitchAutoPitchSettings: (patch: Partial<StitchAutoPitchSettings>) => void
+  onAutoPlacePreferredPitchStitchHoles: () => void
   onAutoPlaceFixedPitchStitchHoles: () => void
   onAutoPlaceVariablePitchStitchHoles: () => void
   onResequenceSelectedStitchHoles: () => void
@@ -262,14 +266,17 @@ export function EditorTopbar({
   onToggleActiveLineTypeVisibility,
   onOpenLineTypePalette,
   showStitchSection,
-  stitchHoleType,
-  onSetStitchHoleType,
+  stitchHoleDefaults,
+  onUpdateStitchHoleDefaults,
   stitchPitchMm,
   onSetStitchPitchMm,
   stitchVariablePitchStartMm,
   stitchVariablePitchEndMm,
   onSetStitchVariablePitchStartMm,
   onSetStitchVariablePitchEndMm,
+  stitchAutoPitchSettings,
+  onUpdateStitchAutoPitchSettings,
+  onAutoPlacePreferredPitchStitchHoles,
   onAutoPlaceFixedPitchStitchHoles,
   onAutoPlaceVariablePitchStitchHoles,
   onResequenceSelectedStitchHoles,
@@ -662,8 +669,8 @@ export function EditorTopbar({
         {showStitchSection && (
           <div className="ribbon-section ribbon-stitch" data-section="Stitching">
             <StitchHolePanel
-              holeType={stitchHoleType}
-              onChangeHoleType={onSetStitchHoleType}
+              holeDefaults={stitchHoleDefaults}
+              onUpdateHoleDefaults={onUpdateStitchHoleDefaults}
               displayUnit={displayUnit}
               pitchMm={stitchPitchMm}
               onChangePitchMm={(nextPitch) => onSetStitchPitchMm(clamp(nextPitch || 0, 0.2, 100))}
@@ -671,6 +678,9 @@ export function EditorTopbar({
               variablePitchEndMm={stitchVariablePitchEndMm}
               onChangeVariablePitchStartMm={(nextPitch) => onSetStitchVariablePitchStartMm(clamp(nextPitch || 0, 0.2, 100))}
               onChangeVariablePitchEndMm={(nextPitch) => onSetStitchVariablePitchEndMm(clamp(nextPitch || 0, 0.2, 100))}
+              autoPitchSettings={stitchAutoPitchSettings}
+              onUpdateAutoPitchSettings={onUpdateStitchAutoPitchSettings}
+              onAutoPlacePreferredPitch={onAutoPlacePreferredPitchStitchHoles}
               onAutoPlaceFixedPitch={onAutoPlaceFixedPitchStitchHoles}
               onAutoPlaceVariablePitch={onAutoPlaceVariablePitchStitchHoles}
               onResequenceSelected={onResequenceSelectedStitchHoles}

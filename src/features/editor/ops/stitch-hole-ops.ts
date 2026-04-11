@@ -1,7 +1,16 @@
 import { sampleShapePoints, uid } from '../cad/cad-geometry'
-import type { LineType, Point, Shape, StitchHole, StitchHoleType } from '../cad/cad-types'
+import type { LineType, Point, Shape, StitchHole, StitchHoleDefaults } from '../cad/cad-types'
 
 const LINE_SAMPLE_SEGMENTS = 40
+
+export type AutoPitchGenerationOptions = {
+  forceFitLastHole?: boolean
+  solverSteps?: number
+  precisionMm?: number
+  stopGapMm?: number
+  startDistanceMm?: number
+  includeStartHole?: boolean
+}
 
 type StitchAnchor = {
   shapeId: string
@@ -77,6 +86,15 @@ export function parseStitchHole(value: unknown): StitchHole | null {
     angleDeg?: unknown
     holeType?: unknown
     sequence?: unknown
+    diameterMm?: unknown
+    widthMm?: unknown
+    heightMm?: unknown
+    tiltDeg?: unknown
+    inverted?: unknown
+    presetId?: unknown
+    presetName?: unknown
+    renderShape?: unknown
+    endHole?: unknown
   }
 
   if (
@@ -102,6 +120,34 @@ export function parseStitchHole(value: unknown): StitchHole | null {
       typeof candidate.sequence === 'number' && Number.isFinite(candidate.sequence)
         ? Math.max(0, Math.round(candidate.sequence))
         : 0,
+    diameterMm:
+      typeof candidate.diameterMm === 'number' && Number.isFinite(candidate.diameterMm) && candidate.diameterMm > 0
+        ? candidate.diameterMm
+        : undefined,
+    widthMm:
+      typeof candidate.widthMm === 'number' && Number.isFinite(candidate.widthMm) && candidate.widthMm > 0
+        ? candidate.widthMm
+        : undefined,
+    heightMm:
+      typeof candidate.heightMm === 'number' && Number.isFinite(candidate.heightMm) && candidate.heightMm > 0
+        ? candidate.heightMm
+        : undefined,
+    tiltDeg: typeof candidate.tiltDeg === 'number' && Number.isFinite(candidate.tiltDeg) ? candidate.tiltDeg : undefined,
+    inverted: candidate.inverted === true,
+    presetId: typeof candidate.presetId === 'string' && candidate.presetId.length > 0 ? candidate.presetId : undefined,
+    presetName:
+      typeof candidate.presetName === 'string' && candidate.presetName.trim().length > 0
+        ? candidate.presetName.trim()
+        : undefined,
+    renderShape:
+      candidate.renderShape === 'round' ||
+      candidate.renderShape === 'slit' ||
+      candidate.renderShape === 'diamond' ||
+      candidate.renderShape === 'french' ||
+      candidate.renderShape === 'flat'
+        ? candidate.renderShape
+        : undefined,
+    endHole: candidate.endHole === true,
   }
 }
 
@@ -154,23 +200,36 @@ export function findNearestStitchAnchor(
   return findBestAnchor((shape) => canAnchorStitchHole(shape))
 }
 
-export function createStitchHole(anchor: StitchAnchor, holeType: StitchHoleType): StitchHole {
+function applyStitchHoleDefaults(anchor: StitchAnchor, defaults: StitchHoleDefaults): StitchHole {
   return {
     id: uid(),
     shapeId: anchor.shapeId,
     point: anchor.point,
     angleDeg: anchor.angleDeg,
-    holeType,
+    holeType: defaults.holeType,
     sequence: 0,
+    diameterMm: defaults.diameterMm,
+    widthMm: defaults.widthMm,
+    heightMm: defaults.heightMm,
+    tiltDeg: defaults.tiltDeg,
+    inverted: defaults.inverted === true,
+    presetId: defaults.presetId,
+    presetName: defaults.presetName,
+    renderShape: defaults.renderShape,
   }
+}
+
+export function createStitchHole(anchor: StitchAnchor, defaults: StitchHoleDefaults): StitchHole {
+  return applyStitchHoleDefaults(anchor, defaults)
 }
 
 function lineLength(start: Point, end: Point) {
   return Math.hypot(end.x - start.x, end.y - start.y)
 }
 
-function shapePolyline(shape: Shape) {
-  const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 80)
+function shapePolyline(shape: Shape, solverSteps = 6) {
+  const curveSegments = shape.type === 'line' ? 1 : Math.max(24, Math.min(240, Math.round(solverSteps) * 12))
+  const sampled = sampleShapePoints(shape, curveSegments)
   if (sampled.length >= 2) {
     return sampled
   }
@@ -246,7 +305,7 @@ function sortStitchHolesBySequence(stitchHoles: StitchHole[]) {
     .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
 }
 
-function projectDistanceOnShape(shape: Shape, point: Point) {
+export function projectDistanceOnShape(shape: Shape, point: Point) {
   const points = shapePolyline(shape)
   if (points.length < 2) {
     return 0
@@ -295,7 +354,12 @@ export function resequenceStitchHolesOnShape(stitchHoles: StitchHole[], shape: S
   }))
 }
 
-function stitchDistancesForPitch(totalLength: number, initialPitch: number, endPitch: number) {
+function stitchDistancesForPitch(
+  totalLength: number,
+  initialPitch: number,
+  endPitch: number,
+  options: AutoPitchGenerationOptions = {},
+) {
   const targets: number[] = []
   if (totalLength < 1e-6) {
     return targets
@@ -303,19 +367,53 @@ function stitchDistancesForPitch(totalLength: number, initialPitch: number, endP
 
   const safeInitialPitch = Math.max(0.2, initialPitch)
   const safeEndPitch = Math.max(0.2, endPitch)
-  let distanceValue = 0
-  let guard = 0
+  const precisionMm = Math.max(0.01, options.precisionMm ?? 0.1)
+  const stopGapMm = Math.max(precisionMm, options.stopGapMm ?? Math.max(safeInitialPitch, safeEndPitch) * 0.35)
+  const startDistanceMm = Math.max(0, Math.min(totalLength, options.startDistanceMm ?? 0))
+  const includeStartHole = options.includeStartHole !== false
+  const availableLength = totalLength - startDistanceMm
 
-  while (distanceValue < totalLength && guard < 10000) {
-    targets.push(distanceValue)
-    const progress = totalLength <= 1e-6 ? 0 : distanceValue / totalLength
+  if (availableLength <= precisionMm) {
+    return includeStartHole ? [startDistanceMm] : []
+  }
+
+  if (Math.abs(safeInitialPitch - safeEndPitch) <= precisionMm && options.forceFitLastHole) {
+    const intervalCount = Math.max(1, Math.round(availableLength / safeInitialPitch))
+    const actualPitch = availableLength / intervalCount
+    const startIndex = includeStartHole ? 0 : 1
+    for (let index = startIndex; index <= intervalCount; index += 1) {
+      targets.push(startDistanceMm + actualPitch * index)
+    }
+    return targets
+  }
+
+  let distanceValue = startDistanceMm
+  let guard = 0
+  if (includeStartHole) {
+    targets.push(startDistanceMm)
+  } else {
+    distanceValue += safeInitialPitch
+  }
+
+  while (distanceValue < totalLength - precisionMm && guard < 10000) {
+    if (distanceValue > startDistanceMm + precisionMm && distanceValue < totalLength - precisionMm) {
+      targets.push(distanceValue)
+    }
+    const progress = availableLength <= 1e-6 ? 0 : (distanceValue - startDistanceMm) / availableLength
     const pitchAtDistance = safeInitialPitch + (safeEndPitch - safeInitialPitch) * progress
     distanceValue += Math.max(0.2, pitchAtDistance)
     guard += 1
   }
 
-  const tailPitch = safeInitialPitch + (safeEndPitch - safeInitialPitch) * 0.85
-  if (targets.length === 0 || totalLength - targets[targets.length - 1] > Math.max(0.2, tailPitch) * 0.35) {
+  const lastTarget = targets[targets.length - 1] ?? startDistanceMm
+  if (options.forceFitLastHole) {
+    if (totalLength - lastTarget > precisionMm) {
+      targets.push(totalLength)
+    }
+    return targets
+  }
+
+  if (totalLength - lastTarget <= stopGapMm && totalLength - lastTarget > precisionMm) {
     targets.push(totalLength)
   }
 
@@ -325,11 +423,12 @@ function stitchDistancesForPitch(totalLength: number, initialPitch: number, endP
 export function generateFixedPitchStitchHoles(
   shape: Shape,
   pitchMm: number,
-  holeType: StitchHoleType,
+  defaults: StitchHoleDefaults,
   sequenceStart = 0,
+  options: AutoPitchGenerationOptions = {},
 ) {
   const safePitch = Math.max(0.2, pitchMm)
-  const polyline = shapePolyline(shape)
+  const polyline = shapePolyline(shape, options.solverSteps ?? 6)
   if (polyline.length < 2) {
     return [] as StitchHole[]
   }
@@ -340,7 +439,7 @@ export function generateFixedPitchStitchHoles(
   }
 
   const holes: StitchHole[] = []
-  const distanceTargets = stitchDistancesForPitch(totalLength, safePitch, safePitch)
+  const distanceTargets = stitchDistancesForPitch(totalLength, safePitch, safePitch, options)
 
   for (const [index, distanceValue] of distanceTargets.entries()) {
     const projected = pointAtDistance(polyline, lengths, distanceValue)
@@ -348,11 +447,14 @@ export function generateFixedPitchStitchHoles(
       continue
     }
     holes.push({
-      id: uid(),
-      shapeId: shape.id,
-      point: projected.point,
-      angleDeg: projected.angleDeg,
-      holeType,
+      ...applyStitchHoleDefaults(
+        {
+          shapeId: shape.id,
+          point: projected.point,
+          angleDeg: projected.angleDeg,
+        },
+        defaults,
+      ),
       sequence: sequenceStart + index,
     })
   }
@@ -364,12 +466,13 @@ export function generateVariablePitchStitchHoles(
   shape: Shape,
   startPitchMm: number,
   endPitchMm: number,
-  holeType: StitchHoleType,
+  defaults: StitchHoleDefaults,
   sequenceStart = 0,
+  options: AutoPitchGenerationOptions = {},
 ) {
   const safeStartPitch = Math.max(0.2, startPitchMm)
   const safeEndPitch = Math.max(0.2, endPitchMm)
-  const polyline = shapePolyline(shape)
+  const polyline = shapePolyline(shape, options.solverSteps ?? 6)
   if (polyline.length < 2) {
     return [] as StitchHole[]
   }
@@ -380,7 +483,7 @@ export function generateVariablePitchStitchHoles(
   }
 
   const holes: StitchHole[] = []
-  const distanceTargets = stitchDistancesForPitch(totalLength, safeStartPitch, safeEndPitch)
+  const distanceTargets = stitchDistancesForPitch(totalLength, safeStartPitch, safeEndPitch, options)
 
   for (const [index, distanceValue] of distanceTargets.entries()) {
     const projected = pointAtDistance(polyline, lengths, distanceValue)
@@ -388,11 +491,14 @@ export function generateVariablePitchStitchHoles(
       continue
     }
     holes.push({
-      id: uid(),
-      shapeId: shape.id,
-      point: projected.point,
-      angleDeg: projected.angleDeg,
-      holeType,
+      ...applyStitchHoleDefaults(
+        {
+          shapeId: shape.id,
+          point: projected.point,
+          angleDeg: projected.angleDeg,
+        },
+        defaults,
+      ),
       sequence: sequenceStart + index,
     })
   }

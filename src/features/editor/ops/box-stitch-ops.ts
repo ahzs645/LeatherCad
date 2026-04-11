@@ -17,12 +17,222 @@ export type BoxStitchResult = {
   stitchHoles: StitchHole[]
 }
 
+type BoxStitchEdge = 'top' | 'right' | 'bottom' | 'left'
+
+type BoxStitchBounds = {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
+}
+
+type BoxStitchEdgeCandidate = {
+  edge: BoxStitchEdge
+  shape: LineShape
+  minParallel: number
+  maxParallel: number
+}
+
+export type ExtractedBoxStitchGuidesResult = {
+  guideLines: LineShape[]
+  extractedEdgeCount: number
+  usedFallback: boolean
+}
+
 function lineAngleDeg(start: Point, end: Point): number {
   return (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI
 }
 
 function perpendicularAngleDeg(start: Point, end: Point): number {
   return lineAngleDeg(start, end) + 90
+}
+
+function clampValue(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function getBoundsFromShapes(shapes: Shape[]): BoxStitchBounds | null {
+  let minX = Number.POSITIVE_INFINITY
+  let minY = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxY = Number.NEGATIVE_INFINITY
+
+  for (const shape of shapes) {
+    const points = getShapePointList(shape)
+    for (const point of points) {
+      minX = Math.min(minX, point.x)
+      minY = Math.min(minY, point.y)
+      maxX = Math.max(maxX, point.x)
+      maxY = Math.max(maxY, point.y)
+    }
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+    return null
+  }
+
+  return { minX, minY, maxX, maxY }
+}
+
+function candidateParallelRange(candidate: BoxStitchEdgeCandidate) {
+  return {
+    start: Math.min(candidate.minParallel, candidate.maxParallel),
+    end: Math.max(candidate.minParallel, candidate.maxParallel),
+  }
+}
+
+function findBestEdgeCandidate(
+  boundaryShapes: Shape[],
+  edge: BoxStitchEdge,
+  bounds: BoxStitchBounds,
+  searchDistanceMm: number,
+): BoxStitchEdgeCandidate | null {
+  const safeSearchDistance = Math.max(0.1, Math.abs(searchDistanceMm))
+  let best: BoxStitchEdgeCandidate | null = null
+  let bestScore = Number.POSITIVE_INFINITY
+
+  for (const shape of boundaryShapes) {
+    if (shape.type !== 'line') {
+      continue
+    }
+
+    const dx = shape.end.x - shape.start.x
+    const dy = shape.end.y - shape.start.y
+    const spanX = Math.abs(dx)
+    const spanY = Math.abs(dy)
+    const midX = (shape.start.x + shape.end.x) / 2
+    const midY = (shape.start.y + shape.end.y) / 2
+
+    if (edge === 'top' || edge === 'bottom') {
+      if (spanX < spanY * 1.5) {
+        continue
+      }
+      const boundaryY = edge === 'top' ? bounds.minY : bounds.maxY
+      const edgeDistance = Math.abs(midY - boundaryY)
+      if (edgeDistance > safeSearchDistance) {
+        continue
+      }
+      const score = edgeDistance - spanX * 0.001
+      if (score < bestScore) {
+        bestScore = score
+        best = {
+          edge,
+          shape,
+          minParallel: Math.min(shape.start.x, shape.end.x),
+          maxParallel: Math.max(shape.start.x, shape.end.x),
+        }
+      }
+      continue
+    }
+
+    if (spanY < spanX * 1.5) {
+      continue
+    }
+
+    const boundaryX = edge === 'left' ? bounds.minX : bounds.maxX
+    const edgeDistance = Math.abs(midX - boundaryX)
+    if (edgeDistance > safeSearchDistance) {
+      continue
+    }
+    const score = edgeDistance - spanY * 0.001
+    if (score < bestScore) {
+      bestScore = score
+      best = {
+        edge,
+        shape,
+        minParallel: Math.min(shape.start.y, shape.end.y),
+        maxParallel: Math.max(shape.start.y, shape.end.y),
+      }
+    }
+  }
+
+  return best
+}
+
+function resolvePairedParallelRange(
+  first: BoxStitchEdgeCandidate | null,
+  second: BoxStitchEdgeCandidate | null,
+) {
+  if (!first || !second) {
+    return null
+  }
+
+  const firstRange = candidateParallelRange(first)
+  const secondRange = candidateParallelRange(second)
+  const start = Math.max(firstRange.start, secondRange.start)
+  const end = Math.min(firstRange.end, secondRange.end)
+  if (end - start < 1e-3) {
+    return null
+  }
+  return { start, end }
+}
+
+function createGuideLineFromCandidate(
+  edge: BoxStitchEdge,
+  candidate: BoxStitchEdgeCandidate | null,
+  pairedRange: { start: number; end: number } | null,
+  boundaryShapes: Shape[],
+  bounds: BoxStitchBounds,
+  offsetMm: number,
+  layerId: string,
+  lineTypeId: string,
+  groupId?: string,
+): { line: LineShape | null; extracted: boolean } {
+  const clampedMinX = bounds.minX + offsetMm
+  const clampedMaxX = bounds.maxX - offsetMm
+  const clampedMinY = bounds.minY + offsetMm
+  const clampedMaxY = bounds.maxY - offsetMm
+
+  if (candidate) {
+    const candidateRange = pairedRange ?? candidateParallelRange(candidate)
+    if (edge === 'top' || edge === 'bottom') {
+      const startX = clampValue(candidateRange.start, clampedMinX, clampedMaxX)
+      const endX = clampValue(candidateRange.end, clampedMinX, clampedMaxX)
+      if (endX - startX > 0.1) {
+        return {
+          extracted: true,
+          line: {
+            id: uid(),
+            type: 'line',
+            layerId,
+            lineTypeId,
+            groupId,
+            start: { x: startX, y: edge === 'top' ? clampedMinY : clampedMaxY },
+            end: { x: endX, y: edge === 'top' ? clampedMinY : clampedMaxY },
+          },
+        }
+      }
+    } else {
+      const startY = clampValue(candidateRange.start, clampedMinY, clampedMaxY)
+      const endY = clampValue(candidateRange.end, clampedMinY, clampedMaxY)
+      if (endY - startY > 0.1) {
+        return {
+          extracted: true,
+          line: {
+            id: uid(),
+            type: 'line',
+            layerId,
+            lineTypeId,
+            groupId,
+            start: { x: edge === 'left' ? clampedMinX : clampedMaxX, y: startY },
+            end: { x: edge === 'left' ? clampedMinX : clampedMaxX, y: endY },
+          },
+        }
+      }
+    }
+  }
+
+  const fallbackIndex =
+    edge === 'top' ? 0 : edge === 'right' ? 1 : edge === 'bottom' ? 2 : 3
+  const fallback = extractBoxStitchLine(boundaryShapes, fallbackIndex, offsetMm, layerId, lineTypeId)
+  if (!fallback) {
+    return { line: null, extracted: false }
+  }
+
+  return {
+    extracted: false,
+    line: groupId ? { ...fallback, groupId } : fallback,
+  }
 }
 
 export function generateBoxStitchPattern(params: BoxStitchParams): BoxStitchResult {
@@ -96,6 +306,76 @@ export function generateBoxStitchPattern(params: BoxStitchParams): BoxStitchResu
   return { guideLines, stitchHoles }
 }
 
+export function extractBoxStitchGuideLines(
+  boundaryShapes: Shape[],
+  distanceMm: number,
+  layerId: string,
+  lineTypeId: string,
+  groupId?: string,
+): ExtractedBoxStitchGuidesResult {
+  const bounds = getBoundsFromShapes(boundaryShapes)
+  const safeDistance = Math.max(0.1, Math.abs(distanceMm))
+  if (!bounds) {
+    return {
+      guideLines: [],
+      extractedEdgeCount: 0,
+      usedFallback: false,
+    }
+  }
+
+  if (bounds.maxX - bounds.minX <= safeDistance * 2 || bounds.maxY - bounds.minY <= safeDistance * 2) {
+    return {
+      guideLines: [],
+      extractedEdgeCount: 0,
+      usedFallback: false,
+    }
+  }
+
+  const topCandidate = findBestEdgeCandidate(boundaryShapes, 'top', bounds, safeDistance)
+  const rightCandidate = findBestEdgeCandidate(boundaryShapes, 'right', bounds, safeDistance)
+  const bottomCandidate = findBestEdgeCandidate(boundaryShapes, 'bottom', bounds, safeDistance)
+  const leftCandidate = findBestEdgeCandidate(boundaryShapes, 'left', bounds, safeDistance)
+
+  const horizontalPair = resolvePairedParallelRange(topCandidate, bottomCandidate)
+  const verticalPair = resolvePairedParallelRange(leftCandidate, rightCandidate)
+  const candidates: Array<[BoxStitchEdge, BoxStitchEdgeCandidate | null, { start: number; end: number } | null]> = [
+    ['top', topCandidate, horizontalPair],
+    ['right', rightCandidate, verticalPair],
+    ['bottom', bottomCandidate, horizontalPair],
+    ['left', leftCandidate, verticalPair],
+  ]
+
+  let extractedEdgeCount = 0
+  let usedFallback = false
+  const guideLines = candidates
+    .map(([edge, candidate, pairedRange]) => {
+      const result = createGuideLineFromCandidate(
+        edge,
+        candidate,
+        pairedRange,
+        boundaryShapes,
+        bounds,
+        safeDistance,
+        layerId,
+        lineTypeId,
+        groupId,
+      )
+      if (result.extracted) {
+        extractedEdgeCount += 1
+      } else if (result.line) {
+        usedFallback = true
+      }
+      return result.line
+    })
+    .filter((line): line is LineShape => line !== null)
+
+  return {
+    guideLines,
+    extractedEdgeCount,
+    usedFallback,
+  }
+}
+
 export function extractBoxStitchLine(
   boundaryShapes: Shape[],
   edgeIndex: number,
@@ -103,28 +383,11 @@ export function extractBoxStitchLine(
   layerId: string,
   lineTypeId: string,
 ): LineShape | null {
-  if (boundaryShapes.length === 0) {
+  const bounds = getBoundsFromShapes(boundaryShapes)
+  if (!bounds) {
     return null
   }
-
-  let minX = Number.POSITIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-
-  for (const shape of boundaryShapes) {
-    const points = getShapePointList(shape)
-    for (const point of points) {
-      minX = Math.min(minX, point.x)
-      minY = Math.min(minY, point.y)
-      maxX = Math.max(maxX, point.x)
-      maxY = Math.max(maxY, point.y)
-    }
-  }
-
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
-    return null
-  }
+  const { minX, minY, maxX, maxY } = bounds
 
   let start: Point
   let end: Point

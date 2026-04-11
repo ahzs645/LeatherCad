@@ -1,5 +1,5 @@
 import type { LineTypeRole } from '../cad/cad-types'
-import type { DxfVersion, ExportRoleFilters } from '../editor-types'
+import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 
 type ExportOptionsModalProps = {
   open: boolean
@@ -8,12 +8,16 @@ type ExportOptionsModalProps = {
   exportOnlySelectedShapes: boolean
   exportOnlyVisibleLineTypes: boolean
   exportForceSolidStrokes: boolean
+  exportStitchHoleRenderMode: StitchHoleExportRenderMode
+  exportStitchDotRadiusMm: number
   exportRoleFilters: ExportRoleFilters
   dxfVersion: DxfVersion
   dxfFlipY: boolean
   onExportOnlySelectedShapesChange: (enabled: boolean) => void
   onExportOnlyVisibleLineTypesChange: (enabled: boolean) => void
   onExportForceSolidStrokesChange: (enabled: boolean) => void
+  onExportStitchHoleRenderModeChange: (mode: StitchHoleExportRenderMode) => void
+  onExportStitchDotRadiusMmChange: (value: number) => void
   onExportRoleFilterChange: (role: LineTypeRole, enabled: boolean) => void
   onDxfVersionChange: (version: DxfVersion) => void
   onDxfFlipYChange: (enabled: boolean) => void
@@ -29,12 +33,16 @@ export function ExportOptionsModal({
   exportOnlySelectedShapes,
   exportOnlyVisibleLineTypes,
   exportForceSolidStrokes,
+  exportStitchHoleRenderMode,
+  exportStitchDotRadiusMm,
   exportRoleFilters,
   dxfVersion,
   dxfFlipY,
   onExportOnlySelectedShapesChange,
   onExportOnlyVisibleLineTypesChange,
   onExportForceSolidStrokesChange,
+  onExportStitchHoleRenderModeChange,
+  onExportStitchDotRadiusMmChange,
   onExportRoleFilterChange,
   onDxfVersionChange,
   onDxfFlipYChange,
@@ -87,6 +95,33 @@ export function ExportOptionsModal({
               onChange={(event) => onExportForceSolidStrokesChange(event.target.checked)}
             />
             <span>Convert dashed/dotted/dash-dot-dot to solid on export</span>
+          </label>
+        </div>
+
+        <div className="control-block">
+          <h3>Stitch Holes</h3>
+          <label className="field-row">
+            <span>Render Mode</span>
+            <select
+              className="action-select"
+              value={exportStitchHoleRenderMode}
+              onChange={(event) => onExportStitchHoleRenderModeChange(event.target.value as StitchHoleExportRenderMode)}
+            >
+              <option value="native">Native geometry</option>
+              <option value="dots">Dots</option>
+              <option value="single-lines">Single lines</option>
+            </select>
+          </label>
+          <label className="field-row">
+            <span>Dot Radius (mm)</span>
+            <input
+              type="number"
+              min={0.2}
+              max={10}
+              step={0.1}
+              value={exportStitchDotRadiusMm}
+              onChange={(event) => onExportStitchDotRadiusMmChange(Math.max(0.2, Number(event.target.value) || 0.2))}
+            />
           </label>
         </div>
 

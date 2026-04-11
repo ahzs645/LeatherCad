@@ -1503,6 +1503,7 @@ button:disabled {
   position: absolute;
   right: 12px;
   bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 7;
   display: grid;
   gap: 8px;
   width: min(310px, 52vw);

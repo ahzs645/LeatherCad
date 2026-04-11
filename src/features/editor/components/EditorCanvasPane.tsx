@@ -14,6 +14,8 @@ import type {
   Viewport,
 } from '../cad/cad-types'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
+import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
+import type { StitchSimulatorSettings, ThreadSegment } from '../ops/stitch-simulator-ops'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import type { AnnotationLabel, LegendMode, PiecePlacementGuide, SeamGuide, SketchWorkspaceMode } from '../editor-types'
 import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
@@ -84,6 +86,9 @@ type EditorCanvasPaneProps = {
   selectedStitchHoleId: string | null
   showStitchSequenceLabels: boolean
   onStitchHolePointerDown: (event: PointerEvent<SVGElement>, stitchHoleId: string) => void
+  simulatedStitchSegments: ThreadSegment[]
+  stitchSimulatorSettings: StitchSimulatorSettings | null
+  stitchSimulatorTerminalHoleId: string | null
   visibleHardwareMarkers: HardwareMarker[]
   selectedHardwareMarkerId: string | null
   onHardwarePointerDown: (event: PointerEvent<SVGGElement>, markerId: string) => void
@@ -161,6 +166,44 @@ function lineBounds(start: Point, end: Point): Bounds {
     maxX: Math.max(start.x, end.x),
     maxY: Math.max(start.y, end.y),
   }
+}
+
+function pointAlongSegment(from: Point, to: Point, distanceFromEnd: number): Point {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const length = Math.hypot(dx, dy)
+  if (length < 1e-6) {
+    return { ...to }
+  }
+
+  const clampedDistance = Math.max(0, Math.min(length, distanceFromEnd))
+  const ratio = (length - clampedDistance) / length
+  return {
+    x: from.x + dx * ratio,
+    y: from.y + dy * ratio,
+  }
+}
+
+function buildDirectionArrowPoints(segment: ThreadSegment, size: number) {
+  const dx = segment.to.x - segment.from.x
+  const dy = segment.to.y - segment.from.y
+  const length = Math.hypot(dx, dy)
+  if (length < 1e-6) {
+    return null
+  }
+
+  const ux = dx / length
+  const uy = dy / length
+  const tip = pointAlongSegment(segment.from, segment.to, size * 0.8)
+  const baseCenter = pointAlongSegment(segment.from, segment.to, size * 2.1)
+  const normalX = -uy
+  const normalY = ux
+
+  return [
+    `${tip.x},${tip.y}`,
+    `${baseCenter.x + normalX * size * 0.8},${baseCenter.y + normalY * size * 0.8}`,
+    `${baseCenter.x - normalX * size * 0.8},${baseCenter.y - normalY * size * 0.8}`,
+  ].join(' ')
 }
 
 function withPreviewApplied(shape: Shape, preview: CanvasInteractionPreview): Shape {
@@ -274,6 +317,9 @@ export function EditorCanvasPane({
   selectedStitchHoleId,
   showStitchSequenceLabels,
   onStitchHolePointerDown,
+  simulatedStitchSegments,
+  stitchSimulatorSettings,
+  stitchSimulatorTerminalHoleId,
   visibleHardwareMarkers,
   selectedHardwareMarkerId,
   onHardwarePointerDown,
@@ -394,6 +440,22 @@ export function EditorCanvasPane({
   const renderableStitchHoles = useMemo(
     () => visibleStitchHoles.filter((entry) => pointInBounds(entry.point, viewBounds, detailPadding)),
     [detailPadding, viewBounds, visibleStitchHoles],
+  )
+  const renderableSimulatedSegments = useMemo(
+    () =>
+      simulatedStitchSegments.filter((segment) =>
+        boundsIntersect(lineBounds(segment.from, segment.to), viewBounds, detailPadding),
+      ),
+    [detailPadding, simulatedStitchSegments, viewBounds],
+  )
+  const renderableTerminalHole = useMemo(
+    () =>
+      renderableStitchHoles.find((hole) => hole.id === stitchSimulatorTerminalHoleId) ??
+      visibleStitchHoles.find(
+        (hole) => hole.id === stitchSimulatorTerminalHoleId && pointInBounds(hole.point, viewBounds, detailPadding),
+      ) ??
+      null,
+    [detailPadding, renderableStitchHoles, stitchSimulatorTerminalHoleId, viewBounds, visibleStitchHoles],
   )
   const renderableHardwareMarkers = useMemo(
     () => visibleHardwareMarkers.filter((entry) => pointInBounds(entry.point, viewBounds, detailPadding)),
@@ -837,7 +899,7 @@ export function EditorCanvasPane({
           )}
 
           {/* Stitch connecting lines (drawn first, behind holes) */}
-          {(() => {
+          {!stitchSimulatorSettings?.showSimulatorPattern && (() => {
             const sorted = [...renderableStitchHoles].sort((a, b) => a.sequence - b.sequence)
             const pathParts: string[] = []
             for (let i = 1; i < sorted.length; i++) {
@@ -852,24 +914,92 @@ export function EditorCanvasPane({
             ) : null
           })()}
 
+          {stitchSimulatorSettings?.showSimulatorPattern && renderableSimulatedSegments.length > 0 && (
+            <g className="stitch-simulator-layer" pointerEvents="none">
+              {renderableSimulatedSegments.map((segment) => {
+                const color =
+                  segment.threadIndex === 0
+                    ? stitchSimulatorSettings.threadColor
+                    : stitchSimulatorSettings.secondThreadColor
+                const strokeWidth = Math.max(0.35, stitchSimulatorSettings.threadWidthMm)
+                const arrowPoints = stitchSimulatorSettings.showDirectionArrows
+                  ? buildDirectionArrowPoints(segment, Math.max(1.8, strokeWidth * 3.4))
+                  : null
+
+                return (
+                  <g key={`${segment.threadIndex}-${segment.stepIndex}-${segment.side}-${segment.from.x}-${segment.to.x}`}>
+                    <line
+                      x1={segment.from.x}
+                      y1={segment.from.y}
+                      x2={segment.to.x}
+                      y2={segment.to.y}
+                      stroke={color}
+                      strokeWidth={strokeWidth}
+                      strokeLinecap="round"
+                      strokeDasharray={segment.side === 'back' ? `${strokeWidth * 2.5} ${strokeWidth * 1.75}` : undefined}
+                      opacity={segment.side === 'back' ? 0.58 : 0.94}
+                    />
+                    {arrowPoints && (
+                      <polygon
+                        points={arrowPoints}
+                        fill={color}
+                        opacity={segment.side === 'back' ? 0.7 : 0.95}
+                      />
+                    )}
+                  </g>
+                )
+              })}
+            </g>
+          )}
+
+          {stitchSimulatorSettings?.showSimulatorPattern && renderableTerminalHole && (
+            <circle
+              cx={renderableTerminalHole.point.x}
+              cy={renderableTerminalHole.point.y}
+              r={Math.max(
+                1.6,
+                createStitchHolePrimitive(renderableTerminalHole).kind === 'circle'
+                  ? (createStitchHolePrimitive(renderableTerminalHole) as Extract<ReturnType<typeof createStitchHolePrimitive>, { kind: 'circle' }>).radiusMm * 3
+                  : 2.8,
+              )}
+              fill="none"
+              stroke={stitchSimulatorSettings.threadColor}
+              strokeWidth={0.6}
+              strokeDasharray="2 1.2"
+              pointerEvents="none"
+            />
+          )}
+
           {renderableStitchHoles.map((stitchHole) => {
             const isSelected = stitchHole.id === selectedStitchHoleId
-            const r = stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.6
+            const primitive = createStitchHolePrimitive(stitchHole)
+            const r = primitive.kind === 'circle' ? primitive.radiusMm : stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.6
             const outerR = r * 2.5
             const crossR = outerR * 1.3
 
-            if (stitchHole.holeType === 'slit') {
-              const radians = (stitchHole.angleDeg * Math.PI) / 180
-              const dx = Math.cos(radians) * 3
-              const dy = Math.sin(radians) * 3
+            if (primitive.kind === 'segment') {
               return (
                 <line
                   key={stitchHole.id}
-                  x1={stitchHole.point.x - dx}
-                  y1={stitchHole.point.y - dy}
-                  x2={stitchHole.point.x + dx}
-                  y2={stitchHole.point.y + dy}
+                  x1={primitive.start.x}
+                  y1={primitive.start.y}
+                  x2={primitive.end.x}
+                  y2={primitive.end.y}
                   className={isSelected ? 'stitch-hole-slit stitch-hole-slit-selected' : 'stitch-hole-slit'}
+                  strokeWidth={Math.max(0.6, primitive.strokeWidthMm)}
+                  onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)}
+                />
+              )
+            }
+
+            if (primitive.kind === 'polygon') {
+              return (
+                <polygon
+                  key={stitchHole.id}
+                  points={primitive.points.map((point) => `${point.x},${point.y}`).join(' ')}
+                  className={isSelected ? 'stitch-hole-slit stitch-hole-slit-selected' : 'stitch-hole-slit'}
+                  fill="none"
+                  strokeWidth={Math.max(0.6, stitchHole.widthMm ?? 0.9)}
                   onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)}
                 />
               )

@@ -1,8 +1,9 @@
 import type { ComponentProps, Dispatch, RefObject, SetStateAction } from 'react'
-import type { Layer, LineType, StitchHoleType, Tool } from '../cad/cad-types'
+import type { Layer, LineType, StitchHoleDefaults, Tool } from '../cad/cad-types'
 import { EditorTopbar } from '../components/EditorTopbar'
 import type { DisplayUnit } from '../ops/unit-ops'
 import type {
+  StitchAutoPitchSettings,
   DesktopRibbonTab,
   MobileFileAction,
   MobileLayerAction,
@@ -77,14 +78,17 @@ type UseEditorTopbarPropsParams = {
   handleToggleActiveLineTypeVisibility: () => void
   setShowLineTypePalette: Dispatch<SetStateAction<boolean>>
   showStitchSection: boolean
-  stitchHoleType: StitchHoleType
-  setStitchHoleType: Dispatch<SetStateAction<StitchHoleType>>
+  stitchHoleDefaults: StitchHoleDefaults
+  setStitchHoleDefaults: Dispatch<SetStateAction<StitchHoleDefaults>>
   stitchPitchMm: number
   setStitchPitchMm: Dispatch<SetStateAction<number>>
   stitchVariablePitchStartMm: number
   stitchVariablePitchEndMm: number
   setStitchVariablePitchStartMm: Dispatch<SetStateAction<number>>
   setStitchVariablePitchEndMm: Dispatch<SetStateAction<number>>
+  stitchAutoPitchSettings: StitchAutoPitchSettings
+  setStitchAutoPitchSettings: Dispatch<SetStateAction<StitchAutoPitchSettings>>
+  handleAutoPlacePreferredPitchStitchHoles: () => void
   handleAutoPlaceFixedPitchStitchHoles: () => void
   handleAutoPlaceVariablePitchStitchHoles: () => void
   handleResequenceSelectedStitchHoles: (reverse: boolean) => void
@@ -205,14 +209,17 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleToggleActiveLineTypeVisibility,
     setShowLineTypePalette,
     showStitchSection,
-    stitchHoleType,
-    setStitchHoleType,
+    stitchHoleDefaults,
+    setStitchHoleDefaults,
     stitchPitchMm,
     setStitchPitchMm,
     stitchVariablePitchStartMm,
     stitchVariablePitchEndMm,
     setStitchVariablePitchStartMm,
     setStitchVariablePitchEndMm,
+    stitchAutoPitchSettings,
+    setStitchAutoPitchSettings,
+    handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
     handleResequenceSelectedStitchHoles,
@@ -345,14 +352,21 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onToggleActiveLineTypeVisibility: handleToggleActiveLineTypeVisibility,
     onOpenLineTypePalette: () => setShowLineTypePalette(true),
     showStitchSection,
-    stitchHoleType,
-    onSetStitchHoleType: setStitchHoleType,
+    stitchHoleDefaults,
+    onUpdateStitchHoleDefaults: (patch) => setStitchHoleDefaults((previous) => ({ ...previous, ...patch })),
     stitchPitchMm,
     onSetStitchPitchMm: setStitchPitchMm,
     stitchVariablePitchStartMm,
     stitchVariablePitchEndMm,
     onSetStitchVariablePitchStartMm: setStitchVariablePitchStartMm,
     onSetStitchVariablePitchEndMm: setStitchVariablePitchEndMm,
+    stitchAutoPitchSettings,
+    onUpdateStitchAutoPitchSettings: (patch) =>
+      setStitchAutoPitchSettings((previous) => ({
+        ...previous,
+        ...patch,
+      })),
+    onAutoPlacePreferredPitchStitchHoles: handleAutoPlacePreferredPitchStitchHoles,
     onAutoPlaceFixedPitchStitchHoles: handleAutoPlaceFixedPitchStitchHoles,
     onAutoPlaceVariablePitchStitchHoles: handleAutoPlaceVariablePitchStitchHoles,
     onResequenceSelectedStitchHoles: () => handleResequenceSelectedStitchHoles(false),

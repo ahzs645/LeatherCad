@@ -1,18 +1,20 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { arcPath, getBounds, round } from '../cad/cad-geometry'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
-import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup } from '../cad/cad-types'
-import type { DxfVersion, ExportRoleFilters } from '../editor-types'
+import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
+import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 import { buildDxfFromShapes } from '../io/io-dxf'
 import { buildPdfFromShapes } from '../io/io-pdf'
 import { downloadFile } from '../editor-utils'
 import { buildAnnotationExportShapes } from '../ops/annotation-export-shapes'
+import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import { MM_PER_INCH, type DisplayUnit } from '../ops/unit-ops'
 
 type UseExportActionsParams = {
   shapes: Shape[]
   foldLines: FoldLine[]
+  stitchHoles: StitchHole[]
   lineTypes: LineType[]
   lineTypesById: Record<string, LineType>
   patternPiecesById: Record<string, PatternPiece | undefined>
@@ -29,6 +31,9 @@ type UseExportActionsParams = {
   exportOnlyVisibleLineTypes: boolean
   exportRoleFilters: ExportRoleFilters
   exportForceSolidStrokes: boolean
+  stitchAlwaysShapeIdSet: Set<string>
+  exportStitchHoleRenderMode: StitchHoleExportRenderMode
+  exportStitchDotRadiusMm: number
   dxfFlipY: boolean
   dxfVersion: DxfVersion
   exportUnit: DisplayUnit
@@ -39,6 +44,7 @@ export function useExportActions(params: UseExportActionsParams) {
   const {
     shapes,
     foldLines,
+    stitchHoles,
     lineTypes,
     lineTypesById,
     patternPiecesById,
@@ -55,33 +61,56 @@ export function useExportActions(params: UseExportActionsParams) {
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
     exportForceSolidStrokes,
+    stitchAlwaysShapeIdSet,
+    exportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
     dxfFlipY,
     dxfVersion,
     exportUnit,
     setStatus,
   } = params
 
+  const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
+
+  const isShapeEligibleForExport = (shape: Shape) => {
+    if (exportOnlySelectedShapes && !selectedShapeIdSet.has(shape.id)) {
+      return false
+    }
+    if (!visibleLayerIdSet.has(shape.layerId)) {
+      return false
+    }
+    if (shape.groupId) {
+      const group = sketchGroupsById[shape.groupId]
+      if (group && !group.visible) {
+        return false
+      }
+    }
+    const lineType = lineTypesById[shape.lineTypeId]
+    const isVisible = lineType?.visible ?? true
+    if (exportOnlyVisibleLineTypes && !isVisible) {
+      return false
+    }
+    return true
+  }
+
   const getExportableShapes = () =>
     shapes.filter((shape) => {
-      if (exportOnlySelectedShapes && !selectedShapeIdSet.has(shape.id)) {
+      if (!isShapeEligibleForExport(shape)) {
         return false
-      }
-      if (!visibleLayerIdSet.has(shape.layerId)) {
-        return false
-      }
-      if (shape.groupId) {
-        const group = sketchGroupsById[shape.groupId]
-        if (group && !group.visible) {
-          return false
-        }
       }
       const lineType = lineTypesById[shape.lineTypeId]
       const role = lineType?.role ?? 'cut'
-      const isVisible = lineType?.visible ?? true
-      if (exportOnlyVisibleLineTypes && !isVisible) {
+      return exportRoleFilters[role]
+    })
+
+  const getExportableStitchHoles = () =>
+    stitchHoles.filter((stitchHole) => {
+      const shape = shapesById[stitchHole.shapeId]
+      if (!shape || !isShapeEligibleForExport(shape)) {
         return false
       }
-      return exportRoleFilters[role]
+      const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
+      return exportRoleFilters.stitch && (lineTypeRole === 'stitch' || stitchAlwaysShapeIdSet.has(shape.id))
     })
 
   const annotationLineTypeId = lineTypes.find((lineType) => lineType.role === 'mark')?.id ?? lineTypes[0]?.id ?? 'annotation'
@@ -118,6 +147,71 @@ export function useExportActions(params: UseExportActionsParams) {
       }
       return '&quot;'
     })
+
+  const buildExportBounds = (exportShapes: Shape[], exportStitchHoles: StitchHole[], includeFoldLines: boolean) => {
+    let minX = Number.POSITIVE_INFINITY
+    let minY = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxY = Number.NEGATIVE_INFINITY
+
+    const includePoint = (x: number, y: number) => {
+      minX = Math.min(minX, x)
+      minY = Math.min(minY, y)
+      maxX = Math.max(maxX, x)
+      maxY = Math.max(maxY, y)
+    }
+
+    const includeCircle = (cx: number, cy: number, radius: number) => {
+      includePoint(cx - radius, cy - radius)
+      includePoint(cx + radius, cy + radius)
+    }
+
+    if (exportShapes.length > 0) {
+      const shapeBounds = getBounds(exportShapes)
+      includePoint(shapeBounds.minX, shapeBounds.minY)
+      includePoint(shapeBounds.minX + shapeBounds.width, shapeBounds.minY + shapeBounds.height)
+    }
+
+    for (const stitchHole of exportStitchHoles) {
+      const primitive = createStitchHolePrimitive(stitchHole, {
+        mode: exportStitchHoleRenderMode,
+        dotRadiusMm: exportStitchDotRadiusMm,
+      })
+
+      if (primitive.kind === 'circle') {
+        includeCircle(primitive.center.x, primitive.center.y, primitive.radiusMm)
+        continue
+      }
+
+      if (primitive.kind === 'segment') {
+        includePoint(primitive.start.x, primitive.start.y)
+        includePoint(primitive.end.x, primitive.end.y)
+        continue
+      }
+
+      primitive.points.forEach((point) => includePoint(point.x, point.y))
+    }
+
+    if (includeFoldLines) {
+      for (const foldLine of foldLines) {
+        includePoint(foldLine.start.x, foldLine.start.y)
+        includePoint(foldLine.end.x, foldLine.end.y)
+      }
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return null
+    }
+
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+    }
+  }
 
   const shapeToExportSvg = (shape: Shape) => {
     const lineType = lineTypesById[shape.lineTypeId]
@@ -160,18 +254,44 @@ export function useExportActions(params: UseExportActionsParams) {
       .join('')
   }
 
+  const stitchHoleToExportSvg = (stitchHole: StitchHole) => {
+    const parentShape = shapesById[stitchHole.shapeId]
+    const lineType = parentShape ? lineTypesById[parentShape.lineTypeId] : undefined
+    const stroke = lineType?.color ?? '#0f172a'
+    const primitive = createStitchHolePrimitive(stitchHole, {
+      mode: exportStitchHoleRenderMode,
+      dotRadiusMm: exportStitchDotRadiusMm,
+    })
+
+    if (primitive.kind === 'circle') {
+      return `<circle cx="${round(primitive.center.x)}" cy="${round(primitive.center.y)}" r="${round(primitive.radiusMm)}" fill="${stroke}" data-type="stitch-hole" />`
+    }
+
+    if (primitive.kind === 'segment') {
+      return `<line x1="${round(primitive.start.x)}" y1="${round(primitive.start.y)}" x2="${round(primitive.end.x)}" y2="${round(primitive.end.y)}" stroke="${stroke}" stroke-width="${round(Math.max(0.2, primitive.strokeWidthMm))}" fill="none" stroke-linecap="round" data-type="stitch-hole" />`
+    }
+
+    return `<polygon points="${primitive.points.map((point) => `${round(point.x)},${round(point.y)}`).join(' ')}" stroke="${stroke}" stroke-width="${round(Math.max(0.2, stitchHole.widthMm ?? 0.9))}" fill="none" stroke-linejoin="round" data-type="stitch-hole" />`
+  }
+
   const handleExportSvg = () => {
     const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
-    if (exportShapes.length === 0) {
+    const exportStitchHoles = getExportableStitchHoles()
+    if (exportShapes.length === 0 && exportStitchHoles.length === 0) {
       setStatus('No shapes matched the current export filters')
       return
     }
 
-    const bounds = getBounds(exportShapes)
+    const includeFoldLines = exportRoleFilters.fold
+    const bounds = buildExportBounds(exportShapes, exportStitchHoles, includeFoldLines)
+    if (!bounds) {
+      setStatus('No shapes matched the current export filters')
+      return
+    }
     const exportWidth = exportUnit === 'in' ? bounds.width / MM_PER_INCH : bounds.width
     const exportHeight = exportUnit === 'in' ? bounds.height / MM_PER_INCH : bounds.height
     const objectMarkup = exportShapes.map(shapeToExportSvg).join('\n  ')
-    const includeFoldLines = exportRoleFilters.fold
+    const stitchHoleMarkup = exportStitchHoles.map(stitchHoleToExportSvg).join('\n  ')
     const foldMarkup = includeFoldLines
       ? foldLines
           .map(
@@ -181,20 +301,26 @@ export function useExportActions(params: UseExportActionsParams) {
           .join('\n  ')
       : ''
 
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}" width="${round(exportWidth)}${exportUnit}" height="${round(exportHeight)}${exportUnit}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${foldMarkup}\n</svg>`
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}" width="${round(exportWidth)}${exportUnit}" height="${round(exportHeight)}${exportUnit}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${stitchHoleMarkup}\n  ${foldMarkup}\n</svg>`
 
     downloadFile('leathercraft-export.svg', svg, 'image/svg+xml;charset=utf-8')
-    setStatus(`Exported SVG (${exportShapes.length} shapes, ${includeFoldLines ? foldLines.length : 0} folds)`)
+    setStatus(
+      `Exported SVG (${exportShapes.length} shapes, ${exportStitchHoles.length} stitch holes, ${includeFoldLines ? foldLines.length : 0} folds)`,
+    )
   }
 
   const handleExportDxf = () => {
     const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
-    if (exportShapes.length === 0) {
+    const exportStitchHoles = getExportableStitchHoles()
+    if (exportShapes.length === 0 && exportStitchHoles.length === 0) {
       setStatus('No shapes matched the current export filters')
       return
     }
 
     const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
+      stitchHoles: exportStitchHoles,
+      stitchHoleRenderMode: exportStitchHoleRenderMode,
+      stitchDotRadiusMm: exportStitchDotRadiusMm,
       flipY: dxfFlipY,
       version: dxfVersion,
       unit: exportUnit,
@@ -203,25 +329,29 @@ export function useExportActions(params: UseExportActionsParams) {
     })
     downloadFile('leathercraft-export.dxf', content, 'application/dxf')
     setStatus(
-      `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, flipY ${dxfFlipY ? 'on' : 'off'})`,
+      `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, ${exportStitchHoles.length} stitch holes, flipY ${dxfFlipY ? 'on' : 'off'})`,
     )
   }
 
   const handleExportPdf = () => {
     const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
-    if (exportShapes.length === 0) {
+    const exportStitchHoles = getExportableStitchHoles()
+    if (exportShapes.length === 0 && exportStitchHoles.length === 0) {
       setStatus('No shapes matched the current export filters')
       return
     }
 
     const pdf = buildPdfFromShapes(exportShapes, {
+      stitchHoles: exportStitchHoles,
+      stitchHoleRenderMode: exportStitchHoleRenderMode,
+      stitchDotRadiusMm: exportStitchDotRadiusMm,
       forceSolidLineStyle: exportForceSolidStrokes,
       lineTypeStyles: lineTypeStylesById,
       lineTypeColors: Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType.color])),
     })
 
     downloadFile('leathercraft-export.pdf', pdf, 'application/pdf')
-    setStatus(`Exported PDF (${exportShapes.length} shapes)`)
+    setStatus(`Exported PDF (${exportShapes.length} shapes, ${exportStitchHoles.length} stitch holes)`)
   }
 
   const handleExportLaserSvg = () => {

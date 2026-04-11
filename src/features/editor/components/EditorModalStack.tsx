@@ -116,7 +116,10 @@ export function EditorModalStack({
       </Suspense>
       {stitchSimulatorModalProps && (
         <Suspense fallback={null}>
-          <StitchSimulatorModal {...stitchSimulatorModalProps} />
+          <StitchSimulatorModal
+            key={`${stitchSimulatorModalProps.open}-${stitchSimulatorModalProps.settings.stitchType}-${stitchSimulatorModalProps.settings.endHoleId ?? 'end'}-${stitchSimulatorModalProps.stitchHoleCount}`}
+            {...stitchSimulatorModalProps}
+          />
         </Suspense>
       )}
       {boxStitchModalProps && (

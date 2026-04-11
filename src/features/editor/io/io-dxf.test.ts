@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildDxfFromShapes } from './io-dxf'
-import type { LineShape } from '../cad/cad-types'
+import type { LineShape, StitchHole } from '../cad/cad-types'
 
 function makeLineShape(overrides: Partial<LineShape> = {}): LineShape {
   return {
@@ -10,6 +10,21 @@ function makeLineShape(overrides: Partial<LineShape> = {}): LineShape {
     lineTypeId: 'lt-1',
     start: { x: 0, y: 0 },
     end: { x: 10, y: 20 },
+    ...overrides,
+  }
+}
+
+function makeStitchHole(overrides: Partial<StitchHole> = {}): StitchHole {
+  return {
+    id: 'hole-1',
+    shapeId: 'line-1',
+    point: { x: 5, y: 10 },
+    angleDeg: 0,
+    holeType: 'slit',
+    sequence: 0,
+    widthMm: 1,
+    heightMm: 3,
+    renderShape: 'diamond',
     ...overrides,
   }
 }
@@ -112,5 +127,16 @@ describe('buildDxfFromShapes', () => {
   it('uses layer name from shape layerId', () => {
     const result = buildDxfFromShapes([makeLineShape({ layerId: 'MyLayer' })])
     expect(result.content).toContain('MyLayer')
+  })
+
+  it('exports stitch holes as additional DXF geometry on the parent layer', () => {
+    const result = buildDxfFromShapes([makeLineShape()], {
+      stitchHoles: [makeStitchHole()],
+      stitchHoleRenderMode: 'single-lines',
+    })
+
+    expect(result.segmentCount).toBe(2)
+    expect((result.content.match(/\nLINE\n/g) ?? []).length).toBe(2)
+    expect(result.content).toContain('layer-1')
   })
 })

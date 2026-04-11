@@ -1,4 +1,4 @@
-import type { HardwareMarker, Shape, StitchHole, StitchHoleType } from '../cad/cad-types'
+import type { HardwareMarker, Shape, StitchHole, StitchHoleRenderShape, StitchHoleType } from '../cad/cad-types'
 import type { InspectorContext } from './workbench-types'
 
 type SelectionInspectorPanelProps = {
@@ -209,6 +209,24 @@ export function SelectionInspectorPanel({
               </select>
             </label>
             <label className="field-row">
+              <span>Shape</span>
+              <select
+                value={selectedStitchHole.renderShape ?? (selectedStitchHole.holeType === 'round' ? 'round' : 'slit')}
+                onChange={(event) =>
+                  onUpdateSelectedStitchHole({
+                    renderShape: event.target.value as StitchHoleRenderShape,
+                    holeType: event.target.value === 'round' ? 'round' : 'slit',
+                  })
+                }
+              >
+                <option value="round">Round</option>
+                <option value="slit">Slit</option>
+                <option value="diamond">Diamond</option>
+                <option value="french">French</option>
+                <option value="flat">Flat</option>
+              </select>
+            </label>
+            <label className="field-row">
               <span>Sequence</span>
               <input
                 type="number"
@@ -238,6 +256,43 @@ export function SelectionInspectorPanel({
                 value={selectedStitchHole.diameterMm ?? ''}
                 onChange={(event) => onUpdateSelectedStitchHole({ diameterMm: parseNumber(event.target.value, selectedStitchHole.diameterMm ?? 0) })}
               />
+            </label>
+            <label className="field-row">
+              <span>Width</span>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={selectedStitchHole.widthMm ?? ''}
+                onChange={(event) => onUpdateSelectedStitchHole({ widthMm: parseNumber(event.target.value, selectedStitchHole.widthMm ?? 0) })}
+              />
+            </label>
+            <label className="field-row">
+              <span>Height</span>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={selectedStitchHole.heightMm ?? ''}
+                onChange={(event) => onUpdateSelectedStitchHole({ heightMm: parseNumber(event.target.value, selectedStitchHole.heightMm ?? 0) })}
+              />
+            </label>
+            <label className="field-row">
+              <span>Tilt</span>
+              <input
+                type="number"
+                step={1}
+                value={selectedStitchHole.tiltDeg ?? 0}
+                onChange={(event) => onUpdateSelectedStitchHole({ tiltDeg: parseNumber(event.target.value, selectedStitchHole.tiltDeg ?? 0) })}
+              />
+            </label>
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={selectedStitchHole.inverted === true}
+                onChange={(event) => onUpdateSelectedStitchHole({ inverted: event.target.checked })}
+              />
+              <span>Inverted</span>
             </label>
           </div>
         </div>

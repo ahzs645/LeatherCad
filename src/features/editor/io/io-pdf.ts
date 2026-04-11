@@ -1,5 +1,6 @@
 import { sampleShapePoints } from '../cad/cad-geometry'
-import type { LineTypeStyle, Shape } from '../cad/cad-types'
+import type { LineTypeStyle, Shape, StitchHole } from '../cad/cad-types'
+import { createStitchHolePrimitive, type StitchHoleRenderMode } from '../ops/stitch-hole-render'
 
 const MM_TO_PT = 72 / 25.4
 const DEFAULT_MARGIN_MM = 10
@@ -11,12 +12,16 @@ type PdfExportOptions = {
   lineTypeColors?: Record<string, string>
   lineTypeStyles?: Record<string, LineTypeStyle>
   forceSolidLineStyle?: boolean
+  stitchHoles?: StitchHole[]
+  stitchHoleRenderMode?: StitchHoleRenderMode
+  stitchDotRadiusMm?: number
 }
 
 type StrokeSegment = {
   points: Array<{ x: number; y: number }>
   colorHex: string
   style: LineTypeStyle
+  fill?: boolean
 }
 
 function clampMin(value: number, minimum: number) {
@@ -59,8 +64,34 @@ function dashPattern(style: LineTypeStyle) {
   return '[] 0 d'
 }
 
-function buildSegments(shapes: Shape[], options: Required<Pick<PdfExportOptions, 'lineTypeColors' | 'lineTypeStyles' | 'forceSolidLineStyle'>>) {
+function approximateCirclePoints(center: { x: number; y: number }, radius: number, steps = 24) {
+  return Array.from({ length: steps }, (_, index) => {
+    const angle = (index / steps) * Math.PI * 2
+    return {
+      x: center.x + Math.cos(angle) * radius,
+      y: center.y + Math.sin(angle) * radius,
+    }
+  })
+}
+
+function buildFilledPath(points: Array<{ x: number; y: number }>) {
+  if (points.length < 2) {
+    return points
+  }
+  return [...points, points[0]]
+}
+
+function buildSegments(
+  shapes: Shape[],
+  options: Required<
+    Pick<
+      PdfExportOptions,
+      'lineTypeColors' | 'lineTypeStyles' | 'forceSolidLineStyle' | 'stitchHoles' | 'stitchHoleRenderMode' | 'stitchDotRadiusMm'
+    >
+  >,
+) {
   const segments: StrokeSegment[] = []
+  const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
 
   for (const shape of shapes) {
     const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 72)
@@ -73,6 +104,40 @@ function buildSegments(shapes: Shape[], options: Required<Pick<PdfExportOptions,
       points: sampled,
       colorHex: normalizeHex(options.lineTypeColors[shape.lineTypeId]),
       style,
+    })
+  }
+
+  for (const stitchHole of options.stitchHoles) {
+    const parentShape = shapesById[stitchHole.shapeId]
+    if (!parentShape) {
+      continue
+    }
+    const primitive = createStitchHolePrimitive(stitchHole, {
+      mode: options.stitchHoleRenderMode,
+      dotRadiusMm: options.stitchDotRadiusMm,
+    })
+    const colorHex = normalizeHex(options.lineTypeColors[parentShape.lineTypeId])
+    if (primitive.kind === 'circle') {
+      segments.push({
+        points: buildFilledPath(approximateCirclePoints(primitive.center, primitive.radiusMm)),
+        colorHex,
+        style: 'solid',
+        fill: true,
+      })
+      continue
+    }
+    if (primitive.kind === 'segment') {
+      segments.push({
+        points: [primitive.start, primitive.end],
+        colorHex,
+        style: 'solid',
+      })
+      continue
+    }
+    segments.push({
+      points: buildFilledPath(primitive.points),
+      colorHex,
+      style: 'solid',
     })
   }
 
@@ -131,6 +196,9 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
   const lineTypeColors = options.lineTypeColors ?? {}
   const lineTypeStyles = options.lineTypeStyles ?? {}
   const forceSolidLineStyle = options.forceSolidLineStyle ?? false
+  const stitchHoles = options.stitchHoles ?? []
+  const stitchHoleRenderMode = options.stitchHoleRenderMode ?? 'native'
+  const stitchDotRadiusMm = options.stitchDotRadiusMm ?? 0.6
   const lineWidthPt = clampMin(options.lineWidthPt ?? DEFAULT_LINE_WIDTH_PT, 0.1)
   const marginMm = clampMin(options.marginMm ?? DEFAULT_MARGIN_MM, 1)
 
@@ -138,6 +206,9 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
     lineTypeColors,
     lineTypeStyles,
     forceSolidLineStyle,
+    stitchHoles,
+    stitchHoleRenderMode,
+    stitchDotRadiusMm,
   })
 
   const bounds = buildBounds(segments)
@@ -163,6 +234,7 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
   ]
 
   let activeColor = ''
+  let activeFillColor = ''
   let activeDash = ''
 
   for (const segment of segments) {
@@ -178,6 +250,13 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
       commands.push(colorCommand)
       activeColor = colorCommand
     }
+    if (segment.fill) {
+      const fillColorCommand = `${toFixedPdf(red)} ${toFixedPdf(green)} ${toFixedPdf(blue)} rg`
+      if (fillColorCommand !== activeFillColor) {
+        commands.push(fillColorCommand)
+        activeFillColor = fillColorCommand
+      }
+    }
 
     const first = toPdfPoint(segment.points[0])
     commands.push(`${toFixedPdf(first.x)} ${toFixedPdf(first.y)} m`)
@@ -185,7 +264,7 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
       const point = toPdfPoint(segment.points[index])
       commands.push(`${toFixedPdf(point.x)} ${toFixedPdf(point.y)} l`)
     }
-    commands.push('S')
+    commands.push(segment.fill ? 'f' : 'S')
   }
 
   const stream = `${commands.join('\n')}\n`

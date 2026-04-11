@@ -142,6 +142,20 @@ export type FoldLine = {
 
 export type StitchHoleType = 'round' | 'slit'
 
+export type StitchHoleRenderShape = 'round' | 'slit' | 'diamond' | 'french' | 'flat'
+
+export type StitchHoleDefaults = {
+  holeType: StitchHoleType
+  renderShape?: StitchHoleRenderShape
+  diameterMm?: number
+  widthMm?: number
+  heightMm?: number
+  tiltDeg?: number
+  inverted?: boolean
+  presetId?: string
+  presetName?: string
+}
+
 export type StitchHole = {
   id: string
   shapeId: string
@@ -150,6 +164,14 @@ export type StitchHole = {
   holeType: StitchHoleType
   sequence: number
   diameterMm?: number
+  widthMm?: number
+  heightMm?: number
+  tiltDeg?: number
+  inverted?: boolean
+  presetId?: string
+  presetName?: string
+  renderShape?: StitchHoleRenderShape
+  endHole?: boolean
 }
 
 export type ConstraintAnchor = 'start' | 'end' | 'mid' | 'center'

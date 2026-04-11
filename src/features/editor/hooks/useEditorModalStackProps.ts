@@ -14,7 +14,7 @@ import type {
   TracingOverlay,
 } from '../cad/cad-types'
 import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-constants'
-import type { DxfVersion, ExportRoleFilters } from '../editor-types'
+import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 import { normalizeHexColor } from '../editor-utils'
 import { EditorModalStack } from '../components/EditorModalStack'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
@@ -70,6 +70,10 @@ type UseEditorModalStackPropsParams = {
   setExportOnlyVisibleLineTypes: Dispatch<SetStateAction<boolean>>
   exportForceSolidStrokes: boolean
   setExportForceSolidStrokes: Dispatch<SetStateAction<boolean>>
+  exportStitchHoleRenderMode: StitchHoleExportRenderMode
+  setExportStitchHoleRenderMode: Dispatch<SetStateAction<StitchHoleExportRenderMode>>
+  exportStitchDotRadiusMm: number
+  setExportStitchDotRadiusMm: Dispatch<SetStateAction<number>>
   exportRoleFilters: ExportRoleFilters
   setExportRoleFilters: Dispatch<SetStateAction<ExportRoleFilters>>
   dxfVersion: DxfVersion
@@ -279,6 +283,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setExportOnlyVisibleLineTypes,
     exportForceSolidStrokes,
     setExportForceSolidStrokes,
+    exportStitchHoleRenderMode,
+    setExportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
+    setExportStitchDotRadiusMm,
     exportRoleFilters,
     setExportRoleFilters,
     dxfVersion,
@@ -498,12 +506,16 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       exportOnlySelectedShapes,
       exportOnlyVisibleLineTypes,
       exportForceSolidStrokes,
+      exportStitchHoleRenderMode,
+      exportStitchDotRadiusMm,
       exportRoleFilters,
       dxfVersion,
       dxfFlipY,
       onExportOnlySelectedShapesChange: setExportOnlySelectedShapes,
       onExportOnlyVisibleLineTypesChange: setExportOnlyVisibleLineTypes,
       onExportForceSolidStrokesChange: setExportForceSolidStrokes,
+      onExportStitchHoleRenderModeChange: setExportStitchHoleRenderMode,
+      onExportStitchDotRadiusMmChange: setExportStitchDotRadiusMm,
       onExportRoleFilterChange: (role, enabled) =>
         setExportRoleFilters((previous) => ({
           ...previous,

@@ -5,14 +5,17 @@ import type {
   LineType,
   Shape,
   StitchHole,
-  StitchHoleType,
+  StitchHoleDefaults,
 } from '../cad/cad-types'
+import type { StitchAutoPitchSettings } from '../editor-types'
 import {
   deleteStitchHolesForShapes,
   fixStitchHoleOrderFromHole,
   generateFixedPitchStitchHoles,
   generateVariablePitchStitchHoles,
   normalizeStitchHoleSequences,
+  type AutoPitchGenerationOptions,
+  projectDistanceOnShape,
   resequenceStitchHolesOnShape,
   selectNextStitchHole,
 } from '../ops/stitch-hole-ops'
@@ -29,7 +32,8 @@ type UseStitchActionsParams = {
   stitchPitchMm: number
   stitchVariablePitchStartMm: number
   stitchVariablePitchEndMm: number
-  stitchHoleType: StitchHoleType
+  stitchAutoPitchSettings: StitchAutoPitchSettings
+  stitchHoleDefaults: StitchHoleDefaults
   selectedStitchHole: StitchHole | null
   shapesById: Record<string, Shape>
   layers: Layer[]
@@ -49,7 +53,8 @@ export function useStitchActions(params: UseStitchActionsParams) {
     stitchPitchMm,
     stitchVariablePitchStartMm,
     stitchVariablePitchEndMm,
-    stitchHoleType,
+    stitchAutoPitchSettings,
+    stitchHoleDefaults,
     selectedStitchHole,
     shapesById,
     layers,
@@ -64,6 +69,103 @@ export function useStitchActions(params: UseStitchActionsParams) {
       const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
       return lineTypeRole === 'stitch'
     })
+
+  const buildAutoPitchOptions = (): AutoPitchGenerationOptions => ({
+    forceFitLastHole: stitchAutoPitchSettings.forceFitLastHole,
+    solverSteps: stitchAutoPitchSettings.solverSteps,
+    precisionMm: stitchAutoPitchSettings.precisionMm,
+    stopGapMm: stitchAutoPitchSettings.stopGapMm,
+  })
+
+  const buildContinuationOptions = (
+    shape: Shape,
+    existingHoles: StitchHole[],
+  ): {
+    retained: StitchHole[]
+    sequenceStart: number
+    generationOptions: AutoPitchGenerationOptions
+    continued: boolean
+  } => {
+    if (
+      !stitchAutoPitchSettings.continueFromSelectedHole ||
+      !selectedStitchHole ||
+      selectedStitchHole.shapeId !== shape.id
+    ) {
+      return {
+        retained: [],
+        sequenceStart: 0,
+        generationOptions: {
+          ...buildAutoPitchOptions(),
+          startDistanceMm: 0,
+          includeStartHole: true,
+        },
+        continued: false,
+      }
+    }
+
+    const ordered = existingHoles
+      .filter((stitchHole) => stitchHole.shapeId === shape.id)
+      .slice()
+      .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
+    const selectedIndex = ordered.findIndex((stitchHole) => stitchHole.id === selectedStitchHole.id)
+    if (selectedIndex < 0) {
+      return {
+        retained: [],
+        sequenceStart: 0,
+        generationOptions: {
+          ...buildAutoPitchOptions(),
+          startDistanceMm: 0,
+          includeStartHole: true,
+        },
+        continued: false,
+      }
+    }
+
+    const retained = ordered.slice(0, selectedIndex + 1)
+    return {
+      retained,
+      sequenceStart: retained.length,
+      generationOptions: {
+        ...buildAutoPitchOptions(),
+        startDistanceMm: projectDistanceOnShape(shape, selectedStitchHole.point),
+        includeStartHole: false,
+      },
+      continued: true,
+    }
+  }
+
+  const applyAutoPlacement = (
+    selectedStitchShapes: Shape[],
+    generator: (shape: Shape, sequenceStart: number, options: AutoPitchGenerationOptions) => StitchHole[],
+  ) => {
+    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
+    let firstGeneratedId: string | null = null
+    let generatedCount = 0
+    let continuedCount = 0
+
+    setStitchHoles((previous) => {
+      const retainedOtherShapes = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
+      const nextHoles: StitchHole[] = [...retainedOtherShapes]
+
+      for (const shape of selectedStitchShapes) {
+        const continuation = buildContinuationOptions(shape, previous)
+        if (continuation.continued) {
+          continuedCount += 1
+        }
+        const generated = generator(shape, continuation.sequenceStart, continuation.generationOptions)
+        generatedCount += generated.length
+        if (!firstGeneratedId && generated[0]) {
+          firstGeneratedId = generated[0].id
+        }
+        nextHoles.push(...continuation.retained, ...generated)
+      }
+
+      return normalizeStitchHoleSequences(nextHoles)
+    })
+
+    setSelectedStitchHoleId(firstGeneratedId)
+    return { generatedCount, continuedCount }
+  }
 
   const handleCountStitchHolesOnSelectedShapes = () => {
     if (selectedShapeIdSet.size === 0) {
@@ -112,19 +214,12 @@ export function useStitchActions(params: UseStitchActionsParams) {
     }
 
     const safePitch = clamp(stitchPitchMm, 0.2, 100)
-    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
-    const generatedHoles = selectedStitchShapes.flatMap((shape) =>
-      generateFixedPitchStitchHoles(shape, safePitch, stitchHoleType, 0),
+    const { generatedCount, continuedCount } = applyAutoPlacement(selectedStitchShapes, (shape, sequenceStart, options) =>
+      generateFixedPitchStitchHoles(shape, safePitch, stitchHoleDefaults, sequenceStart, options),
     )
 
-    setStitchHoles((previous) => {
-      const retained = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
-      return normalizeStitchHoleSequences([...retained, ...generatedHoles])
-    })
-    setSelectedStitchHoleId(generatedHoles[0]?.id ?? null)
-
     setStatus(
-      `Auto placed ${generatedHoles.length} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} at ${safePitch.toFixed(1)}mm pitch`,
+      `Auto placed ${generatedCount} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} at ${safePitch.toFixed(1)}mm pitch${continuedCount > 0 ? ` from ${continuedCount} selected continuation point${continuedCount === 1 ? '' : 's'}` : ''}`,
     )
   }
 
@@ -142,20 +237,21 @@ export function useStitchActions(params: UseStitchActionsParams) {
 
     const safeStartPitch = clamp(stitchVariablePitchStartMm, 0.2, 100)
     const safeEndPitch = clamp(stitchVariablePitchEndMm, 0.2, 100)
-    const selectedShapeIds = new Set(selectedStitchShapes.map((shape) => shape.id))
-    const generatedHoles = selectedStitchShapes.flatMap((shape) =>
-      generateVariablePitchStitchHoles(shape, safeStartPitch, safeEndPitch, stitchHoleType, 0),
+    const { generatedCount, continuedCount } = applyAutoPlacement(selectedStitchShapes, (shape, sequenceStart, options) =>
+      generateVariablePitchStitchHoles(shape, safeStartPitch, safeEndPitch, stitchHoleDefaults, sequenceStart, options),
     )
-
-    setStitchHoles((previous) => {
-      const retained = previous.filter((stitchHole) => !selectedShapeIds.has(stitchHole.shapeId))
-      return normalizeStitchHoleSequences([...retained, ...generatedHoles])
-    })
-    setSelectedStitchHoleId(generatedHoles[0]?.id ?? null)
 
     setStatus(
-      `Auto placed ${generatedHoles.length} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} using ${safeStartPitch.toFixed(1)} to ${safeEndPitch.toFixed(1)}mm pitch`,
+      `Auto placed ${generatedCount} stitch holes on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'} using ${safeStartPitch.toFixed(1)} to ${safeEndPitch.toFixed(1)}mm pitch${continuedCount > 0 ? ` from ${continuedCount} selected continuation point${continuedCount === 1 ? '' : 's'}` : ''}`,
     )
+  }
+
+  const handleAutoPlacePreferredPitchStitchHoles = () => {
+    if (stitchAutoPitchSettings.defaultMode === 'variable') {
+      handleAutoPlaceVariablePitchStitchHoles()
+      return
+    }
+    handleAutoPlaceFixedPitchStitchHoles()
   }
 
   const handleResequenceSelectedStitchHoles = (reverse = false) => {
@@ -261,6 +357,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
     handleClearAllStitchHoles,
+    handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
     handleResequenceSelectedStitchHoles,

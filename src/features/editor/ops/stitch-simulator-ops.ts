@@ -8,12 +8,15 @@ export type ThreadSegment = {
   to: Point
   threadIndex: 0 | 1
   side: 'front' | 'back'
+  stepIndex: number
+  parity: 'even' | 'odd'
 }
 
 export type StitchSimulatorResult = {
   segments: ThreadSegment[]
   threadLength: number
   holeCount: number
+  terminalHoleId: string | null
 }
 
 export type StitchSimulatorSettings = {
@@ -21,7 +24,12 @@ export type StitchSimulatorSettings = {
   threadColor: string
   secondThreadColor: string
   threadWidthMm: number
+  showSimulatorPattern: boolean
   showBackStitches: boolean
+  showEvenStitches: boolean
+  showOddStitches: boolean
+  showDirectionArrows: boolean
+  endHoleId: string | null
 }
 
 const LEATHER_THICKNESS_MM = 3
@@ -32,7 +40,12 @@ export function getDefaultStitchSimulatorSettings(): StitchSimulatorSettings {
     threadColor: '#d97706',
     secondThreadColor: '#92400e',
     threadWidthMm: 0.8,
+    showSimulatorPattern: true,
     showBackStitches: true,
+    showEvenStitches: true,
+    showOddStitches: true,
+    showDirectionArrows: true,
+    endHoleId: null,
   }
 }
 
@@ -42,12 +55,39 @@ function sortHolesBySequence(holes: StitchHole[]): StitchHole[] {
     .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
 }
 
+function limitHolesByEnd(holes: StitchHole[], endHoleId: string | null) {
+  const sorted = sortHolesBySequence(holes)
+  if (!endHoleId) {
+    return sorted
+  }
+  const endIndex = sorted.findIndex((hole) => hole.id === endHoleId)
+  if (endIndex < 0) {
+    return sorted
+  }
+  return sorted.slice(0, endIndex + 1)
+}
+
+function filterSegments(segments: ThreadSegment[], settings: StitchSimulatorSettings) {
+  return segments.filter((segment) => {
+    if (!settings.showBackStitches && segment.side === 'back') {
+      return false
+    }
+    if (!settings.showEvenStitches && segment.parity === 'even') {
+      return false
+    }
+    if (!settings.showOddStitches && segment.parity === 'odd') {
+      return false
+    }
+    return true
+  })
+}
+
 export function simulateSaddleStitch(holes: StitchHole[]): StitchSimulatorResult {
   const sorted = sortHolesBySequence(holes)
   const segments: ThreadSegment[] = []
 
   if (sorted.length < 2) {
-    return { segments, threadLength: 0, holeCount: sorted.length }
+    return { segments, threadLength: 0, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
   }
 
   // Thread 0: front at even indices, back at odd indices
@@ -55,14 +95,15 @@ export function simulateSaddleStitch(holes: StitchHole[]): StitchSimulatorResult
   for (let i = 0; i < sorted.length - 1; i += 1) {
     const from = sorted[i].point
     const to = sorted[i + 1].point
+    const parity = i % 2 === 0 ? 'even' : 'odd'
 
     // Thread 0: alternates front -> back -> front -> back ...
     const thread0Side: 'front' | 'back' = i % 2 === 0 ? 'front' : 'back'
-    segments.push({ from, to, threadIndex: 0, side: thread0Side })
+    segments.push({ from, to, threadIndex: 0, side: thread0Side, stepIndex: i, parity })
 
     // Thread 1: alternates back -> front -> back -> front ...
     const thread1Side: 'front' | 'back' = i % 2 === 0 ? 'back' : 'front'
-    segments.push({ from, to, threadIndex: 1, side: thread1Side })
+    segments.push({ from, to, threadIndex: 1, side: thread1Side, stepIndex: i, parity })
   }
 
   // Calculate thread length: sum of all segment distances for one thread,
@@ -77,7 +118,7 @@ export function simulateSaddleStitch(holes: StitchHole[]): StitchSimulatorResult
   const crossingsPerThread = sorted.length
   const threadLength = singleThreadLength * 2 + crossingsPerThread * 2 * LEATHER_THICKNESS_MM
 
-  return { segments, threadLength, holeCount: sorted.length }
+  return { segments, threadLength, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
 }
 
 export function simulateRunningStitch(holes: StitchHole[]): StitchSimulatorResult {
@@ -85,7 +126,7 @@ export function simulateRunningStitch(holes: StitchHole[]): StitchSimulatorResul
   const segments: ThreadSegment[] = []
 
   if (sorted.length < 2) {
-    return { segments, threadLength: 0, holeCount: sorted.length }
+    return { segments, threadLength: 0, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
   }
 
   // Single thread alternating front/back: front at hole[0]->hole[1], back at hole[1]->hole[2], etc.
@@ -96,6 +137,8 @@ export function simulateRunningStitch(holes: StitchHole[]): StitchSimulatorResul
       to: sorted[i + 1].point,
       threadIndex: 0,
       side,
+      stepIndex: i,
+      parity: i % 2 === 0 ? 'even' : 'odd',
     })
   }
 
@@ -106,7 +149,7 @@ export function simulateRunningStitch(holes: StitchHole[]): StitchSimulatorResul
   // Add leather thickness per hole crossing
   threadLength += sorted.length * LEATHER_THICKNESS_MM
 
-  return { segments, threadLength, holeCount: sorted.length }
+  return { segments, threadLength, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
 }
 
 export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult {
@@ -114,7 +157,7 @@ export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult 
   const segments: ThreadSegment[] = []
 
   if (sorted.length < 2) {
-    return { segments, threadLength: 0, holeCount: sorted.length }
+    return { segments, threadLength: 0, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
   }
 
   // Ensure even number of holes by trimming the last if odd
@@ -128,6 +171,8 @@ export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult 
       to: working[i + 1].point,
       threadIndex: 0,
       side: 'front',
+      stepIndex: i,
+      parity: i % 2 === 0 ? 'even' : 'odd',
     })
     // Connect to next pair on back side
     if (i + 2 < working.length) {
@@ -136,6 +181,8 @@ export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult 
         to: working[i + 2].point,
         threadIndex: 0,
         side: 'back',
+        stepIndex: i + 1,
+        parity: (i + 1) % 2 === 0 ? 'even' : 'odd',
       })
     }
   }
@@ -148,6 +195,8 @@ export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult 
       to: working[i - 1].point,
       threadIndex: 0,
       side: 'front',
+      stepIndex: i,
+      parity: i % 2 === 0 ? 'even' : 'odd',
     })
     // Connect to previous pair on back side
     if (i - 2 >= 0) {
@@ -156,6 +205,8 @@ export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult 
         to: working[i - 2].point,
         threadIndex: 0,
         side: 'back',
+        stepIndex: i - 1,
+        parity: (i - 1) % 2 === 0 ? 'even' : 'odd',
       })
     }
   }
@@ -166,7 +217,7 @@ export function simulateCrossStitch(holes: StitchHole[]): StitchSimulatorResult 
   }
   threadLength += working.length * 2 * LEATHER_THICKNESS_MM
 
-  return { segments, threadLength, holeCount: sorted.length }
+  return { segments, threadLength, holeCount: sorted.length, terminalHoleId: working[working.length - 1]?.id ?? null }
 }
 
 export function simulateBackstitch(holes: StitchHole[]): StitchSimulatorResult {
@@ -174,7 +225,7 @@ export function simulateBackstitch(holes: StitchHole[]): StitchSimulatorResult {
   const segments: ThreadSegment[] = []
 
   if (sorted.length < 2) {
-    return { segments, threadLength: 0, holeCount: sorted.length }
+    return { segments, threadLength: 0, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
   }
 
   // Backstitch pattern: forward two holes, back one hole
@@ -191,6 +242,8 @@ export function simulateBackstitch(holes: StitchHole[]): StitchSimulatorResult {
         to: sorted[target].point,
         threadIndex: 0,
         side: 'front',
+        stepIndex: segments.length,
+        parity: segments.length % 2 === 0 ? 'even' : 'odd',
       })
       current = target
       onFront = false
@@ -205,6 +258,8 @@ export function simulateBackstitch(holes: StitchHole[]): StitchSimulatorResult {
         to: sorted[target].point,
         threadIndex: 0,
         side: 'back',
+        stepIndex: segments.length,
+        parity: segments.length % 2 === 0 ? 'even' : 'odd',
       })
       current = target
       onFront = true
@@ -222,22 +277,30 @@ export function simulateBackstitch(holes: StitchHole[]): StitchSimulatorResult {
   }
   threadLength += sorted.length * LEATHER_THICKNESS_MM
 
-  return { segments, threadLength, holeCount: sorted.length }
+  return { segments, threadLength, holeCount: sorted.length, terminalHoleId: sorted[sorted.length - 1]?.id ?? null }
 }
 
 export function simulateStitches(
   holes: StitchHole[],
-  stitchType: StitchType,
+  settings: StitchSimulatorSettings,
 ): StitchSimulatorResult {
-  switch (stitchType) {
-    case 'saddle':
-      return simulateSaddleStitch(holes)
-    case 'running':
-      return simulateRunningStitch(holes)
-    case 'cross':
-      return simulateCrossStitch(holes)
-    case 'backstitch':
-      return simulateBackstitch(holes)
+  const workingHoles = limitHolesByEnd(holes, settings.endHoleId)
+  const baseResult = (() => {
+    switch (settings.stitchType) {
+      case 'saddle':
+        return simulateSaddleStitch(workingHoles)
+      case 'running':
+        return simulateRunningStitch(workingHoles)
+      case 'cross':
+        return simulateCrossStitch(workingHoles)
+      case 'backstitch':
+        return simulateBackstitch(workingHoles)
+    }
+  })()
+
+  return {
+    ...baseResult,
+    segments: filterSegments(baseResult.segments, settings),
   }
 }
 

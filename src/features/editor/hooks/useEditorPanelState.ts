@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ConstraintAxis, ConstraintEdge, HardwareKind } from '../cad/cad-types'
 import { DEFAULT_EXPORT_ROLE_FILTERS, DEFAULT_SEAM_ALLOWANCE_MM } from '../editor-constants'
-import type { DxfVersion, ExportRoleFilters } from '../editor-types'
+import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 import type { PrintPaper } from '../preview/print-preview'
 
 export function useEditorPanelState() {
@@ -13,6 +13,8 @@ export function useEditorPanelState() {
   const [exportOnlyVisibleLineTypes, setExportOnlyVisibleLineTypes] = useState(true)
   const [exportRoleFilters, setExportRoleFilters] = useState<ExportRoleFilters>({ ...DEFAULT_EXPORT_ROLE_FILTERS })
   const [exportForceSolidStrokes, setExportForceSolidStrokes] = useState(false)
+  const [exportStitchHoleRenderMode, setExportStitchHoleRenderMode] = useState<StitchHoleExportRenderMode>('native')
+  const [exportStitchDotRadiusMm, setExportStitchDotRadiusMm] = useState(0.6)
   const [dxfFlipY, setDxfFlipY] = useState(false)
   const [dxfVersion, setDxfVersion] = useState<DxfVersion>('r12')
   const [showTracingModal, setShowTracingModal] = useState(false)
@@ -59,6 +61,10 @@ export function useEditorPanelState() {
     setExportRoleFilters,
     exportForceSolidStrokes,
     setExportForceSolidStrokes,
+    exportStitchHoleRenderMode,
+    setExportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
+    setExportStitchDotRadiusMm,
     dxfFlipY,
     setDxfFlipY,
     dxfVersion,
