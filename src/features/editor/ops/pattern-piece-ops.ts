@@ -13,7 +13,6 @@ import type {
 } from '../cad/cad-types'
 import { DEFAULT_SEAM_ALLOWANCE_MM } from '../editor-constants'
 import { type OutlineChain, detectOutlines } from './outline-detection'
-import { offsetPolygon } from './clipper-ops'
 
 export type PieceDerivedLabel = {
   id: string
@@ -316,15 +315,89 @@ function buildVariableOffsetPolygon(points: Point[], seamAllowance: PieceSeamAll
   return result.length >= 3 ? result : null
 }
 
+function buildRoundedUniformOffsetPolygon(points: Point[], offsetMm: number) {
+  const polygon = normalizeClosedPolygon(points)
+  if (polygon.length < 3) {
+    return null
+  }
+
+  const signedArea = polygonSignedArea(polygon)
+  const outwardSign = signedArea >= 0 ? 1 : -1
+  const safeOffset = Math.max(0.1, Math.abs(offsetMm))
+  const result: Point[] = []
+
+  for (let index = 0; index < polygon.length; index += 1) {
+    const previous = polygon[(index - 1 + polygon.length) % polygon.length]
+    const current = polygon[index]
+    const next = polygon[(index + 1) % polygon.length]
+
+    const previousDx = current.x - previous.x
+    const previousDy = current.y - previous.y
+    const currentDx = next.x - current.x
+    const currentDy = next.y - current.y
+    const previousLength = Math.hypot(previousDx, previousDy)
+    const currentLength = Math.hypot(currentDx, currentDy)
+
+    if (previousLength < 1e-6 || currentLength < 1e-6) {
+      continue
+    }
+
+    const previousNormal = {
+      x: (previousDy / previousLength) * outwardSign,
+      y: (-previousDx / previousLength) * outwardSign,
+    }
+    const currentNormal = {
+      x: (currentDy / currentLength) * outwardSign,
+      y: (-currentDx / currentLength) * outwardSign,
+    }
+
+    const previousOffsetPoint = {
+      x: current.x + previousNormal.x * safeOffset,
+      y: current.y + previousNormal.y * safeOffset,
+    }
+    const currentOffsetPoint = {
+      x: current.x + currentNormal.x * safeOffset,
+      y: current.y + currentNormal.y * safeOffset,
+    }
+
+    const bisector = {
+      x: previousNormal.x + currentNormal.x,
+      y: previousNormal.y + currentNormal.y,
+    }
+    const bisectorLength = Math.hypot(bisector.x, bisector.y)
+    const bisectorPoint =
+      bisectorLength < 1e-6
+        ? null
+        : {
+            x: current.x + (bisector.x / bisectorLength) * safeOffset,
+            y: current.y + (bisector.y / bisectorLength) * safeOffset,
+          }
+
+    for (const point of [previousOffsetPoint, bisectorPoint, currentOffsetPoint]) {
+      if (!point) {
+        continue
+      }
+      if (result.length === 0 || !pointsEqual(result[result.length - 1], point, 1e-6)) {
+        result.push(point)
+      }
+    }
+  }
+
+  if (result.length >= 2 && pointsEqual(result[0], result[result.length - 1], 1e-6)) {
+    result.pop()
+  }
+
+  return result.length >= 3 ? result : null
+}
+
 export function buildPatternPieceSeamPolygon(chain: OutlineChain, seamAllowance: PieceSeamAllowance): Point[] | null {
   if (!seamAllowance.enabled || chain.polygon.length < 3) {
     return null
   }
-  if (seamAllowance.edgeOverrides.length > 0) {
-    return buildVariableOffsetPolygon(chain.polygon, seamAllowance)
+  if (seamAllowance.edgeOverrides.length === 0) {
+    return buildRoundedUniformOffsetPolygon(chain.polygon, seamAllowance.defaultOffsetMm)
   }
-  const [offset] = offsetPolygon(chain.polygon, seamAllowance.defaultOffsetMm, 'round')
-  return offset && offset.length >= 3 ? offset : null
+  return buildVariableOffsetPolygon(chain.polygon, seamAllowance)
 }
 
 export function polygonCenter(points: Point[]): Point | null {
