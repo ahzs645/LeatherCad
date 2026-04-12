@@ -49,6 +49,7 @@ import { useCanvasInteractions } from './hooks/useCanvasInteractions'
 import { useResponsiveLayout } from './hooks/useResponsiveLayout'
 import { useEditorAutomationEffects } from './hooks/useEditorAutomationEffects'
 import { useEditorGlobalBindings } from './hooks/useEditorGlobalBindings'
+import { useEditorAppController } from './hooks/useEditorAppController'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
@@ -2190,26 +2191,55 @@ function EditorAppContent() {
     />
   )
 
+  const appController = useEditorAppController({
+    layout: {
+      isMobileLayout,
+      resolvedThemeMode,
+      shouldLoadThreeWorkbench,
+      workspaceClassName,
+    },
+    commands: {
+      renderDesktopWorkbench,
+      updateFoldLine: (foldLineId, updates) => updateFoldLine(foldLineId, updates as Partial<(typeof foldLines)[number]>),
+    },
+    panes: {
+      mobileShellProps,
+      workbenchThreeWorkspaceProps,
+      threeWorkspaceLoadingState,
+      threeWorkspaceRoutePrompt,
+    },
+    overlays: {
+      modalStack: modalStackNode,
+      projectMemoModal: projectMemoModalNode,
+      pieceInspectorModal: pieceInspectorModalNode,
+      nestingModal: nestingModalNode,
+    },
+    inputs: {
+      hiddenInputs: hiddenInputsNode,
+      fontInput: fontInputNode,
+    },
+  })
+
   return (
-    <div className={`app-shell ${resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!isMobileLayout ? 'app-shell-workbench' : ''}`}>
-      {isMobileLayout ? (
+    <div className={`app-shell ${appController.layout.resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!appController.layout.isMobileLayout ? 'app-shell-workbench' : ''}`}>
+      {appController.layout.isMobileLayout ? (
         <EditorMobileShell {...mobileShellProps} />
       ) : (
         <EditorDesktopShell
-          shouldLoadThreeWorkbench={shouldLoadThreeWorkbench}
-          renderDesktopWorkbench={renderDesktopWorkbench}
-          threeWorkspaceLoadingState={threeWorkspaceLoadingState}
-          threeWorkspaceRoutePrompt={threeWorkspaceRoutePrompt}
-          workbenchProps={workbenchThreeWorkspaceProps}
+          shouldLoadThreeWorkbench={appController.layout.shouldLoadThreeWorkbench}
+          renderDesktopWorkbench={appController.commands.renderDesktopWorkbench}
+          threeWorkspaceLoadingState={appController.panes.threeWorkspaceLoadingState}
+          threeWorkspaceRoutePrompt={appController.panes.threeWorkspaceRoutePrompt}
+          workbenchProps={appController.panes.workbenchThreeWorkspaceProps as typeof workbenchThreeWorkspaceProps}
         />
       )}
       <EditorOverlayHost
-        modalStack={modalStackNode}
-        projectMemoModal={projectMemoModalNode}
-        pieceInspectorModal={pieceInspectorModalNode}
-        nestingModal={nestingModalNode}
-        hiddenInputs={hiddenInputsNode}
-        fontInput={fontInputNode}
+        modalStack={appController.overlays.modalStack}
+        projectMemoModal={appController.overlays.projectMemoModal}
+        pieceInspectorModal={appController.overlays.pieceInspectorModal}
+        nestingModal={appController.overlays.nestingModal}
+        hiddenInputs={appController.inputs.hiddenInputs}
+        fontInput={appController.inputs.fontInput}
       />
     </div>
   )
