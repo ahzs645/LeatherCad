@@ -70,11 +70,7 @@ async function clickShapeStroke(page: Page, index: number) {
   // Playwright's browser-side evaluate boundary erases the SVG DOM types here.
   /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
   const point = await page.locator('svg.canvas .shape-line').nth(index).evaluate((element) => {
-    if (!(element instanceof SVGElement)) {
-      return null
-    }
-
-    const matrix = element.getScreenCTM()
+    const matrix = 'getScreenCTM' in element ? element.getScreenCTM() : null
     if (!matrix) {
       return null
     }
@@ -84,7 +80,9 @@ async function clickShapeStroke(page: Page, index: number) {
       y: matrix.b * x + matrix.d * y + matrix.f,
     })
 
-    if (element instanceof SVGLineElement) {
+    const tagName = element.tagName.toLowerCase()
+
+    if (tagName === 'line') {
       const x1 = Number(element.getAttribute('x1') ?? 0)
       const y1 = Number(element.getAttribute('y1') ?? 0)
       const x2 = Number(element.getAttribute('x2') ?? 0)
@@ -92,7 +90,7 @@ async function clickShapeStroke(page: Page, index: number) {
       return toScreen((x1 + x2) / 2, (y1 + y2) / 2)
     }
 
-    if (element instanceof SVGPathElement) {
+    if (tagName === 'path' && 'getTotalLength' in element && 'getPointAtLength' in element) {
       const length = element.getTotalLength()
       const pathPoint = element.getPointAtLength(length / 2)
       return toScreen(pathPoint.x, pathPoint.y)

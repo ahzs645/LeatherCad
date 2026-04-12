@@ -1,0 +1,141 @@
+import type {
+  AvatarSpec,
+  DimensionLine,
+  FoldLine,
+  HardwareMarker,
+  LineType,
+  PatternPiece,
+  PiecePlacement3D,
+  ParametricConstraint,
+  PieceGrainline,
+  PieceLabel,
+  PiecePlacementLabel,
+  PieceNotch,
+  PieceSeamAllowance,
+  PrintArea,
+  SeamConnection,
+  Shape,
+  SketchGroup,
+  SnapSettings,
+  StitchHole,
+  TextureSource,
+  ThreePreviewSettings,
+  TracingOverlay,
+} from '../cad/cad-types'
+import type {
+  DesktopRibbonTab,
+  LegendMode,
+  MobileFileAction,
+  MobileLayerAction,
+  MobileOptionsTab,
+  MobileViewMode,
+  ResolvedThemeMode,
+  SketchWorkspaceMode,
+  ThemeMode,
+} from '../editor-types'
+import type { ClipboardPayload } from '../ops/shape-selection-ops'
+import type { DisplayUnit } from '../ops/unit-ops'
+import type { SecondaryPreviewMode, WorkbenchRibbonTab, WorkspaceMode } from '../workbench/workbench-types'
+
+export type EditorDocumentState = {
+  documentName: string | null
+  lineTypes: LineType[]
+  activeLineTypeId: string
+  shapes: Shape[]
+  foldLines: FoldLine[]
+  stitchHoles: StitchHole[]
+  sketchGroups: SketchGroup[]
+  activeSketchGroupId: string | null
+  constraints: ParametricConstraint[]
+  patternPieces: PatternPiece[]
+  pieceGrainlines: PieceGrainline[]
+  pieceLabels: PieceLabel[]
+  piecePlacementLabels: PiecePlacementLabel[]
+  piecePlacements3d: PiecePlacement3D[]
+  seamConnections: SeamConnection[]
+  seamAllowances: PieceSeamAllowance[]
+  pieceNotches: PieceNotch[]
+  hardwareMarkers: HardwareMarker[]
+  dimensionLines: DimensionLine[]
+  printAreas: PrintArea[]
+  snapSettings: SnapSettings
+  showAnnotations: boolean
+  tracingOverlays: TracingOverlay[]
+  activeTracingOverlayId: string | null
+  projectMemo: string
+  stitchAlwaysShapeIds: string[]
+  stitchThreadColor: string
+  threePreviewSettings: ThreePreviewSettings
+  avatars: AvatarSpec[]
+  threeTextureSource: TextureSource | null
+  threeTextureShapeIds: string[]
+  showCanvasRuler: boolean
+  showDimensions: boolean
+}
+
+export type EditorUIState = {
+  status: string
+  showThreePreview: boolean
+  sidePanelTab: '3d' | 'layers'
+  show3dInMain: boolean
+  isMobileLayout: boolean
+  mobileViewMode: MobileViewMode
+  showMobileMenu: boolean
+  mobileOptionsTab: MobileOptionsTab
+  showPrecisionModal: boolean
+  showProjectMemoModal: boolean
+  showNestingModal: boolean
+  desktopRibbonTab: DesktopRibbonTab
+  workbenchRibbonTab: WorkbenchRibbonTab
+  workspaceMode: WorkspaceMode
+  secondaryPreviewMode: SecondaryPreviewMode
+  mobileLayerAction: MobileLayerAction
+  mobileFileAction: MobileFileAction
+  displayUnit: DisplayUnit
+  gridSpacing: number
+  legendMode: LegendMode
+  sketchWorkspaceMode: SketchWorkspaceMode
+  selectedPresetId: string
+  themeMode: ThemeMode
+  systemThemeMode: ResolvedThemeMode
+  loadedFontUrl: string | null
+  showStitchSimulatorModal: boolean
+  showBoxStitchHelperModal: boolean
+  showBoxStitchModal: boolean
+  showMandalaModal: boolean
+  showWizardModal: boolean
+  showLetterStampModal: boolean
+  showChangeShapeSizeModal: boolean
+  showBezierOffsetLines: boolean
+}
+
+export type EditorSelectionState = {
+  selectedShapeIds: string[]
+  selectedStitchHoleId: string | null
+  selectedHardwareMarkerId: string | null
+  clipboardPayload: ClipboardPayload | null
+}
+
+export type EditorToolState = {
+  tool: import('../cad/cad-types').Tool
+  draftPoints: import('../cad/cad-types').Point[]
+  cursorPoint: import('../cad/cad-types').Point | null
+  textDraftValue: string
+  textFontFamily: string
+  textFontSizeMm: number
+  textTransformMode: import('../cad/cad-types').TextTransformMode
+  textRadiusMm: number
+  textSweepDeg: number
+  stitchHoleDefaults: import('../cad/cad-types').StitchHoleDefaults
+  stitchPitchMm: number
+  stitchVariablePitchStartMm: number
+  stitchVariablePitchEndMm: number
+  stitchAutoPitchSettings: import('../editor-types').StitchAutoPitchSettings
+  showStitchSequenceLabels: boolean
+}
+
+export type EditorWorkbenchState = {
+  workspaceMode: WorkspaceMode
+  secondaryPreviewMode: SecondaryPreviewMode
+  workbenchRibbonTab: WorkbenchRibbonTab
+}

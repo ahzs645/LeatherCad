@@ -1,8 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   DocFile,
-  PatternPiece,
-  PiecePlacementLabel,
   Shape,
 } from './cad/cad-types'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
@@ -35,18 +33,6 @@ import {
   DEFAULT_EXPORT_ROLE_FILTERS,
 } from './editor-constants'
 import { detectOutlines, type OutlineChain } from './ops/outline-detection'
-import {
-  createDefaultPatternPiece,
-  createDefaultPieceGrainline,
-  createDefaultPieceLabels,
-  createDefaultPiecePlacementLabel,
-  createDefaultPieceSeamAllowance,
-  getPatternPieceChain,
-} from './ops/pattern-piece-ops'
-import { clamp, getBounds } from './cad/cad-geometry'
-import { buildAnnotationExportShapes } from './ops/annotation-export-shapes'
-import { openPrintTilesWindow } from './preview/print-output'
-import { buildPrintPlan } from './preview/print-preview'
 import type {
   ResolvedThemeMode,
 } from './editor-types'
@@ -129,6 +115,10 @@ import {
   WorkbenchThreePreviewViewport,
 } from './workbench/WorkbenchThreePreview'
 import { useWorkbenchThreePreviewController } from './workbench/useWorkbenchThreePreviewController'
+import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
+import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
+import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
+import { useEditorCanvasPaneProps } from './view-models/useEditorCanvasPaneProps'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
@@ -1220,379 +1210,77 @@ export function EditorApp() {
 
   const selectedEditableShape =
     selectedShapeIds.length === 1 ? (shapesById[selectedShapeIds[0]] ?? null) : null
-  const selectedShapes = useMemo(
-    () => selectedShapeIds.map((shapeId) => shapesById[shapeId]).filter((shape): shape is Shape => shape !== undefined),
-    [selectedShapeIds, shapesById],
-  )
-  const selectionBounds = useMemo(() => {
-    if (selectedShapes.length === 0) return null
-    const bounds = getBounds(selectedShapes)
-    return { width: bounds.width - 200, height: bounds.height - 200 }
-  }, [selectedShapes])
-  const selectedPatternPiece = useMemo(() => {
-    if (selectedShapeIds.length !== 1) {
-      return null
-    }
-    const selectedShapeId = selectedShapeIds[0]
-    return (
-      patternPieces.find(
-        (piece) => piece.boundaryShapeId === selectedShapeId || piece.internalShapeIds.includes(selectedShapeId),
-      ) ?? null
-    )
-  }, [selectedShapeIds, patternPieces])
-  const selectedPieceGrainline = useMemo(
-    () => (selectedPatternPiece ? pieceGrainlines.find((entry) => entry.pieceId === selectedPatternPiece.id) ?? null : null),
-    [selectedPatternPiece, pieceGrainlines],
-  )
-  const selectedPieceLabel = useMemo(
-    () =>
-      selectedPatternPiece
-        ? pieceLabels.find((entry) => entry.pieceId === selectedPatternPiece.id && entry.kind === 'piece') ?? null
-        : null,
-    [selectedPatternPiece, pieceLabels],
-  )
-  const selectedPatternLabel = useMemo(
-    () =>
-      selectedPatternPiece
-        ? pieceLabels.find((entry) => entry.pieceId === selectedPatternPiece.id && entry.kind === 'pattern') ?? null
-        : null,
-    [selectedPatternPiece, pieceLabels],
-  )
-  const selectedPieceSeamAllowance = useMemo(
-    () => (selectedPatternPiece ? seamAllowances.find((entry) => entry.pieceId === selectedPatternPiece.id) ?? null : null),
-    [selectedPatternPiece, seamAllowances],
-  )
-  const selectedPieceSeamConnections = useMemo(
-    () =>
-      selectedPatternPiece
-        ? seamConnections
-            .filter(
-              (connection) =>
-                connection.from.pieceId === selectedPatternPiece.id || connection.to.pieceId === selectedPatternPiece.id,
-            )
-            .map((connection) => {
-              const counterpartId =
-                connection.from.pieceId === selectedPatternPiece.id ? connection.to.pieceId : connection.from.pieceId
-              return {
-                connection,
-                counterpartPieceName: patternPiecesById[counterpartId]?.name ?? 'Unknown piece',
-              }
-            })
-        : [],
-    [selectedPatternPiece, seamConnections, patternPiecesById],
-  )
-  const selectedPieceNotches = useMemo(
-    () => (selectedPatternPiece ? pieceNotches.filter((entry) => entry.pieceId === selectedPatternPiece.id) : []),
-    [selectedPatternPiece, pieceNotches],
-  )
-  const selectedPiecePlacementLabels = useMemo(
-    () => (selectedPatternPiece ? piecePlacementLabels.filter((entry) => entry.pieceId === selectedPatternPiece.id) : []),
-    [selectedPatternPiece, piecePlacementLabels],
-  )
-  const selectedPieceInternalShapeIdSet = useMemo(
-    () => new Set(selectedPatternPiece?.internalShapeIds ?? []),
-    [selectedPatternPiece],
-  )
-  const selectedPatternPieceEdgeCount = useMemo(() => {
-    if (!selectedPatternPiece) {
-      return 0
-    }
-    const chain = getPatternPieceChain(selectedPatternPiece, patternPieceChains.byShapeId)
-    return chain ? Math.max(0, chain.polygon.length - 1) : 0
-  }, [selectedPatternPiece, patternPieceChains.byShapeId])
-  const pieceEdgeLabels = useMemo(() => {
-    if (!(tool === 'seam' || showPieceInspectorModal)) {
-      return []
-    }
+  const {
+    selectedShapes,
+    selectionBounds,
+    selectedPatternPiece,
+    selectedPieceGrainline,
+    selectedPieceLabel,
+    selectedPatternLabel,
+    selectedPieceSeamAllowance,
+    selectedPieceSeamConnections,
+    selectedPieceNotches,
+    selectedPiecePlacementLabels,
+    selectedPieceInternalShapeIdSet,
+    selectedPatternPieceEdgeCount,
+    pieceEdgeLabels,
+    selectedPieceAvailableInternalShapes,
+  } = usePatternPieceSelection({
+    isPieceInspectorOpen: showPieceInspectorModal,
+    tool,
+    selectedShapeIds,
+    shapesById,
+    shapes,
+    patternPieces,
+    patternPiecesById,
+    patternPieceByBoundaryShapeId,
+    patternPieceChains,
+    pieceGrainlines,
+    pieceLabels,
+    seamAllowances,
+    seamConnections,
+    pieceNotches,
+    piecePlacementLabels,
+    visibleLayerIdSet,
+  })
 
-    return patternPieces
-      .filter((piece) => visibleLayerIdSet.has(piece.layerId))
-      .flatMap((piece) => {
-        const chain = getPatternPieceChain(piece, patternPieceChains.byShapeId)
-        if (!chain) {
-          return []
-        }
-        return chain.polygon.slice(0, -1).map((point, index) => {
-          const next = chain.polygon[index + 1]
-          return {
-            id: `${piece.id}-edge-${index}`,
-            x: (point.x + next.x) / 2,
-            y: (point.y + next.y) / 2,
-            label: `${index + 1}`,
-            active: piece.id === selectedPatternPiece?.id,
-          }
-        })
-      })
-  }, [tool, showPieceInspectorModal, patternPieces, visibleLayerIdSet, patternPieceChains.byShapeId, selectedPatternPiece])
-  const selectedPieceAvailableInternalShapes = useMemo(() => {
-    if (!selectedPatternPiece) {
-      return []
-    }
-    const otherBoundaryShapeIdSet = new Set(
-      patternPieces
-        .filter((piece) => piece.id !== selectedPatternPiece.id)
-        .map((piece) => piece.boundaryShapeId),
-    )
-    return shapes.filter(
-      (shape) =>
-        shape.layerId === selectedPatternPiece.layerId &&
-        shape.id !== selectedPatternPiece.boundaryShapeId &&
-        !otherBoundaryShapeIdSet.has(shape.id),
-    )
-  }, [selectedPatternPiece, patternPieces, shapes])
-
-  const ensurePatternPieceSupportRecords = (piece: PatternPiece) => {
-    if (!pieceGrainlines.some((entry) => entry.pieceId === piece.id)) {
-      setPieceGrainlines((previous) => [...previous, createDefaultPieceGrainline(piece.id)])
-    }
-    if (!pieceLabels.some((entry) => entry.pieceId === piece.id && entry.kind === 'piece')) {
-      const defaultPieceLabel = createDefaultPieceLabels(piece).find((entry) => entry.kind === 'piece')
-      if (defaultPieceLabel) {
-        setPieceLabels((previous) => [...previous, defaultPieceLabel])
-      }
-    }
-    if (!pieceLabels.some((entry) => entry.pieceId === piece.id && entry.kind === 'pattern')) {
-      const defaultPatternLabel = createDefaultPieceLabels(piece).find((entry) => entry.kind === 'pattern')
-      if (defaultPatternLabel) {
-        setPieceLabels((previous) => [...previous, defaultPatternLabel])
-      }
-    }
-    if (!seamAllowances.some((entry) => entry.pieceId === piece.id)) {
-      setSeamAllowances((previous) => [...previous, createDefaultPieceSeamAllowance(piece.id)])
-    }
-  }
-
-  const openSelectedPatternPieceInspector = () => {
-    if (!selectedPatternPiece) {
-      setStatus('Select a pattern piece first')
-      return
-    }
-    ensurePatternPieceSupportRecords(selectedPatternPiece)
-    if (isMobileLayout) {
-      setShowPieceInspectorModal(true)
-    } else {
-      setActiveInspectorTab('piece')
-    }
-  }
-
-  const handleCreatePatternPieceFromSelection = () => {
-    if (selectedShapeIds.length !== 1) {
-      setStatus('Select exactly one closed outline to create a pattern piece')
-      return
-    }
-    const boundaryShapeId = selectedShapeIds[0]
-    const boundaryShape = shapesById[boundaryShapeId]
-    if (!boundaryShape) {
-      setStatus('Selected outline could not be resolved')
-      return
-    }
-    const existingPiece = patternPieceByBoundaryShapeId[boundaryShapeId]
-    if (existingPiece) {
-      ensurePatternPieceSupportRecords(existingPiece)
-      if (isMobileLayout) {
-        setShowPieceInspectorModal(true)
-      } else {
-        setActiveInspectorTab('piece')
-      }
-      setStatus('Pattern piece already exists for this boundary')
-      return
-    }
-    const chain = patternPieceChains.byShapeId.get(boundaryShapeId)
-    if (!chain?.isClosed) {
-      setStatus('Pattern pieces require a closed outline boundary')
-      return
-    }
-
-    const piece = createDefaultPatternPiece(boundaryShapeId, boundaryShape.layerId, `Piece ${patternPieces.length + 1}`)
-    setPatternPieces((previous) => [...previous, piece])
-    setPieceGrainlines((previous) => [...previous, createDefaultPieceGrainline(piece.id)])
-    setPieceLabels((previous) => [...previous, ...createDefaultPieceLabels(piece)])
-    setSeamAllowances((previous) => [...previous, createDefaultPieceSeamAllowance(piece.id)])
-    if (isMobileLayout) {
-      setShowPieceInspectorModal(true)
-    } else {
-      setActiveInspectorTab('piece')
-    }
-    setStatus(`Created pattern piece "${piece.name}"`)
-  }
-
-  const handleUpdateSelectedPatternPiece = (patch: Partial<PatternPiece>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPatternPieces((previous) =>
-      previous.map((piece) =>
-        piece.id === selectedPatternPiece.id
-          ? {
-              ...piece,
-              ...patch,
-            }
-          : piece,
-      ),
-    )
-  }
-
-  const handleToggleSelectedPieceInternalShape = (shapeId: string, included: boolean) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPatternPieces((previous) =>
-      previous.map((piece) => {
-        if (piece.id !== selectedPatternPiece.id) {
-          return piece
-        }
-        const internalShapeIds = included
-          ? Array.from(new Set([...piece.internalShapeIds, shapeId]))
-          : piece.internalShapeIds.filter((entry) => entry !== shapeId)
-        return {
-          ...piece,
-          internalShapeIds,
-        }
-      }),
-    )
-  }
-
-  const updateSelectedLabel = (kind: 'piece' | 'pattern', patch: Partial<(typeof pieceLabels)[number]>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPieceLabels((previous) =>
-      previous.map((label) =>
-        label.pieceId === selectedPatternPiece.id && label.kind === kind
-          ? {
-              ...label,
-              ...patch,
-            }
-          : label,
-      ),
-    )
-  }
-
-  const handleUpdateSelectedPieceGrainline = (patch: Partial<(typeof pieceGrainlines)[number]>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPieceGrainlines((previous) =>
-      previous.map((entry) =>
-        entry.pieceId === selectedPatternPiece.id
-          ? {
-              ...entry,
-              ...patch,
-            }
-          : entry,
-      ),
-    )
-  }
-
-  const handleUpdateSelectedPieceSeamAllowance = (patch: Partial<(typeof seamAllowances)[number]>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    const nextEdgeOverrides = Array.isArray(patch.edgeOverrides)
-      ? patch.edgeOverrides
-          .map((entry) => ({
-            edgeIndex: Math.max(0, Math.min(Math.max(0, selectedPatternPieceEdgeCount - 1), Math.round(entry.edgeIndex))),
-            offsetMm: Math.max(0.1, entry.offsetMm),
-          }))
-          .sort((left, right) => left.edgeIndex - right.edgeIndex)
-      : undefined
-    setSeamAllowances((previous) =>
-      previous.map((entry) =>
-        entry.pieceId === selectedPatternPiece.id
-          ? {
-              ...entry,
-              ...patch,
-              edgeOverrides: nextEdgeOverrides ?? entry.edgeOverrides,
-            }
-          : entry,
-      ),
-    )
-  }
-
-  const handleUpdateSelectedPieceSeamConnection = (connectionId: string, patch: Partial<(typeof seamConnections)[number]>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setSeamConnections((previous) =>
-      previous.map((connection) => {
-        if (
-          connection.id !== connectionId ||
-          (connection.from.pieceId !== selectedPatternPiece.id && connection.to.pieceId !== selectedPatternPiece.id)
-        ) {
-          return connection
-        }
-        return {
-          ...connection,
-          ...patch,
-          stitchSpacingMm:
-            'stitchSpacingMm' in patch
-              ? typeof patch.stitchSpacingMm === 'number'
-                ? Math.max(0, patch.stitchSpacingMm)
-                : undefined
-              : connection.stitchSpacingMm,
-        }
-      }),
-    )
-  }
-
-  const handleUpdateSelectedPieceNotch = (notchId: string, patch: Partial<(typeof pieceNotches)[number]>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPieceNotches((previous) =>
-      previous.map((entry) => {
-        if (entry.id !== notchId || entry.pieceId !== selectedPatternPiece.id) {
-          return entry
-        }
-        return {
-          ...entry,
-          ...patch,
-          edgeIndex:
-            typeof patch.edgeIndex === 'number'
-              ? Math.max(0, Math.min(Math.max(0, selectedPatternPieceEdgeCount - 1), Math.round(patch.edgeIndex)))
-              : entry.edgeIndex,
-          t: typeof patch.t === 'number' ? clamp(patch.t, 0, 1) : entry.t,
-          lengthMm: typeof patch.lengthMm === 'number' ? Math.max(0.5, patch.lengthMm) : entry.lengthMm,
-          widthMm: typeof patch.widthMm === 'number' ? Math.max(0, patch.widthMm) : entry.widthMm,
-        }
-      }),
-    )
-  }
-
-  const handleAddSelectedPiecePlacementLabel = () => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPiecePlacementLabels((previous) => [...previous, createDefaultPiecePlacementLabel(selectedPatternPiece.id)])
-  }
-
-  const handleUpdateSelectedPiecePlacementLabel = (labelId: string, patch: Partial<PiecePlacementLabel>) => {
-    if (!selectedPatternPiece) {
-      return
-    }
-    setPiecePlacementLabels((previous) =>
-      previous.map((entry) => {
-        if (entry.id !== labelId || entry.pieceId !== selectedPatternPiece.id) {
-          return entry
-        }
-        return {
-          ...entry,
-          ...patch,
-          edgeIndex:
-            typeof patch.edgeIndex === 'number'
-              ? Math.max(0, Math.min(Math.max(0, selectedPatternPieceEdgeCount - 1), Math.round(patch.edgeIndex)))
-              : entry.edgeIndex,
-          t: typeof patch.t === 'number' ? clamp(patch.t, 0, 1) : entry.t,
-          widthMm: typeof patch.widthMm === 'number' ? Math.max(0.5, patch.widthMm) : entry.widthMm,
-          heightMm: typeof patch.heightMm === 'number' ? Math.max(0.5, patch.heightMm) : entry.heightMm,
-        }
-      }),
-    )
-  }
-
-  const handleDeleteSelectedPiecePlacementLabel = (labelId: string) => {
-    setPiecePlacementLabels((previous) => previous.filter((entry) => entry.id !== labelId))
-  }
+  const {
+    ensurePatternPieceSupportRecords,
+    openSelectedPatternPieceInspector,
+    handleCreatePatternPieceFromSelection,
+    handleUpdateSelectedPatternPiece,
+    handleToggleSelectedPieceInternalShape,
+    updateSelectedLabel,
+    handleUpdateSelectedPieceGrainline,
+    handleUpdateSelectedPieceSeamAllowance,
+    handleUpdateSelectedPieceSeamConnection,
+    handleUpdateSelectedPieceNotch,
+    handleAddSelectedPiecePlacementLabel,
+    handleUpdateSelectedPiecePlacementLabel,
+    handleDeleteSelectedPiecePlacementLabel,
+  } = usePatternPieceCommands({
+    isMobileLayout,
+    selectedShapeIds,
+    shapesById,
+    patternPieces,
+    patternPieceByBoundaryShapeId,
+    patternPieceChainsByShapeId: patternPieceChains.byShapeId,
+    selectedPatternPiece,
+    selectedPatternPieceEdgeCount,
+    pieceGrainlines,
+    pieceLabels,
+    seamAllowances,
+    setPatternPieces,
+    setPieceGrainlines,
+    setPieceLabels,
+    setSeamAllowances,
+    setSeamConnections,
+    setPieceNotches,
+    setPiecePlacementLabels,
+    setShowPieceInspectorModal,
+    setActiveInspectorTab,
+    setStatus,
+  })
 
   const handleUpdateSelectedShapePoint = (
     pointKey: 'start' | 'mid' | 'control' | 'end',
@@ -1958,79 +1646,37 @@ export function EditorApp() {
     setDxfVersion('r12')
   }
 
-  const annotationLineTypeId = useMemo(
-    () => lineTypes.find((lineType) => lineType.role === 'mark')?.id ?? lineTypes[0]?.id ?? activeLineTypeId,
-    [lineTypes, activeLineTypeId],
-  )
-  const printableAnnotationShapes = useMemo(
-    () =>
-      buildAnnotationExportShapes({
-        showAnnotations,
-        onlySelected: printSelectedOnly,
-        selectedShapeIdSet,
-        patternPiecesById,
-        annotationLabels,
-        pieceGrainlineSegments,
-        pieceNotchLines,
-        piecePlacementGuides,
-        fallbackLayerId: activeLayerId,
-        annotationLineTypeId,
-      }),
-    [
-      showAnnotations,
-      printSelectedOnly,
-      selectedShapeIdSet,
-      patternPiecesById,
-      annotationLabels,
-      pieceGrainlineSegments,
-      pieceNotchLines,
-      piecePlacementGuides,
-      activeLayerId,
-      annotationLineTypeId,
-    ],
-  )
-  const printOutputShapes = useMemo(
-    () => [...printableShapes, ...printableAnnotationShapes],
-    [printableShapes, printableAnnotationShapes],
-  )
-  const printOutputPlan = useMemo(
-    () =>
-      buildPrintPlan(printOutputShapes, {
-        paper: printPaper,
-        marginMm: printMarginMm,
-        overlapMm: printOverlapMm,
-        tileX: printTileX,
-        tileY: printTileY,
-        scalePercent: printScalePercent,
-      }),
-    [printOutputShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
-  )
-
-  const handleOpenPrintTiles = () => {
-    if (!printOutputPlan || printOutputShapes.length === 0) {
-      setStatus('No printable content available')
-      return
-    }
-
-    const opened = openPrintTilesWindow({
-      shapes: printOutputShapes,
-      foldLines,
-      lineTypesById,
-      printPlan: printOutputPlan,
-      printInColor,
-      printStitchAsDots,
-      printRulerInside,
-      calibrationXPercent: printCalibrationXPercent,
-      calibrationYPercent: printCalibrationYPercent,
-    })
-
-    if (!opened) {
-      setStatus('Could not open print window (popup may be blocked)')
-      return
-    }
-
-    setStatus(`Opened printable tiles (${printOutputPlan.tiles.length} page${printOutputPlan.tiles.length === 1 ? '' : 's'})`)
-  }
+  const {
+    printOutputPlan,
+    handleOpenPrintTiles,
+  } = usePrintPreviewState({
+    lineTypes,
+    activeLineTypeId,
+    activeLayerId,
+    showAnnotations,
+    printSelectedOnly,
+    selectedShapeIdSet,
+    patternPiecesById,
+    annotationLabels,
+    pieceGrainlineSegments,
+    pieceNotchLines,
+    piecePlacementGuides,
+    printableShapes,
+    printPaper,
+    printMarginMm,
+    printOverlapMm,
+    printTileX,
+    printTileY,
+    printScalePercent,
+    foldLines,
+    lineTypesById,
+    printInColor,
+    printStitchAsDots,
+    printRulerInside,
+    printCalibrationXPercent,
+    printCalibrationYPercent,
+    setStatus,
+  })
 
   const {
     workspaceClassName,
@@ -2911,72 +2557,73 @@ export function EditorApp() {
     })
   }
 
+  const canvasPaneProps = useEditorCanvasPaneProps({
+    hideCanvasPane: false,
+    svgRef,
+    onPointerDown: handlePointerDown,
+    onPointerMove: handlePointerMove,
+    onPointerUp: handlePointerUp,
+    viewport,
+    displayUnit,
+    gridSpacing,
+    showCanvasRuler,
+    showDimensions,
+    onZoomOut: () => handleZoomStep(0.85),
+    onZoomIn: () => handleZoomStep(1.15),
+    onFitView: handleFitView,
+    onResetView: handleResetView,
+    tracingOverlays,
+    showPrintAreas,
+    dimensionLines,
+    printPlan: printOutputPlan,
+    seamGuides,
+    pieceEdgeLabels,
+    showAnnotations,
+    pieceGrainlineSegments,
+    pieceNotchLines,
+    piecePlacementGuides,
+    visibleShapes: workspaceEditableShapes,
+    linkedShapes: workspaceLinkedShapes,
+    sketchWorkspaceMode,
+    lineTypes,
+    lineTypesById,
+    selectedShapeIdSet,
+    stitchStrokeColor,
+    foldStrokeColor,
+    cutStrokeColor,
+    displayLayerColorsById,
+    onShapePointerDown: handleShapePointerDown,
+    onShapeHandlePointerDown: handleShapeHandlePointerDown,
+    showShapeHandles: tool === 'pan',
+    visibleStitchHoles: workspaceStitchHoles,
+    selectedStitchHoleId,
+    showStitchSequenceLabels,
+    onStitchHolePointerDown: handleStitchHolePointerDown,
+    simulatedStitchSegments:
+      stitchSimulatorSettings.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : [],
+    stitchSimulatorSettings,
+    stitchSimulatorTerminalHoleId: stitchSimulatorResult?.terminalHoleId ?? null,
+    visibleHardwareMarkers: workspaceHardwareMarkers,
+    selectedHardwareMarkerId,
+    onHardwarePointerDown: handleHardwarePointerDown,
+    foldLines,
+    annotationLabels,
+    constraintSuggestions,
+    previewElement,
+    interactionPreview,
+    showLayerLegend,
+    legendMode,
+    onSetLegendMode: setLegendMode,
+    layers,
+    layerColorsById,
+    fallbackLayerStroke,
+    stackLegendEntries,
+    outlineChains,
+  })
+
   const workbenchTwoDPane = (
     <ErrorBoundary>
-      <EditorCanvasPane
-        hideCanvasPane={false}
-        svgRef={svgRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        viewport={viewport}
-        displayUnit={displayUnit}
-        gridSpacing={gridSpacing}
-        showCanvasRuler={showCanvasRuler}
-        showDimensions={showDimensions}
-        onZoomOut={() => handleZoomStep(0.85)}
-        onZoomIn={() => handleZoomStep(1.15)}
-        onFitView={handleFitView}
-        onResetView={handleResetView}
-        tracingOverlays={tracingOverlays}
-        showPrintAreas={showPrintAreas}
-        dimensionLines={dimensionLines}
-        printPlan={printOutputPlan}
-        seamGuides={seamGuides}
-        pieceEdgeLabels={pieceEdgeLabels}
-        showAnnotations={showAnnotations}
-        pieceGrainlineSegments={pieceGrainlineSegments}
-        pieceNotchLines={pieceNotchLines}
-        piecePlacementGuides={piecePlacementGuides}
-        visibleShapes={workspaceEditableShapes}
-        linkedShapes={workspaceLinkedShapes}
-        sketchWorkspaceMode={sketchWorkspaceMode}
-        lineTypes={lineTypes}
-        lineTypesById={lineTypesById}
-        selectedShapeIdSet={selectedShapeIdSet}
-        stitchStrokeColor={stitchStrokeColor}
-        foldStrokeColor={foldStrokeColor}
-        cutStrokeColor={cutStrokeColor}
-        displayLayerColorsById={displayLayerColorsById}
-        onShapePointerDown={handleShapePointerDown}
-        onShapeHandlePointerDown={handleShapeHandlePointerDown}
-        showShapeHandles={tool === 'pan'}
-        visibleStitchHoles={workspaceStitchHoles}
-        selectedStitchHoleId={selectedStitchHoleId}
-        showStitchSequenceLabels={showStitchSequenceLabels}
-        onStitchHolePointerDown={handleStitchHolePointerDown}
-        simulatedStitchSegments={
-          stitchSimulatorSettings.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : []
-        }
-        stitchSimulatorSettings={stitchSimulatorSettings}
-        stitchSimulatorTerminalHoleId={stitchSimulatorResult?.terminalHoleId ?? null}
-        visibleHardwareMarkers={workspaceHardwareMarkers}
-        selectedHardwareMarkerId={selectedHardwareMarkerId}
-        onHardwarePointerDown={handleHardwarePointerDown}
-        foldLines={foldLines}
-        annotationLabels={annotationLabels}
-        constraintSuggestions={constraintSuggestions}
-        previewElement={previewElement}
-        interactionPreview={interactionPreview}
-        showLayerLegend={showLayerLegend}
-        legendMode={legendMode}
-        onSetLegendMode={setLegendMode}
-        layers={layers}
-        layerColorsById={layerColorsById}
-        fallbackLayerStroke={fallbackLayerStroke}
-        stackLegendEntries={stackLegendEntries}
-        outlineChains={outlineChains}
-      />
+      <EditorCanvasPane {...canvasPaneProps} />
     </ErrorBoundary>
   )
 
@@ -3122,70 +2769,7 @@ export function EditorApp() {
           <main ref={workspaceRef} className={workspaceClassName}>
             <div className="canvas-stage">
               <ErrorBoundary>
-                <EditorCanvasPane
-                  hideCanvasPane={hideCanvasPane}
-                  svgRef={svgRef}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  viewport={viewport}
-                  displayUnit={displayUnit}
-                  gridSpacing={gridSpacing}
-                  showCanvasRuler={showCanvasRuler}
-                  showDimensions={showDimensions}
-                  onZoomOut={() => handleZoomStep(0.85)}
-                  onZoomIn={() => handleZoomStep(1.15)}
-                  onFitView={handleFitView}
-                  onResetView={handleResetView}
-                  tracingOverlays={tracingOverlays}
-                  showPrintAreas={showPrintAreas}
-                  dimensionLines={dimensionLines}
-                  printPlan={printOutputPlan}
-                  seamGuides={seamGuides}
-                  pieceEdgeLabels={pieceEdgeLabels}
-                  showAnnotations={showAnnotations}
-                  pieceGrainlineSegments={pieceGrainlineSegments}
-                  pieceNotchLines={pieceNotchLines}
-                  piecePlacementGuides={piecePlacementGuides}
-                  visibleShapes={workspaceEditableShapes}
-                  linkedShapes={workspaceLinkedShapes}
-                  sketchWorkspaceMode={sketchWorkspaceMode}
-                  lineTypes={lineTypes}
-                  lineTypesById={lineTypesById}
-                  selectedShapeIdSet={selectedShapeIdSet}
-                  stitchStrokeColor={stitchStrokeColor}
-                  foldStrokeColor={foldStrokeColor}
-                  cutStrokeColor={cutStrokeColor}
-                  displayLayerColorsById={displayLayerColorsById}
-                  onShapePointerDown={handleShapePointerDown}
-                  onShapeHandlePointerDown={handleShapeHandlePointerDown}
-                  showShapeHandles={tool === 'pan'}
-                  visibleStitchHoles={workspaceStitchHoles}
-                  selectedStitchHoleId={selectedStitchHoleId}
-                  showStitchSequenceLabels={showStitchSequenceLabels}
-                  onStitchHolePointerDown={handleStitchHolePointerDown}
-                  simulatedStitchSegments={
-                    stitchSimulatorSettings.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : []
-                  }
-                  stitchSimulatorSettings={stitchSimulatorSettings}
-                  stitchSimulatorTerminalHoleId={stitchSimulatorResult?.terminalHoleId ?? null}
-                  visibleHardwareMarkers={workspaceHardwareMarkers}
-                  selectedHardwareMarkerId={selectedHardwareMarkerId}
-                  onHardwarePointerDown={handleHardwarePointerDown}
-                  foldLines={foldLines}
-                  annotationLabels={annotationLabels}
-                  constraintSuggestions={constraintSuggestions}
-                  previewElement={previewElement}
-                  interactionPreview={interactionPreview}
-                  showLayerLegend={showLayerLegend}
-                  legendMode={legendMode}
-                  onSetLegendMode={setLegendMode}
-                  layers={layers}
-                  layerColorsById={layerColorsById}
-                  fallbackLayerStroke={fallbackLayerStroke}
-                  stackLegendEntries={stackLegendEntries}
-                  outlineChains={outlineChains}
-                />
+                <EditorCanvasPane {...canvasPaneProps} hideCanvasPane={hideCanvasPane} />
               </ErrorBoundary>
             </div>
 

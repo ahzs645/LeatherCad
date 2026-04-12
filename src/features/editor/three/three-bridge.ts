@@ -21,6 +21,19 @@ import { buildOutlineRegions } from './outline-regions'
 import { isPhysicalCutShape, shouldUseOutlineRegions } from './physical-layer-heuristics'
 import { buildPhysicalLayerRegions } from './physical-layer-regions'
 import { buildPieceMeshes, createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
+import { clearGroup, disposeObjectGraph } from './bridge/scene-lifecycle'
+import { loadTexture } from './bridge/texture-utils'
+import {
+  clipPolygonByLine,
+  distanceToFoldAxisInWorld,
+  ensureMinSpan,
+  lineIntersectionOnSegment,
+  padBounds,
+  polygonBounds,
+  segmentLengthSquared,
+  sideOfLine,
+  type Bounds2,
+} from './bridge/geometry-utils'
 
 export type OutlinePolygon = {
   polygon: Point[]
@@ -38,13 +51,6 @@ type ShapeSegment = {
   start: THREE.Vector2
   end: THREE.Vector2
   color: string
-}
-
-type Bounds2 = {
-  minX: number
-  maxX: number
-  minY: number
-  maxY: number
 }
 
 type Bounds3 = {
@@ -67,158 +73,6 @@ const COLLISION_CHECK_CUTOFF_DEG = 90
 const MIN_OVERLAP_AREA_WORLD = 0.00002
 const MIN_OVERLAP_HEIGHT_WORLD = 0.00045
 const DEFAULT_THICKNESS_WORLD = 0.005
-
-function disposeObjectGraph(root: THREE.Object3D, preservedMaterials: Set<THREE.Material>) {
-  root.traverse((object) => {
-    const meshLike = object as THREE.Mesh
-    if ('geometry' in meshLike && meshLike.geometry instanceof THREE.BufferGeometry) {
-      meshLike.geometry.dispose()
-    }
-
-    if ('material' in meshLike) {
-      const material = meshLike.material
-      if (Array.isArray(material)) {
-        for (const entry of material) {
-          if (!preservedMaterials.has(entry)) {
-            entry.dispose()
-          }
-        }
-      } else if (material instanceof THREE.Material && !preservedMaterials.has(material)) {
-        material.dispose()
-      }
-    }
-  })
-}
-
-function clearGroup(group: THREE.Group, preservedMaterials: Set<THREE.Material>) {
-  while (group.children.length > 0) {
-    const child = group.children[0]
-    group.remove(child)
-    disposeObjectGraph(child, preservedMaterials)
-  }
-}
-
-function loadTexture(loader: THREE.TextureLoader, url: string): Promise<THREE.Texture> {
-  return new Promise((resolve, reject) => {
-    loader.load(
-      url,
-      (texture: THREE.Texture) => resolve(texture),
-      undefined,
-      (error: unknown) => reject(error instanceof Error ? error : new Error('Texture load failed')),
-    )
-  })
-}
-
-function sideOfLine(point: THREE.Vector2, lineStart: THREE.Vector2, lineEnd: THREE.Vector2) {
-  const direction = lineEnd.clone().sub(lineStart)
-  return direction.x * (point.y - lineStart.y) - direction.y * (point.x - lineStart.x)
-}
-
-function polygonBounds(points: THREE.Vector2[]): Bounds2 {
-  let minX = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-
-  for (const point of points) {
-    minX = Math.min(minX, point.x)
-    maxX = Math.max(maxX, point.x)
-    minY = Math.min(minY, point.y)
-    maxY = Math.max(maxY, point.y)
-  }
-
-  return { minX, maxX, minY, maxY }
-}
-
-function padBounds(bounds: Bounds2, padding: number) {
-  return {
-    minX: bounds.minX - padding,
-    maxX: bounds.maxX + padding,
-    minY: bounds.minY - padding,
-    maxY: bounds.maxY + padding,
-  }
-}
-
-function ensureMinSpan(bounds: Bounds2, minSpan: number) {
-  const width = bounds.maxX - bounds.minX
-  const height = bounds.maxY - bounds.minY
-  const halfWidth = Math.max(width, minSpan) / 2
-  const halfHeight = Math.max(height, minSpan) / 2
-  const centerX = (bounds.minX + bounds.maxX) / 2
-  const centerY = (bounds.minY + bounds.maxY) / 2
-
-  return {
-    minX: centerX - halfWidth,
-    maxX: centerX + halfWidth,
-    minY: centerY - halfHeight,
-    maxY: centerY + halfHeight,
-  }
-}
-
-function clipPolygonByLine(points: THREE.Vector2[], lineStart: THREE.Vector2, lineEnd: THREE.Vector2, keepPositive: boolean) {
-  if (points.length === 0) {
-    return [] as THREE.Vector2[]
-  }
-
-  const result: THREE.Vector2[] = []
-  const sideCheck = (value: number) => (keepPositive ? value >= -EPSILON : value <= EPSILON)
-
-  for (let index = 0; index < points.length; index += 1) {
-    const current = points[index]
-    const next = points[(index + 1) % points.length]
-    const currentSide = sideOfLine(current, lineStart, lineEnd)
-    const nextSide = sideOfLine(next, lineStart, lineEnd)
-    const currentInside = sideCheck(currentSide)
-    const nextInside = sideCheck(nextSide)
-
-    if (currentInside && nextInside) {
-      result.push(next.clone())
-      continue
-    }
-
-    if (currentInside && !nextInside) {
-      const denominator = currentSide - nextSide
-      if (Math.abs(denominator) > EPSILON) {
-        const t = currentSide / denominator
-        result.push(current.clone().lerp(next, t))
-      }
-      continue
-    }
-
-    if (!currentInside && nextInside) {
-      const denominator = currentSide - nextSide
-      if (Math.abs(denominator) > EPSILON) {
-        const t = currentSide / denominator
-        result.push(current.clone().lerp(next, t))
-      }
-      result.push(next.clone())
-    }
-  }
-
-  return result
-}
-
-function segmentLengthSquared(a: THREE.Vector2, b: THREE.Vector2) {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  return dx * dx + dy * dy
-}
-
-function lineIntersectionOnSegment(a: THREE.Vector2, b: THREE.Vector2, sideA: number, sideB: number) {
-  const denominator = sideA - sideB
-  if (Math.abs(denominator) <= EPSILON) {
-    return null
-  }
-
-  const t = sideA / denominator
-  return a.clone().lerp(b, t)
-}
-
-function distanceToFoldAxisInWorld(point: THREE.Vector3, foldAxisPoint: THREE.Vector2, foldAxisDirection: THREE.Vector3) {
-  const dx = point.x - foldAxisPoint.x
-  const dz = point.z - foldAxisPoint.y
-  return Math.abs(dx * -foldAxisDirection.z + dz * foldAxisDirection.x)
-}
 
 export class ThreeBridge {
   private canvas: HTMLCanvasElement
