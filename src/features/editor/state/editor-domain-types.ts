@@ -24,7 +24,9 @@ import type {
   TracingOverlay,
 } from '../cad/cad-types'
 import type {
+  DxfVersion,
   DesktopRibbonTab,
+  ExportRoleFilters,
   LegendMode,
   MobileFileAction,
   MobileLayerAction,
@@ -32,10 +34,12 @@ import type {
   MobileViewMode,
   ResolvedThemeMode,
   SketchWorkspaceMode,
+  StitchHoleExportRenderMode,
   ThemeMode,
 } from '../editor-types'
 import type { ClipboardPayload } from '../ops/shape-selection-ops'
 import type { DisplayUnit } from '../ops/unit-ops'
+import type { PrintPaper } from '../preview/print-preview'
 import type { SecondaryPreviewMode, WorkbenchRibbonTab, WorkspaceMode } from '../workbench/workbench-types'
 
 export type EditorDocumentState = {
@@ -124,6 +128,47 @@ export type EditorLayerState = {
   frontLayerColor: string
   backLayerColor: string
   layerColorOverrides: Record<string, string>
+}
+
+export type EditorPanelState = {
+  showLayerColorModal: boolean
+  showLineTypePalette: boolean
+  showExportModal: boolean
+  showExportOptionsModal: boolean
+  exportOnlySelectedShapes: boolean
+  exportOnlyVisibleLineTypes: boolean
+  exportRoleFilters: ExportRoleFilters
+  exportForceSolidStrokes: boolean
+  exportStitchHoleRenderMode: StitchHoleExportRenderMode
+  exportStitchDotRadiusMm: number
+  dxfFlipY: boolean
+  dxfVersion: DxfVersion
+  showTracingModal: boolean
+  showPatternToolsModal: boolean
+  showAiBuilderModal: boolean
+  showHelpModal: boolean
+  showTemplateRepositoryModal: boolean
+  printPaper: PrintPaper
+  printTileX: number
+  printTileY: number
+  printOverlapMm: number
+  printMarginMm: number
+  printScalePercent: number
+  printCalibrationXPercent: number
+  printCalibrationYPercent: number
+  printSelectedOnly: boolean
+  printRulerInside: boolean
+  printInColor: boolean
+  printStitchAsDots: boolean
+  showPrintAreas: boolean
+  showPrintPreviewModal: boolean
+  seamAllowanceInputMm: number
+  constraintEdge: import('../cad/cad-types').ConstraintEdge
+  constraintOffsetMm: number
+  constraintAxis: import('../cad/cad-types').ConstraintAxis
+  hardwarePreset: import('../cad/cad-types').HardwareKind
+  customHardwareDiameterMm: number
+  customHardwareSpacingMm: number
 }
 
 export type EditorToolState = {

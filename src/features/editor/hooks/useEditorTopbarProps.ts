@@ -7,13 +7,13 @@ import type {
 } from '../editor-types'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
+import { useEditorPanelActions, useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorTopbarPropsParams = {
   topbarClassName: string
   selectedShapeCount: number
   selectedStitchHoleCount: number
-  setShowHelpModal: Dispatch<SetStateAction<boolean>>
   showToolSection: boolean
   tool: Tool
   setActiveTool: (tool: Tool) => void
@@ -94,14 +94,6 @@ type UseEditorTopbarPropsParams = {
   handleExportDxf: () => void
   handleExportLaserSvg: () => void
   handleOpenInNewTab: () => void
-  setShowExportModal: Dispatch<SetStateAction<boolean>>
-  setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
-  setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
-  setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
-  setShowTracingModal: Dispatch<SetStateAction<boolean>>
-  setShowPrintPreviewModal: Dispatch<SetStateAction<boolean>>
-  showPrintAreas: boolean
-  setShowPrintAreas: Dispatch<SetStateAction<boolean>>
   resetDocument: () => void
 }
 
@@ -110,7 +102,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     topbarClassName,
     selectedShapeCount,
     selectedStitchHoleCount,
-    setShowHelpModal,
     showToolSection,
     tool,
     setActiveTool,
@@ -191,14 +182,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleExportDxf,
     handleExportLaserSvg,
     handleOpenInNewTab,
-    setShowExportModal,
-    setShowExportOptionsModal,
-    setShowPatternToolsModal,
-    setShowTemplateRepositoryModal,
-    setShowTracingModal,
-    setShowPrintPreviewModal,
-    showPrintAreas,
-    setShowPrintAreas,
     resetDocument,
   } = params
   const {
@@ -223,6 +206,19 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     layers: state.layers,
   }))
   const { setActiveLayerId } = useEditorLayerActions()
+  const { showPrintAreas } = useEditorPanelSelector((state) => ({
+    showPrintAreas: state.showPrintAreas,
+  }))
+  const {
+    setShowHelpModal,
+    setShowExportModal,
+    setShowExportOptionsModal,
+    setShowPatternToolsModal,
+    setShowTemplateRepositoryModal,
+    setShowTracingModal,
+    setShowPrintPreviewModal,
+    setShowPrintAreas,
+  } = useEditorPanelActions()
   const {
     isMobileLayout,
     desktopRibbonTab,

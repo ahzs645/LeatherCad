@@ -5,13 +5,12 @@ import {
 } from '../ops/pattern-ops'
 import { countShapesByLineType } from '../ops/line-type-ops'
 import { countStitchHolesByShape } from '../ops/stitch-hole-ops'
-import { buildPrintPlan, type PrintPaper } from '../preview/print-preview'
+import { buildPrintPlan } from '../preview/print-preview'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import type {
   AnnotationLabel,
   EditorSnapshot,
-  ExportRoleFilters,
   PiecePlacementGuide,
   ResolvedThemeMode,
   SeamGuide,
@@ -38,6 +37,7 @@ import {
 } from '../ops/pattern-piece-ops'
 import { useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
+import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorSelectionSelector } from '../state/providers/EditorSelectionStateProvider'
 import { useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
@@ -46,14 +46,6 @@ type UseEditorDerivedStateParams = {
   selectedTemplateEntryId: string | null
   historyState: HistoryState<EditorSnapshot>
   opHistory?: { past: unknown[]; future: unknown[] }
-  printSelectedOnly: boolean
-  printPaper: PrintPaper
-  printMarginMm: number
-  printOverlapMm: number
-  printTileX: number
-  printTileY: number
-  printScalePercent: number
-  exportRoleFilters: ExportRoleFilters
   themeMode: ResolvedThemeMode
 }
 
@@ -62,6 +54,9 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     templateRepository,
     selectedTemplateEntryId,
     historyState,
+    themeMode,
+  } = params
+  const {
     printSelectedOnly,
     printPaper,
     printMarginMm,
@@ -70,8 +65,16 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     printTileY,
     printScalePercent,
     exportRoleFilters,
-    themeMode,
-  } = params
+  } = useEditorPanelSelector((state) => ({
+    printSelectedOnly: state.printSelectedOnly,
+    printPaper: state.printPaper,
+    printMarginMm: state.printMarginMm,
+    printOverlapMm: state.printOverlapMm,
+    printTileX: state.printTileX,
+    printTileY: state.printTileY,
+    printScalePercent: state.printScalePercent,
+    exportRoleFilters: state.exportRoleFilters,
+  }))
   const {
     layers,
     activeLayerId,

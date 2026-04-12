@@ -1,8 +1,5 @@
 import { useMemo, type ComponentProps, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import type {
-  ConstraintAxis,
-  ConstraintEdge,
-  HardwareKind,
   HardwareMarker,
   Layer,
   Shape,
@@ -11,19 +8,17 @@ import type {
   TracingOverlay,
 } from '../cad/cad-types'
 import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-constants'
-import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 import { normalizeHexColor } from '../editor-utils'
 import { EditorModalStack } from '../components/EditorModalStack'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import type { CatalogRepositoryShop } from '../templates/catalog-repository'
-import type { PrintPaper, PrintPlan } from '../preview/print-preview'
+import type { PrintPlan } from '../preview/print-preview'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
+import { useEditorPanelActions, useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorModalStackPropsParams = {
-  showLineTypePalette: boolean
-  setShowLineTypePalette: Dispatch<SetStateAction<boolean>>
   shapeCountsByLineType: Record<string, number>
   selectedShapeCount: number
   handleShowAllLineTypes: () => void
@@ -34,18 +29,10 @@ type UseEditorModalStackPropsParams = {
   handleSelectShapesByActiveLineType: () => void
   handleAssignSelectedToActiveLineType: () => void
   handleClearShapeSelection: () => void
-  showHelpModal: boolean
-  setShowHelpModal: Dispatch<SetStateAction<boolean>>
-  showLayerColorModal: boolean
-  setShowLayerColorModal: Dispatch<SetStateAction<boolean>>
   layerColorsById: Record<string, string>
   handleSetLayerColorOverride: (layerId: string, nextColor: string) => void
   handleClearLayerColorOverride: (layerId: string) => void
   handleResetLayerColors: () => void
-  showExportModal: boolean
-  setShowExportModal: Dispatch<SetStateAction<boolean>>
-  showExportOptionsModal: boolean
-  setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
   handleSaveJson: () => void
   handleExportGarmentJson: () => void
   handleSaveLcc: () => void
@@ -54,25 +41,7 @@ type UseEditorModalStackPropsParams = {
   handleExportDxf: () => void
   handleExportLaserSvg: () => void
   activeExportRoleCount: number
-  exportOnlySelectedShapes: boolean
-  setExportOnlySelectedShapes: Dispatch<SetStateAction<boolean>>
-  exportOnlyVisibleLineTypes: boolean
-  setExportOnlyVisibleLineTypes: Dispatch<SetStateAction<boolean>>
-  exportForceSolidStrokes: boolean
-  setExportForceSolidStrokes: Dispatch<SetStateAction<boolean>>
-  exportStitchHoleRenderMode: StitchHoleExportRenderMode
-  setExportStitchHoleRenderMode: Dispatch<SetStateAction<StitchHoleExportRenderMode>>
-  exportStitchDotRadiusMm: number
-  setExportStitchDotRadiusMm: Dispatch<SetStateAction<number>>
-  exportRoleFilters: ExportRoleFilters
-  setExportRoleFilters: Dispatch<SetStateAction<ExportRoleFilters>>
-  dxfVersion: DxfVersion
-  setDxfVersion: Dispatch<SetStateAction<DxfVersion>>
-  dxfFlipY: boolean
-  setDxfFlipY: Dispatch<SetStateAction<boolean>>
   handleResetExportOptions: () => void
-  showTemplateRepositoryModal: boolean
-  setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
   templateRepository: TemplateRepositoryEntry[]
   catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntryId: string | null
@@ -89,10 +58,6 @@ type UseEditorModalStackPropsParams = {
   handleInsertTemplateIntoDocument: () => void
   handleDeleteTemplateFromRepository: (entryId: string) => void
   handleDeleteCatalogShop: (shopId: string) => void
-  showPatternToolsModal: boolean
-  setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
-  showAiBuilderModal: boolean
-  setShowAiBuilderModal: Dispatch<SetStateAction<boolean>>
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
   handleAlignSelectionToGrid: () => void
   activeLayer: Layer | null
@@ -113,19 +78,11 @@ type UseEditorModalStackPropsParams = {
   handleDeleteActiveSketchGroup: () => void
   handleSetActiveLayerAnnotation: (annotation: string) => void
   handleSetActiveSketchAnnotation: (annotation: string) => void
-  constraintEdge: ConstraintEdge
-  setConstraintEdge: Dispatch<SetStateAction<ConstraintEdge>>
-  constraintOffsetMm: number
-  setConstraintOffsetMm: Dispatch<SetStateAction<number>>
-  constraintAxis: ConstraintAxis
-  setConstraintAxis: Dispatch<SetStateAction<ConstraintAxis>>
   handleAddEdgeConstraintFromSelection: () => void
   handleAddAlignConstraintsFromSelection: () => void
   handleApplyConstraints: () => void
   handleToggleConstraintEnabled: (constraintId: string) => void
   handleDeleteConstraint: (constraintId: string) => void
-  seamAllowanceInputMm: number
-  setSeamAllowanceInputMm: Dispatch<SetStateAction<number>>
   handleApplySeamAllowanceToSelection: () => void
   handleClearSeamAllowanceOnSelection: () => void
   handleClearAllSeamAllowances: () => void
@@ -152,12 +109,6 @@ type UseEditorModalStackPropsParams = {
   textSweepDeg: number
   setTextSweepDeg: Dispatch<SetStateAction<number>>
   handleApplyTextDefaultsToSelection: () => void
-  hardwarePreset: HardwareKind
-  setHardwarePreset: Dispatch<SetStateAction<HardwareKind>>
-  customHardwareDiameterMm: number
-  setCustomHardwareDiameterMm: Dispatch<SetStateAction<number>>
-  customHardwareSpacingMm: number
-  setCustomHardwareSpacingMm: Dispatch<SetStateAction<number>>
   setActiveTool: (nextTool: import('../cad/cad-types').Tool) => void
   selectedHardwareMarker: HardwareMarker | null
   handleUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
@@ -166,41 +117,11 @@ type UseEditorModalStackPropsParams = {
   handleClipperOffset: (offsetMm: number, joinType: import('../ops/clipper-ops').OffsetJoinType) => void
   handleTextToPath: () => void
   handleOpenNesting: () => void
-  showTracingModal: boolean
-  setShowTracingModal: Dispatch<SetStateAction<boolean>>
   tracingInputRef: RefObject<HTMLInputElement | null>
   handleDeleteTracingOverlay: (overlayId: string) => void
   handleUpdateTracingOverlay: (overlayId: string, patch: Partial<TracingOverlay>) => void
   handleSetPdfTracingPage: (overlay: TracingOverlay, pageNumber: number) => void
-  showPrintPreviewModal: boolean
-  setShowPrintPreviewModal: Dispatch<SetStateAction<boolean>>
-  printPaper: PrintPaper
-  setPrintPaper: Dispatch<SetStateAction<PrintPaper>>
-  printScalePercent: number
-  setPrintScalePercent: Dispatch<SetStateAction<number>>
-  printCalibrationXPercent: number
-  setPrintCalibrationXPercent: Dispatch<SetStateAction<number>>
-  printCalibrationYPercent: number
-  setPrintCalibrationYPercent: Dispatch<SetStateAction<number>>
-  printTileX: number
-  setPrintTileX: Dispatch<SetStateAction<number>>
-  printTileY: number
-  setPrintTileY: Dispatch<SetStateAction<number>>
-  printOverlapMm: number
-  setPrintOverlapMm: Dispatch<SetStateAction<number>>
-  printMarginMm: number
-  setPrintMarginMm: Dispatch<SetStateAction<number>>
-  printSelectedOnly: boolean
-  setPrintSelectedOnly: Dispatch<SetStateAction<boolean>>
-  printRulerInside: boolean
-  setPrintRulerInside: Dispatch<SetStateAction<boolean>>
-  printInColor: boolean
-  setPrintInColor: Dispatch<SetStateAction<boolean>>
-  printStitchAsDots: boolean
-  setPrintStitchAsDots: Dispatch<SetStateAction<boolean>>
   printPlan: PrintPlan | null
-  showPrintAreas: boolean
-  setShowPrintAreas: Dispatch<SetStateAction<boolean>>
   handleFitView: () => void
   handleOpenPrintTiles: () => void
   handleLoadAiBuilderDocument: (doc: import('../cad/cad-types').DocFile, documentName: string) => void
@@ -209,8 +130,6 @@ type UseEditorModalStackPropsParams = {
 
 export function useEditorModalStackProps(params: UseEditorModalStackPropsParams): ComponentProps<typeof EditorModalStack> {
   const {
-    showLineTypePalette,
-    setShowLineTypePalette,
     shapeCountsByLineType,
     selectedShapeCount,
     handleShowAllLineTypes,
@@ -221,18 +140,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,
-    showHelpModal,
-    setShowHelpModal,
-    showLayerColorModal,
-    setShowLayerColorModal,
     layerColorsById,
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
     handleResetLayerColors,
-    showExportModal,
-    setShowExportModal,
-    showExportOptionsModal,
-    setShowExportOptionsModal,
     handleSaveJson,
     handleExportGarmentJson,
     handleSaveLcc,
@@ -241,25 +152,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleExportDxf,
     handleExportLaserSvg,
     activeExportRoleCount,
-    exportOnlySelectedShapes,
-    setExportOnlySelectedShapes,
-    exportOnlyVisibleLineTypes,
-    setExportOnlyVisibleLineTypes,
-    exportForceSolidStrokes,
-    setExportForceSolidStrokes,
-    exportStitchHoleRenderMode,
-    setExportStitchHoleRenderMode,
-    exportStitchDotRadiusMm,
-    setExportStitchDotRadiusMm,
-    exportRoleFilters,
-    setExportRoleFilters,
-    dxfVersion,
-    setDxfVersion,
-    dxfFlipY,
-    setDxfFlipY,
     handleResetExportOptions,
-    showTemplateRepositoryModal,
-    setShowTemplateRepositoryModal,
     templateRepository,
     catalogRepository,
     selectedTemplateEntryId,
@@ -276,10 +169,6 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleInsertTemplateIntoDocument,
     handleDeleteTemplateFromRepository,
     handleDeleteCatalogShop,
-    showPatternToolsModal,
-    setShowPatternToolsModal,
-    showAiBuilderModal,
-    setShowAiBuilderModal,
     handleAlignSelection,
     handleAlignSelectionToGrid,
     activeLayer,
@@ -295,19 +184,11 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleDeleteActiveSketchGroup,
     handleSetActiveLayerAnnotation,
     handleSetActiveSketchAnnotation,
-    constraintEdge,
-    setConstraintEdge,
-    constraintOffsetMm,
-    setConstraintOffsetMm,
-    constraintAxis,
-    setConstraintAxis,
     handleAddEdgeConstraintFromSelection,
     handleAddAlignConstraintsFromSelection,
     handleApplyConstraints,
     handleToggleConstraintEnabled,
     handleDeleteConstraint,
-    seamAllowanceInputMm,
-    setSeamAllowanceInputMm,
     handleApplySeamAllowanceToSelection,
     handleClearSeamAllowanceOnSelection,
     handleClearAllSeamAllowances,
@@ -330,12 +211,6 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     textSweepDeg,
     setTextSweepDeg,
     handleApplyTextDefaultsToSelection,
-    hardwarePreset,
-    setHardwarePreset,
-    customHardwareDiameterMm,
-    setCustomHardwareDiameterMm,
-    customHardwareSpacingMm,
-    setCustomHardwareSpacingMm,
     setActiveTool,
     selectedHardwareMarker,
     handleUpdateSelectedHardwareMarker,
@@ -344,47 +219,136 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleClipperOffset,
     handleTextToPath,
     handleOpenNesting,
-    showTracingModal,
-    setShowTracingModal,
     tracingInputRef,
     handleDeleteTracingOverlay,
     handleUpdateTracingOverlay,
     handleSetPdfTracingPage,
-    showPrintPreviewModal,
-    setShowPrintPreviewModal,
-    printPaper,
-    setPrintPaper,
-    printScalePercent,
-    setPrintScalePercent,
-    printCalibrationXPercent,
-    setPrintCalibrationXPercent,
-    printCalibrationYPercent,
-    setPrintCalibrationYPercent,
-    printTileX,
-    setPrintTileX,
-    printTileY,
-    setPrintTileY,
-    printOverlapMm,
-    setPrintOverlapMm,
-    printMarginMm,
-    setPrintMarginMm,
-    printSelectedOnly,
-    setPrintSelectedOnly,
-    printRulerInside,
-    setPrintRulerInside,
-    printInColor,
-    setPrintInColor,
-    printStitchAsDots,
-    setPrintStitchAsDots,
     printPlan,
-    showPrintAreas,
-    setShowPrintAreas,
     handleFitView,
     handleOpenPrintTiles,
     handleLoadAiBuilderDocument,
     handleInsertAiBuilderDocument,
   } = params
 
+  const {
+    showLineTypePalette,
+    showHelpModal,
+    showLayerColorModal,
+    showExportModal,
+    showExportOptionsModal,
+    exportOnlySelectedShapes,
+    exportOnlyVisibleLineTypes,
+    exportForceSolidStrokes,
+    exportStitchHoleRenderMode,
+    exportStitchDotRadiusMm,
+    exportRoleFilters,
+    dxfVersion,
+    dxfFlipY,
+    showTemplateRepositoryModal,
+    showPatternToolsModal,
+    showAiBuilderModal,
+    constraintEdge,
+    constraintOffsetMm,
+    constraintAxis,
+    seamAllowanceInputMm,
+    hardwarePreset,
+    customHardwareDiameterMm,
+    customHardwareSpacingMm,
+    showTracingModal,
+    showPrintPreviewModal,
+    printPaper,
+    printScalePercent,
+    printCalibrationXPercent,
+    printCalibrationYPercent,
+    printTileX,
+    printTileY,
+    printOverlapMm,
+    printMarginMm,
+    printSelectedOnly,
+    printRulerInside,
+    printInColor,
+    printStitchAsDots,
+    showPrintAreas,
+  } = useEditorPanelSelector((state) => ({
+    showLineTypePalette: state.showLineTypePalette,
+    showHelpModal: state.showHelpModal,
+    showLayerColorModal: state.showLayerColorModal,
+    showExportModal: state.showExportModal,
+    showExportOptionsModal: state.showExportOptionsModal,
+    exportOnlySelectedShapes: state.exportOnlySelectedShapes,
+    exportOnlyVisibleLineTypes: state.exportOnlyVisibleLineTypes,
+    exportForceSolidStrokes: state.exportForceSolidStrokes,
+    exportStitchHoleRenderMode: state.exportStitchHoleRenderMode,
+    exportStitchDotRadiusMm: state.exportStitchDotRadiusMm,
+    exportRoleFilters: state.exportRoleFilters,
+    dxfVersion: state.dxfVersion,
+    dxfFlipY: state.dxfFlipY,
+    showTemplateRepositoryModal: state.showTemplateRepositoryModal,
+    showPatternToolsModal: state.showPatternToolsModal,
+    showAiBuilderModal: state.showAiBuilderModal,
+    constraintEdge: state.constraintEdge,
+    constraintOffsetMm: state.constraintOffsetMm,
+    constraintAxis: state.constraintAxis,
+    seamAllowanceInputMm: state.seamAllowanceInputMm,
+    hardwarePreset: state.hardwarePreset,
+    customHardwareDiameterMm: state.customHardwareDiameterMm,
+    customHardwareSpacingMm: state.customHardwareSpacingMm,
+    showTracingModal: state.showTracingModal,
+    showPrintPreviewModal: state.showPrintPreviewModal,
+    printPaper: state.printPaper,
+    printScalePercent: state.printScalePercent,
+    printCalibrationXPercent: state.printCalibrationXPercent,
+    printCalibrationYPercent: state.printCalibrationYPercent,
+    printTileX: state.printTileX,
+    printTileY: state.printTileY,
+    printOverlapMm: state.printOverlapMm,
+    printMarginMm: state.printMarginMm,
+    printSelectedOnly: state.printSelectedOnly,
+    printRulerInside: state.printRulerInside,
+    printInColor: state.printInColor,
+    printStitchAsDots: state.printStitchAsDots,
+    showPrintAreas: state.showPrintAreas,
+  }))
+  const {
+    setShowLineTypePalette,
+    setShowHelpModal,
+    setShowLayerColorModal,
+    setShowExportModal,
+    setShowExportOptionsModal,
+    setExportOnlySelectedShapes,
+    setExportOnlyVisibleLineTypes,
+    setExportForceSolidStrokes,
+    setExportStitchHoleRenderMode,
+    setExportStitchDotRadiusMm,
+    setExportRoleFilters,
+    setDxfVersion,
+    setDxfFlipY,
+    setShowTemplateRepositoryModal,
+    setShowPatternToolsModal,
+    setShowAiBuilderModal,
+    setConstraintEdge,
+    setConstraintOffsetMm,
+    setConstraintAxis,
+    setSeamAllowanceInputMm,
+    setHardwarePreset,
+    setCustomHardwareDiameterMm,
+    setCustomHardwareSpacingMm,
+    setShowTracingModal,
+    setShowPrintPreviewModal,
+    setPrintPaper,
+    setPrintScalePercent,
+    setPrintCalibrationXPercent,
+    setPrintCalibrationYPercent,
+    setPrintTileX,
+    setPrintTileY,
+    setPrintOverlapMm,
+    setPrintMarginMm,
+    setPrintSelectedOnly,
+    setPrintRulerInside,
+    setPrintInColor,
+    setPrintStitchAsDots,
+    setShowPrintAreas,
+  } = useEditorPanelActions()
   const {
     layers,
     activeLayerId,
