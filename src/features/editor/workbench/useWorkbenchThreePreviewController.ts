@@ -14,7 +14,7 @@ import type {
   ThreePreviewSettings,
 } from '../cad/cad-types'
 import { detectOutlines } from '../ops/outline-detection'
-import { ThreeBridge, type OutlinePolygon } from '../three/three-bridge'
+import type { ThreeBridge as ThreeBridgeClass, OutlinePolygon } from '../three/three-bridge'
 import { LEATHER_PRESETS } from '../three/material-presets'
 
 export type WorkbenchThreePreviewProps = {
@@ -104,7 +104,8 @@ export function useWorkbenchThreePreviewController(props: WorkbenchThreePreviewP
 
   const containerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const bridgeRef = useRef<ThreeBridge | null>(null)
+  const bridgeRef = useRef<ThreeBridgeClass | null>(null)
+  const [isBridgeReady, setIsBridgeReady] = useState(false)
 
   const [textureForm, setTextureForm] = useState<TextureSource>(() => threeTextureSource ?? DEFAULT_TEXTURE_FORM)
   const [textureStatus, setTextureStatus] = useState('Default leather material active')
@@ -216,25 +217,43 @@ export function useWorkbenchThreePreviewController(props: WorkbenchThreePreviewP
       return
     }
 
-    const bridge = new ThreeBridge(canvasRef.current)
-    bridgeRef.current = bridge
+    let cancelled = false
+    let observer: ResizeObserver | null = null
+    let activeBridge: ThreeBridgeClass | null = null
 
-    const observer = new ResizeObserver(() => {
-      const container = containerRef.current
-      if (!container) {
-        return
-      }
-      bridge.resize(container.clientWidth, container.clientHeight)
-    })
+    void import('../three/three-bridge')
+      .then(({ ThreeBridge }) => {
+        if (cancelled || !canvasRef.current) {
+          return
+        }
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current)
-      bridge.resize(containerRef.current.clientWidth, containerRef.current.clientHeight)
-    }
+        const bridge = new ThreeBridge(canvasRef.current)
+        activeBridge = bridge
+        bridgeRef.current = bridge
+        setIsBridgeReady(true)
+
+        observer = new ResizeObserver(() => {
+          const container = containerRef.current
+          if (!container) {
+            return
+          }
+          bridge.resize(container.clientWidth, container.clientHeight)
+        })
+
+        if (containerRef.current) {
+          observer.observe(containerRef.current)
+          bridge.resize(containerRef.current.clientWidth, containerRef.current.clientHeight)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load 3D preview bridge', error)
+      })
 
     return () => {
-      observer.disconnect()
-      bridge.dispose()
+      cancelled = true
+      setIsBridgeReady(false)
+      observer?.disconnect()
+      activeBridge?.dispose()
       bridgeRef.current = null
     }
   }, [])
@@ -254,6 +273,7 @@ export function useWorkbenchThreePreviewController(props: WorkbenchThreePreviewP
       avatars,
     )
   }, [
+    isBridgeReady,
     layersFor3d,
     shapesIn3dView,
     foldLines,
@@ -269,15 +289,15 @@ export function useWorkbenchThreePreviewController(props: WorkbenchThreePreviewP
 
   useEffect(() => {
     bridgeRef.current?.setTheme(themeMode)
-  }, [themeMode])
+  }, [isBridgeReady, themeMode])
 
   useEffect(() => {
     bridgeRef.current?.setThreadColor(stitchThreadColor)
-  }, [stitchThreadColor])
+  }, [isBridgeReady, stitchThreadColor])
 
   useEffect(() => {
     bridgeRef.current?.setTextureAssignments(threeTextureShapeIds)
-  }, [threeTextureShapeIds])
+  }, [isBridgeReady, threeTextureShapeIds])
 
   useEffect(() => {
     const bridge = bridgeRef.current
@@ -318,7 +338,7 @@ export function useWorkbenchThreePreviewController(props: WorkbenchThreePreviewP
     return () => {
       cancelled = true
     }
-  }, [threeTextureSource, threeTextureShapeIds])
+  }, [isBridgeReady, threeTextureSource, threeTextureShapeIds])
 
   const updatePlacement = (pieceId: string, updater: (current: PiecePlacement3D) => PiecePlacement3D) => {
     onSetPiecePlacements3d((previous) => {

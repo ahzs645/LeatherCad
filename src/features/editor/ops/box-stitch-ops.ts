@@ -1,6 +1,11 @@
-import type { BoxStitchSource, Point, Shape, LineShape, StitchHole } from '../cad/cad-types'
+import type { Point, Shape, LineShape, StitchHole } from '../cad/cad-types'
 import { uid, distance, sampleShapePoints } from '../cad/cad-geometry'
 import type { BoxStitchHelperSettings } from './box-stitch-settings'
+import {
+  hasExtractedBoxStitchSource,
+  isBoxStitchSourceEligibleShape,
+  type BoxStitchSourceShape,
+} from './box-stitch-source'
 
 export type BoxStitchParams = {
   width: number
@@ -26,8 +31,6 @@ type BoxStitchBounds = {
   maxX: number
   maxY: number
 }
-
-type BoxStitchSourceShape = Extract<Shape, { type: 'line' | 'arc' | 'bezier' }>
 
 type BoxStitchEdgeCandidate = {
   edge: BoxStitchEdge
@@ -79,30 +82,6 @@ function clampValue(value: number, min: number, max: number) {
 
 function lineLength(start: Point, end: Point) {
   return Math.hypot(end.x - start.x, end.y - start.y)
-}
-
-export function isBoxStitchSourceEligibleShape(shape: Shape): shape is BoxStitchSourceShape {
-  return shape.type === 'line' || shape.type === 'arc' || shape.type === 'bezier'
-}
-
-export function isExtractedBoxStitchSourceValue(
-  value: BoxStitchSourceShape['boxStitchSource'] | undefined,
-): value is BoxStitchSource {
-  return Boolean(
-    value &&
-      typeof value === 'object' &&
-      'extracted' in value &&
-      (value as { extracted?: unknown }).extracted === true,
-  )
-}
-
-export function hasExtractedBoxStitchSource(
-  shape: Shape,
-): shape is BoxStitchSourceShape & { boxStitchSource: BoxStitchSource } {
-  if (!isBoxStitchSourceEligibleShape(shape)) {
-    return false
-  }
-  return isExtractedBoxStitchSourceValue(shape.boxStitchSource)
 }
 
 export function markSelectedShapesAsBoxStitchSource(

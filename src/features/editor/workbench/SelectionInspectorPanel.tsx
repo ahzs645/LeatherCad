@@ -1,6 +1,6 @@
 import type { HardwareMarker, Shape, StitchHole, StitchHoleRenderShape, StitchHoleType } from '../cad/cad-types'
 import type { InspectorContext } from './workbench-types'
-import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-ops'
+import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-source'
 
 type SelectionInspectorPanelProps = {
   context: InspectorContext

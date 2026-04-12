@@ -1,5 +1,5 @@
 import type { Shape } from '../cad/cad-types'
-import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-ops'
+import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-source'
 
 type ContextualActionsPanelProps = {
   selectedShapes: Shape[]

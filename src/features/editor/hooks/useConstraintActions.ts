@@ -6,11 +6,11 @@ import type {
   PatternPiece,
   PieceSeamAllowance,
   Shape,
+  StitchHoleDefaults,
   SnapSettings,
 } from '../cad/cad-types'
 import {
   applyCornerOnSelectedLines,
-  createBoxStitchFromSelection,
   createOffsetGeometryForSelection,
 } from '../ops/advanced-pattern-ops'
 import {
@@ -23,6 +23,24 @@ import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
+
+type AdvancedBoxStitchOpsModule = typeof import('../ops/advanced-box-stitch-ops')
+
+let advancedBoxStitchOpsPromise: Promise<AdvancedBoxStitchOpsModule> | null = null
+let createBoxStitchFromSelectionCached: AdvancedBoxStitchOpsModule['createBoxStitchFromSelection'] | null = null
+
+function loadAdvancedBoxStitchOps() {
+  if (createBoxStitchFromSelectionCached) {
+    return Promise.resolve({ createBoxStitchFromSelection: createBoxStitchFromSelectionCached } as AdvancedBoxStitchOpsModule)
+  }
+  if (!advancedBoxStitchOpsPromise) {
+    advancedBoxStitchOpsPromise = import('../ops/advanced-box-stitch-ops').then((module) => {
+      createBoxStitchFromSelectionCached = module.createBoxStitchFromSelection
+      return module
+    })
+  }
+  return advancedBoxStitchOpsPromise
+}
 
 type UseConstraintActionsParams = {
   activeLayer: Layer | null
@@ -85,6 +103,29 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     stitchHoleDefaults: state.stitchHoleDefaults,
   }))
   const { setStatus } = useEditorUIActions()
+
+  const runBoxStitchApply = (
+    createBoxStitchFromSelection: AdvancedBoxStitchOpsModule['createBoxStitchFromSelection'],
+    settings: BoxStitchHelperSettings,
+  ) => {
+    const result = createBoxStitchFromSelection(
+      shapes,
+      selectedShapeIdSet,
+      settings,
+      stitchLineTypeId,
+      activeLayerId,
+      stitchPitchMm,
+      stitchHoleDefaults as StitchHoleDefaults,
+    )
+    if (!result.ok) {
+      setStatus(result.message)
+      return
+    }
+    setShapes((previous) => [...previous, ...result.guideLines])
+    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...result.stitchHoles]))
+    setSelectedShapeIds(result.guideLines.map((shape) => shape.id))
+    setStatus(`${result.message}. Created ${result.guideLines.length} guides and ${result.stitchHoles.length} holes`)
+  }
 
   const handleAddEdgeConstraintFromSelection = () => {
     if (!activeLayer) {
@@ -299,23 +340,21 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
   }
 
   const applyBoxStitchToSelection = (settings: BoxStitchHelperSettings) => {
-    const result = createBoxStitchFromSelection(
-      shapes,
-      selectedShapeIdSet,
-      settings,
-      stitchLineTypeId,
-      activeLayerId,
-      stitchPitchMm,
-      stitchHoleDefaults,
-    )
-    if (!result.ok) {
-      setStatus(result.message)
+    if (createBoxStitchFromSelectionCached) {
+      runBoxStitchApply(createBoxStitchFromSelectionCached, settings)
       return
     }
-    setShapes((previous) => [...previous, ...result.guideLines])
-    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...result.stitchHoles]))
-    setSelectedShapeIds(result.guideLines.map((shape) => shape.id))
-    setStatus(`${result.message}. Created ${result.guideLines.length} guides and ${result.stitchHoles.length} holes`)
+    void loadAdvancedBoxStitchOps()
+      .then(({ createBoxStitchFromSelection }) => {
+        runBoxStitchApply(createBoxStitchFromSelection, settings)
+      })
+      .catch(() => {
+        setStatus('Box stitch helper failed to load')
+      })
+  }
+
+  const preloadBoxStitchGeneration = () => {
+    void loadAdvancedBoxStitchOps()
   }
 
   const handleCreateBoxStitchFromSelection = () => {
@@ -337,6 +376,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     handleRoundSelectedCorner,
     handleCreateOffsetGeometryFromSelection,
     applyBoxStitchToSelection,
+    preloadBoxStitchGeneration,
     handleCreateBoxStitchFromSelection,
   }
 }

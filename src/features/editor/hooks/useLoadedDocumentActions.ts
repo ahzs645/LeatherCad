@@ -35,7 +35,7 @@ import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from '../ops/pattern-piece-ops'
-import { isExtractedBoxStitchSourceValue } from '../ops/box-stitch-ops'
+import { isExtractedBoxStitchSourceValue } from '../ops/box-stitch-source'
 
 type UseLoadedDocumentActionsParams = {
   clearDraft: () => void

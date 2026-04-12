@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Shape, StitchHoleDefaults } from '../cad/cad-types'
-import { createBoxStitchFromSelection } from './advanced-pattern-ops'
+import { createBoxStitchFromSelection } from './advanced-box-stitch-ops'
 
 const stitchHoleDefaults: StitchHoleDefaults = {
   holeType: 'round',

@@ -45,6 +45,7 @@ type UseEditorCreationControllerParams = {
   setShowWizardModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowLetterStampModal: React.Dispatch<React.SetStateAction<boolean>>
   setStatus: React.Dispatch<React.SetStateAction<string>>
+  preloadBoxStitchGeneration: () => void
   applyBoxStitchToSelection: (settings: BoxStitchHelperSettings) => void
 }
 
@@ -74,6 +75,7 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
     setShowWizardModal,
     setShowLetterStampModal,
     setStatus,
+    preloadBoxStitchGeneration,
     applyBoxStitchToSelection,
   } = params
 
@@ -210,6 +212,7 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
       setStatus('Select one or more shapes to create a box stitch')
       return
     }
+    preloadBoxStitchGeneration()
     setShowBoxStitchHelperModal(true)
   }
 

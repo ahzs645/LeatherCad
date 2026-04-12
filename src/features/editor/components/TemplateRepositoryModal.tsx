@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { getCatalogItemCount, type CatalogRepositoryItem, type CatalogRepositoryShop } from '../templates/catalog-repository'
 import { decodeCatalogZipBmpToObjectUrl } from '../templates/catalog-image-preview'
-import { PRESET_DOCS } from '../data/sample-doc'
+import { PRESET_META } from '../data/sample-doc-meta'
 
 type TemplateRepositoryTab = 'templates' | 'catalog' | 'presets'
 
@@ -418,7 +418,7 @@ export function TemplateRepositoryModal({
             <p className="hint">Load a starter layout into the current document.</p>
             <div className="line-type-modal-actions">
               <select className="preset-select" value={selectedPresetId} onChange={(event) => onSelectPreset(event.target.value)}>
-                {PRESET_DOCS.map((preset) => (
+                {PRESET_META.map((preset) => (
                   <option key={preset.id} value={preset.id}>
                     {preset.label}
                   </option>

@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react'
 import { DEFAULT_GRID_SPACING } from '../../editor-constants'
-import { DEFAULT_PRESET_ID } from '../../data/sample-doc'
+import { DEFAULT_PRESET_ID } from '../../data/sample-doc-meta'
 import type { EditorUIState } from '../editor-domain-types'
 import {
   propertyStateReducer,

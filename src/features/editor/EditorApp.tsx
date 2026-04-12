@@ -936,6 +936,7 @@ function EditorAppContent() {
     handleBevelSelectedCorner,
     handleRoundSelectedCorner,
     handleCreateOffsetGeometryFromSelection,
+    preloadBoxStitchGeneration,
     applyBoxStitchToSelection,
   } = useConstraintActions({
     activeLayer,
@@ -1208,6 +1209,7 @@ function EditorAppContent() {
     setShowWizardModal,
     setShowLetterStampModal,
     setStatus,
+    preloadBoxStitchGeneration,
     applyBoxStitchToSelection,
   })
 
