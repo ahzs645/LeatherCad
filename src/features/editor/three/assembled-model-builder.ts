@@ -22,6 +22,7 @@ import type { PatternPiece, PiecePlacement3D, StitchHole, ThreePreviewSettings }
 import { createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 import { clearGroup } from './bridge/scene-lifecycle'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
+import { addPanelOutline } from './outline-renderer'
 
 const EPSILON = 1e-6
 const DEFAULT_THICKNESS_WORLD = 0.005
@@ -79,21 +80,6 @@ function pieceUsesTexture(piece: PatternPiece, texturedShapeIdSet: Set<string>, 
     hasActiveTexture &&
     [piece.boundaryShapeId, ...piece.internalShapeIds].some((shapeId) => texturedShapeIdSet.has(shapeId))
   )
-}
-
-function addPanelOutline(points: ReturnType<typeof projectPiecePoint>[], group: Group, color: string, yOffset: number) {
-  if (points.length < 2) {
-    return
-  }
-
-  const outlinePoints = points.map((point) => new Vector3(point.x, yOffset + 0.004, point.y))
-  outlinePoints.push(new Vector3(points[0].x, yOffset + 0.004, points[0].y))
-
-  const outline = new Line(
-    new BufferGeometry().setFromPoints(outlinePoints),
-    new LineBasicMaterial({ color }),
-  )
-  group.add(outline)
 }
 
 function addEdgeLabel(group: Group, text: string, point: Vector3, color: string) {
