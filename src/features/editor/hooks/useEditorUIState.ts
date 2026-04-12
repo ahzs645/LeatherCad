@@ -51,6 +51,7 @@ export function useEditorUIState() {
   const [loadedFontUrl, setLoadedFontUrl] = useState<string | null>(null)
   const [constraintSuggestions, setConstraintSuggestions] = useState<import('../ops/auto-constraint-ops').ConstraintSuggestion[]>([])
   const [showStitchSimulatorModal, setShowStitchSimulatorModal] = useState(false)
+  const [showBoxStitchHelperModal, setShowBoxStitchHelperModal] = useState(false)
   const [showBoxStitchModal, setShowBoxStitchModal] = useState(false)
   const [showMandalaModal, setShowMandalaModal] = useState(false)
   const [showWizardModal, setShowWizardModal] = useState(false)
@@ -99,6 +100,7 @@ export function useEditorUIState() {
     constraintSuggestions, setConstraintSuggestions,
     autoConstraintSettings,
     showStitchSimulatorModal, setShowStitchSimulatorModal,
+    showBoxStitchHelperModal, setShowBoxStitchHelperModal,
     showBoxStitchModal, setShowBoxStitchModal,
     showMandalaModal, setShowMandalaModal,
     showWizardModal, setShowWizardModal,

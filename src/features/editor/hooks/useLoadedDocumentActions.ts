@@ -35,6 +35,7 @@ import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from '../ops/pattern-piece-ops'
+import { isExtractedBoxStitchSourceValue } from '../ops/box-stitch-ops'
 
 type UseLoadedDocumentActionsParams = {
   clearDraft: () => void
@@ -137,10 +138,17 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     const layerIdSet = new Set(normalizedLayers.map((layer) => layer.id))
     const normalizedSketchGroups = sanitizeSketchGroupLinks((doc.sketchGroups ?? []).filter((group) => layerIdSet.has(group.layerId)))
     const sketchGroupIdSet = new Set(normalizedSketchGroups.map((group) => group.id))
+    const normalizeBoxStitchSource = (shape: Shape) =>
+      shape.type !== 'text' && isExtractedBoxStitchSourceValue(shape.boxStitchSource)
+        ? { extracted: true as const }
+        : undefined
     const normalizedShapes = doc.objects.map((shape) => {
+      const boxStitchSource = normalizeBoxStitchSource(shape)
+
       if (!shape.groupId || !sketchGroupIdSet.has(shape.groupId)) {
         return {
           ...shape,
+          boxStitchSource,
           groupId: undefined,
         }
       }
@@ -149,11 +157,15 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
       if (!group || group.layerId !== shape.layerId) {
         return {
           ...shape,
+          boxStitchSource,
           groupId: undefined,
         }
       }
 
-      return shape
+      return {
+        ...shape,
+        boxStitchSource,
+      }
     })
     const shapeIdSet = new Set(normalizedShapes.map((shape) => shape.id))
     const normalizedConstraints = (doc.constraints ?? []).filter((constraint) => {

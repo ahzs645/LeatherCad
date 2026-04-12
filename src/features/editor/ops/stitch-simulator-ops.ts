@@ -67,6 +67,17 @@ function limitHolesByEnd(holes: StitchHole[], endHoleId: string | null) {
   return sorted.slice(0, endIndex + 1)
 }
 
+function resolveGroupEndHoleId(holes: StitchHole[], endHoleId: string | null) {
+  const persisted = holes.find((hole) => hole.endHole === true)?.id ?? null
+  if (persisted) {
+    return persisted
+  }
+  if (endHoleId && holes.some((hole) => hole.id === endHoleId)) {
+    return endHoleId
+  }
+  return null
+}
+
 function filterSegments(segments: ThreadSegment[], settings: StitchSimulatorSettings) {
   return segments.filter((segment) => {
     if (!settings.showBackStitches && segment.side === 'back') {
@@ -284,23 +295,50 @@ export function simulateStitches(
   holes: StitchHole[],
   settings: StitchSimulatorSettings,
 ): StitchSimulatorResult {
-  const workingHoles = limitHolesByEnd(holes, settings.endHoleId)
-  const baseResult = (() => {
-    switch (settings.stitchType) {
-      case 'saddle':
-        return simulateSaddleStitch(workingHoles)
-      case 'running':
-        return simulateRunningStitch(workingHoles)
-      case 'cross':
-        return simulateCrossStitch(workingHoles)
-      case 'backstitch':
-        return simulateBackstitch(workingHoles)
+  if (holes.length === 0) {
+    return {
+      segments: [],
+      threadLength: 0,
+      holeCount: 0,
+      terminalHoleId: null,
     }
-  })()
+  }
+
+  const grouped = groupHolesByShape(holes)
+  const aggregatedSegments: ThreadSegment[] = []
+  let threadLength = 0
+  let holeCount = 0
+  let terminalHoleId: string | null = null
+
+  for (const group of grouped.values()) {
+    const groupEndHoleId = resolveGroupEndHoleId(group, settings.endHoleId)
+    const workingHoles = limitHolesByEnd(group, groupEndHoleId)
+    const baseResult = (() => {
+      switch (settings.stitchType) {
+        case 'saddle':
+          return simulateSaddleStitch(workingHoles)
+        case 'running':
+          return simulateRunningStitch(workingHoles)
+        case 'cross':
+          return simulateCrossStitch(workingHoles)
+        case 'backstitch':
+          return simulateBackstitch(workingHoles)
+      }
+    })()
+
+    aggregatedSegments.push(...filterSegments(baseResult.segments, settings))
+    threadLength += baseResult.threadLength
+    holeCount += baseResult.holeCount
+    if (!terminalHoleId) {
+      terminalHoleId = groupEndHoleId ?? baseResult.terminalHoleId
+    }
+  }
 
   return {
-    ...baseResult,
-    segments: filterSegments(baseResult.segments, settings),
+    segments: aggregatedSegments,
+    threadLength,
+    holeCount,
+    terminalHoleId,
   }
 }
 

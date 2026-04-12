@@ -151,6 +151,49 @@ export function parseStitchHole(value: unknown): StitchHole | null {
   }
 }
 
+export function getTerminalStitchHoleIdForShape(stitchHoles: StitchHole[], shapeId: string) {
+  return (
+    stitchHoles
+      .filter((stitchHole) => stitchHole.shapeId === shapeId)
+      .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
+      .find((stitchHole) => stitchHole.endHole === true)?.id ?? null
+  )
+}
+
+export function setTerminalStitchHole(stitchHoles: StitchHole[], holeId: string) {
+  const targetHole = stitchHoles.find((stitchHole) => stitchHole.id === holeId)
+  if (!targetHole) {
+    return stitchHoles
+  }
+
+  return stitchHoles.map((stitchHole) => {
+    if (stitchHole.shapeId !== targetHole.shapeId) {
+      return stitchHole
+    }
+    return {
+      ...stitchHole,
+      endHole: stitchHole.id === holeId,
+    }
+  })
+}
+
+export function clearTerminalStitchHole(stitchHoles: StitchHole[], holeId: string) {
+  const targetHole = stitchHoles.find((stitchHole) => stitchHole.id === holeId)
+  if (!targetHole) {
+    return stitchHoles
+  }
+
+  return stitchHoles.map((stitchHole) => {
+    if (stitchHole.shapeId !== targetHole.shapeId || stitchHole.endHole !== true) {
+      return stitchHole
+    }
+    return {
+      ...stitchHole,
+      endHole: false,
+    }
+  })
+}
+
 export function findNearestStitchAnchor(
   point: Point,
   shapes: Shape[],
@@ -285,13 +328,19 @@ export function normalizeStitchHoleSequences(stitchHoles: StitchHole[]) {
 
   const normalized: StitchHole[] = []
   for (const holes of byShape.values()) {
+    let assignedEndHole = false
     holes
       .slice()
       .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
       .forEach((stitchHole, index) => {
+        const isTerminal = stitchHole.endHole === true && !assignedEndHole
+        if (isTerminal) {
+          assignedEndHole = true
+        }
         normalized.push({
           ...stitchHole,
           sequence: index,
+          endHole: isTerminal,
         })
       })
   }
@@ -348,10 +397,18 @@ export function resequenceStitchHolesOnShape(stitchHoles: StitchHole[], shape: S
     ordered.reverse()
   }
 
-  return ordered.map((stitchHole, index) => ({
-    ...stitchHole,
-    sequence: index,
-  }))
+  let assignedEndHole = false
+  return ordered.map((stitchHole, index) => {
+    const isTerminal = stitchHole.endHole === true && !assignedEndHole
+    if (isTerminal) {
+      assignedEndHole = true
+    }
+    return {
+      ...stitchHole,
+      sequence: index,
+      endHole: isTerminal,
+    }
+  })
 }
 
 function stitchDistancesForPitch(

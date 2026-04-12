@@ -201,6 +201,12 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       typeof (candidate as { arrowEnd?: unknown }).arrowEnd === 'boolean'
         ? (candidate as { arrowEnd: boolean }).arrowEnd
         : undefined
+    const boxStitchSource =
+      typeof (candidate as { boxStitchSource?: unknown }).boxStitchSource === 'object' &&
+      (candidate as { boxStitchSource?: { extracted?: unknown } }).boxStitchSource !== null &&
+      (candidate as { boxStitchSource?: { extracted?: unknown } }).boxStitchSource?.extracted === true
+        ? { extracted: true as const }
+        : undefined
 
     if (candidate.type === 'line') {
       nextShapes.push({
@@ -211,6 +217,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         groupId,
         arrowStart,
         arrowEnd,
+        boxStitchSource,
         start: candidate.start,
         end: candidate.end,
       })
@@ -223,6 +230,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         groupId,
         arrowStart,
         arrowEnd,
+        boxStitchSource,
         start: candidate.start,
         mid: candidate.mid,
         end: candidate.end,
@@ -236,6 +244,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         groupId,
         arrowStart,
         arrowEnd,
+        boxStitchSource,
         start: candidate.start,
         control: candidate.control,
         end: candidate.end,

@@ -1,7 +1,9 @@
 import { sampleShapePoints, uid } from '../cad/cad-geometry'
-import type { Point, Shape } from '../cad/cad-types'
+import type { Point, Shape, StitchHole, StitchHoleDefaults } from '../cad/cad-types'
 import { computeBoundsFromShapes } from './pattern-ops'
-import { extractBoxStitchGuideLines } from './box-stitch-ops'
+import { extractBoxStitchGuideLines, hasExtractedBoxStitchSource } from './box-stitch-ops'
+import type { BoxStitchHelperSettings } from './box-stitch-settings'
+import { normalizeStitchHoleSequences } from './stitch-hole-ops'
 
 type CornerPointMatch = {
   corner: Point
@@ -205,6 +207,100 @@ function polylineToLineShapes(
   return created
 }
 
+function cumulativePolylineLengths(points: Point[]) {
+  const lengths = [0]
+  for (let index = 1; index < points.length; index += 1) {
+    lengths.push(lengths[index - 1] + distance(points[index - 1], points[index]))
+  }
+  return lengths
+}
+
+function projectPointAtDistance(points: Point[], lengths: number[], targetDistance: number) {
+  if (points.length < 2 || lengths.length !== points.length) {
+    return null
+  }
+
+  const maxDistance = lengths[lengths.length - 1] ?? 0
+  const clampedDistance = Math.max(0, Math.min(targetDistance, maxDistance))
+  let segmentIndex = 1
+  while (segmentIndex < lengths.length && lengths[segmentIndex] < clampedDistance) {
+    segmentIndex += 1
+  }
+  segmentIndex = Math.min(Math.max(segmentIndex, 1), points.length - 1)
+
+  const start = points[segmentIndex - 1]
+  const end = points[segmentIndex]
+  const segmentStart = lengths[segmentIndex - 1]
+  const segmentEnd = lengths[segmentIndex]
+  const segmentLength = Math.max(segmentEnd - segmentStart, 1e-9)
+  const localT = (clampedDistance - segmentStart) / segmentLength
+
+  return {
+    point: {
+      x: start.x + (end.x - start.x) * localT,
+      y: start.y + (end.y - start.y) * localT,
+    },
+    angleDeg: (Math.atan2(end.y - start.y, end.x - start.x) * 180) / Math.PI,
+    segmentIndex: segmentIndex - 1,
+  }
+}
+
+function generateCenteredStitchHolesAlongGuidePath(
+  points: Point[],
+  guideLines: Extract<Shape, { type: 'line' }>[],
+  stitchPitchMm: number,
+  stitchHoleDefaults: StitchHoleDefaults,
+) {
+  if (points.length < 2 || guideLines.length === 0) {
+    return [] as StitchHole[]
+  }
+
+  const safePitch = Math.max(0.2, stitchPitchMm)
+  const lengths = cumulativePolylineLengths(points)
+  const totalLength = lengths[lengths.length - 1] ?? 0
+  if (totalLength < 1e-6) {
+    return [] as StitchHole[]
+  }
+
+  const targets: number[] = []
+  if (totalLength <= safePitch) {
+    targets.push(totalLength / 2)
+  } else {
+    const startDistance = Math.min(safePitch / 2, totalLength / 2)
+    for (let distanceValue = startDistance; distanceValue < totalLength - 1e-3; distanceValue += safePitch) {
+      targets.push(distanceValue)
+    }
+  }
+
+  return targets.flatMap((distanceValue, sequence) => {
+    const projected = projectPointAtDistance(points, lengths, distanceValue)
+    if (!projected) {
+      return []
+    }
+    const guideLine = guideLines[Math.min(projected.segmentIndex, guideLines.length - 1)]
+    if (!guideLine) {
+      return []
+    }
+
+    return [{
+      id: uid(),
+      shapeId: guideLine.id,
+      point: projected.point,
+      angleDeg: projected.angleDeg,
+      holeType: stitchHoleDefaults.holeType,
+      sequence,
+      renderShape: stitchHoleDefaults.renderShape,
+      diameterMm: stitchHoleDefaults.diameterMm,
+      widthMm: stitchHoleDefaults.widthMm,
+      heightMm: stitchHoleDefaults.heightMm,
+      tiltDeg: stitchHoleDefaults.tiltDeg,
+      inverted: stitchHoleDefaults.inverted,
+      presetId: stitchHoleDefaults.presetId,
+      presetName: stitchHoleDefaults.presetName,
+    } satisfies StitchHole]
+  })
+}
+
 export function createOffsetGeometryForSelection(
   shapes: Shape[],
   selectedShapeIds: Set<string>,
@@ -296,16 +392,19 @@ export function createOffsetGeometryForSelection(
 export function createBoxStitchFromSelection(
   shapes: Shape[],
   selectedShapeIds: Set<string>,
-  distanceMm: number,
+  settings: BoxStitchHelperSettings,
   stitchLineTypeId: string,
   fallbackLayerId: string | null,
+  stitchPitchMm: number,
+  stitchHoleDefaults: StitchHoleDefaults,
 ) {
   const selected = shapes.filter((shape) => selectedShapeIds.has(shape.id))
   if (selected.length === 0) {
     return {
       ok: false as const,
       message: 'Select one or more shapes to create a box stitch',
-      created: [] as Shape[],
+      guideLines: [] as Extract<Shape, { type: 'line' }>[],
+      stitchHoles: [] as StitchHole[],
     }
   }
 
@@ -315,16 +414,19 @@ export function createBoxStitchFromSelection(
     return {
       ok: false as const,
       message: 'No target layer available for box stitch',
-      created: [] as Shape[],
+      guideLines: [] as Extract<Shape, { type: 'line' }>[],
+      stitchHoles: [] as StitchHole[],
     }
   }
 
   const groupId = firstShape?.groupId
   const lineType = stitchLineTypeId || firstShape?.lineTypeId || ''
-  const extracted = extractBoxStitchGuideLines(selected, distanceMm, layerId, lineType, groupId)
+  const extractedSources = selected.filter((shape) => hasExtractedBoxStitchSource(shape))
+  const helperSourceShapes = extractedSources.length > 0 ? extractedSources : selected
+  const extracted = extractBoxStitchGuideLines(helperSourceShapes, settings, layerId, lineType, groupId)
   if (extracted.guideLines.length === 0) {
-    const bounds = computeBoundsFromShapes(selected)
-    const safeDistance = Math.max(0.1, Math.abs(distanceMm))
+    const bounds = computeBoundsFromShapes(helperSourceShapes)
+    const safeDistance = Math.max(0.1, Math.abs(settings.distanceMm))
     if (
       !bounds ||
       bounds.maxX - bounds.minX <= safeDistance * 2 ||
@@ -333,19 +435,28 @@ export function createBoxStitchFromSelection(
       return {
         ok: false as const,
         message: 'Box stitch distance is too large for the selected bounds',
-        created: [] as Shape[],
+        guideLines: [] as Extract<Shape, { type: 'line' }>[],
+        stitchHoles: [] as StitchHole[],
       }
     }
   }
 
-  const created: Shape[] = extracted.guideLines
+  const guideLines = extracted.guideLines
+  const stitchHoles = normalizeStitchHoleSequences(
+    extracted.guideGroups.flatMap((group) =>
+      generateCenteredStitchHolesAlongGuidePath(group.points, group.guideLines, stitchPitchMm, stitchHoleDefaults),
+    ),
+  )
 
   return {
     ok: true as const,
     message:
-      extracted.extractedEdgeCount > 0
-        ? `Box stitch extracted from ${extracted.extractedEdgeCount} candidate edge${extracted.extractedEdgeCount === 1 ? '' : 's'}${extracted.usedFallback ? ' with fallback guides' : ''}`
-        : 'Box stitch generated from selection bounds',
-    created,
+      extractedSources.length > 0
+        ? `Box stitch generated from ${extracted.extractedEdgeCount || extractedSources.length} extracted source${(extracted.extractedEdgeCount || extractedSources.length) === 1 ? '' : 's'}${extracted.usedFallback ? ' with fallback guides' : ''}`
+        : extracted.extractedEdgeCount > 0
+          ? `Box stitch extracted from ${extracted.extractedEdgeCount} candidate edge${extracted.extractedEdgeCount === 1 ? '' : 's'}${extracted.usedFallback ? ' with fallback guides' : ''}`
+          : 'Box stitch generated from selection bounds',
+    guideLines,
+    stitchHoles,
   }
 }

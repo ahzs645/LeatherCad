@@ -1,4 +1,5 @@
 import type { Shape } from '../cad/cad-types'
+import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-ops'
 
 type ContextualActionsPanelProps = {
   selectedShapes: Shape[]
@@ -19,6 +20,8 @@ type ContextualActionsPanelProps = {
   onEditPatternPiece: () => void
   canEditPatternPiece: boolean
   onApplyTextDefaults: () => void
+  onExtractBoxStitchSource: () => void
+  onClearBoxStitchSource: () => void
 }
 
 export function ContextualActionsPanel({
@@ -40,6 +43,8 @@ export function ContextualActionsPanel({
   onEditPatternPiece,
   canEditPatternPiece,
   onApplyTextDefaults,
+  onExtractBoxStitchSource,
+  onClearBoxStitchSource,
 }: ContextualActionsPanelProps) {
   if (selectedShapes.length === 0) {
     return null
@@ -48,6 +53,8 @@ export function ContextualActionsPanel({
   const selectedCount = selectedShapes.length
   const lineCount = selectedShapes.filter((shape) => shape.type === 'line').length
   const textCount = selectedShapes.filter((shape) => shape.type === 'text').length
+  const eligibleBoxStitchCount = selectedShapes.filter((shape) => isBoxStitchSourceEligibleShape(shape)).length
+  const extractedBoxStitchCount = selectedShapes.filter((shape) => hasExtractedBoxStitchSource(shape)).length
 
   return (
     <section className="contextual-actions-panel">
@@ -67,7 +74,7 @@ export function ContextualActionsPanel({
         </button>
         <button onClick={onAlignToGrid}>Align to Grid</button>
         <button onClick={onCreateOffset}>Offset</button>
-        <button onClick={onCreateBoxStitch}>Box Stitch</button>
+        <button onClick={onCreateBoxStitch}>Box Stitch Helper</button>
         <button onClick={onBevelCorner} disabled={lineCount < 2}>
           Bevel Corner
         </button>
@@ -89,6 +96,12 @@ export function ContextualActionsPanel({
         <button onClick={onClearSeamAllowance}>Clear Seam Allowance</button>
         <button onClick={onApplyTextDefaults} disabled={textCount === 0}>
           Apply Text Defaults
+        </button>
+        <button onClick={onExtractBoxStitchSource} disabled={eligibleBoxStitchCount === 0}>
+          Extract Box Source
+        </button>
+        <button onClick={onClearBoxStitchSource} disabled={extractedBoxStitchCount === 0}>
+          Clear Box Source
         </button>
       </div>
     </section>

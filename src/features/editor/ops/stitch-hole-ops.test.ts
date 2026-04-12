@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { LineType, Shape, StitchHoleDefaults } from '../cad/cad-types'
 import {
+  clearTerminalStitchHole,
   findNearestStitchAnchor,
   generateFixedPitchStitchHoles,
+  getTerminalStitchHoleIdForShape,
+  normalizeStitchHoleSequences,
+  setTerminalStitchHole,
 } from './stitch-hole-ops'
 
 const lineTypesById: Record<string, LineType> = {
@@ -97,5 +101,47 @@ describe('generateFixedPitchStitchHoles', () => {
 
     expect(continued.map((hole) => hole.sequence)).toEqual([2, 3, 4])
     expect(continued.map((hole) => hole.point.x)).toEqual([60, 80, 100])
+  })
+})
+
+describe('terminal stitch markers', () => {
+  it('keeps only one terminal hole per shape when marking a new end hole', () => {
+    const holes = [
+      { id: 'h1', shapeId: 'shape-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0, endHole: true },
+      { id: 'h2', shapeId: 'shape-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1 },
+      { id: 'h3', shapeId: 'shape-2', point: { x: 20, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0, endHole: true },
+    ]
+
+    const updated = setTerminalStitchHole(holes, 'h2')
+
+    expect(updated.find((hole) => hole.id === 'h1')?.endHole).toBe(false)
+    expect(updated.find((hole) => hole.id === 'h2')?.endHole).toBe(true)
+    expect(updated.find((hole) => hole.id === 'h3')?.endHole).toBe(true)
+    expect(getTerminalStitchHoleIdForShape(updated, 'shape-1')).toBe('h2')
+  })
+
+  it('clears the terminal hole on the selected path', () => {
+    const holes = [
+      { id: 'h1', shapeId: 'shape-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0 },
+      { id: 'h2', shapeId: 'shape-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1, endHole: true },
+    ]
+
+    const updated = clearTerminalStitchHole(holes, 'h2')
+
+    expect(updated.every((hole) => hole.endHole !== true)).toBe(true)
+    expect(getTerminalStitchHoleIdForShape(updated, 'shape-1')).toBeNull()
+  })
+
+  it('normalizes duplicate terminal markers during sequence normalization', () => {
+    const holes = [
+      { id: 'h2', shapeId: 'shape-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 2, endHole: true },
+      { id: 'h1', shapeId: 'shape-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1, endHole: true },
+    ]
+
+    const normalized = normalizeStitchHoleSequences(holes)
+
+    expect(normalized.map((hole) => hole.sequence)).toEqual([0, 1])
+    expect(normalized.filter((hole) => hole.endHole === true)).toHaveLength(1)
+    expect(normalized.find((hole) => hole.endHole === true)?.id).toBe('h1')
   })
 })

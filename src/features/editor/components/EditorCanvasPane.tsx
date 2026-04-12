@@ -457,6 +457,11 @@ export function EditorCanvasPane({
       null,
     [detailPadding, renderableStitchHoles, stitchSimulatorTerminalHoleId, viewBounds, visibleStitchHoles],
   )
+  const renderablePersistedTerminalHoles = useMemo(
+    () =>
+      renderableStitchHoles.filter((hole) => hole.endHole === true),
+    [renderableStitchHoles],
+  )
   const renderableHardwareMarkers = useMemo(
     () => visibleHardwareMarkers.filter((entry) => pointInBounds(entry.point, viewBounds, detailPadding)),
     [detailPadding, viewBounds, visibleHardwareMarkers],
@@ -952,23 +957,59 @@ export function EditorCanvasPane({
             </g>
           )}
 
-          {stitchSimulatorSettings?.showSimulatorPattern && renderableTerminalHole && (
-            <circle
-              cx={renderableTerminalHole.point.x}
-              cy={renderableTerminalHole.point.y}
-              r={Math.max(
-                1.6,
-                createStitchHolePrimitive(renderableTerminalHole).kind === 'circle'
-                  ? (createStitchHolePrimitive(renderableTerminalHole) as Extract<ReturnType<typeof createStitchHolePrimitive>, { kind: 'circle' }>).radiusMm * 3
-                  : 2.8,
-              )}
-              fill="none"
-              stroke={stitchSimulatorSettings.threadColor}
-              strokeWidth={0.6}
-              strokeDasharray="2 1.2"
-              pointerEvents="none"
-            />
-          )}
+          {renderablePersistedTerminalHoles.map((terminalHole) => {
+            const primitive = createStitchHolePrimitive(terminalHole)
+            const radius = Math.max(
+              1.8,
+              primitive.kind === 'circle'
+                ? primitive.radiusMm * 3.2
+                : 2.8,
+            )
+            return (
+              <g key={`${terminalHole.id}-terminal`} className="stitch-hole-terminal-marker" pointerEvents="none">
+                <circle
+                  cx={terminalHole.point.x}
+                  cy={terminalHole.point.y}
+                  r={radius}
+                  className="stitch-hole-terminal-ring"
+                />
+                <line
+                  x1={terminalHole.point.x - radius * 0.55}
+                  y1={terminalHole.point.y}
+                  x2={terminalHole.point.x + radius * 0.55}
+                  y2={terminalHole.point.y}
+                  className="stitch-hole-terminal-cross"
+                />
+                <line
+                  x1={terminalHole.point.x}
+                  y1={terminalHole.point.y - radius * 0.55}
+                  x2={terminalHole.point.x}
+                  y2={terminalHole.point.y + radius * 0.55}
+                  className="stitch-hole-terminal-cross"
+                />
+              </g>
+            )
+          })}
+
+          {stitchSimulatorSettings?.showSimulatorPattern &&
+            renderableTerminalHole &&
+            renderableTerminalHole.endHole !== true && (
+              <circle
+                cx={renderableTerminalHole.point.x}
+                cy={renderableTerminalHole.point.y}
+                r={Math.max(
+                  1.6,
+                  createStitchHolePrimitive(renderableTerminalHole).kind === 'circle'
+                    ? (createStitchHolePrimitive(renderableTerminalHole) as Extract<ReturnType<typeof createStitchHolePrimitive>, { kind: 'circle' }>).radiusMm * 3
+                    : 2.8,
+                )}
+                fill="none"
+                stroke={stitchSimulatorSettings.threadColor}
+                strokeWidth={0.6}
+                strokeDasharray="2 1.2"
+                pointerEvents="none"
+              />
+            )}
 
           {renderableStitchHoles.map((stitchHole) => {
             const isSelected = stitchHole.id === selectedStitchHoleId

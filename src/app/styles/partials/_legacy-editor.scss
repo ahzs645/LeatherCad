@@ -1157,6 +1157,24 @@ button:disabled {
   user-select: none;
 }
 
+.stitch-hole-terminal-marker {
+  opacity: 0.92;
+}
+
+.stitch-hole-terminal-ring {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 0.7;
+  stroke-dasharray: 2 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.stitch-hole-terminal-cross {
+  stroke: #ef4444;
+  stroke-width: 0.55;
+  vector-effect: non-scaling-stroke;
+}
+
 .seam-guide-line {
   stroke: rgba(59, 130, 246, 0.9);
   stroke-width: 1.3;

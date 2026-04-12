@@ -34,6 +34,9 @@ const StitchSimulatorModal = lazy(() =>
 const BoxStitchModal = lazy(() =>
   import('./BoxStitchModal').then((mod) => ({ default: mod.BoxStitchModal })),
 )
+const BoxStitchHelperModal = lazy(() =>
+  import('./BoxStitchHelperModal').then((mod) => ({ default: mod.BoxStitchHelperModal })),
+)
 const MandalaModal = lazy(() =>
   import('./MandalaModal').then((mod) => ({ default: mod.MandalaModal })),
 )
@@ -59,6 +62,7 @@ type EditorModalStackProps = {
   tracingModalProps: ComponentProps<typeof TracingModal>
   printPreviewModalProps: ComponentProps<typeof PrintPreviewModal>
   stitchSimulatorModalProps?: ComponentProps<typeof StitchSimulatorModal>
+  boxStitchHelperModalProps?: ComponentProps<typeof BoxStitchHelperModal>
   boxStitchModalProps?: ComponentProps<typeof BoxStitchModal>
   mandalaModalProps?: ComponentProps<typeof MandalaModal>
   wizardModalProps?: ComponentProps<typeof WizardModal>
@@ -78,6 +82,7 @@ export function EditorModalStack({
   tracingModalProps,
   printPreviewModalProps,
   stitchSimulatorModalProps,
+  boxStitchHelperModalProps,
   boxStitchModalProps,
   mandalaModalProps,
   wizardModalProps,
@@ -125,6 +130,14 @@ export function EditorModalStack({
       {boxStitchModalProps && (
         <Suspense fallback={null}>
           <BoxStitchModal {...boxStitchModalProps} />
+        </Suspense>
+      )}
+      {boxStitchHelperModalProps && (
+        <Suspense fallback={null}>
+          <BoxStitchHelperModal
+            key={`${boxStitchHelperModalProps.open}-${boxStitchHelperModalProps.settings.distanceMm}-${boxStitchHelperModalProps.settings.stretchCompensationPercent}-${boxStitchHelperModalProps.selectedShapeCount}`}
+            {...boxStitchHelperModalProps}
+          />
         </Suspense>
       )}
       {mandalaModalProps && (

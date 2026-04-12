@@ -8,7 +8,6 @@ type StitchSimulatorModalProps = {
   onApply: (settings: StitchSimulatorSettings) => void
   stitchHoleCount: number
   threadLength: number | null
-  selectedHoleId: string | null
   selectedHoleLabel: string | null
   terminalHoleLabel: string | null
 }
@@ -27,7 +26,6 @@ export function StitchSimulatorModal({
   onApply,
   stitchHoleCount,
   threadLength,
-  selectedHoleId,
   selectedHoleLabel,
   terminalHoleLabel,
 }: StitchSimulatorModalProps) {
@@ -56,6 +54,7 @@ export function StitchSimulatorModal({
           Selected hole: <strong>{selectedHoleLabel ?? 'None'}</strong>
           {' '}| Active stitch end: <strong>{terminalHoleLabel ?? 'Path end'}</strong>
         </p>
+        <p className="hint">Use the stitch-hole inspector to set or clear the terminal stitch hole.</p>
 
         <label className="field-row">
           <span>Stitch Type</span>
@@ -190,33 +189,6 @@ export function StitchSimulatorModal({
           />
           <span>Show direction arrows</span>
         </label>
-
-        <div className="modal-actions">
-          <button
-            type="button"
-            onClick={() =>
-              setDraftSettings((previous) => ({
-                ...previous,
-                endHoleId: selectedHoleId,
-              }))
-            }
-            disabled={!selectedHoleId}
-          >
-            Use Selected Hole
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              setDraftSettings((previous) => ({
-                ...previous,
-                endHoleId: null,
-              }))
-            }
-            disabled={!draftSettings.endHoleId}
-          >
-            Clear Stitch End
-          </button>
-        </div>
 
         <div className="modal-actions">
           <button onClick={onClose}>Cancel</button>

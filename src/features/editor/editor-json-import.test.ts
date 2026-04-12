@@ -120,4 +120,49 @@ describe('parseImportedJsonDocument', () => {
 
     expect(imported.doc.documentName).toBe('YubiKey Sleeve')
   })
+
+  it('preserves extracted box stitch sources and terminal stitch holes', () => {
+    const lineTypes = createDefaultLineTypes()
+    const cutLineTypeId = lineTypes.find((entry) => entry.role === 'cut')?.id ?? lineTypes[0].id
+    const raw = JSON.stringify({
+      version: 1,
+      units: 'mm',
+      layers: [{ id: 'layer-1', name: 'Main', visible: true, locked: false }],
+      activeLayerId: 'layer-1',
+      lineTypes,
+      activeLineTypeId: cutLineTypeId,
+      objects: [
+        {
+          id: 'box-source',
+          type: 'arc',
+          layerId: 'layer-1',
+          lineTypeId: cutLineTypeId,
+          boxStitchSource: { extracted: true },
+          start: { x: 0, y: 0 },
+          mid: { x: 20, y: -6 },
+          end: { x: 40, y: 0 },
+        },
+      ],
+      foldLines: [],
+      stitchHoles: [
+        {
+          id: 'hole-1',
+          shapeId: 'box-source',
+          point: { x: 20, y: 0 },
+          angleDeg: 90,
+          holeType: 'round',
+          sequence: 0,
+          endHole: true,
+        },
+      ],
+    })
+
+    const imported = parseImportedJsonDocument(raw)
+    const importedShape = imported.doc.objects[0]
+
+    expect(importedShape).toMatchObject({
+      boxStitchSource: { extracted: true },
+    })
+    expect(imported.doc.stitchHoles[0]?.endHole).toBe(true)
+  })
 })

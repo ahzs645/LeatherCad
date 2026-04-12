@@ -92,12 +92,27 @@ import { useEditorSelectionState } from './hooks/useEditorSelectionState'
 import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
-import { generateBoxStitchPattern, type BoxStitchParams } from './ops/box-stitch-ops'
+import {
+  clearSelectedBoxStitchSources,
+  generateBoxStitchPattern,
+  markSelectedShapesAsBoxStitchSource,
+  type BoxStitchParams,
+} from './ops/box-stitch-ops'
 import { generateRadialCopies, generateGoldenSpiral, generateGoldenRatioGuides, generateMandalaGuideCircle, type MandalaSettings, type GoldenSpiralParams } from './ops/mandala-ops'
 import { generateWatchStrap, generatePassCase, generateBoxJoint, generateJigsaw, generateDiceCup, type WizardType, type WatchStrapParams, type PassCaseParams, type BoxJointParams, type JigsawParams, type DiceCupParams } from './ops/wizard-ops'
 import { generateLetterStampPreview, type LetterStampParams } from './ops/letter-stamp-ops'
 import { simulateStitches, type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
 import { loadStitchSimulatorSettings, saveStitchSimulatorSettings } from './ops/stitch-simulator-settings'
+import {
+  loadBoxStitchHelperSettings,
+  saveBoxStitchHelperSettings,
+  type BoxStitchHelperSettings,
+} from './ops/box-stitch-settings'
+import {
+  clearTerminalStitchHole,
+  getTerminalStitchHoleIdForShape,
+  setTerminalStitchHole,
+} from './ops/stitch-hole-ops'
 import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
 import { EditorWorkbench } from './workbench/EditorWorkbench'
 import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
@@ -185,6 +200,7 @@ export function EditorApp() {
     constraintSuggestions, setConstraintSuggestions,
     autoConstraintSettings,
     showStitchSimulatorModal, setShowStitchSimulatorModal,
+    showBoxStitchHelperModal, setShowBoxStitchHelperModal,
     showBoxStitchModal, setShowBoxStitchModal,
     showMandalaModal, setShowMandalaModal,
     showWizardModal, setShowWizardModal,
@@ -1153,6 +1169,12 @@ export function EditorApp() {
     setLayers,
     setStatus,
   })
+  const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
+    loadStitchSimulatorSettings(),
+  )
+  const [boxStitchHelperSettings, setBoxStitchHelperSettings] = useState<BoxStitchHelperSettings>(() =>
+    loadBoxStitchHelperSettings(),
+  )
   const {
     handleAddEdgeConstraintFromSelection,
     handleAddAlignConstraintsFromSelection,
@@ -1167,7 +1189,7 @@ export function EditorApp() {
     handleBevelSelectedCorner,
     handleRoundSelectedCorner,
     handleCreateOffsetGeometryFromSelection,
-    handleCreateBoxStitchFromSelection,
+    applyBoxStitchToSelection,
   } = useConstraintActions({
     activeLayer,
     activeLayerId: activeLayer?.id ?? null,
@@ -1185,7 +1207,11 @@ export function EditorApp() {
     patternPieces,
     seamAllowances,
     snapSettings,
+    boxStitchHelperSettings,
+    stitchPitchMm,
+    stitchHoleDefaults,
     setShapes,
+    setStitchHoles,
     setSelectedShapeIds,
     setConstraints,
     setSeamAllowances,
@@ -1659,6 +1685,52 @@ export function EditorApp() {
     )
   }
 
+  const handleMarkSelectedStitchHoleAsEnd = () => {
+    if (!selectedStitchHole) {
+      return
+    }
+
+    setStitchHoles((previous) => setTerminalStitchHole(previous, selectedStitchHole.id))
+    setStitchSimulatorSettings((previous) => ({
+      ...previous,
+      endHoleId: selectedStitchHole.id,
+    }))
+    setStatus(`Marked hole ${selectedStitchHole.sequence + 1} as the stitch end`)
+  }
+
+  const handleClearSelectedStitchHoleEnd = () => {
+    if (!selectedStitchHole) {
+      return
+    }
+
+    setStitchHoles((previous) => clearTerminalStitchHole(previous, selectedStitchHole.id))
+    setStitchSimulatorSettings((previous) => ({
+      ...previous,
+      endHoleId: null,
+    }))
+    setStatus(`Cleared stitch end on hole ${selectedStitchHole.sequence + 1}`)
+  }
+
+  const handleExtractSelectedBoxStitchSources = () => {
+    const result = markSelectedShapesAsBoxStitchSource(shapes, selectedShapeIdSet)
+    if (result.updatedCount === 0) {
+      setStatus('Select one or more lines, arcs, or beziers to extract as box stitch sources')
+      return
+    }
+    setShapes(result.nextShapes)
+    setStatus(`Marked ${result.updatedCount} shape${result.updatedCount === 1 ? '' : 's'} as box stitch sources`)
+  }
+
+  const handleClearSelectedBoxStitchSources = () => {
+    const result = clearSelectedBoxStitchSources(shapes, selectedShapeIdSet)
+    if (result.updatedCount === 0) {
+      setStatus('Selected shapes do not contain extracted box stitch sources')
+      return
+    }
+    setShapes(result.nextShapes)
+    setStatus(`Cleared box stitch sources on ${result.updatedCount} shape${result.updatedCount === 1 ? '' : 's'}`)
+  }
+
   const handleApplyTextDefaultsToSelection = () => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more text shapes first')
@@ -1743,10 +1815,6 @@ export function EditorApp() {
     setShowBezierOffsetLines,
   })
 
-  const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
-    loadStitchSimulatorSettings(),
-  )
-
   const stitchSimulatorResult = useMemo(() => {
     if (stitchHoles.length === 0) {
       return null
@@ -1757,12 +1825,41 @@ export function EditorApp() {
     return simulateStitches(stitchHoles, stitchSimulatorSettings)
   }, [showStitchSimulatorModal, stitchHoles, stitchSimulatorSettings])
 
+  useEffect(() => {
+    const nextEndHoleId = selectedStitchHole
+      ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
+      : null
+    setStitchSimulatorSettings((previous) =>
+      previous.endHoleId === nextEndHoleId
+        ? previous
+        : {
+            ...previous,
+            endHoleId: nextEndHoleId,
+          },
+    )
+  }, [selectedStitchHole, stitchHoles])
+
   const handleGenerateBoxStitch = (params: BoxStitchParams) => {
     const result = generateBoxStitchPattern(params)
     setShapes((prev) => [...prev, ...result.guideLines])
     setStitchHoles((prev) => [...prev, ...result.stitchHoles])
     setShowBoxStitchModal(false)
     setStatus(`Generated box stitch: ${result.guideLines.length} guides, ${result.stitchHoles.length} holes`)
+  }
+
+  const handleOpenBoxStitchHelperModal = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to create a box stitch')
+      return
+    }
+    setShowBoxStitchHelperModal(true)
+  }
+
+  const handleApplyBoxStitchHelper = (settings: BoxStitchHelperSettings) => {
+    setBoxStitchHelperSettings(settings)
+    saveBoxStitchHelperSettings(settings)
+    applyBoxStitchToSelection(settings)
+    setShowBoxStitchHelperModal(false)
   }
 
   const handleGenerateMandalaRadial = (settings: MandalaSettings) => {
@@ -2213,7 +2310,7 @@ export function EditorApp() {
     handleBevelSelectedCorner,
     handleRoundSelectedCorner,
     handleCreateOffsetGeometryFromSelection,
-    handleCreateBoxStitchFromSelection,
+    handleCreateBoxStitchFromSelection: handleOpenBoxStitchHelperModal,
     selectedEditableShape,
     handleUpdateSelectedShapePoint,
     textDraftValue,
@@ -2666,7 +2763,11 @@ export function EditorApp() {
         setShowStitchSimulatorModal(true)
         break
       case 'box-stitch':
-        setShowBoxStitchModal(true)
+        if (selectedShapeIdSet.size > 0) {
+          setShowBoxStitchHelperModal(true)
+        } else {
+          setShowBoxStitchModal(true)
+        }
         break
       case 'pattern-wizard':
         setShowWizardModal(true)
@@ -2903,7 +3004,7 @@ export function EditorApp() {
       onAlignBoth={() => handleAlignSelection('both')}
       onAlignToGrid={handleAlignSelectionToGrid}
       onCreateOffset={handleCreateOffsetGeometryFromSelection}
-      onCreateBoxStitch={handleCreateBoxStitchFromSelection}
+      onCreateBoxStitch={handleOpenBoxStitchHelperModal}
       onBevelCorner={handleBevelSelectedCorner}
       onRoundCorner={handleRoundSelectedCorner}
       onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
@@ -2915,8 +3016,12 @@ export function EditorApp() {
       onApplySeamAllowance={handleApplySeamAllowanceToSelection}
       onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
       onApplyTextDefaults={handleApplyTextDefaultsToSelection}
+      onExtractBoxStitchSource={handleExtractSelectedBoxStitchSources}
+      onClearBoxStitchSource={handleClearSelectedBoxStitchSources}
       onUpdateSelectedShapePoint={handleUpdateSelectedShapePoint}
       onUpdateSelectedStitchHole={handleUpdateSelectedStitchHole}
+      onMarkSelectedStitchHoleAsEnd={handleMarkSelectedStitchHoleAsEnd}
+      onClearSelectedStitchHoleEnd={handleClearSelectedStitchHoleEnd}
       onUpdateSelectedHardwareMarker={handleUpdateSelectedHardwareMarker}
       onDeleteSelectedHardwareMarker={handleDeleteSelectedHardwareMarker}
     />
@@ -3193,14 +3298,30 @@ export function EditorApp() {
             },
             stitchHoleCount: stitchHoles.length,
             threadLength: stitchSimulatorResult?.threadLength ?? null,
-            selectedHoleId: selectedStitchHole?.id ?? null,
             selectedHoleLabel: selectedStitchHole ? `Hole ${selectedStitchHole.sequence + 1}` : null,
             terminalHoleLabel:
-              stitchSimulatorResult?.terminalHoleId
+              (selectedStitchHole
+                ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
+                : stitchSimulatorResult?.terminalHoleId)
                 ? `Hole ${
-                    (stitchHoles.find((hole) => hole.id === stitchSimulatorResult.terminalHoleId)?.sequence ?? 0) + 1
+                    (
+                      stitchHoles.find(
+                        (hole) =>
+                          hole.id ===
+                          (selectedStitchHole
+                            ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
+                            : stitchSimulatorResult?.terminalHoleId),
+                      )?.sequence ?? 0
+                    ) + 1
                   }`
                 : null,
+          }}
+          boxStitchHelperModalProps={{
+            open: showBoxStitchHelperModal,
+            onClose: () => setShowBoxStitchHelperModal(false),
+            onApply: handleApplyBoxStitchHelper,
+            settings: boxStitchHelperSettings,
+            selectedShapeCount,
           }}
           boxStitchModalProps={{
             open: showBoxStitchModal,

@@ -34,6 +34,10 @@ export type LineType = {
   visible: boolean
 }
 
+export type BoxStitchSource = {
+  extracted: true
+}
+
 type BaseShape = {
   id: string
   layerId: string
@@ -41,6 +45,7 @@ type BaseShape = {
   groupId?: string
   arrowStart?: boolean
   arrowEnd?: boolean
+  boxStitchSource?: BoxStitchSource
 }
 
 export type LineShape = {
@@ -51,6 +56,7 @@ export type LineShape = {
   groupId?: BaseShape['groupId']
   arrowStart?: BaseShape['arrowStart']
   arrowEnd?: BaseShape['arrowEnd']
+  boxStitchSource?: BaseShape['boxStitchSource']
   start: Point
   end: Point
 }
@@ -63,6 +69,7 @@ export type ArcShape = {
   groupId?: BaseShape['groupId']
   arrowStart?: BaseShape['arrowStart']
   arrowEnd?: BaseShape['arrowEnd']
+  boxStitchSource?: BaseShape['boxStitchSource']
   start: Point
   mid: Point
   end: Point
@@ -76,6 +83,7 @@ export type BezierShape = {
   groupId?: BaseShape['groupId']
   arrowStart?: BaseShape['arrowStart']
   arrowEnd?: BaseShape['arrowEnd']
+  boxStitchSource?: BaseShape['boxStitchSource']
   start: Point
   control: Point
   end: Point

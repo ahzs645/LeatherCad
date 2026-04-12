@@ -15,18 +15,45 @@ function createHole(index: number): StitchHole {
 }
 
 describe('simulateStitches', () => {
-  it('respects an explicit stitch end hole', () => {
+  it('respects a persisted stitch end hole on the path', () => {
     const holes = [createHole(0), createHole(1), createHole(2), createHole(3)]
+    holes[2] = {
+      ...holes[2],
+      endHole: true,
+    }
     const result = simulateStitches(holes, {
       ...getDefaultStitchSimulatorSettings(),
       stitchType: 'running',
-      endHoleId: 'hole-2',
     })
 
     expect(result.holeCount).toBe(3)
     expect(result.terminalHoleId).toBe('hole-2')
     expect(result.segments).toHaveLength(2)
     expect(result.segments.map((segment) => segment.to.x)).toEqual([10, 20])
+  })
+
+  it('truncates each stitch path independently when multiple shapes have terminal holes', () => {
+    const holes = [
+      createHole(0),
+      createHole(1),
+      createHole(2),
+      { ...createHole(10), id: 'hole-b0', shapeId: 'shape-2', sequence: 0, point: { x: 0, y: 20 } },
+      { ...createHole(11), id: 'hole-b1', shapeId: 'shape-2', sequence: 1, point: { x: 10, y: 20 }, endHole: true },
+      { ...createHole(12), id: 'hole-b2', shapeId: 'shape-2', sequence: 2, point: { x: 20, y: 20 } },
+    ]
+    holes[1] = {
+      ...holes[1],
+      endHole: true,
+    }
+
+    const result = simulateStitches(holes, {
+      ...getDefaultStitchSimulatorSettings(),
+      stitchType: 'running',
+    })
+
+    expect(result.holeCount).toBe(4)
+    expect(result.segments).toHaveLength(2)
+    expect(result.segments.map((segment) => `${segment.from.y}-${segment.to.y}`)).toEqual(['0-0', '20-20'])
   })
 
   it('filters back and even stitches independently', () => {

@@ -9,6 +9,7 @@ import type {
   PieceSeamAllowance,
   Shape,
   SnapSettings,
+  StitchHoleDefaults,
 } from '../cad/cad-types'
 import {
   applyCornerOnSelectedLines,
@@ -20,7 +21,8 @@ import {
   alignSelectedShapesToGrid,
   applyParametricConstraints,
 } from '../ops/pattern-ops'
-import { loadBoxStitchDistanceMm, saveBoxStitchDistanceMm } from '../ops/box-stitch-settings'
+import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
+import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 
 type UseConstraintActionsParams = {
   activeLayer: Layer | null
@@ -39,7 +41,11 @@ type UseConstraintActionsParams = {
   patternPieces: PatternPiece[]
   seamAllowances: PieceSeamAllowance[]
   snapSettings: SnapSettings
+  boxStitchHelperSettings: BoxStitchHelperSettings
+  stitchPitchMm: number
+  stitchHoleDefaults: StitchHoleDefaults
   setShapes: Dispatch<SetStateAction<Shape[]>>
+  setStitchHoles: Dispatch<SetStateAction<import('../cad/cad-types').StitchHole[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
@@ -64,7 +70,11 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     patternPieces,
     seamAllowances,
     snapSettings,
+    boxStitchHelperSettings,
+    stitchPitchMm,
+    stitchHoleDefaults,
     setShapes,
+    setStitchHoles,
     setSelectedShapeIds,
     setConstraints,
     setSeamAllowances,
@@ -283,29 +293,28 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     setStatus(result.message)
   }
 
-  const handleCreateBoxStitchFromSelection = () => {
-    const defaultDistance = loadBoxStitchDistanceMm()
-    const input = Number(window.prompt('Box stitch distance / search distance (mm)', defaultDistance.toFixed(1)))
-    if (!Number.isFinite(input) || input <= 0) {
-      setStatus('Box stitch cancelled')
-      return
-    }
-    const safeDistance = clamp(input, 0.1, 200)
-    saveBoxStitchDistanceMm(safeDistance)
+  const applyBoxStitchToSelection = (settings: BoxStitchHelperSettings) => {
     const result = createBoxStitchFromSelection(
       shapes,
       selectedShapeIdSet,
-      safeDistance,
+      settings,
       stitchLineTypeId,
       activeLayerId,
+      stitchPitchMm,
+      stitchHoleDefaults,
     )
     if (!result.ok) {
       setStatus(result.message)
       return
     }
-    setShapes((previous) => [...previous, ...result.created])
-    setSelectedShapeIds(result.created.map((shape) => shape.id))
-    setStatus(result.message)
+    setShapes((previous) => [...previous, ...result.guideLines])
+    setStitchHoles((previous) => normalizeStitchHoleSequences([...previous, ...result.stitchHoles]))
+    setSelectedShapeIds(result.guideLines.map((shape) => shape.id))
+    setStatus(`${result.message}. Created ${result.guideLines.length} guides and ${result.stitchHoles.length} holes`)
+  }
+
+  const handleCreateBoxStitchFromSelection = () => {
+    applyBoxStitchToSelection(boxStitchHelperSettings)
   }
 
   return {
@@ -322,6 +331,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     handleBevelSelectedCorner,
     handleRoundSelectedCorner,
     handleCreateOffsetGeometryFromSelection,
+    applyBoxStitchToSelection,
     handleCreateBoxStitchFromSelection,
   }
 }

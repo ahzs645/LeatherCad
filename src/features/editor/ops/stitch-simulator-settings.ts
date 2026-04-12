@@ -20,6 +20,7 @@ export function loadStitchSimulatorSettings() {
     return {
       ...defaults,
       ...parsed,
+      endHoleId: null,
     }
   } catch {
     return getDefaultStitchSimulatorSettings()
@@ -31,5 +32,11 @@ export function saveStitchSimulatorSettings(settings: StitchSimulatorSettings) {
     return
   }
 
-  safeLocalStorageSet(STITCH_SIMULATOR_SETTINGS_KEY, JSON.stringify(settings))
+  safeLocalStorageSet(
+    STITCH_SIMULATOR_SETTINGS_KEY,
+    JSON.stringify({
+      ...settings,
+      endHoleId: null,
+    }),
+  )
 }

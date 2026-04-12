@@ -568,7 +568,7 @@ export function PatternToolsModal({
 
         <div className="control-block">
           <h3>Corners + Geometry</h3>
-          <p className="hint">Use two connected lines for bevel/round. Offset and box stitch use current selection.</p>
+          <p className="hint">Use two connected lines for bevel/round. Offset and the box stitch helper use current selection.</p>
           <div className="line-type-modal-actions">
             <button onClick={onBevelSelectedCorner} disabled={selectedShapeCount < 2}>
               Bevel Corner
@@ -580,7 +580,7 @@ export function PatternToolsModal({
               Create Offset Geometry
             </button>
             <button onClick={onCreateBoxStitchFromSelection} disabled={selectedShapeCount === 0}>
-              Create Box Stitch
+              Box Stitch Helper
             </button>
           </div>
         </div>

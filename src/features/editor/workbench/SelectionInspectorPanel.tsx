@@ -1,5 +1,6 @@
 import type { HardwareMarker, Shape, StitchHole, StitchHoleRenderShape, StitchHoleType } from '../cad/cad-types'
 import type { InspectorContext } from './workbench-types'
+import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-ops'
 
 type SelectionInspectorPanelProps = {
   context: InspectorContext
@@ -26,12 +27,16 @@ type SelectionInspectorPanelProps = {
   onApplySeamAllowance: () => void
   onClearSeamAllowance: () => void
   onApplyTextDefaults: () => void
+  onExtractBoxStitchSource: () => void
+  onClearBoxStitchSource: () => void
   onUpdateSelectedShapePoint: (
     pointKey: 'start' | 'mid' | 'control' | 'end',
     axis: 'x' | 'y',
     value: number,
   ) => void
   onUpdateSelectedStitchHole: (patch: Partial<StitchHole>) => void
+  onMarkSelectedStitchHoleAsEnd: () => void
+  onClearSelectedStitchHoleEnd: () => void
   onUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
   onDeleteSelectedHardwareMarker: () => void
 }
@@ -66,8 +71,12 @@ export function SelectionInspectorPanel({
   onApplySeamAllowance,
   onClearSeamAllowance,
   onApplyTextDefaults,
+  onExtractBoxStitchSource,
+  onClearBoxStitchSource,
   onUpdateSelectedShapePoint,
   onUpdateSelectedStitchHole,
+  onMarkSelectedStitchHoleAsEnd,
+  onClearSelectedStitchHoleEnd,
   onUpdateSelectedHardwareMarker,
   onDeleteSelectedHardwareMarker,
 }: SelectionInspectorPanelProps) {
@@ -76,6 +85,14 @@ export function SelectionInspectorPanel({
     : selectedEditableShape?.type === 'line'
       ? 1
       : 0
+  const selectedShapeEntries =
+    context.kind === 'shape-multi'
+      ? context.shapes
+      : selectedEditableShape
+        ? [selectedEditableShape]
+        : []
+  const boxStitchSourceEligibleCount = selectedShapeEntries.filter((shape) => isBoxStitchSourceEligibleShape(shape)).length
+  const extractedBoxStitchSourceCount = selectedShapeEntries.filter((shape) => hasExtractedBoxStitchSource(shape)).length
 
   return (
     <>
@@ -95,7 +112,7 @@ export function SelectionInspectorPanel({
           <button onClick={onAlignBoth} disabled={selectedShapeCount < 2}>Align XY</button>
           <button onClick={onAlignToGrid} disabled={selectedShapeCount === 0}>Grid</button>
           <button onClick={onCreateOffset} disabled={selectedShapeCount === 0}>Offset</button>
-          <button onClick={onCreateBoxStitch} disabled={selectedShapeCount === 0}>Box Stitch</button>
+          <button onClick={onCreateBoxStitch} disabled={selectedShapeCount === 0}>Box Stitch Helper</button>
           <button onClick={onBevelCorner} disabled={lineCount < 2}>Bevel</button>
           <button onClick={onRoundCorner} disabled={lineCount < 2}>Round</button>
           <button onClick={onAddEdgeConstraint} disabled={selectedShapeCount === 0}>Edge Constraint</button>
@@ -106,6 +123,8 @@ export function SelectionInspectorPanel({
           <button onClick={onApplySeamAllowance} disabled={selectedShapeCount === 0}>Apply Seam</button>
           <button onClick={onClearSeamAllowance} disabled={selectedShapeCount === 0}>Clear Seam</button>
           <button onClick={onApplyTextDefaults} disabled={selectedShapeCount === 0}>Text Defaults</button>
+          <button onClick={onExtractBoxStitchSource} disabled={boxStitchSourceEligibleCount === 0}>Extract Box Source</button>
+          <button onClick={onClearBoxStitchSource} disabled={extractedBoxStitchSourceCount === 0}>Clear Box Source</button>
         </div>
       </div>
 
@@ -113,6 +132,11 @@ export function SelectionInspectorPanel({
         <div className="control-block">
           <h3>Geometry</h3>
           <p className="hint">{`${selectedEditableShape.type} on layer ${selectedEditableShape.layerId}`}</p>
+          {isBoxStitchSourceEligibleShape(selectedEditableShape) && (
+            <p className="hint">
+              Box stitch source: <strong>{hasExtractedBoxStitchSource(selectedEditableShape) ? 'Extracted' : 'Not extracted'}</strong>
+            </p>
+          )}
           <div className="workbench-field-grid">
             <label className="field-row">
               <span>Start X</span>
@@ -191,12 +215,25 @@ export function SelectionInspectorPanel({
               </>
             )}
           </div>
+          {isBoxStitchSourceEligibleShape(selectedEditableShape) && (
+            <div className="button-row">
+              <button onClick={onExtractBoxStitchSource} disabled={hasExtractedBoxStitchSource(selectedEditableShape)}>
+                Extract as Box Stitch Line
+              </button>
+              <button onClick={onClearBoxStitchSource} disabled={!hasExtractedBoxStitchSource(selectedEditableShape)}>
+                Clear Box Stitch Source
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {selectedStitchHole && (
         <div className="control-block">
           <h3>Stitch Hole</h3>
+          <p className="hint">
+            Stitch end: <strong>{selectedStitchHole.endHole ? 'Terminal hole' : 'Not set'}</strong>
+          </p>
           <div className="workbench-field-grid">
             <label className="field-row">
               <span>Type</span>
@@ -294,6 +331,14 @@ export function SelectionInspectorPanel({
               />
               <span>Inverted</span>
             </label>
+          </div>
+          <div className="button-row">
+            <button onClick={onMarkSelectedStitchHoleAsEnd} disabled={selectedStitchHole.endHole === true}>
+              End Stitch Here
+            </button>
+            <button onClick={onClearSelectedStitchHoleEnd} disabled={selectedStitchHole.endHole !== true}>
+              Clear End Stitch
+            </button>
           </div>
         </div>
       )}
