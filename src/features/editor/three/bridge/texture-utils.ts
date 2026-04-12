@@ -1,10 +1,10 @@
-import * as THREE from 'three'
+import type { Texture, TextureLoader } from 'three'
 
-export function loadTexture(loader: THREE.TextureLoader, url: string): Promise<THREE.Texture> {
+export function loadTexture(loader: TextureLoader, url: string): Promise<Texture> {
   return new Promise((resolve, reject) => {
     loader.load(
       url,
-      (texture: THREE.Texture) => resolve(texture),
+      (texture: Texture) => resolve(texture),
       undefined,
       (error: unknown) => reject(error instanceof Error ? error : new Error('Texture load failed')),
     )

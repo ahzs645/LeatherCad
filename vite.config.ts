@@ -17,8 +17,17 @@ export default defineConfig({
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
             return 'react-vendor'
           }
-          if (id.includes('node_modules/three') || id.includes('/GLTFLoader')) {
-            return 'three-vendor'
+          if (id.includes('node_modules/three/examples/jsm/loaders/')) {
+            return 'three-loaders-vendor'
+          }
+          if (id.includes('node_modules/three/examples/jsm/controls/')) {
+            return 'three-controls-vendor'
+          }
+          if (id.includes('node_modules/three/examples/jsm/')) {
+            return 'three-examples-vendor'
+          }
+          if (id.includes('node_modules/three')) {
+            return 'three-core-vendor'
           }
           if (id.includes('node_modules/pdfjs-dist')) {
             return 'pdf-vendor'

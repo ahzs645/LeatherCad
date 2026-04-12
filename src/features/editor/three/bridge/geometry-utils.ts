@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import type { Vector2, Vector3 } from 'three'
 
 const EPSILON = 1e-6
 
@@ -9,12 +9,12 @@ export type Bounds2 = {
   maxY: number
 }
 
-export function sideOfLine(point: THREE.Vector2, lineStart: THREE.Vector2, lineEnd: THREE.Vector2) {
+export function sideOfLine(point: Vector2, lineStart: Vector2, lineEnd: Vector2) {
   const direction = lineEnd.clone().sub(lineStart)
   return direction.x * (point.y - lineStart.y) - direction.y * (point.x - lineStart.x)
 }
 
-export function polygonBounds(points: THREE.Vector2[]): Bounds2 {
+export function polygonBounds(points: Vector2[]): Bounds2 {
   let minX = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
@@ -55,12 +55,12 @@ export function ensureMinSpan(bounds: Bounds2, minSpan: number) {
   }
 }
 
-export function clipPolygonByLine(points: THREE.Vector2[], lineStart: THREE.Vector2, lineEnd: THREE.Vector2, keepPositive: boolean) {
+export function clipPolygonByLine(points: Vector2[], lineStart: Vector2, lineEnd: Vector2, keepPositive: boolean) {
   if (points.length === 0) {
-    return [] as THREE.Vector2[]
+    return [] as Vector2[]
   }
 
-  const result: THREE.Vector2[] = []
+  const result: Vector2[] = []
   const sideCheck = (value: number) => (keepPositive ? value >= -EPSILON : value <= EPSILON)
 
   for (let index = 0; index < points.length; index += 1) {
@@ -98,13 +98,13 @@ export function clipPolygonByLine(points: THREE.Vector2[], lineStart: THREE.Vect
   return result
 }
 
-export function segmentLengthSquared(a: THREE.Vector2, b: THREE.Vector2) {
+export function segmentLengthSquared(a: Vector2, b: Vector2) {
   const dx = a.x - b.x
   const dy = a.y - b.y
   return dx * dx + dy * dy
 }
 
-export function lineIntersectionOnSegment(a: THREE.Vector2, b: THREE.Vector2, sideA: number, sideB: number) {
+export function lineIntersectionOnSegment(a: Vector2, b: Vector2, sideA: number, sideB: number) {
   const denominator = sideA - sideB
   if (Math.abs(denominator) <= EPSILON) {
     return null
@@ -114,7 +114,7 @@ export function lineIntersectionOnSegment(a: THREE.Vector2, b: THREE.Vector2, si
   return a.clone().lerp(b, t)
 }
 
-export function distanceToFoldAxisInWorld(point: THREE.Vector3, foldAxisPoint: THREE.Vector2, foldAxisDirection: THREE.Vector3) {
+export function distanceToFoldAxisInWorld(point: Vector3, foldAxisPoint: Vector2, foldAxisDirection: Vector3) {
   const dx = point.x - foldAxisPoint.x
   const dz = point.z - foldAxisPoint.y
   return Math.abs(dx * -foldAxisDirection.z + dz * foldAxisDirection.x)

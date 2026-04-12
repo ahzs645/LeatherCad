@@ -87,11 +87,7 @@ import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
 import { EditorWorkbench } from './workbench/EditorWorkbench'
 import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
-import {
-  WorkbenchThreePreviewInspector,
-  WorkbenchThreePreviewViewport,
-} from './workbench/WorkbenchThreePreview'
-import { useWorkbenchThreePreviewController } from './workbench/useWorkbenchThreePreviewController'
+import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
 import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
 import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
@@ -100,6 +96,10 @@ import { EditorStateProviders } from './state/providers/EditorStateProviders'
 import { useEditorCreationController } from './controllers/useEditorCreationController'
 import { useEditorDocumentBootstrap } from './controllers/useEditorDocumentBootstrap'
 import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchController'
+
+const WorkbenchThreeWorkspace = lazy(() =>
+  import('./workbench/WorkbenchThreeWorkspace').then((mod) => ({ default: mod.WorkbenchThreeWorkspace })),
+)
 
 export function EditorApp() {
   return (
@@ -269,6 +269,15 @@ function EditorAppContent() {
   })
 
   const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
+
+  useWorkbenchRouteSync({
+    enabled: !isMobileLayout,
+    workspaceMode,
+    setWorkspaceMode,
+    setSecondaryPreviewMode,
+    activeInspectorTab: effectiveLayout.activeInspectorTab,
+    setActiveInspectorTab,
+  })
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1656,41 +1665,6 @@ function EditorAppContent() {
     setSecondaryPreviewMode,
     setWorkspaceMode,
   })
-  const threePreviewController = useWorkbenchThreePreviewController({
-    shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
-    selectedShapeIds,
-    stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
-    stitchThreadColor,
-    onSetStitchThreadColor: setStitchThreadColor,
-    patternPieces,
-    piecePlacements3d,
-    seamConnections,
-    threePreviewSettings,
-    avatars,
-    onSetPiecePlacements3d: setPiecePlacements3d,
-    onSetThreePreviewSettings: setThreePreviewSettings,
-    onSetAvatars: setAvatars,
-    threeTextureSource,
-    onSetThreeTextureSource: setThreeTextureSource,
-    threeTextureShapeIds,
-    onSetThreeTextureShapeIds: setThreeTextureShapeIds,
-    foldLines,
-    layers,
-    lineTypes,
-    themeMode: resolvedThemeMode,
-    onUpdateFoldLine: (foldLineId, updates) =>
-      setFoldLines((previous) =>
-        previous.map((foldLine) =>
-          foldLine.id === foldLineId
-            ? {
-                ...foldLine,
-                ...updates,
-              }
-            : foldLine,
-        ),
-      ),
-  })
-
   const canvasPaneProps = useEditorCanvasPaneProps({
     hideCanvasPane: false,
     svgRef,
@@ -1758,16 +1732,6 @@ function EditorAppContent() {
   const workbenchTwoDPane = (
     <ErrorBoundary>
       <EditorCanvasPane {...canvasPaneProps} />
-    </ErrorBoundary>
-  )
-
-  const workbenchThreeDPane = (
-    <ErrorBoundary>
-      <WorkbenchThreePreviewViewport
-        controller={threePreviewController}
-        compact={workspaceMode !== '3d'}
-        interactive={workspaceMode === '3d'}
-      />
     </ErrorBoundary>
   )
 
@@ -1839,8 +1803,6 @@ function EditorAppContent() {
     />
   )
 
-  const workbenchPreviewContent = <WorkbenchThreePreviewInspector controller={threePreviewController} />
-
   const workbenchDocumentContent = (
     <DocumentInspectorPanel
       displayUnit={displayUnit}
@@ -1894,6 +1856,106 @@ function EditorAppContent() {
     />
   )
 
+  const threeWorkspaceRoutePrompt = (
+    <div className="workbench-empty-state">
+      <strong>3D workspace is isolated behind its own route.</strong>
+      <p>Open the assembly workspace to load the 3D preview lane and related tools.</p>
+      <button type="button" onClick={() => handleSetWorkbenchMode('3d')}>
+        Open 3D Workspace
+      </button>
+    </div>
+  )
+
+  const threeWorkspaceLoadingState = (
+    <div className="workbench-empty-state">
+      <strong>Loading 3D workspace…</strong>
+      <p>Preparing the assembly preview and material tools.</p>
+    </div>
+  )
+
+  const renderDesktopWorkbench = (threeDPane: React.ReactNode, previewContent: React.ReactNode) => (
+    <EditorWorkbench
+      docLabel={docLabel}
+      shellRef={shellRef}
+      workspaceMode={workspaceMode}
+      secondaryPreviewMode={effectiveSecondaryPreviewMode}
+      showPeek={showPeek}
+      browserWidth={effectiveLayout.browserWidth}
+      inspectorWidth={effectiveLayout.inspectorWidth}
+      peekWidth={effectiveLayout.peekWidth}
+      splitterWidth={splitterWidth}
+      toolRailWidth={toolRailWidth}
+      quickActions={quickActions}
+      onInvokeQuickAction={handleWorkbenchQuickAction}
+      onSetWorkspaceMode={handleSetWorkbenchMode}
+      onTogglePeek={handleToggleWorkbenchPeek}
+      activeRibbonTab={workbenchRibbonTab}
+      themeMode={themeMode}
+      ribbonGroups={ribbonGroups}
+      onSetRibbonTab={setWorkbenchRibbonTab}
+      onInvokeRibbonCommand={handleWorkbenchRibbonCommand}
+      onSetThemeMode={handleSetThemeMode}
+      browserNodes={browserNodes}
+      onActivateNode={handleWorkbenchActivateNode}
+      onToggleLayerVisibility={handleToggleLayerVisibilityById}
+      onToggleLayerGroupVisibility={(layerIds) => {
+        if (layerIds.length === 0) {
+          return
+        }
+        setLayers((previous) => {
+          const layerIdSet = new Set(layerIds)
+          const targetLayers = previous.filter((layer) => layerIdSet.has(layer.id))
+          if (targetLayers.length === 0) {
+            return previous
+          }
+          const shouldShow = targetLayers.some((layer) => !layer.visible)
+          return previous.map((layer) =>
+            layerIdSet.has(layer.id)
+              ? {
+                  ...layer,
+                  visible: shouldShow,
+                }
+              : layer,
+          )
+        })
+      }}
+      onToggleLayerLock={handleToggleLayerLockById}
+      onToggleTracingVisibility={handleToggleTracingVisibilityById}
+      onToggleTracingLock={handleToggleTracingLockById}
+      tool={tool}
+      onSetActiveTool={setActiveTool}
+      activeInspectorTab={effectiveLayout.activeInspectorTab}
+      onSetActiveInspectorTab={setActiveInspectorTab}
+      inspectContent={workbenchInspectContent}
+      pieceContent={workbenchPieceContent}
+      previewContent={previewContent}
+      documentContent={workbenchDocumentContent}
+      twoDPane={workbenchTwoDPane}
+      threeDPane={threeDPane}
+      precisionDrawer={
+        <PrecisionCommandPanel
+          open={showPrecisionModal}
+          onClose={() => setShowPrecisionModal(false)}
+          toolHint={toolHint}
+          onRunCommand={runPrecisionCommand}
+          variant="drawer"
+        />
+      }
+      onStartBrowserResize={handleBrowserResizeStart}
+      onStartPeekResize={handlePeekResizeStart}
+      onStartInspectorResize={handleInspectorResizeStart}
+      toolLabel={toolLabel(tool)}
+      selectionText={selectionText}
+      zoomPercent={Math.round(viewport.scale * 100)}
+      displayUnit={displayUnit}
+      activeLayerName={activeLayer?.name ?? 'None'}
+      activeLineTypeName={activeLineType?.name ?? 'None'}
+      onTogglePrecision={() => setShowPrecisionModal((previous) => !previous)}
+    />
+  )
+
+  const shouldLoadThreeWorkbench = workspaceMode === '3d'
+
   return (
     <div className={`app-shell ${resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!isMobileLayout ? 'app-shell-workbench' : ''}`}>
       {isMobileLayout ? (
@@ -1922,84 +1984,50 @@ function EditorAppContent() {
           <EditorStatusBar {...statusBarProps} />
         </>
       ) : (
-        <EditorWorkbench
-          docLabel={docLabel}
-          shellRef={shellRef}
-          workspaceMode={workspaceMode}
-          secondaryPreviewMode={effectiveSecondaryPreviewMode}
-          showPeek={showPeek}
-          browserWidth={effectiveLayout.browserWidth}
-          inspectorWidth={effectiveLayout.inspectorWidth}
-          peekWidth={effectiveLayout.peekWidth}
-          splitterWidth={splitterWidth}
-          toolRailWidth={toolRailWidth}
-          quickActions={quickActions}
-          onInvokeQuickAction={handleWorkbenchQuickAction}
-          onSetWorkspaceMode={handleSetWorkbenchMode}
-          onTogglePeek={handleToggleWorkbenchPeek}
-          activeRibbonTab={workbenchRibbonTab}
-          themeMode={themeMode}
-          ribbonGroups={ribbonGroups}
-          onSetRibbonTab={setWorkbenchRibbonTab}
-          onInvokeRibbonCommand={handleWorkbenchRibbonCommand}
-          onSetThemeMode={handleSetThemeMode}
-          browserNodes={browserNodes}
-          onActivateNode={handleWorkbenchActivateNode}
-          onToggleLayerVisibility={handleToggleLayerVisibilityById}
-          onToggleLayerGroupVisibility={(layerIds) => {
-            if (layerIds.length === 0) {
-              return
-            }
-            setLayers((previous) => {
-              const layerIdSet = new Set(layerIds)
-              const targetLayers = previous.filter((layer) => layerIdSet.has(layer.id))
-              if (targetLayers.length === 0) {
-                return previous
+        shouldLoadThreeWorkbench ? (
+          <Suspense fallback={renderDesktopWorkbench(threeWorkspaceLoadingState, threeWorkspaceLoadingState)}>
+            <WorkbenchThreeWorkspace
+              workspaceMode={workspaceMode}
+              shapes={sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes}
+              selectedShapeIds={selectedShapeIds}
+              stitchHoles={sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles}
+              stitchThreadColor={stitchThreadColor}
+              onSetStitchThreadColor={setStitchThreadColor}
+              patternPieces={patternPieces}
+              piecePlacements3d={piecePlacements3d}
+              seamConnections={seamConnections}
+              threePreviewSettings={threePreviewSettings}
+              avatars={avatars}
+              onSetPiecePlacements3d={setPiecePlacements3d}
+              onSetThreePreviewSettings={setThreePreviewSettings}
+              onSetAvatars={setAvatars}
+              threeTextureSource={threeTextureSource}
+              onSetThreeTextureSource={setThreeTextureSource}
+              threeTextureShapeIds={threeTextureShapeIds}
+              onSetThreeTextureShapeIds={setThreeTextureShapeIds}
+              foldLines={foldLines}
+              layers={layers}
+              lineTypes={lineTypes}
+              themeMode={resolvedThemeMode}
+              onUpdateFoldLine={(foldLineId, updates) =>
+                setFoldLines((previous) =>
+                  previous.map((foldLine) =>
+                    foldLine.id === foldLineId
+                      ? {
+                          ...foldLine,
+                          ...updates,
+                        }
+                      : foldLine,
+                  ),
+                )
               }
-              const shouldShow = targetLayers.some((layer) => !layer.visible)
-              return previous.map((layer) =>
-                layerIdSet.has(layer.id)
-                  ? {
-                      ...layer,
-                      visible: shouldShow,
-                    }
-                  : layer,
-              )
-            })
-          }}
-          onToggleLayerLock={handleToggleLayerLockById}
-          onToggleTracingVisibility={handleToggleTracingVisibilityById}
-          onToggleTracingLock={handleToggleTracingLockById}
-          tool={tool}
-          onSetActiveTool={setActiveTool}
-          activeInspectorTab={effectiveLayout.activeInspectorTab}
-          onSetActiveInspectorTab={setActiveInspectorTab}
-          inspectContent={workbenchInspectContent}
-          pieceContent={workbenchPieceContent}
-          previewContent={workbenchPreviewContent}
-          documentContent={workbenchDocumentContent}
-          twoDPane={workbenchTwoDPane}
-          threeDPane={workbenchThreeDPane}
-          precisionDrawer={
-            <PrecisionCommandPanel
-              open={showPrecisionModal}
-              onClose={() => setShowPrecisionModal(false)}
-              toolHint={toolHint}
-              onRunCommand={runPrecisionCommand}
-              variant="drawer"
-            />
-          }
-          onStartBrowserResize={handleBrowserResizeStart}
-          onStartPeekResize={handlePeekResizeStart}
-          onStartInspectorResize={handleInspectorResizeStart}
-          toolLabel={toolLabel(tool)}
-          selectionText={selectionText}
-          zoomPercent={Math.round(viewport.scale * 100)}
-          displayUnit={displayUnit}
-          activeLayerName={activeLayer?.name ?? 'None'}
-          activeLineTypeName={activeLineType?.name ?? 'None'}
-          onTogglePrecision={() => setShowPrecisionModal((previous) => !previous)}
-        />
+            >
+              {({ threeDPane, previewContent }) => renderDesktopWorkbench(threeDPane, previewContent)}
+            </WorkbenchThreeWorkspace>
+          </Suspense>
+        ) : (
+          renderDesktopWorkbench(threeWorkspaceRoutePrompt, threeWorkspaceRoutePrompt)
+        )
       )}
 
       <ErrorBoundary>

@@ -83,10 +83,10 @@ export function WorkbenchHeader({
   const themeMenuRef = useRef<HTMLDivElement>(null)
   const themeButtonRef = useRef<HTMLButtonElement>(null)
   const peekLabel =
-    secondaryPreviewMode === 'hidden'
-      ? workspaceMode === '2d'
-        ? 'Peek 3D'
-        : 'Peek 2D'
+    workspaceMode === '2d'
+      ? 'Open 3D Workspace'
+      : secondaryPreviewMode === 'hidden'
+        ? 'Peek 2D'
       : 'Hide Peek'
   const currentThemeLabel = THEME_OPTIONS.find((option) => option.mode === themeMode)?.label ?? 'Theme mode'
 

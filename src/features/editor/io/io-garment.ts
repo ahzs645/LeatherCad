@@ -1,6 +1,6 @@
 import type { DocFile, PatternPiece, PiecePlacement3D, Point, SeamConnection } from '../cad/cad-types'
 import { detectOutlines } from '../ops/outline-detection'
-import { buildPieceMeshes } from '../three/piece-mesh'
+import { buildPieceMeshes } from '../three/piece-mesh-data'
 
 export type GarmentInterchangePiece = {
   id: string

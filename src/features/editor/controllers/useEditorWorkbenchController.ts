@@ -527,22 +527,23 @@ export function useEditorWorkbenchController({
     )
 
   const handleToggleWorkbenchPeek = () => {
+    if (workspaceMode === '2d') {
+      setWorkspaceMode('3d')
+      setSecondaryPreviewMode('2d-peek')
+      return
+    }
+
     setSecondaryPreviewMode((previous) => {
       if (previous !== 'hidden') {
         return 'hidden'
       }
-      return workspaceMode === '2d' ? '3d-peek' : '2d-peek'
+      return '2d-peek'
     })
   }
 
   const handleSetWorkbenchMode = (mode: '2d' | '3d') => {
     setWorkspaceMode(mode)
-    setSecondaryPreviewMode((previous) => {
-      if (previous === 'hidden') {
-        return previous
-      }
-      return mode === '2d' ? '3d-peek' : '2d-peek'
-    })
+    setSecondaryPreviewMode(mode === '3d' ? '2d-peek' : 'hidden')
   }
 
   return {
