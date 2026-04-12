@@ -1,52 +1,24 @@
-import type { ComponentProps, Dispatch, RefObject, SetStateAction } from 'react'
-import type { Layer, LineType, StitchHoleDefaults, Tool } from '../cad/cad-types'
+import { useMemo, type ComponentProps, type Dispatch, type RefObject, type SetStateAction } from 'react'
+import type { Layer, StitchHoleDefaults, Tool } from '../cad/cad-types'
 import { EditorTopbar } from '../components/EditorTopbar'
-import type { DisplayUnit } from '../ops/unit-ops'
 import type {
   StitchAutoPitchSettings,
-  DesktopRibbonTab,
-  MobileFileAction,
-  MobileLayerAction,
-  MobileOptionsTab,
-  MobileViewMode,
-  SketchWorkspaceMode,
   ThemeMode,
 } from '../editor-types'
+import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorTopbarPropsParams = {
   topbarClassName: string
-  isMobileLayout: boolean
-  desktopRibbonTab: DesktopRibbonTab
-  setDesktopRibbonTab: Dispatch<SetStateAction<DesktopRibbonTab>>
   selectedShapeCount: number
   selectedStitchHoleCount: number
-  showThreePreview: boolean
-  onOpenPrecisionModal: () => void
-  onOpenProjectMemoModal: () => void
   setShowHelpModal: Dispatch<SetStateAction<boolean>>
   showToolSection: boolean
   tool: Tool
   setActiveTool: (tool: Tool) => void
-  mobileViewMode: MobileViewMode
-  setMobileViewMode: Dispatch<SetStateAction<MobileViewMode>>
-  showMobileMenu: boolean
-  setShowMobileMenu: Dispatch<SetStateAction<boolean>>
-  mobileOptionsTab: MobileOptionsTab
-  setMobileOptionsTab: Dispatch<SetStateAction<MobileOptionsTab>>
   handleLoadPreset: () => void
   handleSetThemeMode: (mode: ThemeMode) => void
-  themeMode: ThemeMode
   showZoomSection: boolean
-  displayUnit: DisplayUnit
-  setDisplayUnit: Dispatch<SetStateAction<DisplayUnit>>
-  showCanvasRuler: boolean
-  setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
-  showDimensions: boolean
-  setShowDimensions: Dispatch<SetStateAction<boolean>>
-  gridSpacing: number
-  setGridSpacing: Dispatch<SetStateAction<number>>
-  sketchWorkspaceMode: SketchWorkspaceMode
-  setSketchWorkspaceMode: Dispatch<SetStateAction<SketchWorkspaceMode>>
   showEditSection: boolean
   canUndo: boolean
   canRedo: boolean
@@ -72,9 +44,6 @@ type UseEditorTopbarPropsParams = {
   handleSendSelectionToBack: () => void
   handleBringSelectionToFront: () => void
   showLineTypeSection: boolean
-  activeLineType: LineType | null
-  lineTypes: LineType[]
-  setActiveLineTypeId: Dispatch<SetStateAction<string>>
   handleToggleActiveLineTypeVisibility: () => void
   setShowLineTypePalette: Dispatch<SetStateAction<boolean>>
   showStitchSection: boolean
@@ -107,8 +76,6 @@ type UseEditorTopbarPropsParams = {
   layerStackLevels: Record<string, number>
   setActiveLayerId: Dispatch<SetStateAction<string>>
   clearDraft: () => void
-  mobileLayerAction: MobileLayerAction
-  setMobileLayerAction: Dispatch<SetStateAction<MobileLayerAction>>
   handleRunMobileLayerAction: () => void
   handleAddLayer: () => void
   handleRenameActiveLayer: () => void
@@ -118,8 +85,6 @@ type UseEditorTopbarPropsParams = {
   handleDeleteLayer: () => void
   setShowLayerColorModal: Dispatch<SetStateAction<boolean>>
   showFileSection: boolean
-  mobileFileAction: MobileFileAction
-  setMobileFileAction: Dispatch<SetStateAction<MobileFileAction>>
   handleRunMobileFileAction: () => void
   handleSaveJson: () => void
   fileInputRef: RefObject<HTMLInputElement | null>
@@ -135,49 +100,24 @@ type UseEditorTopbarPropsParams = {
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
   setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
   setShowTracingModal: Dispatch<SetStateAction<boolean>>
-  tracingOverlaysLength: number
   setShowPrintPreviewModal: Dispatch<SetStateAction<boolean>>
   showPrintAreas: boolean
   setShowPrintAreas: Dispatch<SetStateAction<boolean>>
-  setShowThreePreview: Dispatch<SetStateAction<boolean>>
   resetDocument: () => void
 }
 
 export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): ComponentProps<typeof EditorTopbar> {
   const {
     topbarClassName,
-    isMobileLayout,
-    desktopRibbonTab,
-    setDesktopRibbonTab,
     selectedShapeCount,
     selectedStitchHoleCount,
-    showThreePreview,
-    onOpenPrecisionModal,
-    onOpenProjectMemoModal,
     setShowHelpModal,
     showToolSection,
     tool,
     setActiveTool,
-    mobileViewMode,
-    setMobileViewMode,
-    showMobileMenu,
-    setShowMobileMenu,
-    mobileOptionsTab,
-    setMobileOptionsTab,
     handleLoadPreset,
     handleSetThemeMode,
-    themeMode,
     showZoomSection,
-    displayUnit,
-    setDisplayUnit,
-    showCanvasRuler,
-    setShowCanvasRuler,
-    showDimensions,
-    setShowDimensions,
-    gridSpacing,
-    setGridSpacing,
-    sketchWorkspaceMode,
-    setSketchWorkspaceMode,
     showEditSection,
     canUndo,
     canRedo,
@@ -203,9 +143,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleSendSelectionToBack,
     handleBringSelectionToFront,
     showLineTypeSection,
-    activeLineType,
-    lineTypes,
-    setActiveLineTypeId,
     handleToggleActiveLineTypeVisibility,
     setShowLineTypePalette,
     showStitchSection,
@@ -238,8 +175,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     layerStackLevels,
     setActiveLayerId,
     clearDraft,
-    mobileLayerAction,
-    setMobileLayerAction,
     handleRunMobileLayerAction,
     handleAddLayer,
     handleRenameActiveLayer,
@@ -249,8 +184,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleDeleteLayer,
     setShowLayerColorModal,
     showFileSection,
-    mobileFileAction,
-    setMobileFileAction,
     handleRunMobileFileAction,
     handleSaveJson,
     fileInputRef,
@@ -266,13 +199,74 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
     setShowTracingModal,
-    tracingOverlaysLength,
     setShowPrintPreviewModal,
     showPrintAreas,
     setShowPrintAreas,
-    setShowThreePreview,
     resetDocument,
   } = params
+  const {
+    lineTypes,
+    activeLineTypeId,
+    showCanvasRuler,
+    showDimensions,
+    tracingOverlays,
+  } = useEditorDocumentSelector((state) => ({
+    lineTypes: state.lineTypes,
+    activeLineTypeId: state.activeLineTypeId,
+    showCanvasRuler: state.showCanvasRuler,
+    showDimensions: state.showDimensions,
+    tracingOverlays: state.tracingOverlays,
+  }))
+  const {
+    setActiveLineTypeId,
+    setShowCanvasRuler,
+    setShowDimensions,
+  } = useEditorDocumentActions()
+  const {
+    isMobileLayout,
+    desktopRibbonTab,
+    showThreePreview,
+    mobileViewMode,
+    showMobileMenu,
+    mobileOptionsTab,
+    themeMode,
+    displayUnit,
+    gridSpacing,
+    sketchWorkspaceMode,
+    mobileLayerAction,
+    mobileFileAction,
+  } = useEditorUISelector((state) => ({
+    isMobileLayout: state.isMobileLayout,
+    desktopRibbonTab: state.desktopRibbonTab,
+    showThreePreview: state.showThreePreview,
+    mobileViewMode: state.mobileViewMode,
+    showMobileMenu: state.showMobileMenu,
+    mobileOptionsTab: state.mobileOptionsTab,
+    themeMode: state.themeMode,
+    displayUnit: state.displayUnit,
+    gridSpacing: state.gridSpacing,
+    sketchWorkspaceMode: state.sketchWorkspaceMode,
+    mobileLayerAction: state.mobileLayerAction,
+    mobileFileAction: state.mobileFileAction,
+  }))
+  const {
+    setDesktopRibbonTab,
+    setShowPrecisionModal,
+    setShowProjectMemoModal,
+    setMobileViewMode,
+    setShowMobileMenu,
+    setMobileOptionsTab,
+    setDisplayUnit,
+    setGridSpacing,
+    setSketchWorkspaceMode,
+    setMobileLayerAction,
+    setMobileFileAction,
+    setShowThreePreview,
+  } = useEditorUIActions()
+  const activeLineType = useMemo(
+    () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
+    [activeLineTypeId, lineTypes],
+  )
 
   return {
     topbarClassName,
@@ -282,8 +276,8 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
-    onOpenPrecisionModal,
-    onOpenProjectMemoModal,
+    onOpenPrecisionModal: () => setShowPrecisionModal(true),
+    onOpenProjectMemoModal: () => setShowProjectMemoModal(true),
     onOpenHelpModal: () => setShowHelpModal(true),
     showToolSection,
     tool,
@@ -298,7 +292,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
           setMobileOptionsTab('view')
         }
         return next
-    }),
+      }),
     mobileOptionsTab,
     onSetMobileOptionsTab: setMobileOptionsTab,
     onLoadPreset: handleLoadPreset,
@@ -417,7 +411,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onOpenTemplateRepositoryModal: () => setShowTemplateRepositoryModal(true),
     onOpenTracingImport: () => tracingInputRef.current?.click(),
     onOpenTracingModal: () => setShowTracingModal(true),
-    hasTracingOverlays: tracingOverlaysLength > 0,
+    hasTracingOverlays: tracingOverlays.length > 0,
     onOpenPrintPreviewModal: () => setShowPrintPreviewModal(true),
     showPrintAreas,
     onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),

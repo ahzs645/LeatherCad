@@ -1,35 +1,26 @@
 import type { ComponentProps } from 'react'
-import type { LineType } from '../cad/cad-types'
 import { EditorStatusBar } from '../components/EditorStatusBar'
+import { useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorStatusBarPropsParams = {
   toolLabel: string
-  status: string
-  displayUnit: 'mm' | 'in'
   zoomPercent: number
   visibleShapeCount: number
-  shapeCount: number
   layerCount: number
-  sketchGroupCount: number
-  lineTypes: LineType[]
-  foldLineCount: number
-  stitchHoleCount: number
-  seamAllowanceCount: number
-  constraintCount: number
-  hardwareMarkerCount: number
-  tracingOverlayCount: number
   templateCount: number
 }
 
 export function useEditorStatusBarProps(params: UseEditorStatusBarPropsParams): ComponentProps<typeof EditorStatusBar> {
   const {
     toolLabel,
-    status,
-    displayUnit,
     zoomPercent,
     visibleShapeCount,
-    shapeCount,
     layerCount,
+    templateCount,
+  } = params
+  const {
+    shapeCount,
     sketchGroupCount,
     lineTypes,
     foldLineCount,
@@ -38,8 +29,21 @@ export function useEditorStatusBarProps(params: UseEditorStatusBarPropsParams): 
     constraintCount,
     hardwareMarkerCount,
     tracingOverlayCount,
-    templateCount,
-  } = params
+  } = useEditorDocumentSelector((state) => ({
+    shapeCount: state.shapes.length,
+    sketchGroupCount: state.sketchGroups.length,
+    lineTypes: state.lineTypes,
+    foldLineCount: state.foldLines.length,
+    stitchHoleCount: state.stitchHoles.length,
+    seamAllowanceCount: state.seamAllowances.length,
+    constraintCount: state.constraints.length,
+    hardwareMarkerCount: state.hardwareMarkers.length,
+    tracingOverlayCount: state.tracingOverlays.length,
+  }))
+  const { status, displayUnit } = useEditorUISelector((state) => ({
+    status: state.status,
+    displayUnit: state.displayUnit,
+  }))
 
   return {
     toolLabel,

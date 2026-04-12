@@ -99,6 +99,7 @@ export type EditorUIState = {
   themeMode: ThemeMode
   systemThemeMode: ResolvedThemeMode
   loadedFontUrl: string | null
+  constraintSuggestions: import('../ops/auto-constraint-ops').ConstraintSuggestion[]
   showStitchSimulatorModal: boolean
   showBoxStitchHelperModal: boolean
   showBoxStitchModal: boolean

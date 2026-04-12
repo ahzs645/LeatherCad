@@ -119,10 +119,19 @@ import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelec
 import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
 import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
 import { useEditorCanvasPaneProps } from './view-models/useEditorCanvasPaneProps'
+import { EditorStateProviders } from './state/providers/EditorStateProviders'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
 export function EditorApp() {
+  return (
+    <EditorStateProviders>
+      <EditorAppContent />
+    </EditorStateProviders>
+  )
+}
+
+function EditorAppContent() {
   // Document state: shapes, constraints, layers, overlays, etc.
   const {
     documentName, setDocumentName,
@@ -162,10 +171,8 @@ export function EditorApp() {
 
   // UI state: layout, modals, theme, display settings
   const {
-    status, setStatus,
+    setStatus,
     showThreePreview, setShowThreePreview,
-    sidePanelTab, setSidePanelTab,
-    show3dInMain, setShow3dInMain,
     isMobileLayout, setIsMobileLayout,
     mobileViewMode, setMobileViewMode,
     showMobileMenu, setShowMobileMenu,
@@ -173,12 +180,12 @@ export function EditorApp() {
     showPrecisionModal, setShowPrecisionModal,
     showProjectMemoModal, setShowProjectMemoModal,
     showNestingModal, setShowNestingModal,
-    desktopRibbonTab, setDesktopRibbonTab,
+    desktopRibbonTab,
     workbenchRibbonTab, setWorkbenchRibbonTab,
     workspaceMode, setWorkspaceMode,
     secondaryPreviewMode, setSecondaryPreviewMode,
-    mobileLayerAction, setMobileLayerAction,
-    mobileFileAction, setMobileFileAction,
+    mobileLayerAction,
+    mobileFileAction,
     displayUnit, setDisplayUnit,
     gridSpacing, setGridSpacing,
     legendMode, setLegendMode,
@@ -1701,38 +1708,15 @@ export function EditorApp() {
   })
   const topbarProps = useEditorTopbarProps({
     topbarClassName,
-    isMobileLayout,
-    desktopRibbonTab,
-    setDesktopRibbonTab,
     selectedShapeCount,
     selectedStitchHoleCount,
-    showThreePreview,
-    onOpenPrecisionModal: () => setShowPrecisionModal(true),
-    onOpenProjectMemoModal: () => setShowProjectMemoModal(true),
     setShowHelpModal,
     showToolSection,
     tool,
     setActiveTool,
-    mobileViewMode,
-    setMobileViewMode,
-    showMobileMenu,
-    setShowMobileMenu,
-    mobileOptionsTab,
-    setMobileOptionsTab,
     handleLoadPreset,
     handleSetThemeMode,
-    themeMode,
     showZoomSection,
-    displayUnit,
-    setDisplayUnit,
-    showCanvasRuler,
-    setShowCanvasRuler,
-    showDimensions,
-    setShowDimensions,
-    gridSpacing,
-    setGridSpacing,
-    sketchWorkspaceMode,
-    setSketchWorkspaceMode,
     showEditSection,
     canUndo,
     canRedo,
@@ -1758,9 +1742,6 @@ export function EditorApp() {
     handleSendSelectionToBack,
     handleBringSelectionToFront,
     showLineTypeSection,
-    activeLineType,
-    lineTypes,
-    setActiveLineTypeId,
     handleToggleActiveLineTypeVisibility,
     setShowLineTypePalette,
     showStitchSection,
@@ -1793,8 +1774,6 @@ export function EditorApp() {
     layerStackLevels,
     setActiveLayerId,
     clearDraft,
-    mobileLayerAction,
-    setMobileLayerAction,
     handleRunMobileLayerAction,
     handleAddLayer,
     handleRenameActiveLayer,
@@ -1804,8 +1783,6 @@ export function EditorApp() {
     handleDeleteLayer,
     setShowLayerColorModal,
     showFileSection,
-    mobileFileAction,
-    setMobileFileAction,
     handleRunMobileFileAction,
     handleSaveJson,
     fileInputRef,
@@ -1821,11 +1798,9 @@ export function EditorApp() {
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
     setShowTracingModal,
-    tracingOverlaysLength: tracingOverlays.length,
     setShowPrintPreviewModal,
     showPrintAreas,
     setShowPrintAreas,
-    setShowThreePreview,
     resetDocument,
   })
   const modalStackProps = useEditorModalStackProps({
@@ -2103,34 +2078,11 @@ export function EditorApp() {
     setStatus,
   })
   const previewPaneProps = useEditorPreviewPaneProps({
-    showSidePanel: showThreePreview,
     hidePreviewPane,
-    isMobileLayout,
-    mobileViewMode,
-    sidePanelTab,
-    onSetSidePanelTab: setSidePanelTab,
     shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
-    selectedShapeIds,
     stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
-    stitchThreadColor,
-    onSetStitchThreadColor: setStitchThreadColor,
-    patternPieces,
-    piecePlacements3d,
-    seamConnections,
-    threePreviewSettings,
-    avatars,
-    onSetPiecePlacements3d: setPiecePlacements3d,
-    onSetThreePreviewSettings: setThreePreviewSettings,
-    onSetAvatars: setAvatars,
-    threeTextureSource,
-    onSetThreeTextureSource: setThreeTextureSource,
-    threeTextureShapeIds,
-    onSetThreeTextureShapeIds: setThreeTextureShapeIds,
-    foldLines,
     layers,
-    lineTypes,
     themeMode: resolvedThemeMode,
-    setFoldLines,
     setLayers,
     activeLayer,
     layerStackLevels,
@@ -2143,33 +2095,12 @@ export function EditorApp() {
     onMoveLayerDown: () => handleMoveLayer(1),
     onDeleteLayer: handleDeleteLayer,
     onOpenLayerColorModal: () => setShowLayerColorModal(true),
-    show3dInMain,
-    onToggle3dInMain: () => {
-      setShow3dInMain((prev) => {
-        if (!prev) {
-          setSidePanelTab('3d')
-          setShowThreePreview(true)
-        }
-        return !prev
-      })
-    },
   })
   const statusBarProps = useEditorStatusBarProps({
     toolLabel: toolLabel(tool),
-    status,
-    displayUnit,
     zoomPercent: Math.round(viewport.scale * 100),
     visibleShapeCount: workspaceShapes.length,
-    shapeCount: shapes.length,
     layerCount: layers.length,
-    sketchGroupCount: sketchGroups.length,
-    lineTypes,
-    foldLineCount: foldLines.length,
-    stitchHoleCount: stitchHoles.length,
-    seamAllowanceCount: seamAllowances.length,
-    constraintCount: constraints.length,
-    hardwareMarkerCount: hardwareMarkers.length,
-    tracingOverlayCount: tracingOverlays.length,
     templateCount: templateRepository.length,
   })
   const selectedPieceIds = useMemo(
