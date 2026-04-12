@@ -17,7 +17,7 @@ import { WorkbenchToolRail } from './WorkbenchToolRail'
 import type { Tool } from '../cad/cad-types'
 import type { ThemeMode } from '../editor-types'
 
-type EditorWorkbenchProps = {
+export type EditorWorkbenchProps = {
   docLabel: string
   shellRef: RefObject<HTMLElement | null>
   workspaceMode: WorkspaceMode

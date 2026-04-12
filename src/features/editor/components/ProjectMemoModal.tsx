@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-type ProjectMemoModalProps = {
+export type ProjectMemoModalProps = {
   open: boolean
   onClose: () => void
   value: string

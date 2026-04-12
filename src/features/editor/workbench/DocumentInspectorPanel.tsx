@@ -5,7 +5,7 @@ import { GRID_SPACING_OPTIONS } from '../editor-constants'
 import { LayerColorSettingsSection } from '../components/LayerColorSettingsSection'
 import { LineTypeManagerSection } from '../components/LineTypeManagerSection'
 
-type DocumentInspectorPanelProps = {
+export type DocumentInspectorPanelProps = {
   displayUnit: DisplayUnit
   onSetDisplayUnit: (unit: DisplayUnit) => void
   gridSpacing: number

@@ -16,7 +16,7 @@ type PieceSeamConnectionEntry = {
   counterpartPieceName: string
 }
 
-type PieceInspectorModalProps = {
+export type PieceInspectorModalProps = {
   open: boolean
   piece: PatternPiece | null
   grainline: PieceGrainline | null

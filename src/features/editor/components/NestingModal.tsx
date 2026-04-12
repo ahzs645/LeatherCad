@@ -4,7 +4,7 @@ import type { OutlineChain } from '../ops/outline-detection'
 import { nestPieces, patternPiecesToNestingPieces, type NestingResult, type NestingConfig, DEFAULT_NESTING_CONFIG } from '../ops/nesting-ops'
 import { polygonToLineShapes } from '../ops/polygon-ops'
 
-type NestingModalProps = {
+export type NestingModalProps = {
   open: boolean
   onClose: () => void
   patternPieces: PatternPiece[]

@@ -10,7 +10,7 @@ import {
 } from './useWorkbenchThreePreviewController'
 import type { WorkspaceMode } from './workbench-types'
 
-type WorkbenchThreeWorkspaceProps = WorkbenchThreePreviewProps & {
+export type WorkbenchThreeWorkspaceProps = WorkbenchThreePreviewProps & {
   workspaceMode: WorkspaceMode
   children: (content: {
     threeDPane: ReactNode

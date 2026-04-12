@@ -2,7 +2,7 @@ import type { HardwareMarker, Shape, StitchHole, StitchHoleRenderShape, StitchHo
 import type { InspectorContext } from './workbench-types'
 import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-source'
 
-type SelectionInspectorPanelProps = {
+export type SelectionInspectorPanelProps = {
   context: InspectorContext
   selectedShapeCount: number
   selectedEditableShape: Shape | null

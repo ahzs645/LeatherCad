@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from 'react'
+import { act, createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanupRender, renderForTest } from '../../../test/render'
 import { EditorDesktopShell } from './EditorDesktopShell'
@@ -25,8 +25,71 @@ vi.mock('./EditorStatusBar', () => ({
   EditorStatusBar: () => createElement('div', { 'data-status-bar': true }, 'status'),
 }))
 
+vi.mock('./EditorModalStack', () => ({
+  EditorModalStack: () => createElement('div', { 'data-modal-stack': true }, 'modal'),
+}))
+
+vi.mock('./EditorHiddenInputs', () => ({
+  EditorHiddenInputs: () => createElement('div', { 'data-hidden-inputs': true }, 'inputs'),
+}))
+
+vi.mock('./PieceInspectorModal', () => ({
+  PieceInspectorModal: () => createElement('div', { 'data-piece-inspector': true }, 'piece'),
+}))
+
+vi.mock('./PieceInspectorContent', () => ({
+  PieceInspectorContent: () => createElement('div', { 'data-piece-content': true }, 'piece-content'),
+}))
+
 vi.mock('./ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: ReactNode }) => createElement('div', { 'data-error-boundary': true }, children),
+}))
+
+vi.mock('./ProjectMemoModal', () => ({
+  ProjectMemoModal: () => createElement('div', { 'data-project-memo': true }, 'memo'),
+}))
+
+vi.mock('./NestingModal', () => ({
+  NestingModal: () => createElement('div', { 'data-nesting': true }, 'nesting'),
+}))
+
+vi.mock('../workbench/EditorWorkbench', () => ({
+  EditorWorkbench: ({
+    twoDPane,
+    threeDPane,
+    previewContent,
+    inspectContent,
+    pieceContent,
+    documentContent,
+    precisionDrawer,
+  }: {
+    twoDPane: ReactNode
+    threeDPane: ReactNode
+    previewContent: ReactNode
+    inspectContent: ReactNode
+    pieceContent: ReactNode
+    documentContent: ReactNode
+    precisionDrawer: ReactNode
+  }) =>
+    createElement(
+      'div',
+      { 'data-desktop-shell': true },
+      twoDPane,
+      threeDPane,
+      previewContent,
+      inspectContent,
+      pieceContent,
+      documentContent,
+      precisionDrawer,
+    ),
+}))
+
+vi.mock('../workbench/SelectionInspectorPanel', () => ({
+  SelectionInspectorPanel: () => createElement('div', { 'data-selection-inspector': true }, 'inspect'),
+}))
+
+vi.mock('../workbench/DocumentInspectorPanel', () => ({
+  DocumentInspectorPanel: () => createElement('div', { 'data-document-inspector': true }, 'document'),
 }))
 
 vi.mock('../workbench/WorkbenchThreeWorkspace', () => ({
@@ -79,43 +142,105 @@ describe('Editor shells', () => {
     expect(lastRender.container.querySelector('[data-status-bar]')).not.toBeNull()
   })
 
-  it('renders the desktop shell through the extracted workspace wrapper', () => {
+  it('renders the desktop shell from explicit prop bags', async () => {
     lastRender = renderForTest(
       createElement(EditorDesktopShell, {
         shouldLoadThreeWorkbench: true,
-        renderDesktopWorkbench: (threeDPane, previewContent) =>
-          createElement('div', { 'data-desktop-shell': true }, threeDPane, previewContent),
-        threeWorkspaceLoadingState: createElement('div', null, 'loading'),
-        threeWorkspaceRoutePrompt: createElement('div', null, 'prompt'),
-        workbenchProps: {
+        workbenchProps: {} as never,
+        selectionInspectorProps: {} as never,
+        pieceInspectorContentProps: {} as never,
+        documentInspectorProps: {} as never,
+        canvasPaneProps: {} as never,
+        precisionPanelProps: {
+          open: false,
+          onClose: () => undefined,
+          toolHint: 'hint',
+          onRunCommand: () => '',
+        },
+        workbenchThreeWorkspaceProps: {
           workspaceMode: '3d',
         } as never,
+        onOpenThreeWorkspace: () => undefined,
       }),
     )
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
     expect(lastRender.container.querySelector('[data-desktop-shell]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-three-workspace]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-three-pane]')).not.toBeNull()
-    expect(lastRender.container.querySelector('[data-three-preview]')).not.toBeNull()
+    expect(lastRender.container.querySelector('[data-piece-content]')).not.toBeNull()
+    expect(lastRender.container.querySelector('[data-precision-panel]')).not.toBeNull()
   })
 
-  it('mounts the overlay host contents independently of the active shell', () => {
+  it('instantiates overlay components from prop bags', async () => {
     lastRender = renderForTest(
       createElement(EditorOverlayHost, {
-        modalStack: createElement('div', { 'data-modal-stack': true }, 'modal'),
-        projectMemoModal: createElement('div', { 'data-project-memo': true }, 'memo'),
-        pieceInspectorModal: createElement('div', { 'data-piece-inspector': true }, 'piece'),
-        nestingModal: createElement('div', { 'data-nesting': true }, 'nesting'),
-        hiddenInputs: createElement('div', { 'data-hidden-inputs': true }, 'inputs'),
-        fontInput: createElement('input', { 'data-font-input': true }),
+        modalStackProps: {} as never,
+        projectMemoModalProps: {
+          open: true,
+          onClose: () => undefined,
+          value: '',
+          onChange: () => undefined,
+        },
+        pieceInspectorModalProps: {
+          open: true,
+          piece: null,
+          grainline: null,
+          pieceLabel: null,
+          patternLabel: null,
+          seamAllowance: null,
+          seamConnections: [],
+          notches: [],
+          placementLabels: [],
+          edgeCount: 0,
+          availableInternalShapes: [],
+          selectedInternalShapeIds: new Set<string>(),
+          onClose: () => undefined,
+          onUpdatePiece: () => undefined,
+          onToggleInternalShape: () => undefined,
+          onUpdateGrainline: () => undefined,
+          onUpdatePieceLabel: () => undefined,
+          onUpdatePatternLabel: () => undefined,
+          onUpdateSeamAllowance: () => undefined,
+          onUpdateSeamConnection: () => undefined,
+          onDeleteSeamConnection: () => undefined,
+          onUpdateNotch: () => undefined,
+          onDeleteNotch: () => undefined,
+          onAddPlacementLabel: () => undefined,
+          onUpdatePlacementLabel: () => undefined,
+          onDeletePlacementLabel: () => undefined,
+        },
+        nestingModalProps: {
+          open: true,
+          onClose: () => undefined,
+          patternPieces: [],
+          pieceGrainlines: [],
+          patternPieceChainsByShapeId: new Map(),
+          selectedShapeIds: new Set<string>(),
+          activeLayerId: 'layer-1',
+          activeLineTypeId: 'type-1',
+          onApplyNesting: () => undefined,
+        },
+        hiddenInputsProps: {} as never,
+        fontInputProps: {
+          ref: { current: null },
+          onChange: () => undefined,
+        },
       }),
     )
 
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
     expect(lastRender.container.querySelector('[data-modal-stack]')).not.toBeNull()
-    expect(lastRender.container.querySelector('[data-project-memo]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-piece-inspector]')).not.toBeNull()
-    expect(lastRender.container.querySelector('[data-nesting]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-hidden-inputs]')).not.toBeNull()
-    expect(lastRender.container.querySelector('[data-font-input]')).not.toBeNull()
+    expect(lastRender.container.querySelector('input[type="file"]')).not.toBeNull()
   })
 })

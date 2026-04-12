@@ -1,6 +1,6 @@
 import type { ChangeEventHandler, RefObject } from 'react'
 
-type EditorHiddenInputsProps = {
+export type EditorHiddenInputsProps = {
   fileInputRef: RefObject<HTMLInputElement | null>
   svgInputRef: RefObject<HTMLInputElement | null>
   tracingInputRef: RefObject<HTMLInputElement | null>

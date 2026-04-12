@@ -2,7 +2,7 @@ import { EditorDesktopShell } from './components/EditorDesktopShell'
 import { EditorMobileShell } from './components/EditorMobileShell'
 import { EditorOverlayHost } from './components/EditorOverlayHost'
 import { EditorStateProviders } from './state/providers/EditorStateProviders'
-import { useEditorScreenModel } from './useEditorScreenModel'
+import { useEditorScreenController } from './useEditorScreenController'
 
 export function EditorApp() {
   return (
@@ -13,31 +13,18 @@ export function EditorApp() {
 }
 
 function EditorAppContent() {
-  const screen = useEditorScreenModel()
+  const controller = useEditorScreenController()
 
   return (
     <div
-      className={`app-shell ${screen.layout.resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!screen.layout.isMobileLayout ? 'app-shell-workbench' : ''}`}
+      className={`app-shell ${controller.layout.resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!controller.layout.isMobileLayout ? 'app-shell-workbench' : ''}`}
     >
-      {screen.layout.isMobileLayout ? (
-        <EditorMobileShell {...screen.workbench.mobileShellProps} />
+      {controller.layout.isMobileLayout ? (
+        <EditorMobileShell {...controller.mobileShell} />
       ) : (
-        <EditorDesktopShell
-          shouldLoadThreeWorkbench={screen.layout.shouldLoadThreeWorkbench}
-          renderDesktopWorkbench={screen.workbench.renderDesktopWorkbench}
-          threeWorkspaceLoadingState={screen.workbench.threeWorkspaceLoadingState}
-          threeWorkspaceRoutePrompt={screen.workbench.threeWorkspaceRoutePrompt}
-          workbenchProps={screen.workbench.workbenchThreeWorkspaceProps}
-        />
+        <EditorDesktopShell {...controller.desktopShell} />
       )}
-      <EditorOverlayHost
-        modalStack={screen.modals.modalStack}
-        projectMemoModal={screen.modals.projectMemoModal}
-        pieceInspectorModal={screen.modals.pieceInspectorModal}
-        nestingModal={screen.modals.nestingModal}
-        hiddenInputs={screen.inputs.hiddenInputs}
-        fontInput={screen.inputs.fontInput}
-      />
+      <EditorOverlayHost {...controller.overlay} />
     </div>
   )
 }
