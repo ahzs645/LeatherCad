@@ -4,7 +4,6 @@ import type {
   Layer,
   Shape,
   SketchGroup,
-  TextTransformMode,
   TracingOverlay,
 } from '../cad/cad-types'
 import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-constants'
@@ -16,6 +15,7 @@ import type { PrintPlan } from '../preview/print-preview'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
 import { useEditorPanelActions, useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
+import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorModalStackPropsParams = {
@@ -96,20 +96,7 @@ type UseEditorModalStackPropsParams = {
     axis: 'x' | 'y',
     value: number,
   ) => void
-  textDraftValue: string
-  setTextDraftValue: Dispatch<SetStateAction<string>>
-  textFontFamily: string
-  setTextFontFamily: Dispatch<SetStateAction<string>>
-  textFontSizeMm: number
-  setTextFontSizeMm: Dispatch<SetStateAction<number>>
-  textTransformMode: TextTransformMode
-  setTextTransformMode: Dispatch<SetStateAction<TextTransformMode>>
-  textRadiusMm: number
-  setTextRadiusMm: Dispatch<SetStateAction<number>>
-  textSweepDeg: number
-  setTextSweepDeg: Dispatch<SetStateAction<number>>
   handleApplyTextDefaultsToSelection: () => void
-  setActiveTool: (nextTool: import('../cad/cad-types').Tool) => void
   selectedHardwareMarker: HardwareMarker | null
   handleUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
   handleDeleteSelectedHardwareMarker: () => void
@@ -198,20 +185,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleCreateBoxStitchFromSelection,
     selectedEditableShape,
     handleUpdateSelectedShapePoint,
-    textDraftValue,
-    setTextDraftValue,
-    textFontFamily,
-    setTextFontFamily,
-    textFontSizeMm,
-    setTextFontSizeMm,
-    textTransformMode,
-    setTextTransformMode,
-    textRadiusMm,
-    setTextRadiusMm,
-    textSweepDeg,
-    setTextSweepDeg,
     handleApplyTextDefaultsToSelection,
-    setActiveTool,
     selectedHardwareMarker,
     handleUpdateSelectedHardwareMarker,
     handleDeleteSelectedHardwareMarker,
@@ -230,6 +204,30 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleInsertAiBuilderDocument,
   } = params
 
+  const {
+    textDraftValue,
+    textFontFamily,
+    textFontSizeMm,
+    textTransformMode,
+    textRadiusMm,
+    textSweepDeg,
+  } = useEditorToolSelector((state) => ({
+    textDraftValue: state.textDraftValue,
+    textFontFamily: state.textFontFamily,
+    textFontSizeMm: state.textFontSizeMm,
+    textTransformMode: state.textTransformMode,
+    textRadiusMm: state.textRadiusMm,
+    textSweepDeg: state.textSweepDeg,
+  }))
+  const {
+    setTextDraftValue,
+    setTextFontFamily,
+    setTextFontSizeMm,
+    setTextTransformMode,
+    setTextRadiusMm,
+    setTextSweepDeg,
+    setActiveTool,
+  } = useEditorToolActions()
   const {
     showLineTypePalette,
     showHelpModal,

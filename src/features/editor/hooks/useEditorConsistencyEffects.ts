@@ -18,13 +18,17 @@ import type {
   StitchHole,
   TracingOverlay,
 } from '../cad/cad-types'
-import { deepClone, pushHistorySnapshot, type HistoryState } from '../ops/history-ops'
-import { pushOperation, type OperationHistoryState, type SnapshotOp } from '../ops/operation-history'
+import { deepClone, pushHistorySnapshot } from '../ops/history-ops'
+import { pushOperation, type SnapshotOp } from '../ops/operation-history'
 import { HISTORY_LIMIT } from '../editor-constants'
 import type { EditorSnapshot } from '../editor-types'
 import { saveTemplateRepository, type TemplateRepositoryEntry } from '../templates/template-repository'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
 import { getPatternPieceChain, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
+import {
+  useEditorHistoryActions,
+  useEditorHistoryRefs,
+} from '../state/providers/EditorHistoryStateProvider'
 
 type UseEditorConsistencyEffectsParams = {
   layers: Layer[]
@@ -61,13 +65,8 @@ type UseEditorConsistencyEffectsParams = {
   tracingObjectUrlsRef: MutableRefObject<Set<string>>
   templateRepository: TemplateRepositoryEntry[]
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
-  applyingHistoryRef: MutableRefObject<boolean>
-  lastSnapshotRef: MutableRefObject<EditorSnapshot | null>
-  lastSnapshotSignatureRef: MutableRefObject<string | null>
   currentSnapshot: EditorSnapshot
   currentSnapshotSignature: string
-  setHistoryState: Dispatch<SetStateAction<HistoryState<EditorSnapshot>>>
-  setOpHistory: Dispatch<SetStateAction<OperationHistoryState>>
 }
 
 export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsParams) {
@@ -106,14 +105,11 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     tracingObjectUrlsRef,
     templateRepository,
     setSelectedTemplateEntryId,
-    applyingHistoryRef,
-    lastSnapshotRef,
-    lastSnapshotSignatureRef,
     currentSnapshot,
     currentSnapshotSignature,
-    setHistoryState,
-    setOpHistory,
   } = params
+  const { applyingHistoryRef, lastSnapshotRef, lastSnapshotSignatureRef } = useEditorHistoryRefs()
+  const { setHistoryState, setOpHistory } = useEditorHistoryActions()
 
   useEffect(() => {
     if (layers.length === 0) {

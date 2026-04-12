@@ -1,22 +1,18 @@
 import { useMemo, type ComponentProps, type Dispatch, type RefObject, type SetStateAction } from 'react'
-import type { Layer, StitchHoleDefaults, Tool } from '../cad/cad-types'
+import type { Layer } from '../cad/cad-types'
 import { EditorTopbar } from '../components/EditorTopbar'
-import type {
-  StitchAutoPitchSettings,
-  ThemeMode,
-} from '../editor-types'
+import type { ThemeMode } from '../editor-types'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
 import { useEditorPanelActions, useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
+import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 
 type UseEditorTopbarPropsParams = {
   topbarClassName: string
   selectedShapeCount: number
   selectedStitchHoleCount: number
   showToolSection: boolean
-  tool: Tool
-  setActiveTool: (tool: Tool) => void
   handleLoadPreset: () => void
   handleSetThemeMode: (mode: ThemeMode) => void
   showZoomSection: boolean
@@ -46,26 +42,13 @@ type UseEditorTopbarPropsParams = {
   handleBringSelectionToFront: () => void
   showLineTypeSection: boolean
   handleToggleActiveLineTypeVisibility: () => void
-  setShowLineTypePalette: Dispatch<SetStateAction<boolean>>
   showStitchSection: boolean
-  stitchHoleDefaults: StitchHoleDefaults
-  setStitchHoleDefaults: Dispatch<SetStateAction<StitchHoleDefaults>>
-  stitchPitchMm: number
-  setStitchPitchMm: Dispatch<SetStateAction<number>>
-  stitchVariablePitchStartMm: number
-  stitchVariablePitchEndMm: number
-  setStitchVariablePitchStartMm: Dispatch<SetStateAction<number>>
-  setStitchVariablePitchEndMm: Dispatch<SetStateAction<number>>
-  stitchAutoPitchSettings: StitchAutoPitchSettings
-  setStitchAutoPitchSettings: Dispatch<SetStateAction<StitchAutoPitchSettings>>
   handleAutoPlacePreferredPitchStitchHoles: () => void
   handleAutoPlaceFixedPitchStitchHoles: () => void
   handleAutoPlaceVariablePitchStitchHoles: () => void
   handleResequenceSelectedStitchHoles: (reverse: boolean) => void
   handleSelectNextStitchHole: () => void
   handleFixStitchHoleOrderFromSelected: (reverse: boolean) => void
-  showStitchSequenceLabels: boolean
-  setShowStitchSequenceLabels: Dispatch<SetStateAction<boolean>>
   handleCountStitchHolesOnSelectedShapes: () => void
   handleDeleteStitchHolesOnSelectedShapes: () => void
   handleClearAllStitchHoles: () => void
@@ -74,7 +57,6 @@ type UseEditorTopbarPropsParams = {
   showLayerSection: boolean
   activeLayer: Layer | null
   layerStackLevels: Record<string, number>
-  clearDraft: () => void
   handleRunMobileLayerAction: () => void
   handleAddLayer: () => void
   handleRenameActiveLayer: () => void
@@ -103,8 +85,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     selectedShapeCount,
     selectedStitchHoleCount,
     showToolSection,
-    tool,
-    setActiveTool,
     handleLoadPreset,
     handleSetThemeMode,
     showZoomSection,
@@ -134,26 +114,13 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleBringSelectionToFront,
     showLineTypeSection,
     handleToggleActiveLineTypeVisibility,
-    setShowLineTypePalette,
     showStitchSection,
-    stitchHoleDefaults,
-    setStitchHoleDefaults,
-    stitchPitchMm,
-    setStitchPitchMm,
-    stitchVariablePitchStartMm,
-    stitchVariablePitchEndMm,
-    setStitchVariablePitchStartMm,
-    setStitchVariablePitchEndMm,
-    stitchAutoPitchSettings,
-    setStitchAutoPitchSettings,
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,
-    showStitchSequenceLabels,
-    setShowStitchSequenceLabels,
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
     handleClearAllStitchHoles,
@@ -162,7 +129,6 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     showLayerSection,
     activeLayer,
     layerStackLevels,
-    clearDraft,
     handleRunMobileLayerAction,
     handleAddLayer,
     handleRenameActiveLayer,
@@ -206,10 +172,38 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     layers: state.layers,
   }))
   const { setActiveLayerId } = useEditorLayerActions()
+  const {
+    tool,
+    stitchHoleDefaults,
+    stitchPitchMm,
+    stitchVariablePitchStartMm,
+    stitchVariablePitchEndMm,
+    stitchAutoPitchSettings,
+    showStitchSequenceLabels,
+  } = useEditorToolSelector((state) => ({
+    tool: state.tool,
+    stitchHoleDefaults: state.stitchHoleDefaults,
+    stitchPitchMm: state.stitchPitchMm,
+    stitchVariablePitchStartMm: state.stitchVariablePitchStartMm,
+    stitchVariablePitchEndMm: state.stitchVariablePitchEndMm,
+    stitchAutoPitchSettings: state.stitchAutoPitchSettings,
+    showStitchSequenceLabels: state.showStitchSequenceLabels,
+  }))
+  const {
+    setActiveTool,
+    setStitchHoleDefaults,
+    setStitchPitchMm,
+    setStitchVariablePitchStartMm,
+    setStitchVariablePitchEndMm,
+    setStitchAutoPitchSettings,
+    setShowStitchSequenceLabels,
+    clearDraft,
+  } = useEditorToolActions()
   const { showPrintAreas } = useEditorPanelSelector((state) => ({
     showPrintAreas: state.showPrintAreas,
   }))
   const {
+    setShowLineTypePalette,
     setShowHelpModal,
     setShowExportModal,
     setShowExportOptionsModal,

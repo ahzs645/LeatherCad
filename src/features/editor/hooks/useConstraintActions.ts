@@ -1,15 +1,12 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { clamp, uid } from '../cad/cad-geometry'
 import type {
-  ConstraintAxis,
-  ConstraintEdge,
   Layer,
   ParametricConstraint,
   PatternPiece,
   PieceSeamAllowance,
   Shape,
   SnapSettings,
-  StitchHoleDefaults,
 } from '../cad/cad-types'
 import {
   applyCornerOnSelectedLines,
@@ -23,6 +20,9 @@ import {
 } from '../ops/pattern-ops'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
+import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
+import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
+import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type UseConstraintActionsParams = {
   activeLayer: Layer | null
@@ -33,23 +33,16 @@ type UseConstraintActionsParams = {
   shapes: Shape[]
   selectedShapeIds: string[]
   selectedShapeIdSet: Set<string>
-  constraintEdge: ConstraintEdge
-  constraintOffsetMm: number
-  constraintAxis: ConstraintAxis
   constraints: ParametricConstraint[]
-  seamAllowanceInputMm: number
   patternPieces: PatternPiece[]
   seamAllowances: PieceSeamAllowance[]
   snapSettings: SnapSettings
   boxStitchHelperSettings: BoxStitchHelperSettings
-  stitchPitchMm: number
-  stitchHoleDefaults: StitchHoleDefaults
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStitchHoles: Dispatch<SetStateAction<import('../cad/cad-types').StitchHole[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
-  setStatus: Dispatch<SetStateAction<string>>
 }
 
 export function useConstraintActions(params: UseConstraintActionsParams) {
@@ -62,24 +55,36 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     shapes,
     selectedShapeIds,
     selectedShapeIdSet,
-    constraintEdge,
-    constraintOffsetMm,
-    constraintAxis,
     constraints,
-    seamAllowanceInputMm,
     patternPieces,
     seamAllowances,
     snapSettings,
     boxStitchHelperSettings,
-    stitchPitchMm,
-    stitchHoleDefaults,
     setShapes,
     setStitchHoles,
     setSelectedShapeIds,
     setConstraints,
     setSeamAllowances,
-    setStatus,
   } = params
+  const {
+    constraintEdge,
+    constraintOffsetMm,
+    constraintAxis,
+    seamAllowanceInputMm,
+  } = useEditorPanelSelector((state) => ({
+    constraintEdge: state.constraintEdge,
+    constraintOffsetMm: state.constraintOffsetMm,
+    constraintAxis: state.constraintAxis,
+    seamAllowanceInputMm: state.seamAllowanceInputMm,
+  }))
+  const {
+    stitchPitchMm,
+    stitchHoleDefaults,
+  } = useEditorToolSelector((state) => ({
+    stitchPitchMm: state.stitchPitchMm,
+    stitchHoleDefaults: state.stitchHoleDefaults,
+  }))
+  const { setStatus } = useEditorUIActions()
 
   const handleAddEdgeConstraintFromSelection = () => {
     if (!activeLayer) {

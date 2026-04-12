@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
+import { useEditorToolActions } from '../state/providers/EditorToolStateProvider'
+import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type UseKeyboardShortcutsParams = {
-  clearDraft: () => void
-  setStatus: (status: string) => void
   handleDeleteSelection: () => void
   handleUndo: () => void
   handleRedo: () => void
@@ -15,8 +15,6 @@ type UseKeyboardShortcutsParams = {
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
   const {
-    clearDraft,
-    setStatus,
     handleDeleteSelection,
     handleUndo,
     handleRedo,
@@ -26,6 +24,8 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleDuplicateSelection,
     handleSelectAllShapes,
   } = params
+  const { clearDraft } = useEditorToolActions()
+  const { setStatus } = useEditorUIActions()
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

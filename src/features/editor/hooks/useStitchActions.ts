@@ -5,9 +5,7 @@ import type {
   LineType,
   Shape,
   StitchHole,
-  StitchHoleDefaults,
 } from '../cad/cad-types'
-import type { StitchAutoPitchSettings } from '../editor-types'
 import {
   deleteStitchHolesForShapes,
   fixStitchHoleOrderFromHole,
@@ -19,6 +17,8 @@ import {
   resequenceStitchHolesOnShape,
   selectNextStitchHole,
 } from '../ops/stitch-hole-ops'
+import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
+import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type UseStitchActionsParams = {
   selectedShapeIdSet: Set<string>
@@ -26,14 +26,8 @@ type UseStitchActionsParams = {
   stitchHoles: StitchHole[]
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
-  setStatus: Dispatch<SetStateAction<string>>
   shapes: Shape[]
   lineTypesById: Record<string, LineType>
-  stitchPitchMm: number
-  stitchVariablePitchStartMm: number
-  stitchVariablePitchEndMm: number
-  stitchAutoPitchSettings: StitchAutoPitchSettings
-  stitchHoleDefaults: StitchHoleDefaults
   selectedStitchHole: StitchHole | null
   shapesById: Record<string, Shape>
   layers: Layer[]
@@ -47,19 +41,27 @@ export function useStitchActions(params: UseStitchActionsParams) {
     stitchHoles,
     setStitchHoles,
     setSelectedStitchHoleId,
-    setStatus,
     shapes,
     lineTypesById,
-    stitchPitchMm,
-    stitchVariablePitchStartMm,
-    stitchVariablePitchEndMm,
-    stitchAutoPitchSettings,
-    stitchHoleDefaults,
     selectedStitchHole,
     shapesById,
     layers,
     stitchHoleCountsByShape,
   } = params
+  const {
+    stitchPitchMm,
+    stitchVariablePitchStartMm,
+    stitchVariablePitchEndMm,
+    stitchAutoPitchSettings,
+    stitchHoleDefaults,
+  } = useEditorToolSelector((state) => ({
+    stitchPitchMm: state.stitchPitchMm,
+    stitchVariablePitchStartMm: state.stitchVariablePitchStartMm,
+    stitchVariablePitchEndMm: state.stitchVariablePitchEndMm,
+    stitchAutoPitchSettings: state.stitchAutoPitchSettings,
+    stitchHoleDefaults: state.stitchHoleDefaults,
+  }))
+  const { setStatus } = useEditorUIActions()
 
   const getSelectedStitchShapes = () =>
     shapes.filter((shape) => {

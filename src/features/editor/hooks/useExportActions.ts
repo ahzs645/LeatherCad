@@ -1,8 +1,6 @@
-import type { Dispatch, SetStateAction } from 'react'
 import { arcPath, getBounds, round } from '../cad/cad-geometry'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
-import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 import { buildDxfFromShapes } from '../io/io-dxf'
 import { buildPdfFromShapes } from '../io/io-pdf'
 import { downloadFile } from '../editor-utils'
@@ -10,6 +8,8 @@ import { buildAnnotationExportShapes } from '../ops/annotation-export-shapes'
 import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import { MM_PER_INCH, type DisplayUnit } from '../ops/unit-ops'
+import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
+import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type UseExportActionsParams = {
   shapes: Shape[]
@@ -27,17 +27,8 @@ type UseExportActionsParams = {
   pieceGrainlineSegments: Array<{ pieceId: string; start: { x: number; y: number }; end: { x: number; y: number } }>
   pieceNotchLines: Array<{ id: string; pieceId: string; start: { x: number; y: number }; end: { x: number; y: number }; showOnSeam: boolean }>
   piecePlacementGuides: import('../editor-types').PiecePlacementGuide[]
-  exportOnlySelectedShapes: boolean
-  exportOnlyVisibleLineTypes: boolean
-  exportRoleFilters: ExportRoleFilters
-  exportForceSolidStrokes: boolean
   stitchAlwaysShapeIdSet: Set<string>
-  exportStitchHoleRenderMode: StitchHoleExportRenderMode
-  exportStitchDotRadiusMm: number
-  dxfFlipY: boolean
-  dxfVersion: DxfVersion
   exportUnit: DisplayUnit
-  setStatus: Dispatch<SetStateAction<string>>
 }
 
 export function useExportActions(params: UseExportActionsParams) {
@@ -57,18 +48,29 @@ export function useExportActions(params: UseExportActionsParams) {
     pieceGrainlineSegments,
     pieceNotchLines,
     piecePlacementGuides,
+    stitchAlwaysShapeIdSet,
+    exportUnit,
+  } = params
+  const {
     exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes,
     exportRoleFilters,
     exportForceSolidStrokes,
-    stitchAlwaysShapeIdSet,
     exportStitchHoleRenderMode,
     exportStitchDotRadiusMm,
     dxfFlipY,
     dxfVersion,
-    exportUnit,
-    setStatus,
-  } = params
+  } = useEditorPanelSelector((state) => ({
+    exportOnlySelectedShapes: state.exportOnlySelectedShapes,
+    exportOnlyVisibleLineTypes: state.exportOnlyVisibleLineTypes,
+    exportRoleFilters: state.exportRoleFilters,
+    exportForceSolidStrokes: state.exportForceSolidStrokes,
+    exportStitchHoleRenderMode: state.exportStitchHoleRenderMode,
+    exportStitchDotRadiusMm: state.exportStitchDotRadiusMm,
+    dxfFlipY: state.dxfFlipY,
+    dxfVersion: state.dxfVersion,
+  }))
+  const { setStatus } = useEditorUIActions()
 
   const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
 

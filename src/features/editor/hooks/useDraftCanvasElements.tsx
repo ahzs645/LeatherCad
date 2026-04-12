@@ -1,23 +1,19 @@
 import { useMemo } from 'react'
 import { arcPath, round } from '../cad/cad-geometry'
-import type { Point, Tool } from '../cad/cad-types'
+import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 
 type UseDraftPreviewElementParams = {
-  cursorPoint: Point | null
-  draftPoints: Point[]
-  tool: Tool
   activeLineTypeStrokeColor: string
   activeLineTypeDasharray: string | undefined
 }
 
 export function useDraftPreviewElement(params: UseDraftPreviewElementParams) {
-  const {
-    cursorPoint,
-    draftPoints,
-    tool,
-    activeLineTypeStrokeColor,
-    activeLineTypeDasharray,
-  } = params
+  const { activeLineTypeStrokeColor, activeLineTypeDasharray } = params
+  const { cursorPoint, draftPoints, tool } = useEditorToolSelector((state) => ({
+    cursorPoint: state.cursorPoint,
+    draftPoints: state.draftPoints,
+    tool: state.tool,
+  }))
 
   return useMemo(() => {
     if (!cursorPoint || draftPoints.length === 0) {

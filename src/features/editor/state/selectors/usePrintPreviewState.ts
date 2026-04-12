@@ -2,14 +2,15 @@ import { useCallback, useMemo } from 'react'
 import type { DocFile, FoldLine, LineType, PatternPiece } from '../../cad/cad-types'
 import { buildAnnotationExportShapes } from '../../ops/annotation-export-shapes'
 import { openPrintTilesWindow } from '../../preview/print-output'
-import { buildPrintPlan, type PrintPaper } from '../../preview/print-preview'
+import { buildPrintPlan } from '../../preview/print-preview'
+import { useEditorPanelSelector } from '../providers/EditorPanelStateProvider'
+import { useEditorUIActions } from '../providers/EditorUIStateProvider'
 
 type UsePrintPreviewStateParams = {
   lineTypes: LineType[]
   activeLineTypeId: string
   activeLayerId: string
   showAnnotations: boolean
-  printSelectedOnly: boolean
   selectedShapeIdSet: Set<string>
   patternPiecesById: Record<string, PatternPiece | undefined>
   annotationLabels: import('../../editor-types').AnnotationLabel[]
@@ -17,20 +18,8 @@ type UsePrintPreviewStateParams = {
   pieceNotchLines: Array<{ id: string; pieceId: string; start: import('../../cad/cad-types').Point; end: import('../../cad/cad-types').Point; showOnSeam: boolean }>
   piecePlacementGuides: import('../../editor-types').PiecePlacementGuide[]
   printableShapes: DocFile['objects']
-  printPaper: PrintPaper
-  printMarginMm: number
-  printOverlapMm: number
-  printTileX: number
-  printTileY: number
-  printScalePercent: number
   foldLines: FoldLine[]
   lineTypesById: Record<string, LineType | undefined>
-  printInColor: boolean
-  printStitchAsDots: boolean
-  printRulerInside: boolean
-  printCalibrationXPercent: number
-  printCalibrationYPercent: number
-  setStatus: (status: string) => void
 }
 
 export function usePrintPreviewState({
@@ -38,7 +27,6 @@ export function usePrintPreviewState({
   activeLineTypeId,
   activeLayerId,
   showAnnotations,
-  printSelectedOnly,
   selectedShapeIdSet,
   patternPiecesById,
   annotationLabels,
@@ -46,21 +34,37 @@ export function usePrintPreviewState({
   pieceNotchLines,
   piecePlacementGuides,
   printableShapes,
-  printPaper,
-  printMarginMm,
-  printOverlapMm,
-  printTileX,
-  printTileY,
-  printScalePercent,
   foldLines,
   lineTypesById,
-  printInColor,
-  printStitchAsDots,
-  printRulerInside,
-  printCalibrationXPercent,
-  printCalibrationYPercent,
-  setStatus,
 }: UsePrintPreviewStateParams) {
+  const {
+    printSelectedOnly,
+    printPaper,
+    printMarginMm,
+    printOverlapMm,
+    printTileX,
+    printTileY,
+    printScalePercent,
+    printInColor,
+    printStitchAsDots,
+    printRulerInside,
+    printCalibrationXPercent,
+    printCalibrationYPercent,
+  } = useEditorPanelSelector((state) => ({
+    printSelectedOnly: state.printSelectedOnly,
+    printPaper: state.printPaper,
+    printMarginMm: state.printMarginMm,
+    printOverlapMm: state.printOverlapMm,
+    printTileX: state.printTileX,
+    printTileY: state.printTileY,
+    printScalePercent: state.printScalePercent,
+    printInColor: state.printInColor,
+    printStitchAsDots: state.printStitchAsDots,
+    printRulerInside: state.printRulerInside,
+    printCalibrationXPercent: state.printCalibrationXPercent,
+    printCalibrationYPercent: state.printCalibrationYPercent,
+  }))
+  const { setStatus } = useEditorUIActions()
   const annotationLineTypeId = useMemo(
     () => lineTypes.find((lineType) => lineType.role === 'mark')?.id ?? lineTypes[0]?.id ?? activeLineTypeId,
     [lineTypes, activeLineTypeId],

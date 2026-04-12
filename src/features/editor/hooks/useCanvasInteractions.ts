@@ -8,7 +8,6 @@ import type {
 import { clamp, getBounds } from '../cad/cad-geometry'
 import type {
   FoldLine,
-  HardwareKind,
   HardwareMarker,
   Layer,
   LineType,
@@ -20,14 +19,14 @@ import type {
   SketchGroup,
   SnapSettings,
   StitchHole,
-  StitchHoleDefaults,
-  TextTransformMode,
-  Tool,
   Viewport,
 } from '../cad/cad-types'
 import { snapPointToContext } from '../ops/pattern-ops'
 import { CanvasToolManager, getCanvasToolHint, type ToolRuntime } from '../tools/canvas-tool-manager'
 import { MAX_ZOOM, MIN_ZOOM } from '../editor-constants'
+import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
+import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
+import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type PanState = {
   startX: number
@@ -70,8 +69,6 @@ type HandleDragState = {
 type UseCanvasInteractionsParams = {
   svgRef: RefObject<SVGSVGElement | null>
   panRef: RefObject<PanState | null>
-  tool: Tool
-  draftPoints: Point[]
   viewport: Viewport
   activeLayerId: string
   activeLineTypeId: string
@@ -85,16 +82,6 @@ type UseCanvasInteractionsParams = {
   lineTypesById: Record<string, LineType>
   shapesById: Record<string, Shape>
   layers: Layer[]
-  hardwarePreset: HardwareKind
-  customHardwareDiameterMm: number
-  customHardwareSpacingMm: number
-  stitchHoleDefaults: StitchHoleDefaults
-  textDraftValue: string
-  textFontFamily: string
-  textFontSizeMm: number
-  textTransformMode: TextTransformMode
-  textRadiusMm: number
-  textSweepDeg: number
   stitchHoles: StitchHole[]
   patternPieces: PatternPiece[]
   pieceNotches: PieceNotch[]
@@ -103,10 +90,7 @@ type UseCanvasInteractionsParams = {
   selectedShapeIds: string[]
   selectedStitchHoleId: string | null
   selectedHardwareMarkerId: string | null
-  setStatus: Dispatch<SetStateAction<string>>
   setViewport: Dispatch<SetStateAction<Viewport>>
-  setDraftPoints: Dispatch<SetStateAction<Point[]>>
-  setCursorPoint: Dispatch<SetStateAction<Point | null>>
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
@@ -116,7 +100,6 @@ type UseCanvasInteractionsParams = {
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
-  clearDraft: () => void
   ensureActiveLayerWritable: () => boolean
   ensureActiveLineTypeWritable: () => boolean
 }
@@ -194,8 +177,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   const {
     svgRef,
     panRef,
-    tool,
-    draftPoints,
     viewport,
     activeLayerId,
     activeLineTypeId,
@@ -209,16 +190,6 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     lineTypesById,
     shapesById,
     layers,
-    hardwarePreset,
-    customHardwareDiameterMm,
-    customHardwareSpacingMm,
-    stitchHoleDefaults,
-    textDraftValue,
-    textFontFamily,
-    textFontSizeMm,
-    textTransformMode,
-    textRadiusMm,
-    textSweepDeg,
     stitchHoles,
     patternPieces,
     pieceNotches,
@@ -227,10 +198,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     selectedShapeIds,
     selectedStitchHoleId,
     selectedHardwareMarkerId,
-    setStatus,
     setViewport,
-    setDraftPoints,
-    setCursorPoint,
     setShapes,
     setStitchHoles,
     setSelectedStitchHoleId,
@@ -240,10 +208,37 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setSelectedHardwareMarkerId,
     setFoldLines,
     setSelectedShapeIds,
-    clearDraft,
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
   } = params
+  const {
+    tool,
+    draftPoints,
+    stitchHoleDefaults,
+    textDraftValue,
+    textFontFamily,
+    textFontSizeMm,
+    textTransformMode,
+    textRadiusMm,
+    textSweepDeg,
+  } = useEditorToolSelector((state) => ({
+    tool: state.tool,
+    draftPoints: state.draftPoints,
+    stitchHoleDefaults: state.stitchHoleDefaults,
+    textDraftValue: state.textDraftValue,
+    textFontFamily: state.textFontFamily,
+    textFontSizeMm: state.textFontSizeMm,
+    textTransformMode: state.textTransformMode,
+    textRadiusMm: state.textRadiusMm,
+    textSweepDeg: state.textSweepDeg,
+  }))
+  const { hardwarePreset, customHardwareDiameterMm, customHardwareSpacingMm } = useEditorPanelSelector((state) => ({
+    hardwarePreset: state.hardwarePreset,
+    customHardwareDiameterMm: state.customHardwareDiameterMm,
+    customHardwareSpacingMm: state.customHardwareSpacingMm,
+  }))
+  const { setStatus } = useEditorUIActions()
+  const { setDraftPoints, setCursorPoint, clearDraft } = useEditorToolActions()
 
   const toolManager = useMemo(() => new CanvasToolManager(), [])
   const referencePointRef = useRef<Point>({ x: 0, y: 0 })

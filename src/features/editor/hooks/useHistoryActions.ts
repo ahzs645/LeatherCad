@@ -1,36 +1,35 @@
 import { useCallback } from 'react'
-import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
-import { applyRedo, applyUndo, type HistoryState } from '../ops/history-ops'
+import { applyRedo, applyUndo } from '../ops/history-ops'
 import {
   undoOperation,
   redoOperation,
   getUndoLabels,
-  type OperationHistoryState,
 } from '../ops/operation-history'
 import type { EditorSnapshot } from '../editor-types'
+import {
+  useEditorHistoryActions,
+  useEditorHistoryRefs,
+  useEditorHistorySelector,
+} from '../state/providers/EditorHistoryStateProvider'
+import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type UseHistoryActionsParams = {
-  historyState: HistoryState<EditorSnapshot>
-  opHistory: OperationHistoryState
   currentSnapshot: EditorSnapshot
   applyEditorSnapshot: (snapshot: EditorSnapshot) => void
-  applyingHistoryRef: MutableRefObject<boolean>
-  setHistoryState: Dispatch<SetStateAction<HistoryState<EditorSnapshot>>>
-  setOpHistory: Dispatch<SetStateAction<OperationHistoryState>>
-  setStatus: Dispatch<SetStateAction<string>>
 }
 
 export function useHistoryActions(params: UseHistoryActionsParams) {
   const {
-    historyState,
-    opHistory,
     currentSnapshot,
     applyEditorSnapshot,
-    applyingHistoryRef,
-    setHistoryState,
-    setOpHistory,
-    setStatus,
   } = params
+  const { historyState, opHistory } = useEditorHistorySelector((state) => ({
+    historyState: state.historyState,
+    opHistory: state.opHistory,
+  }))
+  const { setHistoryState, setOpHistory } = useEditorHistoryActions()
+  const { applyingHistoryRef } = useEditorHistoryRefs()
+  const { setStatus } = useEditorUIActions()
 
   const handleUndo = useCallback(() => {
     // Try operation-based undo first

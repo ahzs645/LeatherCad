@@ -23,7 +23,6 @@ import {
   STITCH_COLOR_LIGHT,
 } from '../editor-constants'
 import { buildDocSnapshotSignature, interpolateHexColor } from '../editor-utils'
-import type { HistoryState } from '../ops/history-ops'
 import { deepClone } from '../ops/history-ops'
 import { buildLinkedProjectionShapes } from '../ops/sketch-link-ops'
 import {
@@ -36,6 +35,7 @@ import {
   resolvePatternPieceChains,
 } from '../ops/pattern-piece-ops'
 import { useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorHistorySelector } from '../state/providers/EditorHistoryStateProvider'
 import { useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
 import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorSelectionSelector } from '../state/providers/EditorSelectionStateProvider'
@@ -44,8 +44,6 @@ import { useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 type UseEditorDerivedStateParams = {
   templateRepository: TemplateRepositoryEntry[]
   selectedTemplateEntryId: string | null
-  historyState: HistoryState<EditorSnapshot>
-  opHistory?: { past: unknown[]; future: unknown[] }
   themeMode: ResolvedThemeMode
 }
 
@@ -53,9 +51,12 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const {
     templateRepository,
     selectedTemplateEntryId,
-    historyState,
     themeMode,
   } = params
+  const { historyState, opHistory } = useEditorHistorySelector((state) => ({
+    historyState: state.historyState,
+    opHistory: state.opHistory,
+  }))
   const {
     printSelectedOnly,
     printPaper,
@@ -223,8 +224,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     [templateRepository, selectedTemplateEntryId],
   )
   const stitchAlwaysShapeIdSet = useMemo(() => new Set(stitchAlwaysShapeIds), [stitchAlwaysShapeIds])
-  const canUndo = (params.opHistory?.past.length ?? 0) > 0 || historyState.past.length > 0
-  const canRedo = (params.opHistory?.future.length ?? 0) > 0 || historyState.future.length > 0
+  const canUndo = opHistory.past.length > 0 || historyState.past.length > 0
+  const canRedo = opHistory.future.length > 0 || historyState.future.length > 0
 
   const visibleLayerIdSet = useMemo(() => new Set(layers.filter((layer) => layer.visible).map((layer) => layer.id)), [layers])
   const visibleLineTypeIdSet = useMemo(
