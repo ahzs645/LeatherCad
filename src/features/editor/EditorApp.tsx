@@ -83,9 +83,6 @@ import {
 import {
   getTerminalStitchHoleIdForShape,
 } from './ops/stitch-hole-ops'
-import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
-import { EditorWorkbench } from './workbench/EditorWorkbench'
-import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
 import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
@@ -99,6 +96,15 @@ import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchCo
 
 const WorkbenchThreeWorkspace = lazy(() =>
   import('./workbench/WorkbenchThreeWorkspace').then((mod) => ({ default: mod.WorkbenchThreeWorkspace })),
+)
+const EditorWorkbench = lazy(() =>
+  import('./workbench/EditorWorkbench').then((mod) => ({ default: mod.EditorWorkbench })),
+)
+const SelectionInspectorPanel = lazy(() =>
+  import('./workbench/SelectionInspectorPanel').then((mod) => ({ default: mod.SelectionInspectorPanel })),
+)
+const DocumentInspectorPanel = lazy(() =>
+  import('./workbench/DocumentInspectorPanel').then((mod) => ({ default: mod.DocumentInspectorPanel })),
 )
 
 export function EditorApp() {
@@ -1736,40 +1742,42 @@ function EditorAppContent() {
   )
 
   const workbenchInspectContent = (
-    <SelectionInspectorPanel
-      context={selectionContext}
-      selectedShapeCount={selectedShapeCount}
-      selectedEditableShape={selectedEditableShape}
-      selectedStitchHole={selectedStitchHole}
-      selectedHardwareMarker={selectedHardwareMarker}
-      shapeCount={shapes.length}
-      layerCount={layers.length}
-      onAlignX={() => handleAlignSelection('x')}
-      onAlignY={() => handleAlignSelection('y')}
-      onAlignBoth={() => handleAlignSelection('both')}
-      onAlignToGrid={handleAlignSelectionToGrid}
-      onCreateOffset={handleCreateOffsetGeometryFromSelection}
-      onCreateBoxStitch={handleOpenBoxStitchHelperModal}
-      onBevelCorner={handleBevelSelectedCorner}
-      onRoundCorner={handleRoundSelectedCorner}
-      onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
-      onAddAlignConstraints={handleAddAlignConstraintsFromSelection}
-      onApplyConstraints={handleApplyConstraints}
-      onCreatePatternPiece={handleCreatePatternPieceFromSelection}
-      onOpenPieceTab={openSelectedPatternPieceInspector}
-      canOpenPieceTab={selectedPatternPiece !== null}
-      onApplySeamAllowance={handleApplySeamAllowanceToSelection}
-      onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
-      onApplyTextDefaults={handleApplyTextDefaultsToSelection}
-      onExtractBoxStitchSource={handleExtractSelectedBoxStitchSources}
-      onClearBoxStitchSource={handleClearSelectedBoxStitchSources}
-      onUpdateSelectedShapePoint={handleUpdateSelectedShapePoint}
-      onUpdateSelectedStitchHole={handleUpdateSelectedStitchHole}
-      onMarkSelectedStitchHoleAsEnd={handleMarkSelectedStitchHoleAsEnd}
-      onClearSelectedStitchHoleEnd={handleClearSelectedStitchHoleEnd}
-      onUpdateSelectedHardwareMarker={handleUpdateSelectedHardwareMarker}
-      onDeleteSelectedHardwareMarker={handleDeleteSelectedHardwareMarker}
-    />
+    <Suspense fallback={<div className="control-block"><p className="hint">Loading inspector…</p></div>}>
+      <SelectionInspectorPanel
+        context={selectionContext}
+        selectedShapeCount={selectedShapeCount}
+        selectedEditableShape={selectedEditableShape}
+        selectedStitchHole={selectedStitchHole}
+        selectedHardwareMarker={selectedHardwareMarker}
+        shapeCount={shapes.length}
+        layerCount={layers.length}
+        onAlignX={() => handleAlignSelection('x')}
+        onAlignY={() => handleAlignSelection('y')}
+        onAlignBoth={() => handleAlignSelection('both')}
+        onAlignToGrid={handleAlignSelectionToGrid}
+        onCreateOffset={handleCreateOffsetGeometryFromSelection}
+        onCreateBoxStitch={handleOpenBoxStitchHelperModal}
+        onBevelCorner={handleBevelSelectedCorner}
+        onRoundCorner={handleRoundSelectedCorner}
+        onAddEdgeConstraint={handleAddEdgeConstraintFromSelection}
+        onAddAlignConstraints={handleAddAlignConstraintsFromSelection}
+        onApplyConstraints={handleApplyConstraints}
+        onCreatePatternPiece={handleCreatePatternPieceFromSelection}
+        onOpenPieceTab={openSelectedPatternPieceInspector}
+        canOpenPieceTab={selectedPatternPiece !== null}
+        onApplySeamAllowance={handleApplySeamAllowanceToSelection}
+        onClearSeamAllowance={handleClearSeamAllowanceOnSelection}
+        onApplyTextDefaults={handleApplyTextDefaultsToSelection}
+        onExtractBoxStitchSource={handleExtractSelectedBoxStitchSources}
+        onClearBoxStitchSource={handleClearSelectedBoxStitchSources}
+        onUpdateSelectedShapePoint={handleUpdateSelectedShapePoint}
+        onUpdateSelectedStitchHole={handleUpdateSelectedStitchHole}
+        onMarkSelectedStitchHoleAsEnd={handleMarkSelectedStitchHoleAsEnd}
+        onClearSelectedStitchHoleEnd={handleClearSelectedStitchHoleEnd}
+        onUpdateSelectedHardwareMarker={handleUpdateSelectedHardwareMarker}
+        onDeleteSelectedHardwareMarker={handleDeleteSelectedHardwareMarker}
+      />
+    </Suspense>
   )
 
   const workbenchPieceContent = (
@@ -1804,56 +1812,58 @@ function EditorAppContent() {
   )
 
   const workbenchDocumentContent = (
-    <DocumentInspectorPanel
-      displayUnit={displayUnit}
-      onSetDisplayUnit={setDisplayUnit}
-      gridSpacing={gridSpacing}
-      onSetGridSpacing={setGridSpacing}
-      showCanvasRuler={showCanvasRuler}
-      onToggleCanvasRuler={() => setShowCanvasRuler((previous) => !previous)}
-      showDimensions={showDimensions}
-      onToggleDimensions={() => setShowDimensions((previous) => !previous)}
-      showAnnotations={showAnnotations}
-      onToggleAnnotations={() => setShowAnnotations((previous) => !previous)}
-      sketchWorkspaceMode={sketchWorkspaceMode}
-      onSetSketchWorkspaceMode={setSketchWorkspaceMode}
-      themeMode={themeMode}
-      onSetThemeMode={handleSetThemeMode}
-      snapSettings={snapSettings}
-      onUpdateSnapSettings={(patch) => setSnapSettings((previous) => ({ ...previous, ...patch }))}
-      projectMemo={projectMemo}
-      onProjectMemoChange={setProjectMemo}
-      activeLineType={activeLineType}
-      lineTypes={lineTypes}
-      shapeCountsByLineType={shapeCountsByLineType}
-      selectedShapeCount={selectedShapeCount}
-      onAssignSelectedToActiveType={handleAssignSelectedToActiveLineType}
-      onClearSelection={handleClearShapeSelection}
-      onIsolateActiveType={handleIsolateActiveLineType}
-      onSelectShapesByActiveType={handleSelectShapesByActiveLineType}
-      onSetActiveLineTypeId={setActiveLineTypeId}
-      onShowAllTypes={handleShowAllLineTypes}
-      onToggleLineTypeVisibility={(lineTypeId) =>
-        setLineTypes((previous) =>
-          previous.map((lineType) =>
-            lineType.id === lineTypeId ? { ...lineType, visible: !lineType.visible } : lineType,
-          ),
-        )
-      }
-      onUpdateActiveLineTypeColor={handleUpdateActiveLineTypeColor}
-      onUpdateActiveLineTypeRole={handleUpdateActiveLineTypeRole}
-      onUpdateActiveLineTypeStyle={handleUpdateActiveLineTypeStyle}
-      layers={layers}
-      layerColorsById={layerColorsById}
-      layerColorOverrides={layerColorOverrides}
-      frontLayerColor={frontLayerColor}
-      backLayerColor={backLayerColor}
-      onFrontLayerColorChange={setFrontLayerColor}
-      onBackLayerColorChange={setBackLayerColor}
-      onSetLayerColorOverride={handleSetLayerColorOverride}
-      onClearLayerColorOverride={handleClearLayerColorOverride}
-      onResetLayerColors={handleResetLayerColors}
-    />
+    <Suspense fallback={<div className="control-block"><p className="hint">Loading document settings…</p></div>}>
+      <DocumentInspectorPanel
+        displayUnit={displayUnit}
+        onSetDisplayUnit={setDisplayUnit}
+        gridSpacing={gridSpacing}
+        onSetGridSpacing={setGridSpacing}
+        showCanvasRuler={showCanvasRuler}
+        onToggleCanvasRuler={() => setShowCanvasRuler((previous) => !previous)}
+        showDimensions={showDimensions}
+        onToggleDimensions={() => setShowDimensions((previous) => !previous)}
+        showAnnotations={showAnnotations}
+        onToggleAnnotations={() => setShowAnnotations((previous) => !previous)}
+        sketchWorkspaceMode={sketchWorkspaceMode}
+        onSetSketchWorkspaceMode={setSketchWorkspaceMode}
+        themeMode={themeMode}
+        onSetThemeMode={handleSetThemeMode}
+        snapSettings={snapSettings}
+        onUpdateSnapSettings={(patch) => setSnapSettings((previous) => ({ ...previous, ...patch }))}
+        projectMemo={projectMemo}
+        onProjectMemoChange={setProjectMemo}
+        activeLineType={activeLineType}
+        lineTypes={lineTypes}
+        shapeCountsByLineType={shapeCountsByLineType}
+        selectedShapeCount={selectedShapeCount}
+        onAssignSelectedToActiveType={handleAssignSelectedToActiveLineType}
+        onClearSelection={handleClearShapeSelection}
+        onIsolateActiveType={handleIsolateActiveLineType}
+        onSelectShapesByActiveType={handleSelectShapesByActiveLineType}
+        onSetActiveLineTypeId={setActiveLineTypeId}
+        onShowAllTypes={handleShowAllLineTypes}
+        onToggleLineTypeVisibility={(lineTypeId) =>
+          setLineTypes((previous) =>
+            previous.map((lineType) =>
+              lineType.id === lineTypeId ? { ...lineType, visible: !lineType.visible } : lineType,
+            ),
+          )
+        }
+        onUpdateActiveLineTypeColor={handleUpdateActiveLineTypeColor}
+        onUpdateActiveLineTypeRole={handleUpdateActiveLineTypeRole}
+        onUpdateActiveLineTypeStyle={handleUpdateActiveLineTypeStyle}
+        layers={layers}
+        layerColorsById={layerColorsById}
+        layerColorOverrides={layerColorOverrides}
+        frontLayerColor={frontLayerColor}
+        backLayerColor={backLayerColor}
+        onFrontLayerColorChange={setFrontLayerColor}
+        onBackLayerColorChange={setBackLayerColor}
+        onSetLayerColorOverride={handleSetLayerColorOverride}
+        onClearLayerColorOverride={handleClearLayerColorOverride}
+        onResetLayerColors={handleResetLayerColors}
+      />
+    </Suspense>
   )
 
   const threeWorkspaceRoutePrompt = (
@@ -1874,84 +1884,86 @@ function EditorAppContent() {
   )
 
   const renderDesktopWorkbench = (threeDPane: React.ReactNode, previewContent: React.ReactNode) => (
-    <EditorWorkbench
-      docLabel={docLabel}
-      shellRef={shellRef}
-      workspaceMode={workspaceMode}
-      secondaryPreviewMode={effectiveSecondaryPreviewMode}
-      showPeek={showPeek}
-      browserWidth={effectiveLayout.browserWidth}
-      inspectorWidth={effectiveLayout.inspectorWidth}
-      peekWidth={effectiveLayout.peekWidth}
-      splitterWidth={splitterWidth}
-      toolRailWidth={toolRailWidth}
-      quickActions={quickActions}
-      onInvokeQuickAction={handleWorkbenchQuickAction}
-      onSetWorkspaceMode={handleSetWorkbenchMode}
-      onTogglePeek={handleToggleWorkbenchPeek}
-      activeRibbonTab={workbenchRibbonTab}
-      themeMode={themeMode}
-      ribbonGroups={ribbonGroups}
-      onSetRibbonTab={setWorkbenchRibbonTab}
-      onInvokeRibbonCommand={handleWorkbenchRibbonCommand}
-      onSetThemeMode={handleSetThemeMode}
-      browserNodes={browserNodes}
-      onActivateNode={handleWorkbenchActivateNode}
-      onToggleLayerVisibility={handleToggleLayerVisibilityById}
-      onToggleLayerGroupVisibility={(layerIds) => {
-        if (layerIds.length === 0) {
-          return
-        }
-        setLayers((previous) => {
-          const layerIdSet = new Set(layerIds)
-          const targetLayers = previous.filter((layer) => layerIdSet.has(layer.id))
-          if (targetLayers.length === 0) {
-            return previous
+    <Suspense fallback={<div className="workbench-empty-state"><strong>Loading workbench…</strong></div>}>
+      <EditorWorkbench
+        docLabel={docLabel}
+        shellRef={shellRef}
+        workspaceMode={workspaceMode}
+        secondaryPreviewMode={effectiveSecondaryPreviewMode}
+        showPeek={showPeek}
+        browserWidth={effectiveLayout.browserWidth}
+        inspectorWidth={effectiveLayout.inspectorWidth}
+        peekWidth={effectiveLayout.peekWidth}
+        splitterWidth={splitterWidth}
+        toolRailWidth={toolRailWidth}
+        quickActions={quickActions}
+        onInvokeQuickAction={handleWorkbenchQuickAction}
+        onSetWorkspaceMode={handleSetWorkbenchMode}
+        onTogglePeek={handleToggleWorkbenchPeek}
+        activeRibbonTab={workbenchRibbonTab}
+        themeMode={themeMode}
+        ribbonGroups={ribbonGroups}
+        onSetRibbonTab={setWorkbenchRibbonTab}
+        onInvokeRibbonCommand={handleWorkbenchRibbonCommand}
+        onSetThemeMode={handleSetThemeMode}
+        browserNodes={browserNodes}
+        onActivateNode={handleWorkbenchActivateNode}
+        onToggleLayerVisibility={handleToggleLayerVisibilityById}
+        onToggleLayerGroupVisibility={(layerIds) => {
+          if (layerIds.length === 0) {
+            return
           }
-          const shouldShow = targetLayers.some((layer) => !layer.visible)
-          return previous.map((layer) =>
-            layerIdSet.has(layer.id)
-              ? {
-                  ...layer,
-                  visible: shouldShow,
-                }
-              : layer,
-          )
-        })
-      }}
-      onToggleLayerLock={handleToggleLayerLockById}
-      onToggleTracingVisibility={handleToggleTracingVisibilityById}
-      onToggleTracingLock={handleToggleTracingLockById}
-      tool={tool}
-      onSetActiveTool={setActiveTool}
-      activeInspectorTab={effectiveLayout.activeInspectorTab}
-      onSetActiveInspectorTab={setActiveInspectorTab}
-      inspectContent={workbenchInspectContent}
-      pieceContent={workbenchPieceContent}
-      previewContent={previewContent}
-      documentContent={workbenchDocumentContent}
-      twoDPane={workbenchTwoDPane}
-      threeDPane={threeDPane}
-      precisionDrawer={
-        <PrecisionCommandPanel
-          open={showPrecisionModal}
-          onClose={() => setShowPrecisionModal(false)}
-          toolHint={toolHint}
-          onRunCommand={runPrecisionCommand}
-          variant="drawer"
-        />
-      }
-      onStartBrowserResize={handleBrowserResizeStart}
-      onStartPeekResize={handlePeekResizeStart}
-      onStartInspectorResize={handleInspectorResizeStart}
-      toolLabel={toolLabel(tool)}
-      selectionText={selectionText}
-      zoomPercent={Math.round(viewport.scale * 100)}
-      displayUnit={displayUnit}
-      activeLayerName={activeLayer?.name ?? 'None'}
-      activeLineTypeName={activeLineType?.name ?? 'None'}
-      onTogglePrecision={() => setShowPrecisionModal((previous) => !previous)}
-    />
+          setLayers((previous) => {
+            const layerIdSet = new Set(layerIds)
+            const targetLayers = previous.filter((layer) => layerIdSet.has(layer.id))
+            if (targetLayers.length === 0) {
+              return previous
+            }
+            const shouldShow = targetLayers.some((layer) => !layer.visible)
+            return previous.map((layer) =>
+              layerIdSet.has(layer.id)
+                ? {
+                    ...layer,
+                    visible: shouldShow,
+                  }
+                : layer,
+            )
+          })
+        }}
+        onToggleLayerLock={handleToggleLayerLockById}
+        onToggleTracingVisibility={handleToggleTracingVisibilityById}
+        onToggleTracingLock={handleToggleTracingLockById}
+        tool={tool}
+        onSetActiveTool={setActiveTool}
+        activeInspectorTab={effectiveLayout.activeInspectorTab}
+        onSetActiveInspectorTab={setActiveInspectorTab}
+        inspectContent={workbenchInspectContent}
+        pieceContent={workbenchPieceContent}
+        previewContent={previewContent}
+        documentContent={workbenchDocumentContent}
+        twoDPane={workbenchTwoDPane}
+        threeDPane={threeDPane}
+        precisionDrawer={
+          <PrecisionCommandPanel
+            open={showPrecisionModal}
+            onClose={() => setShowPrecisionModal(false)}
+            toolHint={toolHint}
+            onRunCommand={runPrecisionCommand}
+            variant="drawer"
+          />
+        }
+        onStartBrowserResize={handleBrowserResizeStart}
+        onStartPeekResize={handlePeekResizeStart}
+        onStartInspectorResize={handleInspectorResizeStart}
+        toolLabel={toolLabel(tool)}
+        selectionText={selectionText}
+        zoomPercent={Math.round(viewport.scale * 100)}
+        displayUnit={displayUnit}
+        activeLayerName={activeLayer?.name ?? 'None'}
+        activeLineTypeName={activeLineType?.name ?? 'None'}
+        onTogglePrecision={() => setShowPrecisionModal((previous) => !previous)}
+      />
+    </Suspense>
   )
 
   const shouldLoadThreeWorkbench = workspaceMode === '3d'
