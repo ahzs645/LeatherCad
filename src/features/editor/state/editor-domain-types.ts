@@ -3,6 +3,7 @@ import type {
   DimensionLine,
   FoldLine,
   HardwareMarker,
+  Layer,
   LineType,
   PatternPiece,
   PiecePlacement3D,
@@ -115,6 +116,14 @@ export type EditorSelectionState = {
   selectedStitchHoleId: string | null
   selectedHardwareMarkerId: string | null
   clipboardPayload: ClipboardPayload | null
+}
+
+export type EditorLayerState = {
+  layers: Layer[]
+  activeLayerId: string
+  frontLayerColor: string
+  backLayerColor: string
+  layerColorOverrides: Record<string, string>
 }
 
 export type EditorToolState = {

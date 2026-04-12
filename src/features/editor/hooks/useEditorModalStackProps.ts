@@ -1,15 +1,12 @@
-import type { ComponentProps, Dispatch, RefObject, SetStateAction } from 'react'
+import { useMemo, type ComponentProps, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import type {
   ConstraintAxis,
   ConstraintEdge,
   HardwareKind,
   HardwareMarker,
   Layer,
-  LineType,
-  ParametricConstraint,
   Shape,
   SketchGroup,
-  SnapSettings,
   TextTransformMode,
   TracingOverlay,
 } from '../cad/cad-types'
@@ -20,16 +17,15 @@ import { EditorModalStack } from '../components/EditorModalStack'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import type { CatalogRepositoryShop } from '../templates/catalog-repository'
 import type { PrintPaper, PrintPlan } from '../preview/print-preview'
+import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
+import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorModalStackPropsParams = {
   showLineTypePalette: boolean
   setShowLineTypePalette: Dispatch<SetStateAction<boolean>>
-  lineTypes: LineType[]
-  setLineTypes: Dispatch<SetStateAction<LineType[]>>
-  activeLineType: LineType | null
   shapeCountsByLineType: Record<string, number>
   selectedShapeCount: number
-  setActiveLineTypeId: Dispatch<SetStateAction<string>>
   handleShowAllLineTypes: () => void
   handleIsolateActiveLineType: () => void
   handleUpdateActiveLineTypeRole: (role: import('../cad/cad-types').LineTypeRole) => void
@@ -42,13 +38,7 @@ type UseEditorModalStackPropsParams = {
   setShowHelpModal: Dispatch<SetStateAction<boolean>>
   showLayerColorModal: boolean
   setShowLayerColorModal: Dispatch<SetStateAction<boolean>>
-  layers: Layer[]
   layerColorsById: Record<string, string>
-  layerColorOverrides: Record<string, string>
-  frontLayerColor: string
-  backLayerColor: string
-  setFrontLayerColor: Dispatch<SetStateAction<string>>
-  setBackLayerColor: Dispatch<SetStateAction<string>>
   handleSetLayerColorOverride: (layerId: string, nextColor: string) => void
   handleClearLayerColorOverride: (layerId: string) => void
   handleResetLayerColors: () => void
@@ -88,10 +78,8 @@ type UseEditorModalStackPropsParams = {
   selectedTemplateEntryId: string | null
   selectedTemplateEntry: TemplateRepositoryEntry | null
   selectedCatalogShopId: string | null
-  selectedPresetId: string
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
   setSelectedCatalogShopId: Dispatch<SetStateAction<string | null>>
-  setSelectedPresetId: Dispatch<SetStateAction<string>>
   handleSaveTemplateToRepository: () => void
   handleExportTemplateRepository: () => void
   templateImportInputRef: RefObject<HTMLInputElement | null>
@@ -105,15 +93,9 @@ type UseEditorModalStackPropsParams = {
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
   showAiBuilderModal: boolean
   setShowAiBuilderModal: Dispatch<SetStateAction<boolean>>
-  snapSettings: SnapSettings
-  setSnapSettings: Dispatch<SetStateAction<SnapSettings>>
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
   handleAlignSelectionToGrid: () => void
   activeLayer: Layer | null
-  activeLayerId: string
-  sketchGroups: SketchGroup[]
-  activeSketchGroup: SketchGroup | null
-  setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
   handleCreateSketchGroupFromSelection: () => void
   handleCreateLinkedSketchGroup: (mode: NonNullable<SketchGroup['linkMode']>) => void
   handleDuplicateActiveSketchGroup: () => void
@@ -131,8 +113,6 @@ type UseEditorModalStackPropsParams = {
   handleDeleteActiveSketchGroup: () => void
   handleSetActiveLayerAnnotation: (annotation: string) => void
   handleSetActiveSketchAnnotation: (annotation: string) => void
-  showAnnotations: boolean
-  setShowAnnotations: Dispatch<SetStateAction<boolean>>
   constraintEdge: ConstraintEdge
   setConstraintEdge: Dispatch<SetStateAction<ConstraintEdge>>
   constraintOffsetMm: number
@@ -142,7 +122,6 @@ type UseEditorModalStackPropsParams = {
   handleAddEdgeConstraintFromSelection: () => void
   handleAddAlignConstraintsFromSelection: () => void
   handleApplyConstraints: () => void
-  constraints: ParametricConstraint[]
   handleToggleConstraintEnabled: (constraintId: string) => void
   handleDeleteConstraint: (constraintId: string) => void
   seamAllowanceInputMm: number
@@ -150,7 +129,6 @@ type UseEditorModalStackPropsParams = {
   handleApplySeamAllowanceToSelection: () => void
   handleClearSeamAllowanceOnSelection: () => void
   handleClearAllSeamAllowances: () => void
-  seamAllowancesLength: number
   handleBevelSelectedCorner: () => void
   handleRoundSelectedCorner: () => void
   handleCreateOffsetGeometryFromSelection: () => void
@@ -190,11 +168,8 @@ type UseEditorModalStackPropsParams = {
   handleOpenNesting: () => void
   showTracingModal: boolean
   setShowTracingModal: Dispatch<SetStateAction<boolean>>
-  tracingOverlays: TracingOverlay[]
-  activeTracingOverlay: TracingOverlay | null
   tracingInputRef: RefObject<HTMLInputElement | null>
   handleDeleteTracingOverlay: (overlayId: string) => void
-  setActiveTracingOverlayId: Dispatch<SetStateAction<string | null>>
   handleUpdateTracingOverlay: (overlayId: string, patch: Partial<TracingOverlay>) => void
   handleSetPdfTracingPage: (overlay: TracingOverlay, pageNumber: number) => void
   showPrintPreviewModal: boolean
@@ -230,19 +205,14 @@ type UseEditorModalStackPropsParams = {
   handleOpenPrintTiles: () => void
   handleLoadAiBuilderDocument: (doc: import('../cad/cad-types').DocFile, documentName: string) => void
   handleInsertAiBuilderDocument: (doc: import('../cad/cad-types').DocFile, documentName: string) => void
-  setStatus: Dispatch<SetStateAction<string>>
 }
 
 export function useEditorModalStackProps(params: UseEditorModalStackPropsParams): ComponentProps<typeof EditorModalStack> {
   const {
     showLineTypePalette,
     setShowLineTypePalette,
-    lineTypes,
-    setLineTypes,
-    activeLineType,
     shapeCountsByLineType,
     selectedShapeCount,
-    setActiveLineTypeId,
     handleShowAllLineTypes,
     handleIsolateActiveLineType,
     handleUpdateActiveLineTypeRole,
@@ -255,13 +225,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setShowHelpModal,
     showLayerColorModal,
     setShowLayerColorModal,
-    layers,
     layerColorsById,
-    layerColorOverrides,
-    frontLayerColor,
-    backLayerColor,
-    setFrontLayerColor,
-    setBackLayerColor,
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
     handleResetLayerColors,
@@ -301,10 +265,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     selectedTemplateEntryId,
     selectedTemplateEntry,
     selectedCatalogShopId,
-    selectedPresetId,
     setSelectedTemplateEntryId,
     setSelectedCatalogShopId,
-    setSelectedPresetId,
     handleSaveTemplateToRepository,
     handleExportTemplateRepository,
     templateImportInputRef,
@@ -318,15 +280,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setShowPatternToolsModal,
     showAiBuilderModal,
     setShowAiBuilderModal,
-    snapSettings,
-    setSnapSettings,
     handleAlignSelection,
     handleAlignSelectionToGrid,
     activeLayer,
-    activeLayerId,
-    sketchGroups,
-    activeSketchGroup,
-    setActiveSketchGroupId,
     handleCreateSketchGroupFromSelection,
     handleCreateLinkedSketchGroup,
     handleDuplicateActiveSketchGroup,
@@ -339,8 +295,6 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleDeleteActiveSketchGroup,
     handleSetActiveLayerAnnotation,
     handleSetActiveSketchAnnotation,
-    showAnnotations,
-    setShowAnnotations,
     constraintEdge,
     setConstraintEdge,
     constraintOffsetMm,
@@ -350,7 +304,6 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleAddEdgeConstraintFromSelection,
     handleAddAlignConstraintsFromSelection,
     handleApplyConstraints,
-    constraints,
     handleToggleConstraintEnabled,
     handleDeleteConstraint,
     seamAllowanceInputMm,
@@ -358,7 +311,6 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleApplySeamAllowanceToSelection,
     handleClearSeamAllowanceOnSelection,
     handleClearAllSeamAllowances,
-    seamAllowancesLength,
     handleBevelSelectedCorner,
     handleRoundSelectedCorner,
     handleCreateOffsetGeometryFromSelection,
@@ -394,11 +346,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleOpenNesting,
     showTracingModal,
     setShowTracingModal,
-    tracingOverlays,
-    activeTracingOverlay,
     tracingInputRef,
     handleDeleteTracingOverlay,
-    setActiveTracingOverlayId,
     handleUpdateTracingOverlay,
     handleSetPdfTracingPage,
     showPrintPreviewModal,
@@ -434,8 +383,73 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleOpenPrintTiles,
     handleLoadAiBuilderDocument,
     handleInsertAiBuilderDocument,
-    setStatus,
   } = params
+
+  const {
+    layers,
+    activeLayerId,
+    layerColorOverrides,
+    frontLayerColor,
+    backLayerColor,
+  } = useEditorLayerSelector((state) => ({
+    layers: state.layers,
+    activeLayerId: state.activeLayerId,
+    layerColorOverrides: state.layerColorOverrides,
+    frontLayerColor: state.frontLayerColor,
+    backLayerColor: state.backLayerColor,
+  }))
+  const {
+    setFrontLayerColor,
+    setBackLayerColor,
+  } = useEditorLayerActions()
+  const {
+    lineTypes,
+    activeLineTypeId,
+    snapSettings,
+    sketchGroups,
+    activeSketchGroupId,
+    showAnnotations,
+    constraints,
+    tracingOverlays,
+    activeTracingOverlayId,
+    seamAllowanceCount,
+  } = useEditorDocumentSelector((state) => ({
+    lineTypes: state.lineTypes,
+    activeLineTypeId: state.activeLineTypeId,
+    snapSettings: state.snapSettings,
+    sketchGroups: state.sketchGroups,
+    activeSketchGroupId: state.activeSketchGroupId,
+    showAnnotations: state.showAnnotations,
+    constraints: state.constraints,
+    tracingOverlays: state.tracingOverlays,
+    activeTracingOverlayId: state.activeTracingOverlayId,
+    seamAllowanceCount: state.seamAllowances.length,
+  }))
+  const {
+    setLineTypes,
+    setActiveLineTypeId,
+    setSnapSettings,
+    setActiveSketchGroupId,
+    setShowAnnotations,
+    setActiveTracingOverlayId,
+  } = useEditorDocumentActions()
+  const { selectedPresetId } = useEditorUISelector((state) => ({
+    selectedPresetId: state.selectedPresetId,
+  }))
+  const { setSelectedPresetId, setStatus } = useEditorUIActions()
+
+  const activeLineType = useMemo(
+    () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
+    [activeLineTypeId, lineTypes],
+  )
+  const activeSketchGroup = useMemo(
+    () => (activeSketchGroupId ? sketchGroups.find((group) => group.id === activeSketchGroupId) ?? null : null),
+    [activeSketchGroupId, sketchGroups],
+  )
+  const activeTracingOverlay = useMemo(
+    () => (activeTracingOverlayId ? tracingOverlays.find((overlay) => overlay.id === activeTracingOverlayId) ?? null : null),
+    [activeTracingOverlayId, tracingOverlays],
+  )
 
   return {
     lineTypePaletteProps: {
@@ -542,9 +556,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onImportRepository: () => templateImportInputRef.current?.click(),
       onImportCatalog: () => catalogImportInputRef.current?.click(),
       onLoadPreset: handleLoadPreset,
-      onLoadAsDocument: handleLoadAsDocument,
-      onInsertIntoDocument: handleInsertIntoDocument,
-      onDeleteTemplate: handleDeleteTemplate,
+      onLoadAsDocument: handleLoadTemplateAsDocument,
+      onInsertIntoDocument: handleInsertTemplateIntoDocument,
+      onDeleteTemplate: handleDeleteTemplateFromRepository,
       onDeleteCatalogShop: handleDeleteCatalogShop,
     },
     patternToolsModalProps: {
@@ -591,7 +605,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onApplySeamAllowanceToSelection: handleApplySeamAllowanceToSelection,
       onClearSeamAllowanceOnSelection: handleClearSeamAllowanceOnSelection,
       onClearAllSeamAllowances: handleClearAllSeamAllowances,
-      seamAllowanceCount: seamAllowancesLength,
+      seamAllowanceCount,
       onBevelSelectedCorner: handleBevelSelectedCorner,
       onRoundSelectedCorner: handleRoundSelectedCorner,
       onCreateOffsetGeometryFromSelection: handleCreateOffsetGeometryFromSelection,
@@ -635,7 +649,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onClose: () => setShowAiBuilderModal(false),
       onLoadDocument: handleLoadAiBuilderDocument,
       onInsertDocument: handleInsertAiBuilderDocument,
-      onSetStatus: (message) => setStatus(message),
+      onSetStatus: setStatus,
     },
     tracingModalProps: {
       open: showTracingModal,
@@ -685,17 +699,5 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onFitView: handleFitView,
       onOpenPrintTiles: handleOpenPrintTiles,
     },
-  }
-
-  function handleLoadAsDocument() {
-    handleLoadTemplateAsDocument()
-  }
-
-  function handleInsertIntoDocument() {
-    handleInsertTemplateIntoDocument()
-  }
-
-  function handleDeleteTemplate(entryId: string) {
-    handleDeleteTemplateFromRepository(entryId)
   }
 }

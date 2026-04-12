@@ -1,8 +1,8 @@
-import type { ComponentProps, Dispatch, SetStateAction } from 'react'
-import type { Layer } from '../cad/cad-types'
+import type { ComponentProps } from 'react'
 import { EditorPreviewPane } from '../components/EditorPreviewPane'
 import { sanitizeFoldLine } from '../editor-parsers'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
 import { useEditorSelectionSelector } from '../state/providers/EditorSelectionStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
@@ -10,15 +10,12 @@ type UseEditorPreviewPanePropsParams = Pick<
   ComponentProps<typeof EditorPreviewPane>,
   | 'shapes'
   | 'stitchHoles'
-  | 'layers'
   | 'themeMode'
   | 'activeLayer'
   | 'layerStackLevels'
   | 'layerColorsById'
 > & {
-  setLayers: Dispatch<SetStateAction<Layer[]>>
   hidePreviewPane: boolean
-  onSetActiveLayerId: ComponentProps<typeof EditorPreviewPane>['onSetActiveLayerId']
   onClearDraft: ComponentProps<typeof EditorPreviewPane>['onClearDraft']
   onAddLayer: ComponentProps<typeof EditorPreviewPane>['onAddLayer']
   onRenameActiveLayer: ComponentProps<typeof EditorPreviewPane>['onRenameActiveLayer']
@@ -30,16 +27,13 @@ type UseEditorPreviewPanePropsParams = Pick<
 
 export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParams): ComponentProps<typeof EditorPreviewPane> {
   const {
-    setLayers,
     hidePreviewPane,
     shapes,
     stitchHoles,
-    layers,
     themeMode,
     activeLayer,
     layerStackLevels,
     layerColorsById,
-    onSetActiveLayerId,
     onClearDraft,
     onAddLayer,
     onRenameActiveLayer,
@@ -48,6 +42,10 @@ export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParam
     onDeleteLayer,
     onOpenLayerColorModal,
   } = params
+  const { layers } = useEditorLayerSelector((state) => ({
+    layers: state.layers,
+  }))
+  const { setLayers, setActiveLayerId } = useEditorLayerActions()
   const selectedShapeIds = useEditorSelectionSelector((state) => state.selectedShapeIds)
   const {
     stitchThreadColor,
@@ -138,7 +136,7 @@ export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParam
     activeLayer,
     layerStackLevels,
     layerColorsById,
-    onSetActiveLayerId,
+    onSetActiveLayerId: setActiveLayerId,
     onClearDraft,
     onAddLayer,
     onRenameActiveLayer,

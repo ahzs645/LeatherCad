@@ -6,6 +6,7 @@ import type {
   ThemeMode,
 } from '../editor-types'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorTopbarPropsParams = {
@@ -72,9 +73,7 @@ type UseEditorTopbarPropsParams = {
   hasSelectedStitchHole: boolean
   showLayerSection: boolean
   activeLayer: Layer | null
-  layers: Layer[]
   layerStackLevels: Record<string, number>
-  setActiveLayerId: Dispatch<SetStateAction<string>>
   clearDraft: () => void
   handleRunMobileLayerAction: () => void
   handleAddLayer: () => void
@@ -171,9 +170,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     hasSelectedStitchHole,
     showLayerSection,
     activeLayer,
-    layers,
     layerStackLevels,
-    setActiveLayerId,
     clearDraft,
     handleRunMobileLayerAction,
     handleAddLayer,
@@ -222,6 +219,10 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setShowCanvasRuler,
     setShowDimensions,
   } = useEditorDocumentActions()
+  const { layers } = useEditorLayerSelector((state) => ({
+    layers: state.layers,
+  }))
+  const { setActiveLayerId } = useEditorLayerActions()
   const {
     isMobileLayout,
     desktopRibbonTab,

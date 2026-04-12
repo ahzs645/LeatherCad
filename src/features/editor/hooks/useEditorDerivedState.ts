@@ -9,37 +9,12 @@ import { buildPrintPlan, type PrintPaper } from '../preview/print-preview'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import type {
-  AvatarSpec,
-  FoldLine,
-  HardwareMarker,
-  Layer,
-  LineType,
-  PatternPiece,
-  PiecePlacement3D,
-  ParametricConstraint,
-  PieceGrainline,
-  PieceLabel,
-  PiecePlacementLabel,
-  PieceNotch,
-  PieceSeamAllowance,
-  SeamConnection,
-  Shape,
-  SketchGroup,
-  SnapSettings,
-  StitchHole,
-  ThreePreviewSettings,
-  TextureSource,
-  TracingOverlay,
-} from '../cad/cad-types'
-import type {
   AnnotationLabel,
   EditorSnapshot,
   ExportRoleFilters,
-  LegendMode,
   PiecePlacementGuide,
   ResolvedThemeMode,
   SeamGuide,
-  SketchWorkspaceMode,
 } from '../editor-types'
 import {
   DEFAULT_FRONT_LAYER_COLOR,
@@ -61,43 +36,12 @@ import {
   getPatternPieceChain,
   resolvePatternPieceChains,
 } from '../ops/pattern-piece-ops'
+import { useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
+import { useEditorSelectionSelector } from '../state/providers/EditorSelectionStateProvider'
+import { useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseEditorDerivedStateParams = {
-  layers: Layer[]
-  activeLayerId: string
-  sketchGroups: SketchGroup[]
-  activeSketchGroupId: string | null
-  lineTypes: LineType[]
-  activeLineTypeId: string
-  shapes: Shape[]
-  foldLines: FoldLine[]
-  stitchHoles: StitchHole[]
-  constraints: ParametricConstraint[]
-  patternPieces: PatternPiece[]
-  pieceGrainlines: PieceGrainline[]
-  pieceLabels: PieceLabel[]
-  piecePlacementLabels: PiecePlacementLabel[]
-  piecePlacements3d: PiecePlacement3D[]
-  seamConnections: SeamConnection[]
-  seamAllowances: PieceSeamAllowance[]
-  pieceNotches: PieceNotch[]
-  hardwareMarkers: HardwareMarker[]
-  snapSettings: SnapSettings
-  showAnnotations: boolean
-  tracingOverlays: TracingOverlay[]
-  projectMemo: string
-  stitchAlwaysShapeIds: string[]
-  stitchThreadColor: string
-  threePreviewSettings: ThreePreviewSettings
-  avatars: AvatarSpec[]
-  threeTextureSource: TextureSource | null
-  threeTextureShapeIds: string[]
-  showCanvasRuler: boolean
-  showDimensions: boolean
-  activeTracingOverlayId: string | null
-  selectedShapeIds: string[]
-  selectedStitchHoleId: string | null
-  selectedHardwareMarkerId: string | null
   templateRepository: TemplateRepositoryEntry[]
   selectedTemplateEntryId: string | null
   historyState: HistoryState<EditorSnapshot>
@@ -110,18 +54,38 @@ type UseEditorDerivedStateParams = {
   printTileY: number
   printScalePercent: number
   exportRoleFilters: ExportRoleFilters
-  frontLayerColor: string
-  backLayerColor: string
-  layerColorOverrides: Record<string, string>
-  legendMode: LegendMode
-  sketchWorkspaceMode: SketchWorkspaceMode
   themeMode: ResolvedThemeMode
 }
 
 export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const {
+    templateRepository,
+    selectedTemplateEntryId,
+    historyState,
+    printSelectedOnly,
+    printPaper,
+    printMarginMm,
+    printOverlapMm,
+    printTileX,
+    printTileY,
+    printScalePercent,
+    exportRoleFilters,
+    themeMode,
+  } = params
+  const {
     layers,
     activeLayerId,
+    frontLayerColor,
+    backLayerColor,
+    layerColorOverrides,
+  } = useEditorLayerSelector((state) => ({
+    layers: state.layers,
+    activeLayerId: state.activeLayerId,
+    frontLayerColor: state.frontLayerColor,
+    backLayerColor: state.backLayerColor,
+    layerColorOverrides: state.layerColorOverrides,
+  }))
+  const {
     sketchGroups,
     activeSketchGroupId,
     lineTypes,
@@ -152,27 +116,51 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     showCanvasRuler,
     showDimensions,
     activeTracingOverlayId,
+  } = useEditorDocumentSelector((state) => ({
+    sketchGroups: state.sketchGroups,
+    activeSketchGroupId: state.activeSketchGroupId,
+    lineTypes: state.lineTypes,
+    activeLineTypeId: state.activeLineTypeId,
+    shapes: state.shapes,
+    foldLines: state.foldLines,
+    stitchHoles: state.stitchHoles,
+    constraints: state.constraints,
+    patternPieces: state.patternPieces,
+    pieceGrainlines: state.pieceGrainlines,
+    pieceLabels: state.pieceLabels,
+    piecePlacementLabels: state.piecePlacementLabels,
+    piecePlacements3d: state.piecePlacements3d,
+    seamConnections: state.seamConnections,
+    seamAllowances: state.seamAllowances,
+    pieceNotches: state.pieceNotches,
+    hardwareMarkers: state.hardwareMarkers,
+    snapSettings: state.snapSettings,
+    showAnnotations: state.showAnnotations,
+    tracingOverlays: state.tracingOverlays,
+    projectMemo: state.projectMemo,
+    stitchAlwaysShapeIds: state.stitchAlwaysShapeIds,
+    stitchThreadColor: state.stitchThreadColor,
+    threePreviewSettings: state.threePreviewSettings,
+    avatars: state.avatars,
+    threeTextureSource: state.threeTextureSource,
+    threeTextureShapeIds: state.threeTextureShapeIds,
+    showCanvasRuler: state.showCanvasRuler,
+    showDimensions: state.showDimensions,
+    activeTracingOverlayId: state.activeTracingOverlayId,
+  }))
+  const {
     selectedShapeIds,
     selectedStitchHoleId,
     selectedHardwareMarkerId,
-    templateRepository,
-    selectedTemplateEntryId,
-    historyState,
-    printSelectedOnly,
-    printPaper,
-    printMarginMm,
-    printOverlapMm,
-    printTileX,
-    printTileY,
-    printScalePercent,
-    exportRoleFilters,
-    frontLayerColor,
-    backLayerColor,
-    layerColorOverrides,
-    legendMode,
-    sketchWorkspaceMode,
-    themeMode,
-  } = params
+  } = useEditorSelectionSelector((state) => ({
+    selectedShapeIds: state.selectedShapeIds,
+    selectedStitchHoleId: state.selectedStitchHoleId,
+    selectedHardwareMarkerId: state.selectedHardwareMarkerId,
+  }))
+  const { legendMode, sketchWorkspaceMode } = useEditorUISelector((state) => ({
+    legendMode: state.legendMode,
+    sketchWorkspaceMode: state.sketchWorkspaceMode,
+  }))
 
   const activeLayer = useMemo(() => layers.find((layer) => layer.id === activeLayerId) ?? layers[0] ?? null, [layers, activeLayerId])
   const sketchGroupsById = useMemo(
