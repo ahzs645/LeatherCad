@@ -10,8 +10,32 @@ export default defineConfig({
       '@': path.resolve(import.meta.dirname, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+            return 'react-vendor'
+          }
+          if (id.includes('node_modules/three') || id.includes('/GLTFLoader')) {
+            return 'three-vendor'
+          }
+          if (id.includes('node_modules/pdfjs-dist')) {
+            return 'pdf-vendor'
+          }
+          if (id.includes('node_modules/opentype.js')) {
+            return 'opentype-vendor'
+          }
+          if (id.includes('node_modules/clipper-lib')) {
+            return 'clipper-vendor'
+          }
+          return undefined
+        },
+      },
+    },
+  },
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 })

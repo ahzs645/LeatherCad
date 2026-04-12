@@ -22,11 +22,8 @@ const NestingModal = lazy(() =>
 import {
   STITCH_LINE_TYPE_ID,
 } from './cad/line-types'
-import { safeLocalStorageGet, safeLocalStorageRemove } from './ops/safe-storage'
-import { parseImportedJsonDocument } from './editor-json-import'
 import {
   saveCatalogRepository,
-  type CatalogRepositoryShop,
 } from './templates/catalog-repository'
 
 import {
@@ -77,38 +74,19 @@ import { useEditorSelectionState } from './hooks/useEditorSelectionState'
 import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
-import {
-  clearSelectedBoxStitchSources,
-  generateBoxStitchPattern,
-  markSelectedShapesAsBoxStitchSource,
-  type BoxStitchParams,
-} from './ops/box-stitch-ops'
-import { generateRadialCopies, generateGoldenSpiral, generateGoldenRatioGuides, generateMandalaGuideCircle, type MandalaSettings, type GoldenSpiralParams } from './ops/mandala-ops'
-import { generateWatchStrap, generatePassCase, generateBoxJoint, generateJigsaw, generateDiceCup, type WizardType, type WatchStrapParams, type PassCaseParams, type BoxJointParams, type JigsawParams, type DiceCupParams } from './ops/wizard-ops'
-import { generateLetterStampPreview, type LetterStampParams } from './ops/letter-stamp-ops'
-import { simulateStitches, type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
+import { type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
 import { loadStitchSimulatorSettings, saveStitchSimulatorSettings } from './ops/stitch-simulator-settings'
 import {
   loadBoxStitchHelperSettings,
-  saveBoxStitchHelperSettings,
   type BoxStitchHelperSettings,
 } from './ops/box-stitch-settings'
 import {
-  clearTerminalStitchHole,
   getTerminalStitchHoleIdForShape,
-  setTerminalStitchHole,
 } from './ops/stitch-hole-ops'
 import { DocumentInspectorPanel } from './workbench/DocumentInspectorPanel'
 import { EditorWorkbench } from './workbench/EditorWorkbench'
 import { SelectionInspectorPanel } from './workbench/SelectionInspectorPanel'
-import {
-  useDocumentBrowserModel,
-  useInspectorModel,
-  useQuickActions,
-  useRibbonModel,
-} from './workbench/workbench-hooks'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
-import type { DocumentBrowserNode } from './workbench/workbench-types'
 import {
   WorkbenchThreePreviewInspector,
   WorkbenchThreePreviewViewport,
@@ -119,8 +97,9 @@ import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
 import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
 import { useEditorCanvasPaneProps } from './view-models/useEditorCanvasPaneProps'
 import { EditorStateProviders } from './state/providers/EditorStateProviders'
-
-const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
+import { useEditorCreationController } from './controllers/useEditorCreationController'
+import { useEditorDocumentBootstrap } from './controllers/useEditorDocumentBootstrap'
+import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchController'
 
 export function EditorApp() {
   return (
@@ -290,31 +269,6 @@ function EditorAppContent() {
   })
 
   const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
-  const mergedCatalogRepository = useMemo(() => {
-    if (bundledCatalogRepository.length === 0) {
-      return catalogRepository
-    }
-    const byId = new Map<string, CatalogRepositoryShop>()
-    bundledCatalogRepository.forEach((shop) => byId.set(shop.id, shop))
-    catalogRepository.forEach((shop) => byId.set(shop.id, shop))
-    return Array.from(byId.values()).sort((left, right) => (left.importedAt > right.importedAt ? -1 : 1))
-  }, [bundledCatalogRepository, catalogRepository])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const handlePreferenceChange = (event: MediaQueryListEvent) => {
-      setSystemThemeMode(event.matches ? 'dark' : 'light')
-    }
-
-    mediaQuery.addEventListener('change', handlePreferenceChange)
-    return () => {
-      mediaQuery.removeEventListener('change', handlePreferenceChange)
-    }
-  }, [setSystemThemeMode])
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -485,34 +439,12 @@ function EditorAppContent() {
     setShowPrintAreas,
     setStatus,
   })
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    const url = new URL(window.location.href)
-    const token = url.searchParams.get('openDoc')
-    if (!token) {
-      return
-    }
-
-    const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
-    const raw = safeLocalStorageGet(storageKey)
-    if (!raw) {
-      return
-    }
-
-    try {
-      const parsed = parseImportedJsonDocument(raw)
-      applyLoadedDocument(parsed.doc, 'Loaded project from new tab transfer')
-      safeLocalStorageRemove(storageKey)
-      url.searchParams.delete('openDoc')
-      window.history.replaceState(null, '', url.toString())
-    } catch (error) {
-      console.error('Open in new tab transfer failed', error)
-    }
-  }, [applyLoadedDocument])
+  const { mergedCatalogRepository } = useEditorDocumentBootstrap({
+    bundledCatalogRepository,
+    catalogRepository,
+    setSystemThemeMode,
+    applyLoadedDocument,
+  })
 
   const previewElement = useDraftPreviewElement({
     activeLineTypeStrokeColor,
@@ -1191,84 +1123,6 @@ function EditorAppContent() {
     )
   }
 
-  const handleMarkSelectedStitchHoleAsEnd = () => {
-    if (!selectedStitchHole) {
-      return
-    }
-
-    setStitchHoles((previous) => setTerminalStitchHole(previous, selectedStitchHole.id))
-    setStitchSimulatorSettings((previous) => ({
-      ...previous,
-      endHoleId: selectedStitchHole.id,
-    }))
-    setStatus(`Marked hole ${selectedStitchHole.sequence + 1} as the stitch end`)
-  }
-
-  const handleClearSelectedStitchHoleEnd = () => {
-    if (!selectedStitchHole) {
-      return
-    }
-
-    setStitchHoles((previous) => clearTerminalStitchHole(previous, selectedStitchHole.id))
-    setStitchSimulatorSettings((previous) => ({
-      ...previous,
-      endHoleId: null,
-    }))
-    setStatus(`Cleared stitch end on hole ${selectedStitchHole.sequence + 1}`)
-  }
-
-  const handleExtractSelectedBoxStitchSources = () => {
-    const result = markSelectedShapesAsBoxStitchSource(shapes, selectedShapeIdSet)
-    if (result.updatedCount === 0) {
-      setStatus('Select one or more lines, arcs, or beziers to extract as box stitch sources')
-      return
-    }
-    setShapes(result.nextShapes)
-    setStatus(`Marked ${result.updatedCount} shape${result.updatedCount === 1 ? '' : 's'} as box stitch sources`)
-  }
-
-  const handleClearSelectedBoxStitchSources = () => {
-    const result = clearSelectedBoxStitchSources(shapes, selectedShapeIdSet)
-    if (result.updatedCount === 0) {
-      setStatus('Selected shapes do not contain extracted box stitch sources')
-      return
-    }
-    setShapes(result.nextShapes)
-    setStatus(`Cleared box stitch sources on ${result.updatedCount} shape${result.updatedCount === 1 ? '' : 's'}`)
-  }
-
-  const handleApplyTextDefaultsToSelection = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more text shapes first')
-      return
-    }
-
-    let updatedCount = 0
-    setShapes((previous) =>
-      previous.map((shape) => {
-        if (!selectedShapeIdSet.has(shape.id) || shape.type !== 'text') {
-          return shape
-        }
-        updatedCount += 1
-        return {
-          ...shape,
-          text: textDraftValue.trim().length > 0 ? textDraftValue.trim() : shape.text,
-          fontFamily: textFontFamily,
-          fontSizeMm: Math.max(2, Math.min(120, textFontSizeMm)),
-          transform: textTransformMode,
-          radiusMm: Math.max(2, Math.min(2000, textRadiusMm)),
-          sweepDeg: Math.max(-1080, Math.min(1080, textSweepDeg)),
-        }
-      }),
-    )
-
-    if (updatedCount === 0) {
-      setStatus('Selected shapes do not include text')
-      return
-    }
-    setStatus(`Updated ${updatedCount} text shape${updatedCount === 1 ? '' : 's'}`)
-  }
-
   const { handleDeleteSelectedHardwareMarker, handleUpdateSelectedHardwareMarker } = useHardwareMarkerActions({
     selectedHardwareMarker,
     setHardwareMarkers,
@@ -1314,101 +1168,48 @@ function EditorAppContent() {
     showBezierOffsetLines,
     setShowBezierOffsetLines,
   })
-
-  const stitchSimulatorResult = useMemo(() => {
-    if (stitchHoles.length === 0) {
-      return null
-    }
-    if (!showStitchSimulatorModal && !stitchSimulatorSettings.showSimulatorPattern) {
-      return null
-    }
-    return simulateStitches(stitchHoles, stitchSimulatorSettings)
-  }, [showStitchSimulatorModal, stitchHoles, stitchSimulatorSettings])
-
-  useEffect(() => {
-    const nextEndHoleId = selectedStitchHole
-      ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
-      : null
-    setStitchSimulatorSettings((previous) =>
-      previous.endHoleId === nextEndHoleId
-        ? previous
-        : {
-            ...previous,
-            endHoleId: nextEndHoleId,
-          },
-    )
-  }, [selectedStitchHole, stitchHoles])
-
-  const handleGenerateBoxStitch = (params: BoxStitchParams) => {
-    const result = generateBoxStitchPattern(params)
-    setShapes((prev) => [...prev, ...result.guideLines])
-    setStitchHoles((prev) => [...prev, ...result.stitchHoles])
-    setShowBoxStitchModal(false)
-    setStatus(`Generated box stitch: ${result.guideLines.length} guides, ${result.stitchHoles.length} holes`)
-  }
-
-  const handleOpenBoxStitchHelperModal = () => {
-    if (selectedShapeIdSet.size === 0) {
-      setStatus('Select one or more shapes to create a box stitch')
-      return
-    }
-    setShowBoxStitchHelperModal(true)
-  }
-
-  const handleApplyBoxStitchHelper = (settings: BoxStitchHelperSettings) => {
-    setBoxStitchHelperSettings(settings)
-    saveBoxStitchHelperSettings(settings)
-    applyBoxStitchToSelection(settings)
-    setShowBoxStitchHelperModal(false)
-  }
-
-  const handleGenerateMandalaRadial = (settings: MandalaSettings) => {
-    const selectedShapes = shapes.filter((s) => selectedShapeIdSet.has(s.id))
-    if (selectedShapes.length === 0) {
-      setStatus('Select shapes first for radial copy')
-      return
-    }
-    const guides = generateMandalaGuideCircle(settings.center, settings.radius, settings.segmentCount, activeLayerId, activeLineTypeId)
-    const copies = generateRadialCopies(selectedShapes, settings)
-    setShapes((prev) => [...prev, ...guides, ...copies])
-    setShowMandalaModal(false)
-    setStatus(`Generated ${copies.length} radial copies with ${guides.length} guides`)
-  }
-
-  const handleGenerateSpiral = (params: GoldenSpiralParams) => {
-    const arcs = generateGoldenSpiral(params)
-    setShapes((prev) => [...prev, ...arcs])
-    setShowMandalaModal(false)
-    setStatus(`Generated golden spiral with ${arcs.length} arc segments`)
-  }
-
-  const handleGenerateGoldenGuides = (center: { x: number; y: number }, size: number) => {
-    const guides = generateGoldenRatioGuides(center, size, activeLayerId, activeLineTypeId)
-    setShapes((prev) => [...prev, ...guides])
-    setShowMandalaModal(false)
-    setStatus(`Generated ${guides.length} golden ratio guide lines`)
-  }
-
-  const handleGenerateWizardPattern = (type: WizardType, params: WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams) => {
-    let result: { shapes: Shape[]; description: string }
-    switch (type) {
-      case 'watch-strap': result = generateWatchStrap(params as WatchStrapParams); break
-      case 'pass-case': result = generatePassCase(params as PassCaseParams); break
-      case 'box-joint': result = generateBoxJoint(params as BoxJointParams); break
-      case 'jigsaw': result = generateJigsaw(params as JigsawParams); break
-      case 'dice-cup': result = generateDiceCup(params as DiceCupParams); break
-    }
-    setShapes((prev) => [...prev, ...result.shapes])
-    setShowWizardModal(false)
-    setStatus(result.description)
-  }
-
-  const handleGenerateLetterStamp = (params: LetterStampParams) => {
-    const result = generateLetterStampPreview({ ...params, layerId: activeLayerId, lineTypeId: activeLineTypeId })
-    setShapes((prev) => [...prev, ...result.textShapes, ...result.guideLines])
-    setShowLetterStampModal(false)
-    setStatus(`Generated letter stamp: ${result.placements.length} characters`)
-  }
+  const {
+    stitchSimulatorResult,
+    handleMarkSelectedStitchHoleAsEnd,
+    handleClearSelectedStitchHoleEnd,
+    handleExtractSelectedBoxStitchSources,
+    handleClearSelectedBoxStitchSources,
+    handleApplyTextDefaultsToSelection,
+    handleGenerateBoxStitch,
+    handleOpenBoxStitchHelperModal,
+    handleApplyBoxStitchHelper,
+    handleGenerateMandalaRadial,
+    handleGenerateSpiral,
+    handleGenerateGoldenGuides,
+    handleGenerateWizardPattern,
+    handleGenerateLetterStamp,
+  } = useEditorCreationController({
+    shapes,
+    setShapes,
+    stitchHoles,
+    setStitchHoles,
+    selectedShapeIdSet,
+    selectedStitchHole,
+    activeLayerId,
+    activeLineTypeId,
+    textDraftValue,
+    textFontFamily,
+    textFontSizeMm,
+    textTransformMode,
+    textRadiusMm,
+    textSweepDeg,
+    showStitchSimulatorModal,
+    stitchSimulatorSettings,
+    setStitchSimulatorSettings,
+    setBoxStitchHelperSettings,
+    setShowBoxStitchModal,
+    setShowBoxStitchHelperModal,
+    setShowMandalaModal,
+    setShowWizardModal,
+    setShowLetterStampModal,
+    setStatus,
+    applyBoxStitchToSelection,
+  })
 
   const { handleRunMobileLayerAction, handleRunMobileFileAction } = useMobileActions({
     mobileLayerAction,
@@ -1750,27 +1551,31 @@ function EditorAppContent() {
     layerCount: layers.length,
     templateCount: templateRepository.length,
   })
-  const selectedPieceIds = useMemo(
-    () =>
-      patternPieces
-        .filter((piece) => selectedShapeIdSet.has(piece.boundaryShapeId))
-        .map((piece) => piece.id),
-    [patternPieces, selectedShapeIdSet],
-  )
-  const selectionContext = useInspectorModel({
-    selectedShapes,
-    selectedPatternPiece,
-    selectedStitchHole,
-    selectedHardwareMarker,
-  })
-  const browserNodes = useDocumentBrowserModel({
+  const {
+    selectionContext,
+    browserNodes,
+    quickActions,
+    ribbonGroups,
+    docLabel,
+    selectionText,
+    handleWorkbenchQuickAction,
+    handleWorkbenchRibbonCommand,
+    handleWorkbenchActivateNode,
+    handleToggleLayerVisibilityById,
+    handleToggleLayerLockById,
+    handleToggleTracingVisibilityById,
+    handleToggleTracingLockById,
+    handleToggleWorkbenchPeek,
+    handleSetWorkbenchMode,
+  } = useEditorWorkbenchController({
+    documentName,
     patternPieces,
+    patternPiecesById,
     pieceLabels,
     seamAllowances,
     pieceNotches,
     piecePlacementLabels,
     seamConnections,
-    selectedPieceIds,
     layers,
     activeLayerId,
     sketchGroups,
@@ -1779,16 +1584,75 @@ function EditorAppContent() {
     activeTracingOverlayId,
     avatars,
     threeTextureSource,
-  })
-  const quickActions = useQuickActions({ canUndo, canRedo })
-  const ribbonGroups = useRibbonModel({
-    activeTab: workbenchRibbonTab,
+    selectedShapes,
+    selectedPatternPiece,
+    selectedStitchHole,
+    selectedHardwareMarker,
+    selectedShapeCount,
+    selectedShapeIdSet,
     canUndo,
     canRedo,
-    canPaste: true,
-    selectedShapeCount,
-    selectedPatternPiece: selectedPatternPiece !== null,
-    selectedStitchHole: selectedStitchHole !== null,
+    workbenchRibbonTab,
+    setActiveInspectorTab,
+    isMobileLayout,
+    workspaceMode,
+    handleSaveJson,
+    handleUndo,
+    handleRedo,
+    setShowHelpModal,
+    handleFitView,
+    handleResetView,
+    setShowCanvasRuler,
+    setShowDimensions,
+    handleLoadPreset,
+    setShowAnnotations,
+    handleCopySelection,
+    handlePasteClipboard,
+    handleDeleteSelection,
+    handleMoveSelectionByDistance,
+    handleRotateSelection,
+    handleScaleSelection,
+    handleCreatePatternPieceFromSelection,
+    openSelectedPatternPieceInspector,
+    handleApplySeamAllowanceToSelection,
+    setShowNestingModal,
+    handleAutoPlaceFixedPitchStitchHoles,
+    handleAutoPlaceVariablePitchStitchHoles,
+    handleCountStitchHolesOnSelectedShapes,
+    handleResequenceSelectedStitchHoles,
+    handleSelectNextStitchHole,
+    handleClearAllStitchHoles,
+    fileInputRef,
+    svgInputRef,
+    handleExportSvg,
+    handleExportPdf,
+    handleExportDxf,
+    setShowPrintPreviewModal,
+    setShowTemplateRepositoryModal,
+    setShowTracingModal,
+    setShowAiBuilderModal,
+    handleConvertArcToBezier,
+    handleExtendOrTrimLines,
+    handleMirrorShapes,
+    handleMakeBezierCpSymmetric,
+    handleToggleBezierOffsetLines,
+    setShowChangeShapeSizeModal,
+    setShowStitchSimulatorModal,
+    setShowBoxStitchHelperModal,
+    setShowBoxStitchModal,
+    setShowWizardModal,
+    setShowMandalaModal,
+    setShowLetterStampModal,
+    ensurePatternPieceSupportRecords,
+    setSelectedShapeIds,
+    setActiveLayerId,
+    clearDraft,
+    setActiveSketchGroupId,
+    setActiveTracingOverlayId,
+    setLayers,
+    setTracingOverlays,
+    setSecondaryPreviewMode,
+    setWorkspaceMode,
   })
   const threePreviewController = useWorkbenchThreePreviewController({
     shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
@@ -1824,316 +1688,6 @@ function EditorAppContent() {
         ),
       ),
   })
-  const docLabel = documentName ?? patternPieces[0]?.name ?? 'Current Draft'
-  const selectionText =
-    selectedShapeCount > 0
-      ? `${selectedShapeCount} shape${selectedShapeCount === 1 ? '' : 's'}`
-      : selectedStitchHole
-        ? `Stitch hole ${selectedStitchHole.sequence}`
-        : selectedHardwareMarker
-          ? selectedHardwareMarker.label || 'Hardware marker'
-          : 'No selection'
-
-  useEffect(() => {
-    if (!isMobileLayout && workspaceMode === '3d') {
-      setActiveInspectorTab('preview3d')
-    }
-  }, [isMobileLayout, workspaceMode, setActiveInspectorTab])
-
-  const handleWorkbenchQuickAction = (actionId: string) => {
-    switch (actionId) {
-      case 'save-json':
-        handleSaveJson()
-        break
-      case 'undo':
-        handleUndo()
-        break
-      case 'redo':
-        handleRedo()
-        break
-      case 'help':
-        setShowHelpModal(true)
-        break
-      default:
-        break
-    }
-  }
-
-  const handleWorkbenchRibbonCommand = (commandId: string) => {
-    switch (commandId) {
-      case 'fit-view':
-        handleFitView()
-        break
-      case 'reset-view':
-        handleResetView()
-        break
-      case 'toggle-ruler':
-        setShowCanvasRuler((previous) => !previous)
-        break
-      case 'toggle-dimensions':
-        setShowDimensions((previous) => !previous)
-        break
-      case 'load-preset':
-        handleLoadPreset()
-        break
-      case 'toggle-annotations':
-        setShowAnnotations((previous) => !previous)
-        break
-      case 'undo':
-        handleUndo()
-        break
-      case 'redo':
-        handleRedo()
-        break
-      case 'copy':
-        handleCopySelection()
-        break
-      case 'paste':
-        void handlePasteClipboard()
-        break
-      case 'delete':
-        handleDeleteSelection()
-        break
-      case 'move-distance':
-        handleMoveSelectionByDistance()
-        break
-      case 'rotate':
-      case 'rotate-5':
-        handleRotateSelection(5)
-        break
-      case 'scale-up':
-        handleScaleSelection(1.05)
-        break
-      case 'create-piece':
-        handleCreatePatternPieceFromSelection()
-        break
-      case 'open-piece':
-      case 'piece-tab':
-        openSelectedPatternPieceInspector()
-        break
-      case 'apply-seam-allowance':
-        handleApplySeamAllowanceToSelection()
-        break
-      case 'open-nesting':
-        setShowNestingModal(true)
-        break
-      case 'place-fixed-stitch':
-        handleAutoPlaceFixedPitchStitchHoles()
-        break
-      case 'place-variable-stitch':
-        handleAutoPlaceVariablePitchStitchHoles()
-        break
-      case 'count-stitches':
-        handleCountStitchHolesOnSelectedShapes()
-        break
-      case 'resequence-stitches':
-        handleResequenceSelectedStitchHoles(false)
-        break
-      case 'next-stitch':
-        handleSelectNextStitchHole()
-        break
-      case 'clear-stitches':
-        handleClearAllStitchHoles()
-        break
-      case 'save-json':
-        handleSaveJson()
-        break
-      case 'load-json':
-        fileInputRef.current?.click()
-        break
-      case 'import-svg':
-        svgInputRef.current?.click()
-        break
-      case 'export-svg':
-        handleExportSvg()
-        break
-      case 'export-pdf':
-        handleExportPdf()
-        break
-      case 'export-dxf':
-        handleExportDxf()
-        break
-      case 'print-preview':
-        setShowPrintPreviewModal(true)
-        break
-      case 'template-repository':
-        setShowTemplateRepositoryModal(true)
-        break
-      case 'tracing':
-        setShowTracingModal(true)
-        break
-      case 'ai-builder':
-        setShowAiBuilderModal(true)
-        break
-      case 'arc-to-bezier':
-        handleConvertArcToBezier()
-        break
-      case 'extend-trim':
-        handleExtendOrTrimLines()
-        break
-      case 'mirror-shapes':
-        handleMirrorShapes()
-        break
-      case 'bezier-cp-symmetric':
-        handleMakeBezierCpSymmetric()
-        break
-      case 'toggle-bezier-lines':
-        handleToggleBezierOffsetLines()
-        break
-      case 'resize-shape':
-        setShowChangeShapeSizeModal(true)
-        break
-      case 'stitch-simulator':
-        setShowStitchSimulatorModal(true)
-        break
-      case 'box-stitch':
-        if (selectedShapeIdSet.size > 0) {
-          setShowBoxStitchHelperModal(true)
-        } else {
-          setShowBoxStitchModal(true)
-        }
-        break
-      case 'pattern-wizard':
-        setShowWizardModal(true)
-        break
-      case 'mandala':
-        setShowMandalaModal(true)
-        break
-      case 'letter-stamp':
-        setShowLetterStampModal(true)
-        break
-      default:
-        break
-    }
-  }
-
-  const handleWorkbenchActivateNode = (node: DocumentBrowserNode, multi: boolean) => {
-    const parts = node.id.split(':')
-    switch (node.kind) {
-      case 'piece':
-      case 'piece-label':
-      case 'pattern-label':
-      case 'seam-allowance':
-      case 'notch':
-      case 'placement-label':
-      case 'seam-connection': {
-        const pieceId = node.kind === 'piece' ? parts[1] : parts[1]
-        const piece = patternPiecesById[pieceId]
-        if (!piece) {
-          return
-        }
-        ensurePatternPieceSupportRecords(piece)
-        setSelectedShapeIds((previous) => {
-          if (!multi) {
-            return [piece.boundaryShapeId]
-          }
-          const next = previous.includes(piece.boundaryShapeId)
-            ? previous.filter((entry) => entry !== piece.boundaryShapeId)
-            : [...previous, piece.boundaryShapeId]
-          return next
-        })
-        setActiveInspectorTab('piece')
-        break
-      }
-      case 'layer': {
-        const layerId = parts[1]
-        setActiveLayerId(layerId)
-        clearDraft()
-        setActiveInspectorTab('document')
-        break
-      }
-      case 'layer-group': {
-        setActiveInspectorTab('document')
-        break
-      }
-      case 'sketch': {
-        const sketchId = parts[1]
-        setActiveSketchGroupId(sketchId)
-        setActiveInspectorTab('document')
-        break
-      }
-      case 'tracing-overlay': {
-        const overlayId = parts[1]
-        setActiveTracingOverlayId(overlayId)
-        setActiveInspectorTab('document')
-        break
-      }
-      case 'avatar':
-      case 'texture-source':
-      case 'preview-settings':
-        setActiveInspectorTab('preview3d')
-        break
-      default:
-        break
-    }
-  }
-
-  const handleToggleLayerVisibilityById = (layerId: string) =>
-    setLayers((previous) =>
-      previous.map((layer) =>
-        layer.id === layerId
-          ? {
-              ...layer,
-              visible: !layer.visible,
-            }
-          : layer,
-      ),
-    )
-
-  const handleToggleLayerLockById = (layerId: string) =>
-    setLayers((previous) =>
-      previous.map((layer) =>
-        layer.id === layerId
-          ? {
-              ...layer,
-              locked: !layer.locked,
-            }
-          : layer,
-      ),
-    )
-
-  const handleToggleTracingVisibilityById = (overlayId: string) =>
-    setTracingOverlays((previous) =>
-      previous.map((overlay) =>
-        overlay.id === overlayId
-          ? {
-              ...overlay,
-              visible: !overlay.visible,
-            }
-          : overlay,
-      ),
-    )
-
-  const handleToggleTracingLockById = (overlayId: string) =>
-    setTracingOverlays((previous) =>
-      previous.map((overlay) =>
-        overlay.id === overlayId
-          ? {
-              ...overlay,
-              locked: !overlay.locked,
-            }
-          : overlay,
-      ),
-    )
-
-  const handleToggleWorkbenchPeek = () => {
-    setSecondaryPreviewMode((previous) => {
-      if (previous !== 'hidden') {
-        return 'hidden'
-      }
-      return workspaceMode === '2d' ? '3d-peek' : '2d-peek'
-    })
-  }
-
-  const handleSetWorkbenchMode = (mode: '2d' | '3d') => {
-    setWorkspaceMode(mode)
-    setSecondaryPreviewMode((previous) => {
-      if (previous === 'hidden') {
-        return previous
-      }
-      return mode === '2d' ? '3d-peek' : '2d-peek'
-    })
-  }
 
   const canvasPaneProps = useEditorCanvasPaneProps({
     hideCanvasPane: false,

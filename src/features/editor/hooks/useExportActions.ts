@@ -1,8 +1,6 @@
 import { arcPath, getBounds, round } from '../cad/cad-geometry'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
 import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
-import { buildDxfFromShapes } from '../io/io-dxf'
-import { buildPdfFromShapes } from '../io/io-pdf'
 import { downloadFile } from '../editor-utils'
 import { buildAnnotationExportShapes } from '../ops/annotation-export-shapes'
 import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
@@ -318,21 +316,26 @@ export function useExportActions(params: UseExportActionsParams) {
       setStatus('No shapes matched the current export filters')
       return
     }
-
-    const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
-      stitchHoles: exportStitchHoles,
-      stitchHoleRenderMode: exportStitchHoleRenderMode,
-      stitchDotRadiusMm: exportStitchDotRadiusMm,
-      flipY: dxfFlipY,
-      version: dxfVersion,
-      unit: exportUnit,
-      forceSolidLineStyle: exportForceSolidStrokes,
-      lineTypeStyles: lineTypeStylesById,
-    })
-    downloadFile('leathercraft-export.dxf', content, 'application/dxf')
-    setStatus(
-      `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, ${exportStitchHoles.length} stitch holes, flipY ${dxfFlipY ? 'on' : 'off'})`,
-    )
+    void import('../io/io-dxf')
+      .then(({ buildDxfFromShapes }) => {
+        const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
+          stitchHoles: exportStitchHoles,
+          stitchHoleRenderMode: exportStitchHoleRenderMode,
+          stitchDotRadiusMm: exportStitchDotRadiusMm,
+          flipY: dxfFlipY,
+          version: dxfVersion,
+          unit: exportUnit,
+          forceSolidLineStyle: exportForceSolidStrokes,
+          lineTypeStyles: lineTypeStylesById,
+        })
+        downloadFile('leathercraft-export.dxf', content, 'application/dxf')
+        setStatus(
+          `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, ${exportStitchHoles.length} stitch holes, flipY ${dxfFlipY ? 'on' : 'off'})`,
+        )
+      })
+      .catch(() => {
+        setStatus('DXF export tools failed to load')
+      })
   }
 
   const handleExportPdf = () => {
@@ -343,17 +346,23 @@ export function useExportActions(params: UseExportActionsParams) {
       return
     }
 
-    const pdf = buildPdfFromShapes(exportShapes, {
-      stitchHoles: exportStitchHoles,
-      stitchHoleRenderMode: exportStitchHoleRenderMode,
-      stitchDotRadiusMm: exportStitchDotRadiusMm,
-      forceSolidLineStyle: exportForceSolidStrokes,
-      lineTypeStyles: lineTypeStylesById,
-      lineTypeColors: Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType.color])),
-    })
+    void import('../io/io-pdf')
+      .then(({ buildPdfFromShapes }) => {
+        const pdf = buildPdfFromShapes(exportShapes, {
+          stitchHoles: exportStitchHoles,
+          stitchHoleRenderMode: exportStitchHoleRenderMode,
+          stitchDotRadiusMm: exportStitchDotRadiusMm,
+          forceSolidLineStyle: exportForceSolidStrokes,
+          lineTypeStyles: lineTypeStylesById,
+          lineTypeColors: Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType.color])),
+        })
 
-    downloadFile('leathercraft-export.pdf', pdf, 'application/pdf')
-    setStatus(`Exported PDF (${exportShapes.length} shapes, ${exportStitchHoles.length} stitch holes)`)
+        downloadFile('leathercraft-export.pdf', pdf, 'application/pdf')
+        setStatus(`Exported PDF (${exportShapes.length} shapes, ${exportStitchHoles.length} stitch holes)`)
+      })
+      .catch(() => {
+        setStatus('PDF export tools failed to load')
+      })
   }
 
   const handleExportLaserSvg = () => {

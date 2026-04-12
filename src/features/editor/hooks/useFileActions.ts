@@ -1,10 +1,5 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
 import type { DocFile, Layer, Shape, SketchGroup } from '../cad/cad-types'
-import { importSvgAsShapes } from '../io/io-svg'
-import { importLccDocument, exportLccDocument } from '../io/io-lcc'
-import { exportGarmentInterchangeDocument } from '../io/io-garment'
-import { DEFAULT_PRESET_ID, PRESET_DOCS } from '../data/sample-doc'
-import { parseImportedJsonDocument } from '../editor-json-import'
 import { uid } from '../cad/cad-geometry'
 import { downloadFile } from '../editor-utils'
 import { safeLocalStorageSet } from '../ops/safe-storage'
@@ -65,16 +60,28 @@ export function useFileActions(params: UseFileActionsParams) {
 
   const handleSaveLcc = () => {
     const doc = buildCurrentDocFile()
-    const lccContent = exportLccDocument(doc)
-    downloadFile('leathercraft-doc.lcc', lccContent, 'application/json;charset=utf-8')
-    setStatus('Document saved as LCC')
+    void import('../io/io-lcc')
+      .then(({ exportLccDocument }) => {
+        const lccContent = exportLccDocument(doc)
+        downloadFile('leathercraft-doc.lcc', lccContent, 'application/json;charset=utf-8')
+        setStatus('Document saved as LCC')
+      })
+      .catch(() => {
+        setStatus('LCC export tools failed to load')
+      })
   }
 
   const handleExportGarmentJson = () => {
     const doc = buildCurrentDocFile()
-    const garment = exportGarmentInterchangeDocument(doc)
-    downloadFile('leathercraft-garment.json', JSON.stringify(garment, null, 2), 'application/json;charset=utf-8')
-    setStatus('Garment interchange JSON exported')
+    void import('../io/io-garment')
+      .then(({ exportGarmentInterchangeDocument }) => {
+        const garment = exportGarmentInterchangeDocument(doc)
+        downloadFile('leathercraft-garment.json', JSON.stringify(garment, null, 2), 'application/json;charset=utf-8')
+        setStatus('Garment interchange JSON exported')
+      })
+      .catch(() => {
+        setStatus('Garment export tools failed to load')
+      })
   }
 
   const handleLoadJson = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -90,6 +97,7 @@ export function useFileActions(params: UseFileActionsParams) {
       const isLcc = file.name.toLowerCase().endsWith('.lcc')
 
       if (isLcc) {
+        const { importLccDocument } = await import('../io/io-lcc')
         const result = importLccDocument(raw)
         const documentName = result.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
         const warningNote = result.warnings.length > 0 ? ` (${result.warnings.length} warning(s))` : ''
@@ -100,6 +108,7 @@ export function useFileActions(params: UseFileActionsParams) {
         return
       }
 
+      const { parseImportedJsonDocument } = await import('../editor-json-import')
       const imported = parseImportedJsonDocument(raw)
       const documentName = imported.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
       applyLoadedDocument(
@@ -126,6 +135,7 @@ export function useFileActions(params: UseFileActionsParams) {
 
     try {
       const rawSvg = await file.text()
+      const { importSvgAsShapes } = await import('../io/io-svg')
       const imported = importSvgAsShapes(rawSvg, {
         layerId: activeLayer.id,
         lineTypeId: activeLineTypeId,
@@ -153,37 +163,42 @@ export function useFileActions(params: UseFileActionsParams) {
     }
   }
 
-  const handleLoadPreset = (presetId = selectedPresetId || DEFAULT_PRESET_ID) => {
-    const requestedPresetId = presetId || selectedPresetId || DEFAULT_PRESET_ID
-    const preset =
-      PRESET_DOCS.find((entry) => entry.id === requestedPresetId) ??
-      PRESET_DOCS.find((entry) => entry.id === selectedPresetId) ??
-      PRESET_DOCS.find((entry) => entry.id === DEFAULT_PRESET_ID) ??
-      PRESET_DOCS[0]
-    if (!preset) {
-      setStatus('No presets available')
-      return
-    }
+  const handleLoadPreset = async (presetId?: string) => {
+    try {
+      const { DEFAULT_PRESET_ID, PRESET_DOCS } = await import('../data/sample-doc')
+      const requestedPresetId = presetId || selectedPresetId || DEFAULT_PRESET_ID
+      const preset =
+        PRESET_DOCS.find((entry) => entry.id === requestedPresetId) ??
+        PRESET_DOCS.find((entry) => entry.id === selectedPresetId) ??
+        PRESET_DOCS.find((entry) => entry.id === DEFAULT_PRESET_ID) ??
+        PRESET_DOCS[0]
+      if (!preset) {
+        setStatus('No presets available')
+        return
+      }
 
-    if (preset.id !== selectedPresetId) {
-      setSelectedPresetId(preset.id)
-    }
+      if (preset.id !== selectedPresetId) {
+        setSelectedPresetId(preset.id)
+      }
 
-    const sample =
-      typeof structuredClone === 'function'
-        ? structuredClone(preset.doc)
-        : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
-    sample.documentName = sample.documentName?.trim() || preset.label
+      const sample =
+        typeof structuredClone === 'function'
+          ? structuredClone(preset.doc)
+          : (JSON.parse(JSON.stringify(preset.doc)) as DocFile)
+      sample.documentName = sample.documentName?.trim() || preset.label
 
-    const loadedMessage =
-      preset.id === requestedPresetId
-        ? `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
-        : `Requested preset was unavailable. Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
-    applyLoadedDocument(sample, loadedMessage)
-    setShowThreePreview(true)
-    if (isMobileLayout) {
-      setMobileViewMode('editor')
-      setShowMobileMenu(false)
+      const loadedMessage =
+        preset.id === requestedPresetId
+          ? `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
+          : `Requested preset was unavailable. Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
+      applyLoadedDocument(sample, loadedMessage)
+      setShowThreePreview(true)
+      if (isMobileLayout) {
+        setMobileViewMode('editor')
+        setShowMobileMenu(false)
+      }
+    } catch {
+      setStatus('Preset library failed to load')
     }
   }
 
