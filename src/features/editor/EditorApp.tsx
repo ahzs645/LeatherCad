@@ -4,14 +4,14 @@ import type {
   Shape,
 } from './cad/cad-types'
 import { EditorCanvasPane } from './components/EditorCanvasPane'
+import { EditorDesktopShell } from './components/EditorDesktopShell'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { EditorHiddenInputs } from './components/EditorHiddenInputs'
+import { EditorMobileShell } from './components/EditorMobileShell'
 import { EditorModalStack } from './components/EditorModalStack'
+import { EditorOverlayHost } from './components/EditorOverlayHost'
 import { PieceInspectorModal } from './components/PieceInspectorModal'
 import { PieceInspectorContent } from './components/PieceInspectorContent'
-import { EditorPreviewPane } from './components/EditorPreviewPane'
-import { EditorStatusBar } from './components/EditorStatusBar'
-import { EditorTopbar } from './components/EditorTopbar'
 import { PrecisionCommandPanel } from './components/PrecisionCommandPanel'
 const ProjectMemoModal = lazy(() =>
   import('./components/ProjectMemoModal').then((mod) => ({ default: mod.ProjectMemoModal })),
@@ -47,7 +47,8 @@ import { useTracingActions } from './hooks/useTracingActions'
 import { useMobileActions } from './hooks/useMobileActions'
 import { useCanvasInteractions } from './hooks/useCanvasInteractions'
 import { useResponsiveLayout } from './hooks/useResponsiveLayout'
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useEditorAutomationEffects } from './hooks/useEditorAutomationEffects'
+import { useEditorGlobalBindings } from './hooks/useEditorGlobalBindings'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
@@ -94,9 +95,6 @@ import { useEditorCreationController } from './controllers/useEditorCreationCont
 import { useEditorDocumentBootstrap } from './controllers/useEditorDocumentBootstrap'
 import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchController'
 
-const WorkbenchThreeWorkspace = lazy(() =>
-  import('./workbench/WorkbenchThreeWorkspace').then((mod) => ({ default: mod.WorkbenchThreeWorkspace })),
-)
 const EditorWorkbench = lazy(() =>
   import('./workbench/EditorWorkbench').then((mod) => ({ default: mod.EditorWorkbench })),
 )
@@ -705,7 +703,7 @@ function EditorAppContent() {
     currentSnapshotSignature,
   })
 
-  useKeyboardShortcuts({
+  useEditorGlobalBindings({
     handleDeleteSelection,
     handleUndo,
     handleRedo,
@@ -716,32 +714,12 @@ function EditorAppContent() {
     handleSelectAllShapes,
   })
 
-  // Auto-constraint detection: run when shapes change
-  const prevShapeCountRef = useRef(0)
-  useEffect(() => {
-    if (!autoConstraintSettings.enabled || shapes.length === 0) {
-      if (constraintSuggestions.length > 0) setConstraintSuggestions([])
-      prevShapeCountRef.current = shapes.length
-      return
-    }
-    // Only detect when a shape was just added
-    if (shapes.length > prevShapeCountRef.current && shapes.length > 1) {
-      const newest = shapes[shapes.length - 1]
-      const rest = shapes.slice(0, -1)
-      void import('./ops/auto-constraint-ops')
-        .then(({ detectAutoConstraints }) => {
-          const suggestions = detectAutoConstraints(newest, rest, autoConstraintSettings)
-          setConstraintSuggestions(suggestions)
-        })
-        .catch(() => {
-          setConstraintSuggestions([])
-        })
-    } else if (shapes.length < prevShapeCountRef.current) {
-      // Shapes were removed, clear suggestions
-      setConstraintSuggestions([])
-    }
-    prevShapeCountRef.current = shapes.length
-  }, [shapes, autoConstraintSettings]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEditorAutomationEffects({
+    shapes,
+    autoConstraintSettings,
+    constraintSuggestions,
+    setConstraintSuggestions,
+  })
 
   const {
     handleZoomStep,
@@ -1967,260 +1945,271 @@ function EditorAppContent() {
   )
 
   const shouldLoadThreeWorkbench = workspaceMode === '3d'
+  const updateFoldLine = (foldLineId: string, updates: Partial<(typeof foldLines)[number]>) => {
+    setFoldLines((previous) =>
+      previous.map((foldLine) =>
+        foldLine.id === foldLineId
+          ? {
+              ...foldLine,
+              ...updates,
+            }
+          : foldLine,
+      ),
+    )
+  }
+
+  const workbenchThreeWorkspaceProps = {
+    workspaceMode,
+    shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
+    selectedShapeIds,
+    stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
+    stitchThreadColor,
+    onSetStitchThreadColor: setStitchThreadColor,
+    patternPieces,
+    piecePlacements3d,
+    seamConnections,
+    threePreviewSettings,
+    avatars,
+    onSetPiecePlacements3d: setPiecePlacements3d,
+    onSetThreePreviewSettings: setThreePreviewSettings,
+    onSetAvatars: setAvatars,
+    threeTextureSource,
+    onSetThreeTextureSource: setThreeTextureSource,
+    threeTextureShapeIds,
+    onSetThreeTextureShapeIds: setThreeTextureShapeIds,
+    foldLines,
+    layers,
+    lineTypes,
+    themeMode: resolvedThemeMode,
+    onUpdateFoldLine: updateFoldLine,
+  }
+
+  const mobileShellProps = {
+    workspaceRef,
+    workspaceClassName,
+    topbarProps,
+    canvasPaneProps,
+    hideCanvasPane,
+    previewPaneProps,
+    precisionPanelProps: {
+      open: showPrecisionModal,
+      onClose: () => setShowPrecisionModal(false),
+      toolHint,
+      onRunCommand: runPrecisionCommand,
+    },
+    statusBarProps,
+  }
+
+  const modalStackNode = (
+    <EditorModalStack
+      {...modalStackProps}
+      stitchSimulatorModalProps={{
+        open: showStitchSimulatorModal,
+        onClose: () => setShowStitchSimulatorModal(false),
+        settings: stitchSimulatorSettings,
+        onApply: (settings) => {
+          setStitchSimulatorSettings(settings)
+          saveStitchSimulatorSettings(settings)
+          setStatus('Stitch simulator settings updated')
+        },
+        stitchHoleCount: stitchHoles.length,
+        threadLength: stitchSimulatorResult?.threadLength ?? null,
+        selectedHoleLabel: selectedStitchHole ? `Hole ${selectedStitchHole.sequence + 1}` : null,
+        terminalHoleLabel:
+          (selectedStitchHole
+            ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
+            : stitchSimulatorResult?.terminalHoleId)
+            ? `Hole ${
+                (
+                  stitchHoles.find(
+                    (hole) =>
+                      hole.id ===
+                      (selectedStitchHole
+                        ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
+                        : stitchSimulatorResult?.terminalHoleId),
+                  )?.sequence ?? 0
+                ) + 1
+              }`
+            : null,
+      }}
+      boxStitchHelperModalProps={{
+        open: showBoxStitchHelperModal,
+        onClose: () => setShowBoxStitchHelperModal(false),
+        onApply: handleApplyBoxStitchHelper,
+        settings: boxStitchHelperSettings,
+        selectedShapeCount,
+      }}
+      boxStitchModalProps={{
+        open: showBoxStitchModal,
+        onClose: () => setShowBoxStitchModal(false),
+        onGenerate: handleGenerateBoxStitch,
+        defaultLayerId: activeLayerId,
+        defaultLineTypeId: activeLineTypeId,
+      }}
+      mandalaModalProps={{
+        open: showMandalaModal,
+        onClose: () => setShowMandalaModal(false),
+        onGenerateRadial: handleGenerateMandalaRadial,
+        onGenerateSpiral: handleGenerateSpiral,
+        onGenerateGoldenGuides: handleGenerateGoldenGuides,
+        defaultLayerId: activeLayerId,
+        defaultLineTypeId: activeLineTypeId,
+      }}
+      wizardModalProps={{
+        open: showWizardModal,
+        onClose: () => setShowWizardModal(false),
+        onGenerate: handleGenerateWizardPattern,
+        defaultLayerId: activeLayerId,
+        defaultLineTypeId: activeLineTypeId,
+      }}
+      letterStampModalProps={{
+        open: showLetterStampModal,
+        onClose: () => setShowLetterStampModal(false),
+        onGenerate: handleGenerateLetterStamp,
+        defaultLayerId: activeLayerId,
+        defaultLineTypeId: activeLineTypeId,
+      }}
+      changeShapeSizeModalProps={{
+        open: showChangeShapeSizeModal,
+        onClose: () => setShowChangeShapeSizeModal(false),
+        onApply: (w, h, lock) => { handleResizeShapes(w, h, lock); setShowChangeShapeSizeModal(false) },
+        currentWidth: selectionBounds?.width ?? 0,
+        currentHeight: selectionBounds?.height ?? 0,
+      }}
+    />
+  )
+
+  const projectMemoModalNode = (
+    <Suspense fallback={null}>
+      <ProjectMemoModal
+        open={showProjectMemoModal}
+        onClose={() => setShowProjectMemoModal(false)}
+        value={projectMemo}
+        onChange={(nextValue) => setProjectMemo(nextValue.slice(0, 8000))}
+      />
+    </Suspense>
+  )
+
+  const pieceInspectorModalNode = isMobileLayout ? (
+    <PieceInspectorModal
+      open={showPieceInspectorModal && selectedPatternPiece !== null}
+      piece={selectedPatternPiece}
+      grainline={selectedPieceGrainline}
+      pieceLabel={selectedPieceLabel}
+      patternLabel={selectedPatternLabel}
+      seamAllowance={selectedPieceSeamAllowance}
+      seamConnections={selectedPieceSeamConnections}
+      notches={selectedPieceNotches}
+      placementLabels={selectedPiecePlacementLabels}
+      edgeCount={selectedPatternPieceEdgeCount}
+      availableInternalShapes={selectedPieceAvailableInternalShapes}
+      selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
+      onClose={() => setShowPieceInspectorModal(false)}
+      onUpdatePiece={handleUpdateSelectedPatternPiece}
+      onToggleInternalShape={handleToggleSelectedPieceInternalShape}
+      onUpdateGrainline={handleUpdateSelectedPieceGrainline}
+      onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
+      onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
+      onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
+      onUpdateSeamConnection={handleUpdateSelectedPieceSeamConnection}
+      onDeleteSeamConnection={(connectionId) =>
+        setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId))
+      }
+      onUpdateNotch={handleUpdateSelectedPieceNotch}
+      onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
+      onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}
+      onUpdatePlacementLabel={handleUpdateSelectedPiecePlacementLabel}
+      onDeletePlacementLabel={handleDeleteSelectedPiecePlacementLabel}
+    />
+  ) : null
+
+  const nestingModalNode = (
+    <Suspense fallback={null}>
+      <NestingModal
+        open={showNestingModal}
+        onClose={() => setShowNestingModal(false)}
+        patternPieces={patternPieces}
+        pieceGrainlines={pieceGrainlines}
+        patternPieceChainsByShapeId={patternPieceChains.byShapeId}
+        selectedShapeIds={selectedShapeIdSet}
+        activeLayerId={activeLayerId}
+        activeLineTypeId={activeLineTypeId}
+        onApplyNesting={(createdShapes) => {
+          setShapes((prev) => [...prev, ...createdShapes])
+          setShowNestingModal(false)
+          setStatus(`Nesting applied: ${createdShapes.length} shapes created`)
+        }}
+      />
+    </Suspense>
+  )
+
+  const hiddenInputsNode = (
+    <EditorHiddenInputs
+      fileInputRef={fileInputRef}
+      svgInputRef={svgInputRef}
+      tracingInputRef={tracingInputRef}
+      templateImportInputRef={templateImportInputRef}
+      catalogImportInputRef={catalogImportInputRef}
+      onLoadJson={handleLoadJson}
+      onImportSvg={handleImportSvg}
+      onImportTracing={handleImportTracing}
+      onImportTemplateRepositoryFile={handleImportTemplateRepositoryFile}
+      onImportCatalogFile={handleImportCatalogFile}
+    />
+  )
+
+  const fontInputNode = (
+    <input
+      ref={fontInputRef}
+      type="file"
+      accept=".ttf,.otf,.woff"
+      style={{ display: 'none' }}
+      onChange={(e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = () => {
+          void import('./ops/opentype-ops')
+            .then(({ loadFontFromBuffer }) => {
+              try {
+                const key = `font:${file.name}`
+                loadFontFromBuffer(reader.result as ArrayBuffer, key)
+                setLoadedFontUrl(key)
+                setStatus(`Font loaded: ${file.name}`)
+              } catch (err) {
+                setStatus(`Failed to load font: ${err instanceof Error ? err.message : 'unknown error'}`)
+              }
+            })
+            .catch(() => {
+              setStatus('Failed to load font: could not initialize font tools')
+            })
+        }
+        reader.readAsArrayBuffer(file)
+        e.target.value = ''
+      }}
+    />
+  )
 
   return (
     <div className={`app-shell ${resolvedThemeMode === 'light' ? 'theme-light' : 'theme-dark'} ${!isMobileLayout ? 'app-shell-workbench' : ''}`}>
       {isMobileLayout ? (
-        <>
-          <EditorTopbar {...topbarProps} />
-
-          <main ref={workspaceRef} className={workspaceClassName}>
-            <div className="canvas-stage">
-              <ErrorBoundary>
-                <EditorCanvasPane {...canvasPaneProps} hideCanvasPane={hideCanvasPane} />
-              </ErrorBoundary>
-            </div>
-
-            <ErrorBoundary>
-              <EditorPreviewPane {...previewPaneProps} />
-            </ErrorBoundary>
-          </main>
-
-          <PrecisionCommandPanel
-            open={showPrecisionModal}
-            onClose={() => setShowPrecisionModal(false)}
-            toolHint={toolHint}
-            onRunCommand={runPrecisionCommand}
-          />
-
-          <EditorStatusBar {...statusBarProps} />
-        </>
+        <EditorMobileShell {...mobileShellProps} />
       ) : (
-        shouldLoadThreeWorkbench ? (
-          <Suspense fallback={renderDesktopWorkbench(threeWorkspaceLoadingState, threeWorkspaceLoadingState)}>
-            <WorkbenchThreeWorkspace
-              workspaceMode={workspaceMode}
-              shapes={sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes}
-              selectedShapeIds={selectedShapeIds}
-              stitchHoles={sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles}
-              stitchThreadColor={stitchThreadColor}
-              onSetStitchThreadColor={setStitchThreadColor}
-              patternPieces={patternPieces}
-              piecePlacements3d={piecePlacements3d}
-              seamConnections={seamConnections}
-              threePreviewSettings={threePreviewSettings}
-              avatars={avatars}
-              onSetPiecePlacements3d={setPiecePlacements3d}
-              onSetThreePreviewSettings={setThreePreviewSettings}
-              onSetAvatars={setAvatars}
-              threeTextureSource={threeTextureSource}
-              onSetThreeTextureSource={setThreeTextureSource}
-              threeTextureShapeIds={threeTextureShapeIds}
-              onSetThreeTextureShapeIds={setThreeTextureShapeIds}
-              foldLines={foldLines}
-              layers={layers}
-              lineTypes={lineTypes}
-              themeMode={resolvedThemeMode}
-              onUpdateFoldLine={(foldLineId, updates) =>
-                setFoldLines((previous) =>
-                  previous.map((foldLine) =>
-                    foldLine.id === foldLineId
-                      ? {
-                          ...foldLine,
-                          ...updates,
-                        }
-                      : foldLine,
-                  ),
-                )
-              }
-            >
-              {({ threeDPane, previewContent }) => renderDesktopWorkbench(threeDPane, previewContent)}
-            </WorkbenchThreeWorkspace>
-          </Suspense>
-        ) : (
-          renderDesktopWorkbench(threeWorkspaceRoutePrompt, threeWorkspaceRoutePrompt)
-        )
-      )}
-
-      <ErrorBoundary>
-        <EditorModalStack
-          {...modalStackProps}
-          stitchSimulatorModalProps={{
-            open: showStitchSimulatorModal,
-            onClose: () => setShowStitchSimulatorModal(false),
-            settings: stitchSimulatorSettings,
-            onApply: (settings) => {
-              setStitchSimulatorSettings(settings)
-              saveStitchSimulatorSettings(settings)
-              setStatus('Stitch simulator settings updated')
-            },
-            stitchHoleCount: stitchHoles.length,
-            threadLength: stitchSimulatorResult?.threadLength ?? null,
-            selectedHoleLabel: selectedStitchHole ? `Hole ${selectedStitchHole.sequence + 1}` : null,
-            terminalHoleLabel:
-              (selectedStitchHole
-                ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
-                : stitchSimulatorResult?.terminalHoleId)
-                ? `Hole ${
-                    (
-                      stitchHoles.find(
-                        (hole) =>
-                          hole.id ===
-                          (selectedStitchHole
-                            ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
-                            : stitchSimulatorResult?.terminalHoleId),
-                      )?.sequence ?? 0
-                    ) + 1
-                  }`
-                : null,
-          }}
-          boxStitchHelperModalProps={{
-            open: showBoxStitchHelperModal,
-            onClose: () => setShowBoxStitchHelperModal(false),
-            onApply: handleApplyBoxStitchHelper,
-            settings: boxStitchHelperSettings,
-            selectedShapeCount,
-          }}
-          boxStitchModalProps={{
-            open: showBoxStitchModal,
-            onClose: () => setShowBoxStitchModal(false),
-            onGenerate: handleGenerateBoxStitch,
-            defaultLayerId: activeLayerId,
-            defaultLineTypeId: activeLineTypeId,
-          }}
-          mandalaModalProps={{
-            open: showMandalaModal,
-            onClose: () => setShowMandalaModal(false),
-            onGenerateRadial: handleGenerateMandalaRadial,
-            onGenerateSpiral: handleGenerateSpiral,
-            onGenerateGoldenGuides: handleGenerateGoldenGuides,
-            defaultLayerId: activeLayerId,
-            defaultLineTypeId: activeLineTypeId,
-          }}
-          wizardModalProps={{
-            open: showWizardModal,
-            onClose: () => setShowWizardModal(false),
-            onGenerate: handleGenerateWizardPattern,
-            defaultLayerId: activeLayerId,
-            defaultLineTypeId: activeLineTypeId,
-          }}
-          letterStampModalProps={{
-            open: showLetterStampModal,
-            onClose: () => setShowLetterStampModal(false),
-            onGenerate: handleGenerateLetterStamp,
-            defaultLayerId: activeLayerId,
-            defaultLineTypeId: activeLineTypeId,
-          }}
-          changeShapeSizeModalProps={{
-            open: showChangeShapeSizeModal,
-            onClose: () => setShowChangeShapeSizeModal(false),
-            onApply: (w, h, lock) => { handleResizeShapes(w, h, lock); setShowChangeShapeSizeModal(false) },
-            currentWidth: selectionBounds?.width ?? 0,
-            currentHeight: selectionBounds?.height ?? 0,
-          }}
-        />
-      </ErrorBoundary>
-
-      <Suspense fallback={null}>
-        <ProjectMemoModal
-          open={showProjectMemoModal}
-          onClose={() => setShowProjectMemoModal(false)}
-          value={projectMemo}
-          onChange={(nextValue) => setProjectMemo(nextValue.slice(0, 8000))}
-        />
-      </Suspense>
-
-      {isMobileLayout && (
-        <PieceInspectorModal
-          open={showPieceInspectorModal && selectedPatternPiece !== null}
-          piece={selectedPatternPiece}
-          grainline={selectedPieceGrainline}
-          pieceLabel={selectedPieceLabel}
-          patternLabel={selectedPatternLabel}
-          seamAllowance={selectedPieceSeamAllowance}
-          seamConnections={selectedPieceSeamConnections}
-          notches={selectedPieceNotches}
-          placementLabels={selectedPiecePlacementLabels}
-          edgeCount={selectedPatternPieceEdgeCount}
-          availableInternalShapes={selectedPieceAvailableInternalShapes}
-          selectedInternalShapeIds={selectedPieceInternalShapeIdSet}
-          onClose={() => setShowPieceInspectorModal(false)}
-          onUpdatePiece={handleUpdateSelectedPatternPiece}
-          onToggleInternalShape={handleToggleSelectedPieceInternalShape}
-          onUpdateGrainline={handleUpdateSelectedPieceGrainline}
-          onUpdatePieceLabel={(patch) => updateSelectedLabel('piece', patch)}
-          onUpdatePatternLabel={(patch) => updateSelectedLabel('pattern', patch)}
-          onUpdateSeamAllowance={handleUpdateSelectedPieceSeamAllowance}
-          onUpdateSeamConnection={handleUpdateSelectedPieceSeamConnection}
-          onDeleteSeamConnection={(connectionId) =>
-            setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId))
-          }
-          onUpdateNotch={handleUpdateSelectedPieceNotch}
-          onDeleteNotch={(notchId) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId))}
-          onAddPlacementLabel={handleAddSelectedPiecePlacementLabel}
-          onUpdatePlacementLabel={handleUpdateSelectedPiecePlacementLabel}
-          onDeletePlacementLabel={handleDeleteSelectedPiecePlacementLabel}
+        <EditorDesktopShell
+          shouldLoadThreeWorkbench={shouldLoadThreeWorkbench}
+          renderDesktopWorkbench={renderDesktopWorkbench}
+          threeWorkspaceLoadingState={threeWorkspaceLoadingState}
+          threeWorkspaceRoutePrompt={threeWorkspaceRoutePrompt}
+          workbenchProps={workbenchThreeWorkspaceProps}
         />
       )}
-
-      <Suspense fallback={null}>
-        <NestingModal
-          open={showNestingModal}
-          onClose={() => setShowNestingModal(false)}
-          patternPieces={patternPieces}
-          pieceGrainlines={pieceGrainlines}
-          patternPieceChainsByShapeId={patternPieceChains.byShapeId}
-          selectedShapeIds={selectedShapeIdSet}
-          activeLayerId={activeLayerId}
-          activeLineTypeId={activeLineTypeId}
-          onApplyNesting={(createdShapes) => {
-            setShapes((prev) => [...prev, ...createdShapes])
-            setShowNestingModal(false)
-            setStatus(`Nesting applied: ${createdShapes.length} shapes created`)
-          }}
-        />
-      </Suspense>
-
-      <EditorHiddenInputs
-        fileInputRef={fileInputRef}
-        svgInputRef={svgInputRef}
-        tracingInputRef={tracingInputRef}
-        templateImportInputRef={templateImportInputRef}
-        catalogImportInputRef={catalogImportInputRef}
-        onLoadJson={handleLoadJson}
-        onImportSvg={handleImportSvg}
-        onImportTracing={handleImportTracing}
-        onImportTemplateRepositoryFile={handleImportTemplateRepositoryFile}
-        onImportCatalogFile={handleImportCatalogFile}
-      />
-      <input
-        ref={fontInputRef}
-        type="file"
-        accept=".ttf,.otf,.woff"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (!file) return
-          const reader = new FileReader()
-          reader.onload = () => {
-            void import('./ops/opentype-ops')
-              .then(({ loadFontFromBuffer }) => {
-                try {
-                  const key = `font:${file.name}`
-                  loadFontFromBuffer(reader.result as ArrayBuffer, key)
-                  setLoadedFontUrl(key)
-                  setStatus(`Font loaded: ${file.name}`)
-                } catch (err) {
-                  setStatus(`Failed to load font: ${err instanceof Error ? err.message : 'unknown error'}`)
-                }
-              })
-              .catch(() => {
-                setStatus('Failed to load font: could not initialize font tools')
-              })
-          }
-          reader.readAsArrayBuffer(file)
-          e.target.value = ''
-        }}
+      <EditorOverlayHost
+        modalStack={modalStackNode}
+        projectMemoModal={projectMemoModalNode}
+        pieceInspectorModal={pieceInspectorModalNode}
+        nestingModal={nestingModalNode}
+        hiddenInputs={hiddenInputsNode}
+        fontInput={fontInputNode}
       />
     </div>
   )

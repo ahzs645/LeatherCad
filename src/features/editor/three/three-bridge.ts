@@ -7,7 +7,6 @@ import {
   Color,
   CylinderGeometry,
   DirectionalLight,
-  DoubleSide,
   ExtrudeGeometry,
   Float32BufferAttribute,
   GridHelper,
@@ -27,8 +26,6 @@ import {
   PerspectiveCamera,
   Points,
   PointsMaterial,
-  RepeatWrapping,
-  SRGBColorSpace,
   Scene,
   Shape as ThreeShape,
   ShapeGeometry,
@@ -36,8 +33,6 @@ import {
   SphereGeometry,
   Sprite,
   SpriteMaterial,
-  Texture,
-  TextureLoader,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -59,13 +54,12 @@ import type {
   ThreePreviewSettings,
 } from '../cad/cad-types'
 import { foldDirectionSign, resolveFoldBehavior, type ResolvedFoldBehavior } from '../ops/fold-line-ops'
-import { LEATHER_PRESETS } from './material-presets'
 import { buildOutlineRegions } from './outline-regions'
 import { isPhysicalCutShape, shouldUseOutlineRegions } from './physical-layer-heuristics'
 import { buildPhysicalLayerRegions } from './physical-layer-regions'
+import { ThreeMaterialManager } from './material-manager'
 import { buildPieceMeshes, createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 import { clearGroup, disposeObjectGraph } from './bridge/scene-lifecycle'
-import { loadTexture } from './bridge/texture-utils'
 import {
   clipPolygonByLine,
   distanceToFoldAxisInWorld,
@@ -77,12 +71,13 @@ import {
   sideOfLine,
   type Bounds2,
 } from './bridge/geometry-utils'
+import type {
+  OutlinePolygon,
+  ThreeBridgeDocument,
+  ThreeBridgePresentationState,
+} from './three-bridge-types'
 
-export type OutlinePolygon = {
-  polygon: Point[]
-  shapeIds: string[]
-  layerId: string
-}
+export type { OutlinePolygon, ThreeBridgeDocument, ThreeBridgePresentationState, ThreeMaterialState } from './three-bridge-types'
 
 type ModelTransform = {
   scale: number
@@ -109,7 +104,6 @@ const EPSILON = 1e-6
 const CUT_LINE_COLOR = '#38bdf8'
 const STITCH_LINE_COLOR = '#f97316'
 const FOLD_LINE_COLOR = '#fb7185'
-const DEFAULT_STITCH_THREAD_COLOR = '#fb923c'
 const LAYER_STACK_STEP = 0.012
 const COLLISION_SEARCH_STEP_DEG = 1
 const COLLISION_CHECK_CUTOFF_DEG = 90
@@ -138,62 +132,7 @@ export class ThreeBridge {
   private rimLight = new DirectionalLight('#93c5fd', 0.35)
   private grid = new GridHelper(4.2, 14, '#334155', '#1e293b')
   private themeMode: 'dark' | 'light' = 'dark'
-
-  private leftMaterial = new MeshStandardMaterial({
-    color: '#8a6742',
-    roughness: 0.88,
-    metalness: 0.05,
-    side: DoubleSide,
-  })
-
-  private rightMaterial = new MeshStandardMaterial({
-    color: '#8a6742',
-    roughness: 0.88,
-    metalness: 0.05,
-    side: DoubleSide,
-  })
-
-  private leftTextureMaterial = new MeshStandardMaterial({
-    color: '#8a6742',
-    roughness: 0.88,
-    metalness: 0.05,
-    side: DoubleSide,
-  })
-
-  private rightTextureMaterial = new MeshStandardMaterial({
-    color: '#8a6742',
-    roughness: 0.88,
-    metalness: 0.05,
-    side: DoubleSide,
-  })
-
-  private assembledFrontMaterial = new MeshStandardMaterial({
-    color: '#8a6742',
-    roughness: 0.88,
-    metalness: 0.05,
-    side: DoubleSide,
-  })
-
-  private assembledBackMaterial = new MeshStandardMaterial({
-    color: '#5b4227',
-    roughness: 0.92,
-    metalness: 0.02,
-    side: DoubleSide,
-  })
-
-  private assembledSideMaterial = new MeshStandardMaterial({
-    color: '#6f5030',
-    roughness: 0.9,
-    metalness: 0.03,
-    side: DoubleSide,
-  })
-
-  private textureLoader = new TextureLoader()
-  private currentAlbedo: Texture | null = null
-  private currentNormal: Texture | null = null
-  private currentRoughness: Texture | null = null
-  private texturedShapeIdSet = new Set<string>()
-  private threadColor = DEFAULT_STITCH_THREAD_COLOR
+  private materialManager = new ThreeMaterialManager()
   private outlinePolygons: OutlinePolygon[] = []
 
   private layers: Layer[] = []
@@ -228,19 +167,55 @@ export class ThreeBridge {
     centerX: 0,
     centerY: 0,
   }
+  private presentationState: ThreeBridgePresentationState | null = null
+
+  private get leftMaterial() {
+    return this.materialManager.leftMaterial
+  }
+
+  private get rightMaterial() {
+    return this.materialManager.rightMaterial
+  }
+
+  private get leftTextureMaterial() {
+    return this.materialManager.leftTextureMaterial
+  }
+
+  private get rightTextureMaterial() {
+    return this.materialManager.rightTextureMaterial
+  }
+
+  private get assembledFrontMaterial() {
+    return this.materialManager.assembledFrontMaterial
+  }
+
+  private get assembledBackMaterial() {
+    return this.materialManager.assembledBackMaterial
+  }
+
+  private get assembledSideMaterial() {
+    return this.materialManager.assembledSideMaterial
+  }
+
+  private get texturedShapeIdSet() {
+    return this.materialManager.texturedShapeIdSet
+  }
+
+  private set texturedShapeIdSet(value: Set<string>) {
+    this.materialManager.texturedShapeIdSet = value
+  }
+
+  private get threadColor() {
+    return this.materialManager.threadColor
+  }
+
+  private set threadColor(value: string) {
+    this.materialManager.threadColor = value
+  }
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
-    this.textureLoader.crossOrigin = 'anonymous'
-    this.preservedMaterials = new Set([
-      this.leftMaterial,
-      this.rightMaterial,
-      this.leftTextureMaterial,
-      this.rightTextureMaterial,
-      this.assembledFrontMaterial,
-      this.assembledBackMaterial,
-      this.assembledSideMaterial,
-    ])
+    this.preservedMaterials = this.materialManager.preservedMaterials
 
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,
@@ -970,7 +945,7 @@ export class ThreeBridge {
 
   private pieceUsesTexture(piece: PatternPiece) {
     return (
-      this.currentAlbedo !== null &&
+      this.materialManager.currentAlbedo !== null &&
       [piece.boundaryShapeId, ...piece.internalShapeIds].some((shapeId) => this.texturedShapeIdSet.has(shapeId))
     )
   }
@@ -1289,7 +1264,8 @@ export class ThreeBridge {
       const yOffset = stackLevel * dynamicLayerStep
       maxYOffset = Math.max(maxYOffset, yOffset)
       const hasTexturedShape =
-        this.currentAlbedo !== null && layerSlice.shapes.some((shape) => this.texturedShapeIdSet.has(shape.id))
+        this.materialManager.currentAlbedo !== null &&
+        layerSlice.shapes.some((shape) => this.texturedShapeIdSet.has(shape.id))
       const staticMaterial = hasTexturedShape ? this.leftTextureMaterial : this.leftMaterial
       const foldingMaterial = hasTexturedShape ? this.rightTextureMaterial : this.rightMaterial
 
@@ -1489,31 +1465,97 @@ export class ThreeBridge {
     this.frameId = requestAnimationFrame(this.animate)
   }
 
-  private applyTextureMaps(albedo: Texture | null, normal: Texture | null, roughness: Texture | null) {
-    if (this.currentAlbedo && this.currentAlbedo !== albedo) {
-      this.currentAlbedo.dispose()
-    }
-    if (this.currentNormal && this.currentNormal !== normal) {
-      this.currentNormal.dispose()
-    }
-    if (this.currentRoughness && this.currentRoughness !== roughness) {
-      this.currentRoughness.dispose()
+  private textureSignature(texture: TextureSource | null) {
+    if (!texture) {
+      return ''
     }
 
-    this.currentAlbedo = albedo
-    this.currentNormal = normal
-    this.currentRoughness = roughness
+    return JSON.stringify({
+      sourceUrl: texture.sourceUrl ?? '',
+      license: texture.license ?? '',
+      albedoUrl: texture.albedoUrl ?? '',
+      normalUrl: texture.normalUrl ?? '',
+      roughnessUrl: texture.roughnessUrl ?? '',
+    })
+  }
 
-    for (const material of [
-      this.leftTextureMaterial,
-      this.rightTextureMaterial,
-      this.assembledFrontMaterial,
-      this.assembledSideMaterial,
-    ]) {
-      material.map = albedo
-      material.normalMap = normal
-      material.roughnessMap = roughness
-      material.needsUpdate = true
+  updateDocument(document: ThreeBridgeDocument) {
+    this.setDocument(
+      document.layers,
+      document.shapes,
+      document.foldLines,
+      document.lineTypes,
+      document.stitchHoles,
+      document.outlinePolygons,
+      document.patternPieces,
+      document.piecePlacements3d,
+      document.seamConnections,
+      this.threePreviewSettings,
+      document.avatars,
+    )
+  }
+
+  async updatePresentation(presentation: ThreeBridgePresentationState) {
+    const next: ThreeBridgePresentationState = {
+      ...presentation,
+      previewSettings: { ...presentation.previewSettings },
+      textureShapeIds: [...presentation.textureShapeIds],
+      material: {
+        ...presentation.material,
+      },
+    }
+    const previous = this.presentationState
+    this.presentationState = next
+
+    const previewChanged =
+      !previous || JSON.stringify(previous.previewSettings) !== JSON.stringify(next.previewSettings)
+    const threadChanged = !previous || previous.threadColor !== next.threadColor
+    const themeChanged = !previous || previous.themeMode !== next.themeMode
+    const textureChanged =
+      !previous || this.textureSignature(previous.textureSource) !== this.textureSignature(next.textureSource)
+    const textureAssignmentsChanged =
+      !previous || JSON.stringify(previous.textureShapeIds) !== JSON.stringify(next.textureShapeIds)
+    const presetChanged = !previous || previous.material.presetId !== next.material.presetId
+    const leatherColorChanged = !previous || previous.material.leatherColor !== next.material.leatherColor
+    const shadowChanged = !previous || previous.material.shadowsEnabled !== next.material.shadowsEnabled
+
+    if (themeChanged) {
+      this.setTheme(next.themeMode)
+    }
+
+    if (previewChanged) {
+      this.threePreviewSettings = { ...next.previewSettings }
+      this.rebuildModel()
+    }
+
+    if (threadChanged) {
+      this.setThreadColor(next.threadColor)
+    }
+
+    if (presetChanged && next.material.presetId) {
+      this.applyLeatherPreset(next.material.presetId)
+    }
+
+    if (leatherColorChanged && next.material.leatherColor) {
+      this.setLeatherColor(next.material.leatherColor)
+    }
+
+    if (shadowChanged) {
+      this.enableShadows(next.material.shadowsEnabled)
+    }
+
+    if (textureChanged) {
+      if (next.textureSource?.albedoUrl?.trim()) {
+        await this.setTexture(next.textureSource)
+      } else {
+        this.useDefaultTexture()
+      }
+      this.setTextureAssignments(next.textureShapeIds)
+      return
+    }
+
+    if (textureAssignmentsChanged) {
+      this.setTextureAssignments(next.textureShapeIds)
     }
   }
 
@@ -1620,39 +1662,17 @@ export class ThreeBridge {
   }
 
   async setTexture(texture: TextureSource) {
-    const albedo = await loadTexture(this.textureLoader, texture.albedoUrl)
-    albedo.colorSpace = SRGBColorSpace
-    albedo.wrapS = RepeatWrapping
-    albedo.wrapT = RepeatWrapping
-
-    let normal: Texture | null = null
-    let roughness: Texture | null = null
-
-    if (texture.normalUrl && texture.normalUrl.trim().length > 0) {
-      normal = await loadTexture(this.textureLoader, texture.normalUrl)
-      normal.wrapS = RepeatWrapping
-      normal.wrapT = RepeatWrapping
-    }
-
-    if (texture.roughnessUrl && texture.roughnessUrl.trim().length > 0) {
-      roughness = await loadTexture(this.textureLoader, texture.roughnessUrl)
-      roughness.wrapS = RepeatWrapping
-      roughness.wrapT = RepeatWrapping
-    }
-
-    this.applyTextureMaps(albedo, normal, roughness)
+    await this.materialManager.setTexture(texture)
     this.rebuildModel()
   }
 
   useDefaultTexture() {
-    this.texturedShapeIdSet.clear()
-    this.applyTextureMaps(null, null, null)
+    this.materialManager.useDefaultTexture()
     this.rebuildModel()
   }
 
   setTextureAssignments(shapeIds: string[]) {
-    const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
-    this.texturedShapeIdSet = new Set(shapeIds.filter((shapeId) => shapeIdSet.has(shapeId)))
+    this.materialManager.setTextureAssignments(shapeIds, this.shapes)
     this.rebuildModel()
   }
 
@@ -1668,30 +1688,7 @@ export class ThreeBridge {
    * Applies a leather material preset to the 3D model.
    */
   applyLeatherPreset(presetId: string) {
-    const preset = LEATHER_PRESETS[presetId]
-    if (!preset) return
-
-    const materials = [
-      this.leftMaterial,
-      this.rightMaterial,
-      this.leftTextureMaterial,
-      this.rightTextureMaterial,
-      this.assembledFrontMaterial,
-      this.assembledBackMaterial,
-      this.assembledSideMaterial,
-    ]
-
-    for (const mat of materials) {
-      mat.color.set(preset.color)
-      mat.roughness = preset.roughness
-      mat.metalness = preset.metalness
-      if (mat.normalMap) {
-        mat.normalScale.set(preset.normalScale, preset.normalScale)
-      }
-      mat.envMapIntensity = preset.envMapIntensity
-      mat.needsUpdate = true
-    }
-
+    this.materialManager.applyLeatherPreset(presetId)
     this.rebuildModel()
   }
 
@@ -1699,22 +1696,7 @@ export class ThreeBridge {
    * Sets the leather color without changing other material properties.
    */
   setLeatherColor(color: string) {
-    if (typeof color !== 'string' || color.trim().length === 0) return
-
-    const materials = [
-      this.leftMaterial,
-      this.rightMaterial,
-      this.leftTextureMaterial,
-      this.rightTextureMaterial,
-      this.assembledFrontMaterial,
-      this.assembledBackMaterial,
-      this.assembledSideMaterial,
-    ]
-
-    for (const mat of materials) {
-      mat.color.set(color)
-      mat.needsUpdate = true
-    }
+    this.materialManager.setLeatherColor(color)
   }
 
   /**
@@ -1756,15 +1738,8 @@ export class ThreeBridge {
     clearGroup(this.assembledGroup, this.preservedMaterials)
     clearGroup(this.avatarGroup, this.preservedMaterials)
 
-    this.applyTextureMaps(null, null, null)
+    this.materialManager.dispose()
     this.controls.dispose()
-    this.leftMaterial.dispose()
-    this.rightMaterial.dispose()
-    this.leftTextureMaterial.dispose()
-    this.rightTextureMaterial.dispose()
-    this.assembledFrontMaterial.dispose()
-    this.assembledBackMaterial.dispose()
-    this.assembledSideMaterial.dispose()
     this.renderer.dispose()
   }
 }
