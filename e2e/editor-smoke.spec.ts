@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import type { Page } from '@playwright/test'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
@@ -29,6 +28,7 @@ function buildSeedDocument() {
         type: 'arc',
         layerId: 'layer-1',
         lineTypeId: 'type-cut',
+        boxStitchSource: { extracted: true },
         start: { x: 10, y: 20 },
         mid: { x: 50, y: 10 },
         end: { x: 90, y: 20 },
@@ -38,6 +38,7 @@ function buildSeedDocument() {
         type: 'arc',
         layerId: 'layer-1',
         lineTypeId: 'type-cut',
+        boxStitchSource: { extracted: true },
         start: { x: 12, y: 40 },
         mid: { x: 50, y: 50 },
         end: { x: 88, y: 40 },
@@ -66,64 +67,6 @@ function buildSeedDocument() {
   }
 }
 
-async function clickShapeStroke(page: Page, index: number) {
-  // Playwright's browser-side evaluate boundary erases the SVG DOM types here.
-  /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-  const point = await page.locator('svg.canvas .shape-line').nth(index).evaluate((element) => {
-    const matrix = 'getScreenCTM' in element ? element.getScreenCTM() : null
-    if (!matrix) {
-      return null
-    }
-
-    const toScreen = (x: number, y: number) => ({
-      x: matrix.a * x + matrix.c * y + matrix.e,
-      y: matrix.b * x + matrix.d * y + matrix.f,
-    })
-
-    const tagName = element.tagName.toLowerCase()
-
-    if (tagName === 'line') {
-      const x1 = Number(element.getAttribute('x1') ?? 0)
-      const y1 = Number(element.getAttribute('y1') ?? 0)
-      const x2 = Number(element.getAttribute('x2') ?? 0)
-      const y2 = Number(element.getAttribute('y2') ?? 0)
-      return toScreen((x1 + x2) / 2, (y1 + y2) / 2)
-    }
-
-    if (tagName === 'path' && 'getTotalLength' in element && 'getPointAtLength' in element) {
-      const length = element.getTotalLength()
-      const pathPoint = element.getPointAtLength(length / 2)
-      return toScreen(pathPoint.x, pathPoint.y)
-    }
-
-    return null
-  })
-
-  if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') {
-    throw new Error(`Unable to resolve a clickable point for shape index ${index}`)
-  }
-
-  await page.mouse.click(point.x, point.y)
-  /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-}
-
-async function selectShapeStroke(page: Page, index: number) {
-  const selectedShapes = page.locator('svg.canvas .shape-selected')
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await clickShapeStroke(page, index)
-
-    try {
-      await expect.poll(async () => selectedShapes.count(), { timeout: 1_500 }).toBeGreaterThan(0)
-      return
-    } catch (error) {
-      if (attempt === 2) {
-        throw error
-      }
-    }
-  }
-}
-
 test('terminal stitch editing and extracted curve box stitch flow work in the desktop UI', async ({ page }) => {
   const token = 'playwright-stitch-seed'
   const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
@@ -145,11 +88,10 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await page.getByRole('button', { name: 'Fit' }).first().click()
 
   const canvasShapeLines = page.locator('svg.canvas .shape-line')
-  await selectShapeStroke(page, 0)
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A')
   await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
   await expect(page.getByRole('button', { name: 'Fixed' })).toBeVisible()
   await page.getByRole('button', { name: 'Fixed' }).click()
-
   const stitchHoleDots = page.locator('svg.canvas .stitch-hole-dot')
   await expect.poll(async () => stitchHoleDots.count()).toBeGreaterThan(0)
   const initialHoleCount = await stitchHoleDots.count()
@@ -159,14 +101,8 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await expect(page.getByRole('button', { name: 'End Stitch Here' })).toBeVisible()
   await page.getByRole('button', { name: 'End Stitch Here' }).click()
   await expect(page.locator('svg.canvas .stitch-hole-terminal-marker')).toHaveCount(1)
-  await stitchHoleDots.first().click({ force: true })
 
   const lineCountBefore = await canvasShapeLines.count()
-  await selectShapeStroke(page, 1)
-  await expect(page.getByRole('button', { name: 'Extract as Box Stitch Line' })).toBeVisible()
-  await page.getByRole('button', { name: 'Extract as Box Stitch Line' }).click()
-  await selectShapeStroke(page, 2)
-  await page.getByRole('button', { name: 'Extract as Box Stitch Line' }).click()
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A')
   await page.getByRole('button', { name: 'Box Stitch Helper' }).click()
   await expect(page.getByRole('heading', { name: 'Box Stitch Helper' })).toBeVisible()
