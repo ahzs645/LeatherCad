@@ -17,11 +17,8 @@ export function propertyStateReducer<TState extends object>(
   state: TState,
   action: PropertyAction<TState>,
 ): TState {
-  const key = action.type as keyof TState
-  const nextValue = resolveSetStateAction(
-    state[key],
-    action.value as SetStateAction<TState[keyof TState]>,
-  ) as TState[keyof TState]
+  const key = action.type
+  const nextValue = resolveSetStateAction(state[key], action.value)
 
   if (Object.is(state[key], nextValue)) {
     return state

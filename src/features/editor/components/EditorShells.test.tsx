@@ -226,10 +226,8 @@ describe('Editor shells', () => {
           onApplyNesting: () => undefined,
         },
         hiddenInputsProps: {} as never,
-        fontInputProps: {
-          ref: { current: null },
-          onChange: () => undefined,
-        },
+        fontInputRef: { current: null },
+        onFontInputChange: () => undefined,
       }),
     )
 

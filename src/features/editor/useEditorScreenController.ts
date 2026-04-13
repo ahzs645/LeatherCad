@@ -101,10 +101,8 @@ export type EditorOverlayProps = {
   pieceInspectorModalProps: PieceInspectorModalProps | null
   nestingModalProps: NestingModalProps
   hiddenInputsProps: EditorHiddenInputsProps
-  fontInputProps: {
-    ref: RefObject<HTMLInputElement | null>
-    onChange: ChangeEventHandler<HTMLInputElement>
-  }
+  fontInputRef: RefObject<HTMLInputElement | null>
+  onFontInputChange: ChangeEventHandler<HTMLInputElement>
 }
 
 export function useEditorScreenController() {
@@ -1896,10 +1894,8 @@ export function useEditorScreenController() {
         onImportTemplateRepositoryFile: handleImportTemplateRepositoryFile,
         onImportCatalogFile: handleImportCatalogFile,
       },
-      fontInputProps: {
-        ref: fontInputRef,
-        onChange: handleFontInputChange,
-      },
+      fontInputRef,
+      onFontInputChange: handleFontInputChange,
     },
   }
 }

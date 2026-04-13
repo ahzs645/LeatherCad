@@ -37,4 +37,16 @@ export default defineConfig([
       '@typescript-eslint/unbound-method': 'off',
     },
   },
+  {
+    files: ['src/features/editor/state/providers/*Provider.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'react-hooks/refs': 'off',
+    },
+  },
 ])

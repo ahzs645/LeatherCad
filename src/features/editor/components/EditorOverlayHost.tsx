@@ -19,10 +19,8 @@ export type EditorOverlayHostProps = {
   pieceInspectorModalProps: PieceInspectorModalProps | null
   nestingModalProps: NestingModalProps
   hiddenInputsProps: EditorHiddenInputsProps
-  fontInputProps: {
-    ref: RefObject<HTMLInputElement | null>
-    onChange: ChangeEventHandler<HTMLInputElement>
-  }
+  fontInputRef: RefObject<HTMLInputElement | null>
+  onFontInputChange: ChangeEventHandler<HTMLInputElement>
 }
 
 export function EditorOverlayHost({
@@ -31,7 +29,8 @@ export function EditorOverlayHost({
   pieceInspectorModalProps,
   nestingModalProps,
   hiddenInputsProps,
-  fontInputProps,
+  fontInputRef,
+  onFontInputChange,
 }: EditorOverlayHostProps) {
   return (
     <>
@@ -47,11 +46,11 @@ export function EditorOverlayHost({
       </Suspense>
       <EditorHiddenInputs {...hiddenInputsProps} />
       <input
-        ref={fontInputProps.ref}
+        ref={fontInputRef}
         type="file"
         accept=".ttf,.otf,.woff"
         style={{ display: 'none' }}
-        onChange={fontInputProps.onChange}
+        onChange={onFontInputChange}
       />
     </>
   )

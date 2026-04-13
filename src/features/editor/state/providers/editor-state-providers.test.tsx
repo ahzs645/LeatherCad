@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import { createElement, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanupRender, click, renderForTest } from '../../../../test/render'
 import { EditorHistoryStateProvider, useEditorHistoryActions, useEditorHistoryRefs, useEditorHistorySelector } from './EditorHistoryStateProvider'
@@ -116,14 +116,15 @@ describe('editor state providers', () => {
       const opCount = useEditorHistorySelector((state) => state.opHistory.past.length)
       const { setHistoryState } = useEditorHistoryActions()
       const { applyingHistoryRef, lastSnapshotSignatureRef } = useEditorHistoryRefs()
+      const [refSnapshot, setRefSnapshot] = useState({ applying: 'no', signature: 'none' })
 
       return createElement(
         'div',
         null,
         createElement('span', { 'data-testid': 'past' }, String(pastCount)),
         createElement('span', { 'data-testid': 'ops' }, String(opCount)),
-        createElement('span', { 'data-testid': 'applying' }, applyingHistoryRef.current ? 'yes' : 'no'),
-        createElement('span', { 'data-testid': 'signature' }, lastSnapshotSignatureRef.current ?? 'none'),
+        createElement('span', { 'data-testid': 'applying' }, refSnapshot.applying),
+        createElement('span', { 'data-testid': 'signature' }, refSnapshot.signature),
         createElement(
           'button',
           {
@@ -131,6 +132,7 @@ describe('editor state providers', () => {
             onClick: () => {
               applyingHistoryRef.current = true
               lastSnapshotSignatureRef.current = 'snapshot-1'
+              setRefSnapshot({ applying: 'yes', signature: 'snapshot-1' })
               setHistoryState((previous) => ({
                 ...previous,
                 past: [...previous.past, {} as never],

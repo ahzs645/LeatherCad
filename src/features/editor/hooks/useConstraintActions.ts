@@ -6,7 +6,6 @@ import type {
   PatternPiece,
   PieceSeamAllowance,
   Shape,
-  StitchHoleDefaults,
   SnapSettings,
 } from '../cad/cad-types'
 import {
@@ -115,7 +114,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
       stitchLineTypeId,
       activeLayerId,
       stitchPitchMm,
-      stitchHoleDefaults as StitchHoleDefaults,
+      stitchHoleDefaults,
     )
     if (!result.ok) {
       setStatus(result.message)
