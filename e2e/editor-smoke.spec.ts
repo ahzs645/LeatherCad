@@ -107,6 +107,23 @@ async function clickShapeStroke(page: Page, index: number) {
   /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 }
 
+async function selectShapeStroke(page: Page, index: number) {
+  const selectedShapes = page.locator('svg.canvas .shape-selected')
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await clickShapeStroke(page, index)
+
+    try {
+      await expect.poll(async () => selectedShapes.count(), { timeout: 1_500 }).toBeGreaterThan(0)
+      return
+    } catch (error) {
+      if (attempt === 2) {
+        throw error
+      }
+    }
+  }
+}
+
 test('terminal stitch editing and extracted curve box stitch flow work in the desktop UI', async ({ page }) => {
   const token = 'playwright-stitch-seed'
   const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
@@ -128,8 +145,9 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await page.getByRole('button', { name: 'Fit' }).first().click()
 
   const canvasShapeLines = page.locator('svg.canvas .shape-line')
-  await clickShapeStroke(page, 0)
+  await selectShapeStroke(page, 0)
   await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
+  await expect(page.getByRole('button', { name: 'Fixed' })).toBeVisible()
   await page.getByRole('button', { name: 'Fixed' }).click()
 
   const stitchHoleDots = page.locator('svg.canvas .stitch-hole-dot')
@@ -144,10 +162,10 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await stitchHoleDots.first().click({ force: true })
 
   const lineCountBefore = await canvasShapeLines.count()
-  await clickShapeStroke(page, 1)
+  await selectShapeStroke(page, 1)
   await expect(page.getByRole('button', { name: 'Extract as Box Stitch Line' })).toBeVisible()
   await page.getByRole('button', { name: 'Extract as Box Stitch Line' }).click()
-  await clickShapeStroke(page, 2)
+  await selectShapeStroke(page, 2)
   await page.getByRole('button', { name: 'Extract as Box Stitch Line' }).click()
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A')
   await page.getByRole('button', { name: 'Box Stitch Helper' }).click()
