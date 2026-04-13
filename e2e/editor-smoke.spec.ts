@@ -132,14 +132,16 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
   await page.getByRole('button', { name: 'Fixed' }).click()
 
-  const initialHoleCount = await page.locator('svg.canvas .stitch-hole-dot').count()
+  const stitchHoleDots = page.locator('svg.canvas .stitch-hole-dot')
+  await expect.poll(async () => stitchHoleDots.count()).toBeGreaterThan(0)
+  const initialHoleCount = await stitchHoleDots.count()
   expect(initialHoleCount).toBeGreaterThan(0)
 
-  await page.locator('svg.canvas .stitch-hole-dot').first().click({ force: true })
+  await stitchHoleDots.first().click({ force: true })
   await expect(page.getByRole('button', { name: 'End Stitch Here' })).toBeVisible()
   await page.getByRole('button', { name: 'End Stitch Here' }).click()
   await expect(page.locator('svg.canvas .stitch-hole-terminal-marker')).toHaveCount(1)
-  await page.locator('svg.canvas .stitch-hole-dot').first().click({ force: true })
+  await stitchHoleDots.first().click({ force: true })
 
   const lineCountBefore = await canvasShapeLines.count()
   await clickShapeStroke(page, 1)
@@ -152,8 +154,10 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await expect(page.getByRole('heading', { name: 'Box Stitch Helper' })).toBeVisible()
   await page.getByRole('button', { name: 'Create Stitch Path' }).click()
 
+  await expect.poll(async () => page.locator('svg.canvas .shape-line').count()).toBeGreaterThan(lineCountBefore)
+  await expect.poll(async () => stitchHoleDots.count()).toBeGreaterThan(initialHoleCount)
   const lineCountAfter = await page.locator('svg.canvas .shape-line').count()
-  const holeCountAfterHelper = await page.locator('svg.canvas .stitch-hole-dot').count()
+  const holeCountAfterHelper = await stitchHoleDots.count()
   expect(lineCountAfter).toBeGreaterThan(lineCountBefore)
   expect(holeCountAfterHelper).toBeGreaterThan(initialHoleCount)
 
