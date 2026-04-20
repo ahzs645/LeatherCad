@@ -55,6 +55,15 @@ const SpecifyRotationModal = lazy(() =>
 const SpecifyScaleModal = lazy(() =>
   import('./SpecifyScaleModal').then((mod) => ({ default: mod.SpecifyScaleModal })),
 )
+const FontListModal = lazy(() =>
+  import('./FontListModal').then((mod) => ({ default: mod.FontListModal })),
+)
+const OptionsModal = lazy(() =>
+  import('./OptionsModal').then((mod) => ({ default: mod.OptionsModal })),
+)
+const LengthAdjustModal = lazy(() =>
+  import('./LengthAdjustModal').then((mod) => ({ default: mod.LengthAdjustModal })),
+)
 
 type EditorModalStackProps = {
   lineTypePaletteProps: ComponentProps<typeof LineTypePalette>
@@ -76,6 +85,9 @@ type EditorModalStackProps = {
   changeShapeSizeModalProps?: ComponentProps<typeof ChangeShapeSizeModal>
   specifyRotationModalProps?: ComponentProps<typeof SpecifyRotationModal>
   specifyScaleModalProps?: ComponentProps<typeof SpecifyScaleModal>
+  fontListModalProps?: ComponentProps<typeof FontListModal>
+  optionsModalProps?: ComponentProps<typeof OptionsModal>
+  lengthAdjustModalProps?: ComponentProps<typeof LengthAdjustModal>
 }
 
 export function EditorModalStack({
@@ -98,6 +110,9 @@ export function EditorModalStack({
   changeShapeSizeModalProps,
   specifyRotationModalProps,
   specifyScaleModalProps,
+  fontListModalProps,
+  optionsModalProps,
+  lengthAdjustModalProps,
 }: EditorModalStackProps) {
   return (
     <>
@@ -183,6 +198,24 @@ export function EditorModalStack({
           <SpecifyScaleModal
             key={`scale-${specifyScaleModalProps.open}-${specifyScaleModalProps.axis}`}
             {...specifyScaleModalProps}
+          />
+        </Suspense>
+      )}
+      {fontListModalProps?.open && (
+        <Suspense fallback={null}>
+          <FontListModal {...fontListModalProps} />
+        </Suspense>
+      )}
+      {optionsModalProps?.open && (
+        <Suspense fallback={null}>
+          <OptionsModal {...optionsModalProps} />
+        </Suspense>
+      )}
+      {lengthAdjustModalProps?.open && (
+        <Suspense fallback={null}>
+          <LengthAdjustModal
+            key={`length-${lengthAdjustModalProps.open}-${lengthAdjustModalProps.currentLengthMm}`}
+            {...lengthAdjustModalProps}
           />
         </Suspense>
       )}

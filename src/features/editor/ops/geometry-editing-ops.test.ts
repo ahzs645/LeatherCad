@@ -5,8 +5,11 @@ import {
   buildCenterLineBetween,
   convexHull,
   getLineAngleDeg,
+  getLineLengthMm,
   removeDuplicateShapes,
+  scaleLineLengthByRatio,
   setLineAngle,
+  setLineLength,
   shapesCoincide,
   splitShapeIntoN,
 } from './geometry-editing-ops'
@@ -77,6 +80,26 @@ describe('splitShapeIntoN', () => {
   it('returns the original when count < 2', () => {
     const line = makeLine('a', 0, 0, 10, 0)
     expect(splitShapeIntoN(line, 1)).toEqual([line])
+  })
+})
+
+describe('setLineLength / scaleLineLengthByRatio', () => {
+  it('sets absolute length while preserving start and direction', () => {
+    const line = makeLine('a', 0, 0, 10, 0)
+    const out = setLineLength(line, 5)
+    expect(out.end).toEqual({ x: 5, y: 0 })
+  })
+
+  it('scaleLineLengthByRatio doubles the length', () => {
+    const line = makeLine('a', 0, 0, 3, 4)
+    const out = scaleLineLengthByRatio(line, 2)
+    expect(getLineLengthMm(out)).toBeCloseTo(10)
+  })
+
+  it('returns input unchanged for non-finite or non-positive input', () => {
+    const line = makeLine('a', 0, 0, 3, 4)
+    expect(setLineLength(line, -1)).toBe(line)
+    expect(scaleLineLengthByRatio(line, 0)).toBe(line)
   })
 })
 

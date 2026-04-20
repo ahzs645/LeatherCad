@@ -44,16 +44,6 @@ function dxfLineTypeFromStyle(style: LineTypeStyle) {
   return 'CONTINUOUS' as const
 }
 
-function approximateCirclePoints(center: { x: number; y: number }, radius: number, steps = 24) {
-  return Array.from({ length: steps }, (_, index) => {
-    const angle = (index / steps) * Math.PI * 2
-    return {
-      x: center.x + Math.cos(angle) * radius,
-      y: center.y + Math.sin(angle) * radius,
-    }
-  })
-}
-
 function createSegment(
   start: { x: number; y: number },
   end: { x: number; y: number },
@@ -115,7 +105,13 @@ function toSegments(shape: Shape, options: Required<Pick<DxfExportOptions, 'flip
   return pointsToSegments(sampled, buildShapeSegmentMeta(shape, options), options)
 }
 
-function stitchHoleToSegments(
+type CircleEntity = {
+  center: { x: number; y: number }
+  radius: number
+  layerName: string
+}
+
+function stitchHoleToPrimitives(
   stitchHole: StitchHole,
   parentShape: Shape | undefined,
   options: Required<Pick<DxfExportOptions, 'flipY'>> & {
@@ -123,29 +119,55 @@ function stitchHoleToSegments(
     stitchHoleRenderMode: StitchHoleRenderMode
     stitchDotRadiusMm: number
   },
-) {
+): { segments: Segment[]; circles: CircleEntity[] } {
   if (!parentShape) {
-    return []
+    return { segments: [], circles: [] }
   }
 
   const primitive = createStitchHolePrimitive(stitchHole, {
     mode: options.stitchHoleRenderMode,
     dotRadiusMm: options.stitchDotRadiusMm,
   })
-  const meta = {
-    layerName: sanitizeLayerName(parentShape.layerId),
-    lineTypeName: 'CONTINUOUS' as const,
-  }
+  const layerName = sanitizeLayerName(parentShape.layerId)
+  const meta = { layerName, lineTypeName: 'CONTINUOUS' as const }
 
   if (primitive.kind === 'circle') {
-    return pointsToSegments(approximateCirclePoints(primitive.center, primitive.radiusMm), meta, options, true)
+    const scale = options.unit === 'in' ? 1 / 25.4 : 1
+    const y = options.flipY ? -primitive.center.y : primitive.center.y
+    return {
+      segments: [],
+      circles: [
+        {
+          center: { x: primitive.center.x * scale, y: y * scale },
+          radius: primitive.radiusMm * scale,
+          layerName,
+        },
+      ],
+    }
   }
 
   if (primitive.kind === 'segment') {
-    return [createSegment(primitive.start, primitive.end, meta, options)]
+    return { segments: [createSegment(primitive.start, primitive.end, meta, options)], circles: [] }
   }
 
-  return pointsToSegments(primitive.points, meta, options, true)
+  return { segments: pointsToSegments(primitive.points, meta, options, true), circles: [] }
+}
+
+function encodeCircleEntity(circle: CircleEntity) {
+  return [
+    '0',
+    'CIRCLE',
+    '8',
+    circle.layerName,
+    '10',
+    circle.center.x.toFixed(6),
+    '20',
+    circle.center.y.toFixed(6),
+    '30',
+    '0.0',
+    '40',
+    circle.radius.toFixed(6),
+  ]
 }
 
 function encodeLineEntity(segment: Segment) {
@@ -297,16 +319,18 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
   const stitchHoleRenderMode = options.stitchHoleRenderMode ?? 'native'
   const stitchDotRadiusMm = options.stitchDotRadiusMm ?? 0.6
   const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
+  const stitchHolePrimitives = (options.stitchHoles ?? []).map((stitchHole) =>
+    stitchHoleToPrimitives(stitchHole, shapesById[stitchHole.shapeId], {
+      flipY,
+      unit,
+      stitchHoleRenderMode,
+      stitchDotRadiusMm,
+    }),
+  )
+  const circles: CircleEntity[] = stitchHolePrimitives.flatMap((entry) => entry.circles)
   const segments = [
     ...shapes.flatMap((shape) => toSegments(shape, shapeOptions)),
-    ...(options.stitchHoles ?? []).flatMap((stitchHole) =>
-      stitchHoleToSegments(stitchHole, shapesById[stitchHole.shapeId], {
-        flipY,
-        unit,
-        stitchHoleRenderMode,
-        stitchDotRadiusMm,
-      }),
-    ),
+    ...stitchHolePrimitives.flatMap((entry) => entry.segments),
   ]
   const usedLineTypes = new Set<Segment['lineTypeName']>(segments.map((segment) => segment.lineTypeName))
   usedLineTypes.add('CONTINUOUS')
@@ -359,9 +383,14 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
     body.push(...encodeLineEntity(segment))
   }
 
+  for (const circle of circles) {
+    body.push(...encodeCircleEntity(circle))
+  }
+
   body.push('0', 'ENDSEC', '0', 'EOF')
   return {
     content: body.join('\n') + '\n',
     segmentCount: segments.length,
+    circleCount: circles.length,
   }
 }

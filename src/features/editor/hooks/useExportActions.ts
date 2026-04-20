@@ -7,7 +7,7 @@ import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import { MM_PER_INCH, type DisplayUnit } from '../ops/unit-ops'
 import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
-import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
+import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseExportActionsParams = {
   shapes: Shape[]

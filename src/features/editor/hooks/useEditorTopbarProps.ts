@@ -52,6 +52,12 @@ type UseEditorTopbarPropsParams = {
   handleDeleteDuplicatesSelection: () => void
   handleSplitIntoNPrompt: () => void
   handleDrawBoundaryAroundSelection: () => void
+  handleAddBackdrop: () => void
+  handleOpenFontListModal: () => void
+  handleCloseProject: () => void
+  handleOpenSecretFeatures: () => void
+  handleOpenOptionsModal: () => void
+  handleOpenLengthAdjustModal: () => void
   handleEnableStitchOnSelection: () => void
   handleDisableStitchOnSelection: () => void
   handleMoveSelectionBackward: () => void
@@ -142,6 +148,12 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleDeleteDuplicatesSelection,
     handleSplitIntoNPrompt,
     handleDrawBoundaryAroundSelection,
+    handleAddBackdrop,
+    handleOpenFontListModal,
+    handleCloseProject,
+    handleOpenSecretFeatures,
+    handleOpenOptionsModal,
+    handleOpenLengthAdjustModal,
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -385,6 +397,12 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onDeleteDuplicates: handleDeleteDuplicatesSelection,
     onSplitIntoN: handleSplitIntoNPrompt,
     onDrawBoundaryAroundSelection: handleDrawBoundaryAroundSelection,
+    onAddBackdrop: handleAddBackdrop,
+    onOpenFontListModal: handleOpenFontListModal,
+    onCloseProject: handleCloseProject,
+    onOpenSecretFeatures: handleOpenSecretFeatures,
+    onOpenOptionsModal: handleOpenOptionsModal,
+    onOpenLengthAdjustModal: handleOpenLengthAdjustModal,
     onEnableStitchOnSelection: handleEnableStitchOnSelection,
     onDisableStitchOnSelection: handleDisableStitchOnSelection,
     onMoveSelectionBackward: handleMoveSelectionBackward,

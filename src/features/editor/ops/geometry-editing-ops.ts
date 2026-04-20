@@ -764,6 +764,52 @@ export function getLineAngleDeg(line: LineShape): number {
 }
 
 // ---------------------------------------------------------------------------
+// Adjust length (actLengthAdjust — TfrmLengthAdjustDialog)
+// ---------------------------------------------------------------------------
+
+export function getLineLengthMm(line: LineShape): number {
+  return distance(line.start, line.end)
+}
+
+/**
+ * Rescale a line so its new length is `targetLengthMm`, holding `start` fixed.
+ * Direction is preserved.
+ */
+export function setLineLength(line: LineShape, targetLengthMm: number): LineShape {
+  if (!Number.isFinite(targetLengthMm) || targetLengthMm <= 0) {
+    return line
+  }
+  const currentLength = getLineLengthMm(line)
+  if (currentLength < 1e-8) {
+    return line
+  }
+  const ratio = targetLengthMm / currentLength
+  return {
+    ...line,
+    end: {
+      x: round(line.start.x + (line.end.x - line.start.x) * ratio),
+      y: round(line.start.y + (line.end.y - line.start.y) * ratio),
+    },
+  }
+}
+
+/**
+ * Scale a line's length by a ratio (1.0 = unchanged), holding `start` fixed.
+ */
+export function scaleLineLengthByRatio(line: LineShape, ratio: number): LineShape {
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    return line
+  }
+  return {
+    ...line,
+    end: {
+      x: round(line.start.x + (line.end.x - line.start.x) * ratio),
+      y: round(line.start.y + (line.end.y - line.start.y) * ratio),
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Delete duplicates (actDeleteDuplicates)
 // ---------------------------------------------------------------------------
 

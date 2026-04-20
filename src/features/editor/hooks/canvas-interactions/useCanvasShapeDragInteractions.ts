@@ -79,6 +79,7 @@ type UseCanvasShapeDragInteractionsParams = {
   setStatus: (status: string) => void
   toWorldPoint: (clientX: number, clientY: number) => Point | null
   getSnappedPoint: (point: Point) => { point: Point }
+  incrementalSelection?: boolean
 }
 
 export function useCanvasShapeDragInteractions({
@@ -93,6 +94,7 @@ export function useCanvasShapeDragInteractions({
   setStatus,
   toWorldPoint,
   getSnappedPoint,
+  incrementalSelection = false,
 }: UseCanvasShapeDragInteractionsParams) {
   const shapeDragRef = useRef<ShapeDragState | null>(null)
   const handleDragRef = useRef<HandleDragState | null>(null)
@@ -116,8 +118,9 @@ export function useCanvasShapeDragInteractions({
 
     const isAlreadySelected = selectedShapeIds.includes(shapeId)
     let nextSelection = selectedShapeIds
+    const additive = event.shiftKey || incrementalSelection
 
-    if (event.shiftKey) {
+    if (additive) {
       nextSelection = isAlreadySelected
         ? selectedShapeIds.filter((entry) => entry !== shapeId)
         : [...selectedShapeIds, shapeId]
@@ -132,7 +135,7 @@ export function useCanvasShapeDragInteractions({
         : `${nextSelection.length} shape${nextSelection.length === 1 ? '' : 's'} selected`,
     )
 
-    if (event.shiftKey || nextSelection.length === 0) {
+    if (additive || nextSelection.length === 0) {
       return
     }
 

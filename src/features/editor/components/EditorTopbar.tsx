@@ -98,6 +98,12 @@ type EditorTopbarProps = {
   onDeleteDuplicates: () => void
   onSplitIntoN: () => void
   onDrawBoundaryAroundSelection: () => void
+  onAddBackdrop: () => void
+  onOpenFontListModal: () => void
+  onCloseProject: () => void
+  onOpenSecretFeatures: () => void
+  onOpenOptionsModal: () => void
+  onOpenLengthAdjustModal: () => void
   onEnableStitchOnSelection: () => void
   onDisableStitchOnSelection: () => void
   onMoveSelectionBackward: () => void
@@ -303,6 +309,12 @@ export function EditorTopbar({
   onDeleteDuplicates,
   onSplitIntoN,
   onDrawBoundaryAroundSelection,
+  onAddBackdrop,
+  onOpenFontListModal,
+  onCloseProject,
+  onOpenSecretFeatures,
+  onOpenOptionsModal,
+  onOpenLengthAdjustModal,
   onEnableStitchOnSelection,
   onDisableStitchOnSelection,
   onMoveSelectionBackward,
@@ -928,6 +940,14 @@ export function EditorTopbar({
                     </button>
                     <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D' : 'Show 3D'}</button>
                     <button onClick={onResetDocument}>Clear</button>
+                    <button onClick={onCloseProject}>Close Project…</button>
+                    <button onClick={onAddBackdrop}>Add Backdrop</button>
+                    <button onClick={onOpenFontListModal}>Fonts…</button>
+                    <button onClick={onOpenSecretFeatures}>Secret Features…</button>
+                    <button onClick={onOpenOptionsModal}>Options…</button>
+                    <button onClick={onOpenLengthAdjustModal} disabled={selectedShapeCount === 0}>
+                      Length Adjust…
+                    </button>
                   </div>
                 </div>
               </>

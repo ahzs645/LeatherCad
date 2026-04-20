@@ -10,9 +10,16 @@ type UseCanvasPanAndZoomParams = {
   panRef: RefObject<PanState | null>
   viewport: Viewport
   setViewport: Dispatch<SetStateAction<Viewport>>
+  reverseZoomDirection?: boolean
 }
 
-export function useCanvasPanAndZoom({ svgRef, panRef, viewport, setViewport }: UseCanvasPanAndZoomParams) {
+export function useCanvasPanAndZoom({
+  svgRef,
+  panRef,
+  viewport,
+  setViewport,
+  reverseZoomDirection = false,
+}: UseCanvasPanAndZoomParams) {
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) {
@@ -54,7 +61,9 @@ export function useCanvasPanAndZoom({ svgRef, panRef, viewport, setViewport }: U
       const rect = svg.getBoundingClientRect()
       const screenX = event.clientX - rect.left
       const screenY = event.clientY - rect.top
-      const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9
+      const naturalZoomIn = event.deltaY < 0
+      const zoomIn = reverseZoomDirection ? !naturalZoomIn : naturalZoomIn
+      const zoomFactor = zoomIn ? 1.1 : 0.9
 
       setViewport((previous) => {
         const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
@@ -73,7 +82,7 @@ export function useCanvasPanAndZoom({ svgRef, panRef, viewport, setViewport }: U
     return () => {
       svg.removeEventListener('wheel', handleWheel)
     }
-  }, [setViewport, svgRef])
+  }, [setViewport, svgRef, reverseZoomDirection])
 
   const beginPan = (clientX: number, clientY: number, pointerId: number) => {
     panRef.current = {

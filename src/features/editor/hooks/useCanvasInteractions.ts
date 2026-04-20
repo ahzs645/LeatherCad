@@ -38,6 +38,8 @@ type UseCanvasInteractionsParams = {
   displayShapes: Shape[]
   snapShapes: Shape[]
   customSnapPoint: Point | null
+  reverseZoomDirection?: boolean
+  incrementalSelection?: boolean
   stitchTargetShapes: Shape[]
   visibleHardwareMarkers: HardwareMarker[]
   lineTypesById: Record<string, LineType>
@@ -81,6 +83,8 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     displayShapes,
     snapShapes,
     customSnapPoint,
+    reverseZoomDirection,
+    incrementalSelection,
     stitchTargetShapes,
     visibleHardwareMarkers,
     lineTypesById,
@@ -171,6 +175,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     panRef,
     viewport,
     setViewport,
+    reverseZoomDirection,
   })
 
   const { handleStitchHolePointerDown, handleHardwarePointerDown } = useCanvasSelectionInteractions({
@@ -203,6 +208,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setStatus,
     toWorldPoint,
     getSnappedPoint,
+    incrementalSelection,
   })
 
   let toolSessionRef: ToolRuntime['toolSession'] | null = null

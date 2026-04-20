@@ -139,4 +139,22 @@ describe('buildDxfFromShapes', () => {
     expect((result.content.match(/\nLINE\n/g) ?? []).length).toBe(2)
     expect(result.content).toContain('layer-1')
   })
+
+  it('emits a native CIRCLE entity for round stitch-hole dots', () => {
+    const result = buildDxfFromShapes([makeLineShape()], {
+      stitchHoles: [
+        makeStitchHole({
+          holeType: 'round',
+          renderShape: 'round',
+          widthMm: undefined,
+          heightMm: undefined,
+        }),
+      ],
+      stitchHoleRenderMode: 'dots',
+      stitchDotRadiusMm: 0.6,
+    })
+    expect(result.circleCount).toBe(1)
+    expect(result.content).toMatch(/\nCIRCLE\n/)
+    expect(result.content).toContain('0.600000')
+  })
 })

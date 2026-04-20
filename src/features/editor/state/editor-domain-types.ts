@@ -118,6 +118,17 @@ export type EditorUIState = {
   showSpecifyRotationModal: boolean
   showSpecifyScaleModal: boolean
   specifyScaleModalAxis: 'both' | 'vertical'
+  showFontListModal: boolean
+  fontList: string[]
+  autoSaveEnabled: boolean
+  reverseZoomDirection: boolean
+  incrementalSelection: boolean
+  mentoriWithoutCtrl: boolean
+  showLengthAdjustModal: boolean
+  showOptionsModal: boolean
+  leatherSimTextureRotationDeg: number
+  exportIncludeText: boolean
+  exportIncludeTemplateMetadata: boolean
 }
 
 export type EditorSelectionState = {

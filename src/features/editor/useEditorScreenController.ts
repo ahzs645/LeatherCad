@@ -58,6 +58,17 @@ import { useEditorStatusBarProps } from './hooks/useEditorStatusBarProps'
 import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useTransformActions } from './hooks/useTransformActions'
+import { addFontToList, removeFontFromList, saveFontList } from './ops/font-list-ops'
+import { saveAutoSaveEnabled } from './ops/autosave'
+import { saveEditorPreferences, getDefaultEditorPreferences } from './ops/editor-prefs'
+import { useAutoSave } from './hooks/useAutoSave'
+import {
+  getLineLengthMm,
+  scaleLineLengthByRatio,
+  setLineLength,
+} from './ops/geometry-editing-ops'
+import type { LineShape } from './cad/cad-types'
+import type { LengthAdjustMode } from './components/LengthAdjustModal'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
 import { useEditorViewport } from './hooks/useEditorViewport'
@@ -184,6 +195,17 @@ export function useEditorScreenController() {
     showSpecifyRotationModal, setShowSpecifyRotationModal,
     showSpecifyScaleModal, setShowSpecifyScaleModal,
     specifyScaleModalAxis, setSpecifyScaleModalAxis,
+    showFontListModal, setShowFontListModal,
+    fontList, setFontList,
+    autoSaveEnabled, setAutoSaveEnabled,
+    reverseZoomDirection, setReverseZoomDirection,
+    incrementalSelection, setIncrementalSelection,
+    mentoriWithoutCtrl, setMentoriWithoutCtrl,
+    showLengthAdjustModal, setShowLengthAdjustModal,
+    showOptionsModal, setShowOptionsModal,
+    leatherSimTextureRotationDeg,
+    exportIncludeText, setExportIncludeText,
+    exportIncludeTemplateMetadata, setExportIncludeTemplateMetadata,
   } = useEditorUIState()
 
   // Selection state: selected shapes, stitch holes, hardware markers, clipboard
@@ -242,6 +264,7 @@ export function useEditorScreenController() {
     setActiveTool,
     textDraftValue,
     textFontFamily,
+    setTextFontFamily,
     textFontSizeMm,
     textTransformMode,
     textRadiusMm,
@@ -778,6 +801,8 @@ export function useEditorScreenController() {
     displayShapes: workspaceShapes,
     snapShapes: workspaceShapes,
     customSnapPoint,
+    reverseZoomDirection,
+    incrementalSelection,
     stitchTargetShapes: workspaceEditableShapes,
     visibleHardwareMarkers: workspaceHardwareMarkers,
     lineTypesById,
@@ -848,6 +873,13 @@ export function useEditorScreenController() {
     setMobileViewMode,
     setShowMobileMenu,
   })
+
+  useAutoSave({
+    enabled: autoSaveEnabled,
+    buildDoc: () => buildCurrentDocFile(),
+    setStatus,
+  })
+
   const {
     handleAddLayer,
     handleRenameActiveLayer,
@@ -1319,6 +1351,22 @@ export function useEditorScreenController() {
       handleSplitIntoN(count)
     },
     handleDrawBoundaryAroundSelection,
+    handleAddBackdrop: () => {
+      tracingInputRef.current?.click()
+      setStatus('Choose an image to add as a backdrop')
+    },
+    handleOpenFontListModal: () => setShowFontListModal(true),
+    handleCloseProject: () => {
+      const confirmed = window.confirm(
+        'Close the current project? Unsaved changes will be lost unless you save first.',
+      )
+      if (confirmed) {
+        resetDocument()
+      }
+    },
+    handleOpenSecretFeatures: () => setShowWizardModal(true),
+    handleOpenOptionsModal: () => setShowOptionsModal(true),
+    handleOpenLengthAdjustModal: () => setShowLengthAdjustModal(true),
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -1968,6 +2016,140 @@ export function useEditorScreenController() {
           onApply: (factorX: number, factorY: number) => {
             handleSpecifyScale(factorX, factorY)
             setShowSpecifyScaleModal(false)
+          },
+        },
+        fontListModalProps: {
+          open: showFontListModal,
+          fonts: fontList,
+          onClose: () => setShowFontListModal(false),
+          onAdd: (fontFamily: string) => {
+            const next = addFontToList(fontList, fontFamily)
+            setFontList(next)
+            saveFontList(next)
+          },
+          onRemove: (fontFamily: string) => {
+            const next = removeFontFromList(fontList, fontFamily)
+            setFontList(next)
+            saveFontList(next)
+          },
+          onSelect: (fontFamily: string) => {
+            setTextFontFamily(fontFamily)
+            setStatus(`Text font family set to ${fontFamily}`)
+          },
+        },
+        optionsModalProps: {
+          open: showOptionsModal,
+          autoSaveEnabled,
+          reverseZoomDirection,
+          incrementalSelection,
+          mentoriWithoutCtrl,
+          exportIncludeText,
+          exportIncludeTemplateMetadata,
+          onClose: () => setShowOptionsModal(false),
+          onChangeAutoSaveEnabled: (value: boolean) => {
+            setAutoSaveEnabled(value)
+            saveAutoSaveEnabled(value)
+          },
+          onChangeReverseZoomDirection: (value: boolean) => {
+            setReverseZoomDirection(value)
+            saveEditorPreferences({
+              ...getDefaultEditorPreferences(),
+              reverseZoomDirection: value,
+              incrementalSelection,
+              mentoriWithoutCtrl,
+              exportIncludeText,
+              exportIncludeTemplateMetadata,
+              leatherSimTextureRotationDeg,
+            })
+          },
+          onChangeIncrementalSelection: (value: boolean) => {
+            setIncrementalSelection(value)
+            saveEditorPreferences({
+              ...getDefaultEditorPreferences(),
+              reverseZoomDirection,
+              incrementalSelection: value,
+              mentoriWithoutCtrl,
+              exportIncludeText,
+              exportIncludeTemplateMetadata,
+              leatherSimTextureRotationDeg,
+            })
+          },
+          onChangeMentoriWithoutCtrl: (value: boolean) => {
+            setMentoriWithoutCtrl(value)
+            saveEditorPreferences({
+              ...getDefaultEditorPreferences(),
+              reverseZoomDirection,
+              incrementalSelection,
+              mentoriWithoutCtrl: value,
+              exportIncludeText,
+              exportIncludeTemplateMetadata,
+              leatherSimTextureRotationDeg,
+            })
+          },
+          onChangeExportIncludeText: (value: boolean) => {
+            setExportIncludeText(value)
+            saveEditorPreferences({
+              ...getDefaultEditorPreferences(),
+              reverseZoomDirection,
+              incrementalSelection,
+              mentoriWithoutCtrl,
+              exportIncludeText: value,
+              exportIncludeTemplateMetadata,
+              leatherSimTextureRotationDeg,
+            })
+          },
+          onChangeExportIncludeTemplateMetadata: (value: boolean) => {
+            setExportIncludeTemplateMetadata(value)
+            saveEditorPreferences({
+              ...getDefaultEditorPreferences(),
+              reverseZoomDirection,
+              incrementalSelection,
+              mentoriWithoutCtrl,
+              exportIncludeText,
+              exportIncludeTemplateMetadata: value,
+              leatherSimTextureRotationDeg,
+            })
+          },
+        },
+        lengthAdjustModalProps: {
+          open: showLengthAdjustModal,
+          currentLengthMm: (() => {
+            const line = shapes.find(
+              (s): s is LineShape => s.type === 'line' && selectedShapeIdSet.has(s.id),
+            )
+            return line ? getLineLengthMm(line) : 0
+          })(),
+          onClose: () => setShowLengthAdjustModal(false),
+          onApply: (mode: LengthAdjustMode, value: number) => {
+            const targets = shapes.filter(
+              (s): s is LineShape => s.type === 'line' && selectedShapeIdSet.has(s.id),
+            )
+            if (targets.length === 0) {
+              setStatus('Select one or more lines to adjust')
+              setShowLengthAdjustModal(false)
+              return
+            }
+            if (mode === 'none') {
+              setShowLengthAdjustModal(false)
+              setStatus('Length adjustment skipped')
+              return
+            }
+            setShapes((prev) =>
+              prev.map((shape) => {
+                if (shape.type !== 'line' || !selectedShapeIdSet.has(shape.id)) {
+                  return shape
+                }
+                return mode === 'length'
+                  ? setLineLength(shape, value)
+                  : scaleLineLengthByRatio(shape, value)
+              }),
+            )
+            setShowLengthAdjustModal(false)
+            setStatus(
+              mode === 'length'
+                ? `Set length to ${value.toFixed(2)}mm on ${targets.length} line(s)`
+                : `Scaled length by ${(value * 100).toFixed(1)}% on ${targets.length} line(s)`,
+            )
           },
         },
       },

@@ -1,6 +1,9 @@
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react'
 import { DEFAULT_GRID_SPACING } from '../../editor-constants'
 import { DEFAULT_PRESET_ID } from '../../data/sample-doc-meta'
+import { loadFontList } from '../../ops/font-list-ops'
+import { loadAutoSaveEnabled } from '../../ops/autosave'
+import { loadEditorPreferences } from '../../ops/editor-prefs'
 import type { EditorUIState } from '../editor-domain-types'
 import {
   propertyStateReducer,
@@ -56,6 +59,17 @@ const initialEditorUIState: EditorUIState = {
   showSpecifyRotationModal: false,
   showSpecifyScaleModal: false,
   specifyScaleModalAxis: 'both',
+  showFontListModal: false,
+  fontList: loadFontList(),
+  autoSaveEnabled: loadAutoSaveEnabled(),
+  reverseZoomDirection: loadEditorPreferences().reverseZoomDirection,
+  incrementalSelection: loadEditorPreferences().incrementalSelection,
+  mentoriWithoutCtrl: loadEditorPreferences().mentoriWithoutCtrl,
+  showLengthAdjustModal: false,
+  showOptionsModal: false,
+  leatherSimTextureRotationDeg: loadEditorPreferences().leatherSimTextureRotationDeg,
+  exportIncludeText: loadEditorPreferences().exportIncludeText,
+  exportIncludeTemplateMetadata: loadEditorPreferences().exportIncludeTemplateMetadata,
 }
 
 const autoConstraintSettings = {
@@ -150,6 +164,30 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'showSpecifyScaleModal', value }),
     setSpecifyScaleModalAxis: (value: React.SetStateAction<EditorUIState['specifyScaleModalAxis']>) =>
       dispatch({ type: 'specifyScaleModalAxis', value }),
+    setShowFontListModal: (value: React.SetStateAction<EditorUIState['showFontListModal']>) =>
+      dispatch({ type: 'showFontListModal', value }),
+    setFontList: (value: React.SetStateAction<EditorUIState['fontList']>) =>
+      dispatch({ type: 'fontList', value }),
+    setAutoSaveEnabled: (value: React.SetStateAction<EditorUIState['autoSaveEnabled']>) =>
+      dispatch({ type: 'autoSaveEnabled', value }),
+    setReverseZoomDirection: (value: React.SetStateAction<EditorUIState['reverseZoomDirection']>) =>
+      dispatch({ type: 'reverseZoomDirection', value }),
+    setIncrementalSelection: (value: React.SetStateAction<EditorUIState['incrementalSelection']>) =>
+      dispatch({ type: 'incrementalSelection', value }),
+    setMentoriWithoutCtrl: (value: React.SetStateAction<EditorUIState['mentoriWithoutCtrl']>) =>
+      dispatch({ type: 'mentoriWithoutCtrl', value }),
+    setShowLengthAdjustModal: (value: React.SetStateAction<EditorUIState['showLengthAdjustModal']>) =>
+      dispatch({ type: 'showLengthAdjustModal', value }),
+    setShowOptionsModal: (value: React.SetStateAction<EditorUIState['showOptionsModal']>) =>
+      dispatch({ type: 'showOptionsModal', value }),
+    setLeatherSimTextureRotationDeg: (
+      value: React.SetStateAction<EditorUIState['leatherSimTextureRotationDeg']>,
+    ) => dispatch({ type: 'leatherSimTextureRotationDeg', value }),
+    setExportIncludeText: (value: React.SetStateAction<EditorUIState['exportIncludeText']>) =>
+      dispatch({ type: 'exportIncludeText', value }),
+    setExportIncludeTemplateMetadata: (
+      value: React.SetStateAction<EditorUIState['exportIncludeTemplateMetadata']>,
+    ) => dispatch({ type: 'exportIncludeTemplateMetadata', value }),
   }
 }
 
