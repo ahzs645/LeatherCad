@@ -62,6 +62,7 @@ export type EditorCanvasPaneProps = {
   buildCanvasContextMenuItems?: () => ContextMenuItem[]
   showGrid?: boolean
   gridBackgroundMode?: 'light' | 'dark'
+  onTracingOverlayOffset?: (overlayId: string, nextOffsetX: number, nextOffsetY: number) => void
   viewport: Viewport
   displayUnit: DisplayUnit
   gridSpacing: number
@@ -135,6 +136,7 @@ export function EditorCanvasPane({
   buildCanvasContextMenuItems,
   showGrid = true,
   gridBackgroundMode = 'light',
+  onTracingOverlayOffset,
   viewport,
   displayUnit,
   gridSpacing,
@@ -406,6 +408,8 @@ export function EditorCanvasPane({
             gridBackgroundMode={gridBackgroundMode}
             displayUnit={displayUnit}
             tracingOverlays={tracingOverlays}
+            onTracingOverlayOffset={onTracingOverlayOffset}
+            viewport={viewport}
             showPrintAreas={showPrintAreas}
             printPlan={printPlan}
             viewBounds={viewBounds}

@@ -112,6 +112,7 @@ type EditorTopbarProps = {
   onImportTranslation: () => void
   onStampSimulator: () => void
   onClearAll: () => void
+  onSelectConnectedChain: () => void
   onActivateLayerOfSelectedShape: () => void
   onDuplicateSelectionOnLayerBelow: () => void
   onMoveSelectionToLayerBelow: () => void
@@ -339,6 +340,7 @@ export function EditorTopbar({
   onImportTranslation,
   onStampSimulator,
   onClearAll,
+  onSelectConnectedChain,
   onActivateLayerOfSelectedShape,
   onDuplicateSelectionOnLayerBelow,
   onMoveSelectionToLayerBelow,
@@ -1045,6 +1047,9 @@ export function EditorTopbar({
                       Stamp Simulator…
                     </button>
                     <button onClick={onClearAll}>Clear All</button>
+                    <button onClick={onSelectConnectedChain} disabled={selectedShapeCount !== 1}>
+                      Select Chain
+                    </button>
                     <button onClick={onOpenLengthAdjustModal} disabled={selectedShapeCount === 0}>
                       Length Adjust…
                     </button>

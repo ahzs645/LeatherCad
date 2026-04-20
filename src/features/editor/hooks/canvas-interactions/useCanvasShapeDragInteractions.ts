@@ -81,6 +81,7 @@ type UseCanvasShapeDragInteractionsParams = {
   getSnappedPoint: (point: Point) => { point: Point }
   incrementalSelection?: boolean
   onPickLineTypeFromShape?: (shapeId: string) => void
+  onBezierSplitAtPoint?: (shapeId: string, worldPoint: Point) => void
 }
 
 export function useCanvasShapeDragInteractions({
@@ -97,6 +98,7 @@ export function useCanvasShapeDragInteractions({
   getSnappedPoint,
   incrementalSelection = false,
   onPickLineTypeFromShape,
+  onBezierSplitAtPoint,
 }: UseCanvasShapeDragInteractionsParams) {
   const shapeDragRef = useRef<ShapeDragState | null>(null)
   const handleDragRef = useRef<HandleDragState | null>(null)
@@ -121,6 +123,15 @@ export function useCanvasShapeDragInteractions({
     if ((event.ctrlKey || event.metaKey) && event.altKey && onPickLineTypeFromShape) {
       onPickLineTypeFromShape(shapeId)
       return
+    }
+
+    // Alt+Click on a selected bezier splits it at the clicked point.
+    if (event.altKey && !event.ctrlKey && !event.metaKey && onBezierSplitAtPoint) {
+      const targetShape = shapesById[shapeId]
+      if (targetShape?.type === 'bezier' && selectedShapeIds.includes(shapeId)) {
+        onBezierSplitAtPoint(shapeId, point)
+        return
+      }
     }
 
     setSelectedHardwareMarkerId(null)

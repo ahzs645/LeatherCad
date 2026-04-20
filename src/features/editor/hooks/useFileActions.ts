@@ -92,9 +92,24 @@ export function useFileActions(params: UseFileActionsParams) {
       return
     }
 
+    const lowerName = file.name.toLowerCase()
+    const looksLikeLccOrJson =
+      lowerName.endsWith('.lcc') || lowerName.endsWith('.json') || file.type === 'application/json'
+    if (!looksLikeLccOrJson) {
+      setStatus(
+        `"${file.name}" is not a LeatherCad (.lcc) or JSON file. Use "Import SVG" or "Import Tracing" for images.`,
+      )
+      return
+    }
+
     try {
       const raw = await file.text()
-      const isLcc = file.name.toLowerCase().endsWith('.lcc')
+      const trimmed = raw.trim()
+      if (trimmed.length === 0) {
+        setStatus(`"${file.name}" is empty — nothing to load`)
+        return
+      }
+      const isLcc = lowerName.endsWith('.lcc')
 
       if (isLcc) {
         const { importLccDocument } = await import('../io/io-lcc')
@@ -108,6 +123,11 @@ export function useFileActions(params: UseFileActionsParams) {
         return
       }
 
+      if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) {
+        setStatus(`"${file.name}" does not look like valid JSON — skipped`)
+        return
+      }
+
       const { parseImportedJsonDocument } = await import('../editor-json-import')
       const imported = parseImportedJsonDocument(raw)
       const documentName = imported.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
@@ -117,7 +137,7 @@ export function useFileActions(params: UseFileActionsParams) {
       )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`Load failed: ${message}`)
+      setStatus(`Could not load "${file.name}": ${message}`)
     }
   }
 

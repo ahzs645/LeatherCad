@@ -246,9 +246,13 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     })
   }, [shapes, visibleLayerIdSet, visibleLineTypeIdSet, sketchGroupsById])
 
+  const independentLayerIdSet = useMemo(
+    () => new Set(layers.filter((layer) => layer.independent === true).map((layer) => layer.id)),
+    [layers],
+  )
   const linkedProjectionShapes = useMemo(
-    () => buildLinkedProjectionShapes(shapes, sketchGroups),
-    [shapes, sketchGroups],
+    () => buildLinkedProjectionShapes(shapes, sketchGroups, independentLayerIdSet),
+    [shapes, sketchGroups, independentLayerIdSet],
   )
 
   const visibleLinkedProjectionShapes = useMemo(

@@ -46,6 +46,7 @@ type UseCanvasInteractionsParams = {
   onWheelScaleSelection?: (factor: number) => void
   onWheelAdjustThickness?: (deltaSteps: number) => void
   onPickLineTypeFromShape?: (shapeId: string) => void
+  onBezierSplitAtPoint?: (shapeId: string, worldPoint: Point) => void
   stitchTargetShapes: Shape[]
   visibleHardwareMarkers: HardwareMarker[]
   lineTypesById: Record<string, LineType>
@@ -97,6 +98,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     onWheelScaleSelection,
     onWheelAdjustThickness,
     onPickLineTypeFromShape,
+    onBezierSplitAtPoint,
     stitchTargetShapes,
     visibleHardwareMarkers,
     lineTypesById,
@@ -227,6 +229,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     getSnappedPoint,
     incrementalSelection,
     onPickLineTypeFromShape,
+    onBezierSplitAtPoint,
   })
 
   let toolSessionRef: ToolRuntime['toolSession'] | null = null

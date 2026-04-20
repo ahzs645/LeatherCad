@@ -66,6 +66,7 @@ type UseEditorTopbarPropsParams = {
   handleImportTranslation: () => void
   handleStampSimulator: () => void
   handleClearAll: () => void
+  handleSelectConnectedChain: () => void
   handleActivateLayerOfSelectedShape: () => void
   handleDuplicateSelectedShapesOnBelowLayer: () => void
   handleMoveSelectedShapesToLayerBelow: () => void
@@ -178,6 +179,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleImportTranslation,
     handleStampSimulator,
     handleClearAll,
+    handleSelectConnectedChain,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,
@@ -443,6 +445,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onImportTranslation: handleImportTranslation,
     onStampSimulator: handleStampSimulator,
     onClearAll: handleClearAll,
+    onSelectConnectedChain: handleSelectConnectedChain,
     onActivateLayerOfSelectedShape: handleActivateLayerOfSelectedShape,
     onDuplicateSelectionOnLayerBelow: handleDuplicateSelectedShapesOnBelowLayer,
     onMoveSelectionToLayerBelow: handleMoveSelectedShapesToLayerBelow,

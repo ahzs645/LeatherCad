@@ -163,7 +163,11 @@ export function sanitizeSketchGroupLinks(sketchGroups: SketchGroup[]): SketchGro
   return changed ? nextGroups : sketchGroups
 }
 
-export function buildLinkedProjectionShapes(shapes: Shape[], sketchGroups: SketchGroup[]): Shape[] {
+export function buildLinkedProjectionShapes(
+  shapes: Shape[],
+  sketchGroups: SketchGroup[],
+  independentLayerIds?: Set<string>,
+): Shape[] {
   if (shapes.length === 0 || sketchGroups.length === 0) {
     return []
   }
@@ -186,6 +190,10 @@ export function buildLinkedProjectionShapes(shapes: Shape[], sketchGroups: Sketc
 
   for (const sketchGroup of sketchGroups) {
     if (!sketchGroup.baseGroupId) {
+      continue
+    }
+    // Layers marked "independent" opt out of linked-group projection (source-app v2.0.0).
+    if (independentLayerIds?.has(sketchGroup.layerId)) {
       continue
     }
 

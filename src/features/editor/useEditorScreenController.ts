@@ -61,13 +61,16 @@ import { useTransformActions } from './hooks/useTransformActions'
 import { addFontToList, removeFontFromList, saveFontList } from './ops/font-list-ops'
 import { parseTranslationFile, saveTranslationMap } from './ops/translation-ops'
 import { tileSelectionAsStamp } from './ops/stamp-simulator-ops'
+import { findConnectedShapeIds } from './ops/shape-selection-ops'
 import { saveAutoSaveEnabled } from './ops/autosave'
 import { saveEditorPreferences, getDefaultEditorPreferences } from './ops/editor-prefs'
 import { useAutoSave } from './hooks/useAutoSave'
 import {
+  findBezierTNearestPoint,
   getLineLengthMm,
   scaleLineLengthByRatio,
   setLineLength,
+  splitBezierAtT,
 } from './ops/geometry-editing-ops'
 import type { LineShape } from './cad/cad-types'
 import type { LengthAdjustMode } from './components/LengthAdjustModal'
@@ -861,7 +864,8 @@ export function useEditorScreenController() {
       setShapes((previous) =>
         previous.map((shape) => {
           if (!selectedShapeIdSet.has(shape.id)) return shape
-          const current = shape.strokeWidthOverride ?? 2
+          const rawCurrent = (shape as { strokeWidthOverride?: number }).strokeWidthOverride
+          const current: number = typeof rawCurrent === 'number' ? rawCurrent : 2
           const next = Math.max(0.2, Math.min(12, current + deltaSteps * 0.3))
           return { ...shape, strokeWidthOverride: Math.round(next * 100) / 100 }
         }),
@@ -873,6 +877,19 @@ export function useEditorScreenController() {
       setActiveLineTypeId(shape.lineTypeId)
       const lineType = lineTypesById[shape.lineTypeId]
       setStatus(`Active line type set to "${lineType?.name ?? shape.lineTypeId}"`)
+    },
+    onBezierSplitAtPoint: (shapeId: string, worldPoint: { x: number; y: number }) => {
+      const shape = shapesById[shapeId]
+      if (!shape || shape.type !== 'bezier') return
+      const t = findBezierTNearestPoint(shape, worldPoint)
+      const parts = splitBezierAtT(shape, t)
+      if (!parts) {
+        setStatus('Could not split bezier at that point')
+        return
+      }
+      setShapes((previous) => previous.flatMap((entry) => (entry.id === shape.id ? parts : [entry])))
+      setSelectedShapeIds([parts[0].id, parts[1].id])
+      setStatus('Split bezier at click point')
     },
     stitchTargetShapes: workspaceEditableShapes,
     visibleHardwareMarkers: workspaceHardwareMarkers,
@@ -1214,6 +1231,8 @@ export function useEditorScreenController() {
 
   const {
     handleConvertArcToBezier,
+    handleMakeBezierCpFlat,
+    handleMakeBezierCpSameLength,
     handleMakeBezierCpSymmetric,
     handleExtendOrTrimLines,
     handleMirrorShapes,
@@ -1477,6 +1496,15 @@ export function useEditorScreenController() {
       setSelectedShapeIds([])
       setSelectedStitchHoleId(null)
       setStatus('Canvas cleared')
+    },
+    handleSelectConnectedChain: () => {
+      if (selectedShapeIds.length !== 1) {
+        setStatus('Select one shape first to expand to its connected chain')
+        return
+      }
+      const chain = findConnectedShapeIds(shapes, selectedShapeIds[0])
+      setSelectedShapeIds(chain)
+      setStatus(`Selected connected chain: ${chain.length} shape${chain.length === 1 ? '' : 's'}`)
     },
     handleStampSimulator: () => {
       if (selectedShapeIdSet.size === 0) {
@@ -2093,6 +2121,13 @@ export function useEditorScreenController() {
       onPointerUp: handlePointerUp,
       showGrid,
       gridBackgroundMode,
+      onTracingOverlayOffset: (overlayId: string, nextOffsetX: number, nextOffsetY: number) => {
+        setTracingOverlays((previous) =>
+          previous.map((overlay) =>
+            overlay.id === overlayId ? { ...overlay, offsetX: nextOffsetX, offsetY: nextOffsetY } : overlay,
+          ),
+        )
+      },
       buildCanvasContextMenuItems: () => {
         const items: Array<{ id: string; label: string; disabled?: boolean; onSelect: () => void }> = []
         if (selectedShapeIdSet.size > 0) {
@@ -2100,8 +2135,18 @@ export function useEditorScreenController() {
             { id: 'bring-to-front', label: 'Bring to Front', onSelect: handleBringSelectionToFront },
             { id: 'send-to-back', label: 'Send to Back', onSelect: handleSendSelectionToBack },
             { id: 'duplicate', label: 'Duplicate', onSelect: handleDuplicateSelection },
-            { id: 'convert-to-path', label: 'Convert to Path', onSelect: handleConvertSelectionToPath },
+            { id: 'convert-to-path', label: 'Convert to Path', onSelect: () => handleConvertSelectionToPath(false) },
             { id: 'delete', label: 'Delete', onSelect: handleDeleteSelection },
+          )
+        }
+        // Bezier-pair commands when exactly 2 beziers are selected.
+        const selectedShapesForContext = shapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+        const bezierCount = selectedShapesForContext.filter((shape) => shape.type === 'bezier').length
+        if (selectedShapeIdSet.size === 2 && bezierCount === 2) {
+          items.push(
+            { id: 'bezier-flat', label: 'Bezier handle: flat', onSelect: handleMakeBezierCpFlat },
+            { id: 'bezier-same-length', label: 'Bezier handle: same length', onSelect: handleMakeBezierCpSameLength },
+            { id: 'bezier-symmetric', label: 'Bezier handle: symmetric', onSelect: handleMakeBezierCpSymmetric },
           )
         }
         if (selectedStitchHole) {

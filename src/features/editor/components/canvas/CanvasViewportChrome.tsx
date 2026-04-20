@@ -12,6 +12,8 @@ type CanvasViewportChromeProps = {
   gridBackgroundMode?: 'light' | 'dark'
   displayUnit: DisplayUnit
   tracingOverlays: import('../../cad/cad-types').TracingOverlay[]
+  onTracingOverlayOffset?: (overlayId: string, nextOffsetX: number, nextOffsetY: number) => void
+  viewport?: { scale: number }
   showPrintAreas: boolean
   printPlan: import('../../preview/print-preview').PrintPlan | null
   viewBounds: Bounds
@@ -29,6 +31,8 @@ export function CanvasViewportChrome({
   gridBackgroundMode = 'light',
   displayUnit,
   tracingOverlays,
+  onTracingOverlayOffset,
+  viewport,
   showPrintAreas,
   printPlan,
   viewBounds,
@@ -122,8 +126,45 @@ export function CanvasViewportChrome({
             ) / 1000}) scale(${scale})`
             const x = Math.round((-overlay.width / 2) * 1000) / 1000
             const y = Math.round((-overlay.height / 2) * 1000) / 1000
+            const draggable = !overlay.locked && Boolean(onTracingOverlayOffset)
             return (
-              <g key={overlay.id} transform={transform} opacity={overlay.opacity}>
+              <g
+                key={overlay.id}
+                transform={transform}
+                opacity={overlay.opacity}
+                style={{ cursor: draggable ? 'move' : undefined, pointerEvents: draggable ? 'auto' : 'none' }}
+                onPointerDown={
+                  draggable
+                    ? (event) => {
+                        event.stopPropagation()
+                        const target = event.currentTarget
+                        const startClientX = event.clientX
+                        const startClientY = event.clientY
+                        const startOffsetX = overlay.offsetX
+                        const startOffsetY = overlay.offsetY
+                        const viewportScale = viewport?.scale ?? 1
+                        try {
+                          target.setPointerCapture(event.pointerId)
+                        } catch {
+                          // ignore
+                        }
+                        const onMove = (moveEvent: PointerEvent) => {
+                          const dx = (moveEvent.clientX - startClientX) / viewportScale
+                          const dy = (moveEvent.clientY - startClientY) / viewportScale
+                          onTracingOverlayOffset?.(overlay.id, startOffsetX + dx, startOffsetY + dy)
+                        }
+                        const onUp = () => {
+                          window.removeEventListener('pointermove', onMove)
+                          window.removeEventListener('pointerup', onUp)
+                          window.removeEventListener('pointercancel', onUp)
+                        }
+                        window.addEventListener('pointermove', onMove)
+                        window.addEventListener('pointerup', onUp)
+                        window.addEventListener('pointercancel', onUp)
+                      }
+                    : undefined
+                }
+              >
                 <image
                   href={overlay.sourceUrl}
                   x={x}

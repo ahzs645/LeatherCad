@@ -86,10 +86,29 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     if (!inputName) {
       return
     }
-    const entry = createTemplateFromDoc(inputName, buildCurrentDocFile())
+    const fillColorInput = window
+      .prompt('Fill color for closed shapes (hex, or blank to skip):', '')
+      ?.trim()
+    const fillColor = fillColorInput && /^#[0-9a-fA-F]{6}$/.test(fillColorInput) ? fillColorInput : null
+
+    const doc = buildCurrentDocFile()
+    const shapesWithFill = fillColor
+      ? doc.objects?.map((shape) =>
+          shape.type === 'line' || shape.type === 'text' ? shape : { ...shape, fillColor },
+        )
+      : doc.objects
+
+    const entry = createTemplateFromDoc(
+      inputName,
+      shapesWithFill === doc.objects ? doc : { ...doc, objects: shapesWithFill },
+    )
     setTemplateRepository((previous) => [entry, ...previous])
     setSelectedTemplateEntryId(entry.id)
-    setStatus(`Saved template "${entry.name}"`)
+    setStatus(
+      fillColor
+        ? `Saved template "${entry.name}" with painted fill ${fillColor}`
+        : `Saved template "${entry.name}"`,
+    )
   }
 
   const handleDeleteTemplateFromRepository = (entryId: string) => {

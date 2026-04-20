@@ -764,6 +764,60 @@ export function getLineAngleDeg(line: LineShape): number {
 }
 
 // ---------------------------------------------------------------------------
+// Split a bezier at parameter t using de Casteljau's algorithm
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a quadratic Bezier at parameter t∈(0,1) using de Casteljau's algorithm.
+ * Returns two new BezierShapes that together reproduce the original curve.
+ */
+export function splitBezierAtT(bezier: BezierShape, t: number): [BezierShape, BezierShape] | null {
+  if (!Number.isFinite(t) || t <= 1e-6 || t >= 1 - 1e-6) return null
+  const P0 = bezier.start
+  const P1 = bezier.control
+  const P2 = bezier.end
+  const Q0 = { x: P0.x + (P1.x - P0.x) * t, y: P0.y + (P1.y - P0.y) * t }
+  const Q1 = { x: P1.x + (P2.x - P1.x) * t, y: P1.y + (P2.y - P1.y) * t }
+  const R = { x: Q0.x + (Q1.x - Q0.x) * t, y: Q0.y + (Q1.y - Q0.y) * t }
+  const roundPoint = (p: Point): Point => ({ x: round(p.x), y: round(p.y) })
+  return [
+    {
+      ...bezier,
+      id: uid(),
+      start: roundPoint(P0),
+      control: roundPoint(Q0),
+      end: roundPoint(R),
+    },
+    {
+      ...bezier,
+      id: uid(),
+      start: roundPoint(R),
+      control: roundPoint(Q1),
+      end: roundPoint(P2),
+    },
+  ]
+}
+
+/**
+ * Find the parameter t on a bezier closest to the given world point, within
+ * optional tolerance in mm.
+ */
+export function findBezierTNearestPoint(bezier: BezierShape, point: Point, samples = 200): number {
+  let bestT = 0
+  let bestDist = Number.POSITIVE_INFINITY
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples
+    const p = evalQuadBezier(bezier.start, bezier.control, bezier.end, t)
+    const d = Math.hypot(p.x - point.x, p.y - point.y)
+    if (d < bestDist) {
+      bestDist = d
+      bestT = t
+    }
+  }
+  return bestT
+}
+
+// ---------------------------------------------------------------------------
 // Notching (Kama) — stamp a V-notch at a point along the shape
 // ---------------------------------------------------------------------------
 

@@ -37,6 +37,10 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
   }
 
   const paintedFill = 'fillColor' in shape && shape.fillColor ? shape.fillColor : undefined
+  const strokeWidthOverride =
+    'strokeWidthOverride' in shape && typeof shape.strokeWidthOverride === 'number'
+      ? shape.strokeWidthOverride
+      : undefined
 
   if (shape.type === 'line') {
     return (
@@ -47,7 +51,13 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
         x2={shape.end.x}
         y2={shape.end.y}
         className={options.className}
-        style={{ stroke: options.color, strokeDasharray: options.strokeDasharray, strokeOpacity: options.opacity, ...arrowMarkerStyle(shape) }}
+        style={{
+          stroke: options.color,
+          strokeDasharray: options.strokeDasharray,
+          strokeOpacity: options.opacity,
+          strokeWidth: strokeWidthOverride,
+          ...arrowMarkerStyle(shape),
+        }}
         onPointerDown={options.interactive ? (event) => options.onShapePointerDown(event, shape.id) : undefined}
       />
     )
@@ -63,6 +73,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
           stroke: options.color,
           strokeDasharray: options.strokeDasharray,
           strokeOpacity: options.opacity,
+          strokeWidth: strokeWidthOverride,
           fill: paintedFill,
           ...arrowMarkerStyle(shape),
         }}
@@ -82,6 +93,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
         stroke: options.color,
         strokeDasharray: options.strokeDasharray,
         strokeOpacity: options.opacity,
+        strokeWidth: strokeWidthOverride,
         fill: paintedFill,
         ...arrowMarkerStyle(shape),
       }}

@@ -157,6 +157,38 @@ export function TracingModal({
                 Apply DPI
               </button>
             </label>
+            <details>
+              <summary>Calibrate by ruler</summary>
+              <p className="hint">
+                Pick two points on the image (in image pixels) whose real-world distance you know,
+                then enter that distance below. Apply derives a DPI and rescales the overlay.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const sx = Number(window.prompt('Start X (px)', '0'))
+                  if (!Number.isFinite(sx)) return
+                  const sy = Number(window.prompt('Start Y (px)', '0'))
+                  if (!Number.isFinite(sy)) return
+                  const ex = Number(window.prompt('End X (px)', '100'))
+                  if (!Number.isFinite(ex)) return
+                  const ey = Number(window.prompt('End Y (px)', '0'))
+                  if (!Number.isFinite(ey)) return
+                  const mm = Number(window.prompt('Measured length (mm)', '100'))
+                  if (!Number.isFinite(mm) || mm <= 0) return
+                  const pixelDist = Math.hypot(ex - sx, ey - sy)
+                  if (pixelDist < 1) return
+                  const dpi = (pixelDist / mm) * 25.4
+                  const mmPerPixel = 25.4 / dpi
+                  onUpdateTracingOverlay(activeTracingOverlay.id, {
+                    dpi: Math.round(dpi * 10) / 10,
+                    scale: mmPerPixel,
+                  })
+                }}
+              >
+                Calibrate…
+              </button>
+            </details>
             {activeTracingOverlay.kind === 'pdf' && (activeTracingOverlay.pdfPageCount ?? 1) > 1 && (
               <label className="field-row">
                 <span>PDF Page</span>

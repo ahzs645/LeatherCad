@@ -298,6 +298,48 @@ function shapeCenter(shape: Shape): Point {
   }
 }
 
+/**
+ * Starting from `seedShapeId`, return all shape ids whose endpoints are
+ * transitively connected via shared positions (within `tolerance`).
+ */
+export function findConnectedShapeIds(
+  shapes: Shape[],
+  seedShapeId: string,
+  tolerance = 0.25,
+): string[] {
+  const seed = shapes.find((shape) => shape.id === seedShapeId)
+  if (!seed) return [seedShapeId]
+  const visited = new Set<string>([seedShapeId])
+  const queue: string[] = [seedShapeId]
+  const pointsOf = (shape: Shape): Point[] =>
+    shape.type === 'arc'
+      ? [shape.start, shape.mid, shape.end]
+      : shape.type === 'bezier'
+        ? [shape.start, shape.control, shape.end]
+        : [shape.start, shape.end]
+  const pointsClose = (a: Point, b: Point) =>
+    Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance
+
+  while (queue.length > 0) {
+    const currentId = queue.shift()!
+    const currentShape = shapes.find((shape) => shape.id === currentId)
+    if (!currentShape) continue
+    const currentPoints = pointsOf(currentShape)
+    for (const candidate of shapes) {
+      if (visited.has(candidate.id)) continue
+      const candidatePoints = pointsOf(candidate)
+      const sharesEndpoint = currentPoints.some((cp) =>
+        candidatePoints.some((dp) => pointsClose(cp, dp)),
+      )
+      if (sharesEndpoint) {
+        visited.add(candidate.id)
+        queue.push(candidate.id)
+      }
+    }
+  }
+  return Array.from(visited)
+}
+
 export function getSelectionCenter(shapes: Shape[], selectedShapeIds: Set<string>): Point | null {
   let sumX = 0
   let sumY = 0
