@@ -116,6 +116,8 @@ export type Layer = {
   locked: boolean
   stackLevel?: number
   annotation?: string
+  ignored?: boolean
+  independent?: boolean
 }
 
 export type SketchGroup = {

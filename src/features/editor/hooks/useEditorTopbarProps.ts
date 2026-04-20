@@ -58,6 +58,13 @@ type UseEditorTopbarPropsParams = {
   handleOpenSecretFeatures: () => void
   handleOpenOptionsModal: () => void
   handleOpenLengthAdjustModal: () => void
+  handleActivateLayerOfSelectedShape: () => void
+  handleDuplicateSelectedShapesOnBelowLayer: () => void
+  handleMoveSelectedShapesToLayerBelow: () => void
+  handleMoveSelectedShapesToAnotherLayer: () => void
+  handleHighlightShapesOnCurrentLayer: () => void
+  handleToggleLayerIgnored: () => void
+  handleToggleIndependentLayer: () => void
   handleEnableStitchOnSelection: () => void
   handleDisableStitchOnSelection: () => void
   handleMoveSelectionBackward: () => void
@@ -154,6 +161,13 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleOpenSecretFeatures,
     handleOpenOptionsModal,
     handleOpenLengthAdjustModal,
+    handleActivateLayerOfSelectedShape,
+    handleDuplicateSelectedShapesOnBelowLayer,
+    handleMoveSelectedShapesToLayerBelow,
+    handleMoveSelectedShapesToAnotherLayer,
+    handleHighlightShapesOnCurrentLayer,
+    handleToggleLayerIgnored,
+    handleToggleIndependentLayer,
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -403,6 +417,13 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onOpenSecretFeatures: handleOpenSecretFeatures,
     onOpenOptionsModal: handleOpenOptionsModal,
     onOpenLengthAdjustModal: handleOpenLengthAdjustModal,
+    onActivateLayerOfSelectedShape: handleActivateLayerOfSelectedShape,
+    onDuplicateSelectionOnLayerBelow: handleDuplicateSelectedShapesOnBelowLayer,
+    onMoveSelectionToLayerBelow: handleMoveSelectedShapesToLayerBelow,
+    onMoveSelectionToAnotherLayer: handleMoveSelectedShapesToAnotherLayer,
+    onHighlightShapesOnCurrentLayer: handleHighlightShapesOnCurrentLayer,
+    onToggleLayerIgnored: handleToggleLayerIgnored,
+    onToggleIndependentLayer: handleToggleIndependentLayer,
     onEnableStitchOnSelection: handleEnableStitchOnSelection,
     onDisableStitchOnSelection: handleDisableStitchOnSelection,
     onMoveSelectionBackward: handleMoveSelectionBackward,

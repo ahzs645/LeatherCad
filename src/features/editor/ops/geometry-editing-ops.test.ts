@@ -4,6 +4,7 @@ import {
   buildBoundaryLines,
   buildCenterLineBetween,
   convexHull,
+  filletCorner,
   getLineAngleDeg,
   getLineLengthMm,
   removeDuplicateShapes,
@@ -13,6 +14,7 @@ import {
   shapesCoincide,
   splitShapeIntoN,
 } from './geometry-editing-ops'
+import type { LineShape } from '../cad/cad-types'
 
 function makeLine(id: string, x1: number, y1: number, x2: number, y2: number): LineShape {
   return {
@@ -100,6 +102,71 @@ describe('setLineLength / scaleLineLengthByRatio', () => {
     const line = makeLine('a', 0, 0, 3, 4)
     expect(setLineLength(line, -1)).toBe(line)
     expect(scaleLineLengthByRatio(line, 0)).toBe(line)
+  })
+})
+
+describe('filletCorner', () => {
+  it('rounds a right-angle corner with the given radius', () => {
+    const horizontal: LineShape = {
+      id: 'h',
+      type: 'line',
+      layerId: 'layer-1',
+      lineTypeId: 'cut',
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 0 },
+    }
+    const vertical: LineShape = {
+      id: 'v',
+      type: 'line',
+      layerId: 'layer-1',
+      lineTypeId: 'cut',
+      start: { x: 10, y: 0 },
+      end: { x: 10, y: 10 },
+    }
+    const result = filletCorner(horizontal, vertical, 2)
+    expect(result).not.toBeNull()
+    if (!result) return
+    expect(result.trimmedA.end.x).toBeCloseTo(8)
+    expect(result.trimmedA.end.y).toBeCloseTo(0)
+    expect(result.trimmedB.end.x).toBeCloseTo(10)
+    expect(result.trimmedB.end.y).toBeCloseTo(2)
+    expect(result.arc.type).toBe('arc')
+    // Arc bulges toward the original corner: midpoint on the near-side of the fillet arc.
+    expect(result.arc.mid.x).toBeCloseTo(10 - 2 + 2 / Math.SQRT2, 1)
+    expect(result.arc.mid.y).toBeCloseTo(2 - 2 / Math.SQRT2, 1)
+  })
+
+  it('returns null for parallel lines', () => {
+    const a: LineShape = {
+      id: 'a',
+      type: 'line',
+      layerId: 'layer-1',
+      lineTypeId: 'cut',
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 0 },
+    }
+    const b: LineShape = { ...a, id: 'b', start: { x: 0, y: 5 }, end: { x: 10, y: 5 } }
+    expect(filletCorner(a, b, 1)).toBeNull()
+  })
+
+  it('returns null when radius exceeds available line length', () => {
+    const a: LineShape = {
+      id: 'a',
+      type: 'line',
+      layerId: 'layer-1',
+      lineTypeId: 'cut',
+      start: { x: 0, y: 0 },
+      end: { x: 2, y: 0 },
+    }
+    const b: LineShape = {
+      id: 'b',
+      type: 'line',
+      layerId: 'layer-1',
+      lineTypeId: 'cut',
+      start: { x: 2, y: 0 },
+      end: { x: 2, y: 2 },
+    }
+    expect(filletCorner(a, b, 10)).toBeNull()
   })
 })
 

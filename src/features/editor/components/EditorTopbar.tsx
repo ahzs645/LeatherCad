@@ -104,6 +104,13 @@ type EditorTopbarProps = {
   onOpenSecretFeatures: () => void
   onOpenOptionsModal: () => void
   onOpenLengthAdjustModal: () => void
+  onActivateLayerOfSelectedShape: () => void
+  onDuplicateSelectionOnLayerBelow: () => void
+  onMoveSelectionToLayerBelow: () => void
+  onMoveSelectionToAnotherLayer: () => void
+  onHighlightShapesOnCurrentLayer: () => void
+  onToggleLayerIgnored: () => void
+  onToggleIndependentLayer: () => void
   onEnableStitchOnSelection: () => void
   onDisableStitchOnSelection: () => void
   onMoveSelectionBackward: () => void
@@ -315,6 +322,13 @@ export function EditorTopbar({
   onOpenSecretFeatures,
   onOpenOptionsModal,
   onOpenLengthAdjustModal,
+  onActivateLayerOfSelectedShape,
+  onDuplicateSelectionOnLayerBelow,
+  onMoveSelectionToLayerBelow,
+  onMoveSelectionToAnotherLayer,
+  onHighlightShapesOnCurrentLayer,
+  onToggleLayerIgnored,
+  onToggleIndependentLayer,
   onEnableStitchOnSelection,
   onDisableStitchOnSelection,
   onMoveSelectionBackward,
@@ -864,6 +878,55 @@ export function EditorTopbar({
                 </button>
                 <button onClick={onOpenLayerColorModal} disabled={layers.length === 0}>
                   Colors
+                </button>
+                <button
+                  onClick={onActivateLayerOfSelectedShape}
+                  disabled={selectedShapeCount === 0}
+                  title="Activate the layer containing the selected shape"
+                >
+                  Activate Selected
+                </button>
+                <button
+                  onClick={onHighlightShapesOnCurrentLayer}
+                  disabled={!activeLayer}
+                  title="Select all shapes on the active layer"
+                >
+                  Highlight Layer
+                </button>
+                <button
+                  onClick={onMoveSelectionToAnotherLayer}
+                  disabled={selectedShapeCount === 0 || layers.length < 2}
+                  title="Move selection to another layer by name"
+                >
+                  Move To Layer…
+                </button>
+                <button
+                  onClick={onMoveSelectionToLayerBelow}
+                  disabled={selectedShapeCount === 0 || layers.length < 2}
+                  title="Move selection to the layer directly below the active one"
+                >
+                  Move To Below
+                </button>
+                <button
+                  onClick={onDuplicateSelectionOnLayerBelow}
+                  disabled={selectedShapeCount === 0 || layers.length < 2}
+                  title="Duplicate selection onto the layer directly below the active one"
+                >
+                  Duplicate To Below
+                </button>
+                <button
+                  onClick={onToggleLayerIgnored}
+                  disabled={!activeLayer}
+                  title="Toggle whether the active layer is ignored by operations"
+                >
+                  {activeLayer?.ignored ? 'Unignore' : 'Ignore'}
+                </button>
+                <button
+                  onClick={onToggleIndependentLayer}
+                  disabled={!activeLayer}
+                  title="Toggle whether the active layer is independent of linked-group transforms"
+                >
+                  {activeLayer?.independent ? 'Make Linked' : 'Make Independent'}
                 </button>
               </>
             )}

@@ -250,10 +250,12 @@ export function rebuildImportedDimensions(segments: RawDimensionSegment[], texts
     const layerId = text.layerId || fallbackLayerId
     const lineTypeId = fallbackLineTypeId
     if (!layerId || !lineTypeId) continue
+    // Small span centered on the label position; length must exceed the
+     // renderer's minimum (0.01mm) so the label is drawn.
     built.push({
       id: uid(),
-      start: { x: text.center.x - 0.001, y: text.center.y },
-      end: { x: text.center.x + 0.001, y: text.center.y },
+      start: { x: text.center.x - 0.5, y: text.center.y },
+      end: { x: text.center.x + 0.5, y: text.center.y },
       offsetMm: 0,
       text: text.text,
       layerId,

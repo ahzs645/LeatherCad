@@ -88,7 +88,7 @@ export function CanvasAnnotationLayer({
         </text>
       ))}
 
-      {showAnnotations && renderableOutlineChains.map((chain) => {
+      {showAnnotations && typeof window !== 'undefined' && window.localStorage?.getItem('leathercad_show_open_path_labels') === '1' && renderableOutlineChains.map((chain) => {
         const centroid = chain.polygon.reduce(
           (acc, point) => ({ x: acc.x + point.x / chain.polygon.length, y: acc.y + point.y / chain.polygon.length }),
           { x: 0, y: 0 },

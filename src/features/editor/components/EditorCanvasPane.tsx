@@ -20,6 +20,7 @@ import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
 import type { PrintPlan } from '../preview/print-preview'
 import { GRID_EXTENT } from '../editor-constants'
 import { computeAdaptiveSpacing } from '../ops/grid-spacing'
+import { CanvasEngineV2, isEngineV2Enabled } from '../render-v2/CanvasEngineV2'
 import type { CanvasInteractionPreview } from '../hooks/useCanvasInteractions'
 import { LayerLegendPanel } from './LayerLegendPanel'
 import { CanvasAnnotationLayer } from './canvas/CanvasAnnotationLayer'
@@ -355,8 +356,20 @@ export function EditorCanvasPane({
         .filter((entry): entry is { id: string; x: number; y: number; text: string } => entry !== null)
     : []
 
+  const engineV2 = isEngineV2Enabled()
+
   return (
-    <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`}>
+    <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`} style={{ position: 'relative' }}>
+      {engineV2 && (
+        <CanvasEngineV2
+          viewport={viewport}
+          gridSpacing={gridSpacing}
+          darkMode
+          shapes={visibleShapes}
+          width={ESTIMATED_CANVAS_WIDTH_PX}
+          height={ESTIMATED_CANVAS_HEIGHT_PX}
+        />
+      )}
       <svg
         ref={svgRef}
         className="canvas"

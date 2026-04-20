@@ -12,12 +12,15 @@ import { newLayerName } from '../editor-utils'
 type UseLayerActionsParams = {
   activeLayer: Layer | null
   layers: Layer[]
+  shapes: Shape[]
+  selectedShapeIdSet: Set<string>
   setLayers: Dispatch<SetStateAction<Layer[]>>
   setActiveLayerId: Dispatch<SetStateAction<string>>
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
+  setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setStatus: Dispatch<SetStateAction<string>>
 }
 
@@ -25,12 +28,15 @@ export function useLayerActions(params: UseLayerActionsParams) {
   const {
     activeLayer,
     layers,
+    shapes,
+    selectedShapeIdSet,
     setLayers,
     setActiveLayerId,
     setShapes,
     setSketchGroups,
     setHardwareMarkers,
     setConstraints,
+    setSelectedShapeIds,
     setStatus,
   } = params
 
@@ -207,6 +213,165 @@ export function useLayerActions(params: UseLayerActionsParams) {
     setStatus(`Deleted layer and moved its shapes to "${fallbackLayer.name}"`)
   }
 
+  const handleActivateLayerOfSelectedShape = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select a shape first to activate its layer')
+      return
+    }
+    const firstSelectedId = selectedShapeIdSet.values().next().value
+    const shape = shapes.find((entry) => entry.id === firstSelectedId)
+    if (!shape) {
+      setStatus('Could not resolve selection layer')
+      return
+    }
+    const targetLayer = layers.find((layer) => layer.id === shape.layerId)
+    if (!targetLayer) {
+      setStatus('Selected shape references a missing layer')
+      return
+    }
+    setActiveLayerId(targetLayer.id)
+    setStatus(`Active layer set to "${targetLayer.name}"`)
+  }
+
+  const findLayerBelow = (referenceLayer: Layer | null): Layer | null => {
+    if (!referenceLayer) return null
+    const index = layers.findIndex((layer) => layer.id === referenceLayer.id)
+    if (index < 0 || index + 1 >= layers.length) return null
+    return layers[index + 1]
+  }
+
+  const handleDuplicateSelectedShapesOnBelowLayer = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to duplicate')
+      return
+    }
+    const targetLayer = findLayerBelow(activeLayer)
+    if (!targetLayer) {
+      setStatus('No layer below the active one to duplicate onto')
+      return
+    }
+    const copies: Shape[] = shapes
+      .filter((shape) => selectedShapeIdSet.has(shape.id))
+      .map((shape) => ({ ...shape, id: uid(), layerId: targetLayer.id, groupId: undefined }))
+    if (copies.length === 0) {
+      setStatus('No shapes to duplicate')
+      return
+    }
+    setShapes((previous) => [...previous, ...copies])
+    setSelectedShapeIds(copies.map((shape) => shape.id))
+    setActiveLayerId(targetLayer.id)
+    setStatus(`Duplicated ${copies.length} shape${copies.length === 1 ? '' : 's'} to "${targetLayer.name}"`)
+  }
+
+  const handleMoveSelectedShapesToLayerBelow = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to move')
+      return
+    }
+    const targetLayer = findLayerBelow(activeLayer)
+    if (!targetLayer) {
+      setStatus('No layer below the active one to move onto')
+      return
+    }
+    setShapes((previous) =>
+      previous.map((shape) =>
+        selectedShapeIdSet.has(shape.id) ? { ...shape, layerId: targetLayer.id } : shape,
+      ),
+    )
+    setStatus(`Moved ${selectedShapeIdSet.size} shape${selectedShapeIdSet.size === 1 ? '' : 's'} to "${targetLayer.name}"`)
+  }
+
+  const handleMoveSelectedShapesToLayer = (targetLayerId: string) => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to move')
+      return
+    }
+    const targetLayer = layers.find((layer) => layer.id === targetLayerId)
+    if (!targetLayer) {
+      setStatus('Target layer not found')
+      return
+    }
+    setShapes((previous) =>
+      previous.map((shape) =>
+        selectedShapeIdSet.has(shape.id) ? { ...shape, layerId: targetLayer.id } : shape,
+      ),
+    )
+    setStatus(`Moved ${selectedShapeIdSet.size} shape${selectedShapeIdSet.size === 1 ? '' : 's'} to "${targetLayer.name}"`)
+  }
+
+  const handleMoveSelectedShapesToAnotherLayer = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to move')
+      return
+    }
+    const candidates = layers.filter((layer) => layer.id !== activeLayer?.id)
+    if (candidates.length === 0) {
+      setStatus('No other layer available as a move target')
+      return
+    }
+    const promptLines = [
+      'Move selected shapes to which layer? Type the layer name:',
+      ...candidates.map((layer) => `- ${layer.name}`),
+    ]
+    const raw = window.prompt(promptLines.join('\n'), candidates[0].name)?.trim()
+    if (!raw) {
+      setStatus('Move cancelled')
+      return
+    }
+    const target = candidates.find((layer) => layer.name === raw)
+    if (!target) {
+      setStatus(`No layer named "${raw}"`)
+      return
+    }
+    handleMoveSelectedShapesToLayer(target.id)
+  }
+
+  const handleHighlightShapesOnCurrentLayer = () => {
+    if (!activeLayer) {
+      setStatus('No active layer to highlight')
+      return
+    }
+    const layerShapeIds = shapes.filter((shape) => shape.layerId === activeLayer.id).map((shape) => shape.id)
+    if (layerShapeIds.length === 0) {
+      setStatus(`"${activeLayer.name}" has no shapes to highlight`)
+      return
+    }
+    setSelectedShapeIds(layerShapeIds)
+    setStatus(`Highlighted ${layerShapeIds.length} shape${layerShapeIds.length === 1 ? '' : 's'} on "${activeLayer.name}"`)
+  }
+
+  const handleToggleLayerIgnored = () => {
+    if (!activeLayer) {
+      setStatus('No active layer to ignore')
+      return
+    }
+    const nextIgnored = !(activeLayer.ignored === true)
+    setLayers((previous) =>
+      previous.map((layer) =>
+        layer.id === activeLayer.id ? { ...layer, ignored: nextIgnored } : layer,
+      ),
+    )
+    setStatus(nextIgnored ? `Ignoring layer "${activeLayer.name}"` : `Layer "${activeLayer.name}" no longer ignored`)
+  }
+
+  const handleToggleIndependentLayer = () => {
+    if (!activeLayer) {
+      setStatus('No active layer to toggle')
+      return
+    }
+    const nextIndependent = !(activeLayer.independent === true)
+    setLayers((previous) =>
+      previous.map((layer) =>
+        layer.id === activeLayer.id ? { ...layer, independent: nextIndependent } : layer,
+      ),
+    )
+    setStatus(
+      nextIndependent
+        ? `Layer "${activeLayer.name}" marked independent`
+        : `Layer "${activeLayer.name}" rejoined linked-group transforms`,
+    )
+  }
+
   return {
     handleAddLayer,
     handleRenameActiveLayer,
@@ -214,5 +379,13 @@ export function useLayerActions(params: UseLayerActionsParams) {
     handleToggleLayerLock,
     handleMoveLayer,
     handleDeleteLayer,
+    handleActivateLayerOfSelectedShape,
+    handleDuplicateSelectedShapesOnBelowLayer,
+    handleMoveSelectedShapesToLayerBelow,
+    handleMoveSelectedShapesToLayer,
+    handleMoveSelectedShapesToAnotherLayer,
+    handleHighlightShapesOnCurrentLayer,
+    handleToggleLayerIgnored,
+    handleToggleIndependentLayer,
   }
 }
