@@ -7,6 +7,7 @@ type OptionsModalProps = {
   exportIncludeText: boolean
   exportIncludeTemplateMetadata: boolean
   lineToolConstraint: 'none' | 'horizontal' | 'vertical'
+  gridBackgroundMode: 'light' | 'dark'
   onChangeAutoSaveEnabled: (value: boolean) => void
   onChangeReverseZoomDirection: (value: boolean) => void
   onChangeIncrementalSelection: (value: boolean) => void
@@ -14,6 +15,7 @@ type OptionsModalProps = {
   onChangeExportIncludeText: (value: boolean) => void
   onChangeExportIncludeTemplateMetadata: (value: boolean) => void
   onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical') => void
+  onChangeGridBackgroundMode: (value: 'light' | 'dark') => void
   onClose: () => void
 }
 
@@ -33,6 +35,8 @@ export function OptionsModal({
   onChangeExportIncludeTemplateMetadata,
   lineToolConstraint,
   onChangeLineToolConstraint,
+  gridBackgroundMode,
+  onChangeGridBackgroundMode,
   onClose,
 }: OptionsModalProps) {
   if (!open) {
@@ -87,6 +91,21 @@ export function OptionsModal({
                 onChange={() => onChangeLineToolConstraint(mode)}
               />
               <span>{mode === 'none' ? 'Free' : mode === 'horizontal' ? 'Horizontal only' : 'Vertical only'}</span>
+            </label>
+          ))}
+        </section>
+
+        <section className="help-section">
+          <h4>Grid background</h4>
+          {(['light', 'dark'] as const).map((mode) => (
+            <label className="layer-toggle-item" key={mode}>
+              <input
+                type="radio"
+                name="grid-background-mode"
+                checked={gridBackgroundMode === mode}
+                onChange={() => onChangeGridBackgroundMode(mode)}
+              />
+              <span>{mode === 'light' ? 'Light' : 'Dark'}</span>
             </label>
           ))}
         </section>

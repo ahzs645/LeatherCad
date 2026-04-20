@@ -206,6 +206,8 @@ export function useEditorScreenController() {
     lineToolConstraint, setLineToolConstraint,
     leatherSimEnabled,
     setTranslationMap,
+    showGrid, setShowGrid,
+    gridBackgroundMode, setGridBackgroundMode,
     showLengthAdjustModal, setShowLengthAdjustModal,
     showOptionsModal, setShowOptionsModal,
     leatherSimTextureRotationDeg,
@@ -779,6 +781,16 @@ export function useEditorScreenController() {
       setShowBezierOffsetLines(false)
       setStatus('Bezier offset guides hidden')
     },
+    handleToggleGrid: () => {
+      setShowGrid((previous) => !previous)
+    },
+    handleBackToSelectMode: () => {
+      setActiveTool('pan')
+    },
+    handleRotateSelectionBy: (angleDeg: number) => {
+      if (selectedShapeIdSet.size === 0) return
+      handleRotateSelection(angleDeg)
+    },
     handleNudgeSelection: (dxMm: number, dyMm: number) => {
       if (selectedShapeIdSet.size === 0) return
       setShapes((previous) =>
@@ -843,6 +855,17 @@ export function useEditorScreenController() {
     onWheelScaleSelection: (factor: number) => {
       if (selectedShapeIdSet.size === 0) return
       handleScaleSelection(factor)
+    },
+    onWheelAdjustThickness: (deltaSteps: number) => {
+      if (selectedShapeIdSet.size === 0) return
+      setShapes((previous) =>
+        previous.map((shape) => {
+          if (!selectedShapeIdSet.has(shape.id)) return shape
+          const current = shape.strokeWidthOverride ?? 2
+          const next = Math.max(0.2, Math.min(12, current + deltaSteps * 0.3))
+          return { ...shape, strokeWidthOverride: Math.round(next * 100) / 100 }
+        }),
+      )
     },
     onPickLineTypeFromShape: (shapeId: string) => {
       const shape = shapesById[shapeId]
@@ -1439,6 +1462,22 @@ export function useEditorScreenController() {
     },
     handleOpenSecretFeatures: () => setShowWizardModal(true),
     handleImportTranslation: () => translationInputRef.current?.click(),
+    handleClearAll: () => {
+      if (shapes.length === 0 && stitchHoles.length === 0 && foldLines.length === 0) {
+        setStatus('Canvas already empty')
+        return
+      }
+      const confirmed = window.confirm(
+        'Clear all shapes, stitch holes, and fold lines? Layers and line types stay put.',
+      )
+      if (!confirmed) return
+      setShapes([])
+      setStitchHoles([])
+      setFoldLines([])
+      setSelectedShapeIds([])
+      setSelectedStitchHoleId(null)
+      setStatus('Canvas cleared')
+    },
     handleStampSimulator: () => {
       if (selectedShapeIdSet.size === 0) {
         setStatus('Select one or more shapes to stamp')
@@ -2052,6 +2091,8 @@ export function useEditorScreenController() {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
+      showGrid,
+      gridBackgroundMode,
       buildCanvasContextMenuItems: () => {
         const items: Array<{ id: string; label: string; disabled?: boolean; onSelect: () => void }> = []
         if (selectedShapeIdSet.size > 0) {
@@ -2332,6 +2373,8 @@ export function useEditorScreenController() {
             })
           },
           lineToolConstraint,
+          gridBackgroundMode,
+          onChangeGridBackgroundMode: (value: 'light' | 'dark') => setGridBackgroundMode(value),
           onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical') => {
             setLineToolConstraint(value)
             saveEditorPreferences({

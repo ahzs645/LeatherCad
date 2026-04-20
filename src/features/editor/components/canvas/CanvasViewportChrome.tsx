@@ -8,6 +8,8 @@ type CanvasViewportChromeProps = {
   gridSpacing: number
   gridExtent: number
   showCanvasRuler: boolean
+  showGrid?: boolean
+  gridBackgroundMode?: 'light' | 'dark'
   displayUnit: DisplayUnit
   tracingOverlays: import('../../cad/cad-types').TracingOverlay[]
   showPrintAreas: boolean
@@ -23,6 +25,8 @@ export function CanvasViewportChrome({
   gridSpacing,
   gridExtent,
   showCanvasRuler,
+  showGrid = true,
+  gridBackgroundMode = 'light',
   displayUnit,
   tracingOverlays,
   showPrintAreas,
@@ -51,13 +55,24 @@ export function CanvasViewportChrome({
       </defs>
 
       <g className="canvas-grid-layer" style={{ pointerEvents: 'none' }}>
-        <rect
-          x={-gridExtent}
-          y={-gridExtent}
-          width={gridExtent * 2}
-          height={gridExtent * 2}
-          fill={`url(#${majorGridPatternId})`}
-        />
+        {gridBackgroundMode === 'dark' && (
+          <rect
+            x={-gridExtent}
+            y={-gridExtent}
+            width={gridExtent * 2}
+            height={gridExtent * 2}
+            fill="#0f172a"
+          />
+        )}
+        {showGrid && (
+          <rect
+            x={-gridExtent}
+            y={-gridExtent}
+            width={gridExtent * 2}
+            height={gridExtent * 2}
+            fill={`url(#${majorGridPatternId})`}
+          />
+        )}
         <line x1={-gridExtent} y1={0} x2={gridExtent} y2={0} className="axis-line" />
         <line x1={0} y1={-gridExtent} x2={0} y2={gridExtent} className="axis-line" />
       </g>

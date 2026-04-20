@@ -65,6 +65,7 @@ type UseEditorTopbarPropsParams = {
   handleOpenLengthAdjustModal: () => void
   handleImportTranslation: () => void
   handleStampSimulator: () => void
+  handleClearAll: () => void
   handleActivateLayerOfSelectedShape: () => void
   handleDuplicateSelectedShapesOnBelowLayer: () => void
   handleMoveSelectedShapesToLayerBelow: () => void
@@ -176,6 +177,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleOpenLengthAdjustModal,
     handleImportTranslation,
     handleStampSimulator,
+    handleClearAll,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,
@@ -440,6 +442,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onOpenLengthAdjustModal: handleOpenLengthAdjustModal,
     onImportTranslation: handleImportTranslation,
     onStampSimulator: handleStampSimulator,
+    onClearAll: handleClearAll,
     onActivateLayerOfSelectedShape: handleActivateLayerOfSelectedShape,
     onDuplicateSelectionOnLayerBelow: handleDuplicateSelectedShapesOnBelowLayer,
     onMoveSelectionToLayerBelow: handleMoveSelectedShapesToLayerBelow,

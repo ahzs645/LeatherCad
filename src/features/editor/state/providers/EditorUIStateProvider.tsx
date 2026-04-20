@@ -69,6 +69,8 @@ const initialEditorUIState: EditorUIState = {
   lineToolConstraint: loadEditorPreferences().lineToolConstraint,
   leatherSimEnabled: false,
   translationMap: loadTranslationMap(),
+  showGrid: true,
+  gridBackgroundMode: 'light',
   showLengthAdjustModal: false,
   showOptionsModal: false,
   leatherSimTextureRotationDeg: loadEditorPreferences().leatherSimTextureRotationDeg,
@@ -186,6 +188,10 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'leatherSimEnabled', value }),
     setTranslationMap: (value: React.SetStateAction<EditorUIState['translationMap']>) =>
       dispatch({ type: 'translationMap', value }),
+    setShowGrid: (value: React.SetStateAction<EditorUIState['showGrid']>) =>
+      dispatch({ type: 'showGrid', value }),
+    setGridBackgroundMode: (value: React.SetStateAction<EditorUIState['gridBackgroundMode']>) =>
+      dispatch({ type: 'gridBackgroundMode', value }),
     setShowLengthAdjustModal: (value: React.SetStateAction<EditorUIState['showLengthAdjustModal']>) =>
       dispatch({ type: 'showLengthAdjustModal', value }),
     setShowOptionsModal: (value: React.SetStateAction<EditorUIState['showOptionsModal']>) =>

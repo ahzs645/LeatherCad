@@ -15,6 +15,9 @@ type UseKeyboardShortcutsParams = {
   handleNudgeSelection: (dxMm: number, dyMm: number) => void
   handleToggleCanvasRuler: () => void
   handleHideBezierOffsetGuides: () => void
+  handleToggleGrid: () => void
+  handleBackToSelectMode: () => void
+  handleRotateSelectionBy: (angleDeg: number) => void
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -31,6 +34,9 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleNudgeSelection,
     handleToggleCanvasRuler,
     handleHideBezierOffsetGuides,
+    handleToggleGrid,
+    handleBackToSelectMode,
+    handleRotateSelectionBy,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
@@ -66,6 +72,37 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
           if ((event.key === 'J' || event.key === 'j') && event.shiftKey) {
             event.preventDefault()
             handleHideBezierOffsetGuides()
+            return
+          }
+          if ((event.key === 'g' || event.key === 'G') && !event.shiftKey) {
+            event.preventDefault()
+            handleToggleGrid()
+            return
+          }
+          if ((event.key === 'v' || event.key === 'V') && !event.shiftKey) {
+            event.preventDefault()
+            handleBackToSelectMode()
+            return
+          }
+          // Rotation hotkeys: [ = CCW 1, ] = CW 1, { = CCW 5, } = CW 5
+          if (event.key === '[') {
+            event.preventDefault()
+            handleRotateSelectionBy(-1)
+            return
+          }
+          if (event.key === ']') {
+            event.preventDefault()
+            handleRotateSelectionBy(1)
+            return
+          }
+          if (event.key === '{') {
+            event.preventDefault()
+            handleRotateSelectionBy(-5)
+            return
+          }
+          if (event.key === '}') {
+            event.preventDefault()
+            handleRotateSelectionBy(5)
             return
           }
         }
@@ -154,5 +191,8 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleNudgeSelection,
     handleToggleCanvasRuler,
     handleHideBezierOffsetGuides,
+    handleToggleGrid,
+    handleBackToSelectMode,
+    handleRotateSelectionBy,
   ])
 }

@@ -127,6 +127,8 @@ export type EditorUIState = {
   lineToolConstraint: 'none' | 'horizontal' | 'vertical'
   leatherSimEnabled: boolean
   translationMap: Record<string, string>
+  showGrid: boolean
+  gridBackgroundMode: 'light' | 'dark'
   showLengthAdjustModal: boolean
   showOptionsModal: boolean
   leatherSimTextureRotationDeg: number

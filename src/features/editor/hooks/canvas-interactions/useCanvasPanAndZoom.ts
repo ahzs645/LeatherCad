@@ -13,6 +13,7 @@ type UseCanvasPanAndZoomParams = {
   reverseZoomDirection?: boolean
   onWheelRotateSelection?: (deltaDeg: number) => void
   onWheelScaleSelection?: (factor: number) => void
+  onWheelAdjustThickness?: (deltaSteps: number) => void
 }
 
 export function useCanvasPanAndZoom({
@@ -23,6 +24,7 @@ export function useCanvasPanAndZoom({
   reverseZoomDirection = false,
   onWheelRotateSelection,
   onWheelScaleSelection,
+  onWheelAdjustThickness,
 }: UseCanvasPanAndZoomParams) {
   useEffect(() => {
     const svg = svgRef.current
@@ -65,14 +67,20 @@ export function useCanvasPanAndZoom({
 
       // Mouse-wheel modifiers (mirror source-app):
       // - Alt+Shift wheel  → scale selection (1% per tick)
-      // - Alt wheel        → rotate selection (1° per tick)
+      // - Alt wheel        → adjust line thickness on selection
+      // - Shift wheel      → rotate selection (1° per tick)
       // The plain/Ctrl wheel stays as zoom so pinch-zoom still works on trackpads.
       if (event.altKey && event.shiftKey && onWheelScaleSelection) {
         const factor = event.deltaY < 0 ? 1.01 : 0.99
         onWheelScaleSelection(factor)
         return
       }
-      if (event.altKey && onWheelRotateSelection) {
+      if (event.altKey && onWheelAdjustThickness) {
+        const deltaSteps = event.deltaY < 0 ? 1 : -1
+        onWheelAdjustThickness(deltaSteps)
+        return
+      }
+      if (event.shiftKey && !event.ctrlKey && !event.metaKey && onWheelRotateSelection) {
         const deltaDeg = event.deltaY < 0 ? 1 : -1
         onWheelRotateSelection(deltaDeg)
         return
@@ -102,7 +110,14 @@ export function useCanvasPanAndZoom({
     return () => {
       svg.removeEventListener('wheel', handleWheel)
     }
-  }, [setViewport, svgRef, reverseZoomDirection, onWheelRotateSelection, onWheelScaleSelection])
+  }, [
+    setViewport,
+    svgRef,
+    reverseZoomDirection,
+    onWheelRotateSelection,
+    onWheelScaleSelection,
+    onWheelAdjustThickness,
+  ])
 
   const beginPan = (clientX: number, clientY: number, pointerId: number) => {
     panRef.current = {

@@ -44,6 +44,7 @@ type UseCanvasInteractionsParams = {
   lineToolConstraint?: 'none' | 'horizontal' | 'vertical'
   onWheelRotateSelection?: (deltaDeg: number) => void
   onWheelScaleSelection?: (factor: number) => void
+  onWheelAdjustThickness?: (deltaSteps: number) => void
   onPickLineTypeFromShape?: (shapeId: string) => void
   stitchTargetShapes: Shape[]
   visibleHardwareMarkers: HardwareMarker[]
@@ -94,6 +95,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     lineToolConstraint = 'none',
     onWheelRotateSelection,
     onWheelScaleSelection,
+    onWheelAdjustThickness,
     onPickLineTypeFromShape,
     stitchTargetShapes,
     visibleHardwareMarkers,
@@ -190,6 +192,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     reverseZoomDirection,
     onWheelRotateSelection,
     onWheelScaleSelection,
+    onWheelAdjustThickness,
   })
 
   const { handleStitchHolePointerDown, handleHardwarePointerDown } = useCanvasSelectionInteractions({

@@ -60,6 +60,8 @@ export type EditorCanvasPaneProps = {
   onPointerMove: PointerEventHandler<SVGSVGElement>
   onPointerUp: PointerEventHandler<SVGSVGElement>
   buildCanvasContextMenuItems?: () => ContextMenuItem[]
+  showGrid?: boolean
+  gridBackgroundMode?: 'light' | 'dark'
   viewport: Viewport
   displayUnit: DisplayUnit
   gridSpacing: number
@@ -131,6 +133,8 @@ export function EditorCanvasPane({
   onPointerMove,
   onPointerUp,
   buildCanvasContextMenuItems,
+  showGrid = true,
+  gridBackgroundMode = 'light',
   viewport,
   displayUnit,
   gridSpacing,
@@ -398,6 +402,8 @@ export function EditorCanvasPane({
             gridSpacing={majorGridStep}
             gridExtent={GRID_EXTENT}
             showCanvasRuler={showCanvasRuler}
+            showGrid={showGrid}
+            gridBackgroundMode={gridBackgroundMode}
             displayUnit={displayUnit}
             tracingOverlays={tracingOverlays}
             showPrintAreas={showPrintAreas}

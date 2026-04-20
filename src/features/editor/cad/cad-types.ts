@@ -49,6 +49,8 @@ type BaseShape = {
   boxStitchSource?: BoxStitchSource
   /** Fill color (hex) — renders closed paths as painted regions. Source-app "Painted Part". */
   fillColor?: string
+  /** Override stroke width (SVG units). When unset, use the line type default. */
+  strokeWidthOverride?: number
 }
 
 export type LineShape = {
