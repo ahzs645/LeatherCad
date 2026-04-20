@@ -16,9 +16,9 @@ actChangeStitchingHoleShape,actChangeStitchingHoleShape,TfrmLeat;TfrmLeat_Macint
 actChangeThreadColor,actChangeThreadColor;actChangeThreadColorExecute,TfrmLeat,Other,LC-MVP-009,Stitching,MVP,mapped,
 actClearAll,actClearAll,TfrmLeat,ProjectLifecycle,,,,unmapped,
 actClose,actClose;actCloseExecute,TfrmLeat;TfrmLeat_Macintosh,ProjectLifecycle,,,,implemented,src/features/editor/useEditorScreenController.ts
-actConvertACopyToPath,actConvertACopyToPath;actConvertACopyToPathExecute,TfrmLeat,GeometryEdit,,,,unmapped,
+actConvertACopyToPath,actConvertACopyToPath;actConvertACopyToPathExecute,TfrmLeat,GeometryEdit,,,,implemented,src/features/editor/ops/geometry-editing-ops.ts
 actConvertArcToBezier,actConvertArcToBezier;actConvertArcToBezierExecute,TfrmLeat,GeometryEdit,LC-MVP-007,Geometry,MVP,mapped,
-actConvertToPath,actConvertToPath;actConvertToPathExecute,TfrmLeat,GeometryEdit,,,,unmapped,
+actConvertToPath,actConvertToPath;actConvertToPathExecute,TfrmLeat,GeometryEdit,,,,implemented,src/features/editor/ops/geometry-editing-ops.ts
 actCopyToClipboard,actCopyToClipboard;actCopyToClipboardExecute,TfrmLeat;TfrmLeat_Macintosh,Other,LC-MVP-006,Editing,MVP,mapped,
 actCreateGroup,actCreateGroup;actCreateGroupExecute,TfrmLeat;TfrmLeat_Macintosh,SelectionOrdering,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actCutToClipboard,actCutToClipboard;actCutToClipboardExecute,TfrmLeat;TfrmLeat_Macintosh,Other,LC-MVP-006,Editing,MVP,mapped,

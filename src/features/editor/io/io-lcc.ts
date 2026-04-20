@@ -156,8 +156,11 @@ export function importLccDocument(raw: string): LccImportResult {
       case 'LINE': {
         const isDimension = lccShape.dim === '-1'
         if (isDimension) {
+          // Still collect for logical-dimension reconstruction (used by the
+          // summary and by callers that want structured dims). The actual
+          // rendering geometry is also kept as a real LineShape below so the
+          // source file's arrows / extension lines display verbatim.
           skippedDimensionShapes++
-
           rawDimensionSegments.push({
             start: pt(lccShape.sp),
             end: pt(lccShape.ep),
@@ -166,7 +169,7 @@ export function importLccDocument(raw: string): LccImportResult {
             layerId,
             lineTypeId,
           })
-          break
+          // Fall through to the regular LINE path so the segment renders.
         }
 
         const hasArrowStart = lccShape.arst === '-1'
@@ -283,28 +286,63 @@ export function importLccDocument(raw: string): LccImportResult {
           break
         }
 
-        // Skip dimension label text (e.g. "28mm") – these are
-        // rebuilt into logical DimensionLine entries after the import pass.
+        // Dimension label text (e.g. "28mm"): keep a structured record for
+        // the optional logical reconstruction, but also render the text
+        // verbatim as a regular TextShape so the label displays at the
+        // position the source file authored.
         if (lccShape.dim === '-1') {
           skippedDimensionShapes++
           rawDimensionTexts.push({
             text,
-            center: midpoint(pt(lccShape.sp), pt(lccShape.ep)),
+            center: pt(lccShape.sp),
             layerId,
           })
-          break
+          // Fall through to emit a TextShape below.
         }
 
+        // LCC stores text rotation in the `rt` field (degrees, clockwise in
+        // the source's Y-down coordinate system). Its `ep` field is not a
+        // second baseline endpoint — it's a text-metrics offset that, if
+        // used naively, produces a mirrored / upside-down baseline. Build
+        // the baseline from `sp` + `rt` instead, with an approximate length
+        // derived from font size and character count, so each label reads
+        // the way it was authored.
+        const lccFontSizeMm = parseLccFloat(lccShape.fs) || 10
+        const isDimLabel = lccShape.dim === '-1'
+        // Dim labels: source files author these at a size that ends up a
+        // touch heavy next to thin extension lines. Shrink slightly and
+        // nudge the anchor off the arrow line so the label reads as "above"
+        // the dimension rather than sitting on it.
+        const fontSizeMm = isDimLabel ? lccFontSizeMm * 0.75 : lccFontSizeMm
+        const rotationDeg = parseLccFloat(lccShape.rt) || 0
+        const baselineLenMm = Math.max(fontSizeMm * text.length * 0.6, fontSizeMm)
+        // LCC Y-down + clockwise rotation maps to our coord system as-is:
+        // rt=0 → baseline points +x (right), rt=90 → +y (down),
+        // rt=180 → -x (left), rt=270 → -y (up).
+        const angleRad = (rotationDeg * Math.PI) / 180
+        const cos = Math.cos(angleRad)
+        const sin = Math.sin(angleRad)
+        // Perpendicular to the baseline, pointing "above" the text in
+        // reading orientation (screen-up for horizontal text).
+        const liftMm = isDimLabel ? fontSizeMm * 0.6 : 0
+        const spPoint = pt(lccShape.sp)
+        const anchor = {
+          x: spPoint.x + sin * liftMm,
+          y: spPoint.y - cos * liftMm,
+        }
         const textShape: TextShape = {
           id: uid(),
           type: 'text',
           layerId,
           lineTypeId,
-          start: pt(lccShape.sp),
-          end: pt(lccShape.ep),
+          start: anchor,
+          end: {
+            x: anchor.x + cos * baselineLenMm,
+            y: anchor.y + sin * baselineLenMm,
+          },
           text,
           fontFamily: lccShape.ff || 'sans-serif',
-          fontSizeMm: parseLccFloat(lccShape.fs) || 10,
+          fontSizeMm,
           transform: 'none',
           radiusMm: 0,
           sweepDeg: 0,
@@ -361,9 +399,14 @@ export function importLccDocument(raw: string): LccImportResult {
     objects: shapes,
     foldLines: [],
     stitchHoles,
-    dimensionLines: dimensionLines.length > 0 ? dimensionLines : undefined,
+    // The raw dimension geometry (extension lines, arrow segments, labels)
+    // is imported verbatim as regular Shape entries above, so the source
+    // file's dimensions render without needing a logical reconstruction.
+    // We leave dimensionLines undefined and showDimensions off to avoid
+    // drawing a second, approximate dimension overlay on top of them.
+    dimensionLines: undefined,
     printAreas: printAreas.length > 0 ? printAreas : undefined,
-    showDimensions: dimensionLines.length > 0,
+    showDimensions: false,
   }
 
   return {

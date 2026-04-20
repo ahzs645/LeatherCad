@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MandalaSettings, GoldenSpiralParams } from '../ops/mandala-ops'
 
-type MandalaTab = 'radial' | 'spiral' | 'golden'
+type MandalaTab = 'radial' | 'spiral' | 'golden' | 'silver'
 
 type MandalaModalProps = {
   open: boolean
@@ -9,6 +9,7 @@ type MandalaModalProps = {
   onGenerateRadial: (settings: MandalaSettings) => void
   onGenerateSpiral: (params: GoldenSpiralParams) => void
   onGenerateGoldenGuides: (center: { x: number; y: number }, size: number) => void
+  onGenerateWhiteSilverGuides: (center: { x: number; y: number }, size: number) => void
   defaultLayerId: string
   defaultLineTypeId: string
 }
@@ -19,6 +20,7 @@ export function MandalaModal({
   onGenerateRadial,
   onGenerateSpiral,
   onGenerateGoldenGuides,
+  onGenerateWhiteSilverGuides,
   defaultLayerId,
   defaultLineTypeId,
 }: MandalaModalProps) {
@@ -69,6 +71,10 @@ export function MandalaModal({
     onGenerateGoldenGuides({ x: goldenCenterX, y: goldenCenterY }, goldenSize)
   }
 
+  function handleGenerateSilver() {
+    onGenerateWhiteSilverGuides({ x: goldenCenterX, y: goldenCenterY }, goldenSize)
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose} aria-label="Mandala and Golden Ratio Tools">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -92,6 +98,12 @@ export function MandalaModal({
             onClick={() => setActiveTab('golden')}
           >
             Golden Ratio
+          </button>
+          <button
+            className={activeTab === 'silver' ? 'active' : ''}
+            onClick={() => setActiveTab('silver')}
+          >
+            White-Silver
           </button>
         </div>
 
@@ -248,6 +260,48 @@ export function MandalaModal({
             </div>
           </>
         )}
+
+        {activeTab === 'silver' && (
+          <>
+            <p>
+              White-silver ratio guides (1:√2). Uses the same center and size fields as the
+              golden-ratio tab.
+            </p>
+            <label className="field-row">
+              <span>Center X</span>
+              <input
+                type="number"
+                step={1}
+                value={goldenCenterX}
+                onChange={(e) => setGoldenCenterX(Number(e.target.value))}
+              />
+            </label>
+            <label className="field-row">
+              <span>Center Y</span>
+              <input
+                type="number"
+                step={1}
+                value={goldenCenterY}
+                onChange={(e) => setGoldenCenterY(Number(e.target.value))}
+              />
+            </label>
+            <label className="field-row">
+              <span>Size (mm)</span>
+              <input
+                type="number"
+                min={10}
+                step={10}
+                value={goldenSize}
+                onChange={(e) => setGoldenSize(Number(e.target.value))}
+              />
+            </label>
+            <div className="modal-actions">
+              <button onClick={onClose}>Cancel</button>
+              <button onClick={handleGenerateSilver}>Generate</button>
+            </div>
+          </>
+        )}
+
       </div>
     </div>
   )

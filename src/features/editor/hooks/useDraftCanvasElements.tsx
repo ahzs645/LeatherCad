@@ -7,6 +7,35 @@ type UseDraftPreviewElementParams = {
   activeLineTypeDasharray: string | undefined
 }
 
+export function useSnapIndicatorElement() {
+  const snapIndicator = useEditorToolSelector((state) => state.snapIndicator)
+  return useMemo(() => {
+    if (!snapIndicator) return null
+    const { point, reason } = snapIndicator
+    return (
+      <g className="snap-indicator" pointerEvents="none">
+        <circle cx={point.x} cy={point.y} r={4} fill="none" stroke="#10b981" strokeWidth={1.5} />
+        <circle cx={point.x} cy={point.y} r={1.2} fill="#10b981" />
+        <title>{`Snapped to ${reason}`}</title>
+      </g>
+    )
+  }, [snapIndicator])
+}
+
+export function useCombinedDraftAndSnapElement(params: UseDraftPreviewElementParams) {
+  const draft = useDraftPreviewElement(params)
+  const snap = useSnapIndicatorElement()
+  return useMemo(() => {
+    if (!draft && !snap) return null
+    return (
+      <>
+        {draft}
+        {snap}
+      </>
+    )
+  }, [draft, snap])
+}
+
 export function useDraftPreviewElement(params: UseDraftPreviewElementParams) {
   const { activeLineTypeStrokeColor, activeLineTypeDasharray } = params
   const { cursorPoint, draftPoints, tool } = useEditorToolSelector((state) => ({

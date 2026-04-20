@@ -45,7 +45,7 @@ import { useEditorGlobalBindings } from './hooks/useEditorGlobalBindings'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
-import { useDraftPreviewElement } from './hooks/useDraftCanvasElements'
+import { useCombinedDraftAndSnapElement } from './hooks/useDraftCanvasElements'
 import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
 import { useEditorLayoutFlags } from './hooks/useEditorLayoutFlags'
 import { useLoadedDocumentActions } from './hooks/useLoadedDocumentActions'
@@ -480,7 +480,7 @@ export function useEditorScreenController() {
     applyLoadedDocument,
   })
 
-  const previewElement = useDraftPreviewElement({
+  const previewElement = useCombinedDraftAndSnapElement({
     activeLineTypeStrokeColor,
     activeLineTypeDasharray,
   })
@@ -765,6 +765,25 @@ export function useEditorScreenController() {
       setSelectedShapeIds([])
       setSelectedStitchHoleId(null)
       setSelectedHardwareMarkerId(null)
+    },
+    handleNudgeSelection: (dxMm: number, dyMm: number) => {
+      if (selectedShapeIdSet.size === 0) return
+      setShapes((previous) =>
+        previous.map((shape) => {
+          if (!selectedShapeIdSet.has(shape.id)) return shape
+          const offset = (point: { x: number; y: number }) => ({
+            x: point.x + dxMm,
+            y: point.y + dyMm,
+          })
+          if (shape.type === 'line' || shape.type === 'text') {
+            return { ...shape, start: offset(shape.start), end: offset(shape.end) }
+          }
+          if (shape.type === 'arc') {
+            return { ...shape, start: offset(shape.start), mid: offset(shape.mid), end: offset(shape.end) }
+          }
+          return { ...shape, start: offset(shape.start), control: offset(shape.control), end: offset(shape.end) }
+        }),
+      )
     },
   })
 
@@ -1114,6 +1133,7 @@ export function useEditorScreenController() {
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
+    handleAutoPlaceEvenlySpacedStitchHoles,
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,
@@ -1143,6 +1163,9 @@ export function useEditorScreenController() {
     handleDeleteDuplicates,
     handleSplitIntoN,
     handleDrawBoundaryAroundSelection,
+    handleFilletSelectedCorner,
+    handleDistanceMarkSelectedPath,
+    handleConvertSelectionToPath,
   } = useGeometryEditingActions({
     shapes,
     setShapes,
@@ -1167,6 +1190,7 @@ export function useEditorScreenController() {
     handleGenerateMandalaRadial,
     handleGenerateSpiral,
     handleGenerateGoldenGuides,
+    handleGenerateWhiteSilverGuides,
     handleGenerateWizardPattern,
     handleGenerateLetterStamp,
   } = useEditorCreationController({
@@ -1384,6 +1408,40 @@ export function useEditorScreenController() {
     handleHighlightShapesOnCurrentLayer,
     handleToggleLayerIgnored,
     handleToggleIndependentLayer,
+    handleFilletSelectedCornerPrompt: () => {
+      const raw = window.prompt('Fillet (chamfer) radius in mm?', '2')
+      if (raw === null) {
+        setStatus('Fillet cancelled')
+        return
+      }
+      const radius = Number(raw)
+      if (!Number.isFinite(radius) || radius <= 0) {
+        setStatus('Fillet radius must be positive')
+        return
+      }
+      handleFilletSelectedCorner(radius)
+    },
+    handleDistanceMarkSelectedPathPrompt: () => {
+      const raw = window.prompt(
+        'Distance(s) in mm from the start of the selected path (comma-separated):',
+        '10, 30',
+      )
+      if (raw === null) {
+        setStatus('Distance marking cancelled')
+        return
+      }
+      const parsed = raw
+        .split(',')
+        .map((entry) => Number(entry.trim()))
+        .filter((entry) => Number.isFinite(entry) && entry >= 0)
+      if (parsed.length === 0) {
+        setStatus('No valid distances provided')
+        return
+      }
+      handleDistanceMarkSelectedPath(parsed)
+    },
+    handleConvertSelectionToPath: () => handleConvertSelectionToPath(false),
+    handleConvertACopyToPath: () => handleConvertSelectionToPath(true),
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -1396,6 +1454,19 @@ export function useEditorScreenController() {
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
+    handleAutoPlaceEvenlySpacedStitchHolesPrompt: () => {
+      const raw = window.prompt('How many holes to place evenly on the selected path?', '10')
+      if (raw === null) {
+        setStatus('Even placement cancelled')
+        return
+      }
+      const count = Number(raw)
+      if (!Number.isInteger(count) || count < 2) {
+        setStatus('Hole count must be an integer ≥ 2')
+        return
+      }
+      handleAutoPlaceEvenlySpacedStitchHoles(count)
+    },
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,
@@ -1991,6 +2062,7 @@ export function useEditorScreenController() {
           onGenerateRadial: handleGenerateMandalaRadial,
           onGenerateSpiral: handleGenerateSpiral,
           onGenerateGoldenGuides: handleGenerateGoldenGuides,
+          onGenerateWhiteSilverGuides: handleGenerateWhiteSilverGuides,
           defaultLayerId: activeLayerId,
           defaultLineTypeId: activeLineTypeId,
         },

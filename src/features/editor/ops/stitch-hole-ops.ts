@@ -477,6 +477,63 @@ function stitchDistancesForPitch(
   return targets
 }
 
+/**
+ * Place exactly `count` stitch holes evenly across the entire length of a path
+ * (or a segment of it, if `startDistanceMm` / `endDistanceMm` are provided).
+ * Source-app: "evenly place a specified number of stitching holes along a
+ * specified section" (v2.5.6 release notes).
+ */
+export function generateEvenlySpacedStitchHoles(
+  shape: Shape,
+  count: number,
+  defaults: StitchHoleDefaults,
+  sequenceStart = 0,
+  options: AutoPitchGenerationOptions & {
+    startDistanceMm?: number
+    endDistanceMm?: number
+  } = {},
+) {
+  if (!Number.isInteger(count) || count < 2) {
+    return [] as StitchHole[]
+  }
+  const polyline = shapePolyline(shape, options.solverSteps ?? 6)
+  if (polyline.length < 2) {
+    return [] as StitchHole[]
+  }
+  const lengths = cumulativeLengths(polyline)
+  const totalLength = lengths[lengths.length - 1]
+  if (totalLength < 1e-6) {
+    return [] as StitchHole[]
+  }
+
+  const startDist = Math.max(0, Math.min(totalLength, options.startDistanceMm ?? 0))
+  const endDist = Math.max(startDist, Math.min(totalLength, options.endDistanceMm ?? totalLength))
+  const span = endDist - startDist
+  if (span < 1e-6) {
+    return [] as StitchHole[]
+  }
+
+  const holes: StitchHole[] = []
+  for (let i = 0; i < count; i++) {
+    const d = startDist + (span * i) / (count - 1)
+    const projected = pointAtDistance(polyline, lengths, d)
+    if (!projected) continue
+    holes.push({
+      ...applyStitchHoleDefaults(
+        {
+          shapeId: shape.id,
+          point: projected.point,
+          angleDeg: projected.angleDeg,
+        },
+        defaults,
+      ),
+      sequence: sequenceStart + i,
+    })
+  }
+
+  return holes
+}
+
 export function generateFixedPitchStitchHoles(
   shape: Shape,
   pitchMm: number,

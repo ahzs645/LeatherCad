@@ -9,6 +9,7 @@ import type {
 import {
   deleteStitchHolesForShapes,
   fixStitchHoleOrderFromHole,
+  generateEvenlySpacedStitchHoles,
   generateFixedPitchStitchHoles,
   generateVariablePitchStitchHoles,
   normalizeStitchHoleSequences,
@@ -256,6 +257,28 @@ export function useStitchActions(params: UseStitchActionsParams) {
     handleAutoPlaceFixedPitchStitchHoles()
   }
 
+  const handleAutoPlaceEvenlySpacedStitchHoles = (count: number) => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more stitch paths first')
+      return
+    }
+    const selectedStitchShapes = getSelectedStitchShapes()
+    if (selectedStitchShapes.length === 0) {
+      setStatus('Selected shapes are not stitch-role paths')
+      return
+    }
+    if (!Number.isInteger(count) || count < 2) {
+      setStatus('Hole count must be an integer ≥ 2')
+      return
+    }
+    const { generatedCount } = applyAutoPlacement(selectedStitchShapes, (shape, sequenceStart, options) =>
+      generateEvenlySpacedStitchHoles(shape, count, stitchHoleDefaults, sequenceStart, options),
+    )
+    setStatus(
+      `Placed ${generatedCount} evenly spaced stitch hole${generatedCount === 1 ? '' : 's'} on ${selectedStitchShapes.length} path${selectedStitchShapes.length === 1 ? '' : 's'}`,
+    )
+  }
+
   const handleResequenceSelectedStitchHoles = (reverse = false) => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more stitch paths first')
@@ -362,6 +385,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
+    handleAutoPlaceEvenlySpacedStitchHoles,
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,

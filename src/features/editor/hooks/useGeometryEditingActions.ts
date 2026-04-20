@@ -1,11 +1,14 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { Shape, BezierShape, ArcShape, LineShape, Point } from '../cad/cad-types'
-import { distance } from '../cad/cad-geometry'
+import { distance, uid } from '../cad/cad-geometry'
 import {
   buildBoundaryLines,
   buildCenterLineBetween,
+  buildDistanceMarks,
   convertArcToBezier,
+  convertShapeToPathBeziers,
   extendLineToShape,
+  filletCorner,
   findNearestIntersection,
   makeBezierCpFlat,
   makeBezierCpSameLength,
@@ -112,6 +115,35 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   // ---------------------------------------------------------------------------
   // handleConvertArcToBezier
   // ---------------------------------------------------------------------------
+
+  const handleConvertSelectionToPath = (duplicate = false) => {
+    const selected = getSelectedShapes()
+    if (selected.length === 0) {
+      setStatus('Select one or more shapes to convert to a path')
+      return
+    }
+
+    setShapes((prev) => {
+      if (duplicate) {
+        const copies: Shape[] = selected.flatMap((shape) =>
+          convertShapeToPathBeziers(shape).map((converted) =>
+            converted === shape ? { ...converted, id: uid() } : { ...converted, id: uid() },
+          ),
+        )
+        return [...prev, ...copies]
+      }
+      let updated = prev
+      for (const shape of selected) {
+        const replacements = convertShapeToPathBeziers(shape)
+        if (replacements.length === 1 && replacements[0] === shape) {
+          continue
+        }
+        updated = replaceShapeById(updated, shape.id, replacements)
+      }
+      return updated
+    })
+    setStatus(duplicate ? `Converted a copy of ${selected.length} shape(s) to path` : `Converted ${selected.length} shape(s) to path`)
+  }
 
   const handleConvertArcToBezier = () => {
     const selectedArcs = getSelectedShapes().filter(
@@ -482,6 +514,60 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   }
 
   // ---------------------------------------------------------------------------
+  // handleDistanceMarkSelectedPath (DistMarking)
+  // ---------------------------------------------------------------------------
+
+  const handleDistanceMarkSelectedPath = (distancesMm: number[]) => {
+    const selected = getSelectedShapes()
+    if (selected.length !== 1) {
+      setStatus('Select exactly one path to mark distances on')
+      return
+    }
+    const marks = buildDistanceMarks(selected[0], distancesMm, {
+      layerId: activeLayerId,
+      lineTypeId: activeLineTypeId,
+    })
+    if (marks.length === 0) {
+      setStatus('No distance marks produced (out of range or unsupported shape)')
+      return
+    }
+    setShapes((prev) => [...prev, ...marks])
+    setSelectedShapeIds(marks.map((mark) => mark.id))
+    setStatus(`Placed ${marks.length} distance mark${marks.length === 1 ? '' : 's'}`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // handleFilletSelectedCorner (Mentori / chamfer)
+  // ---------------------------------------------------------------------------
+
+  const handleFilletSelectedCorner = (radiusMm: number) => {
+    const selected = getSelectedShapes()
+    const lines = selected.filter((shape): shape is LineShape => shape.type === 'line')
+    if (lines.length !== 2) {
+      setStatus('Select exactly two lines to fillet their corner')
+      return
+    }
+    if (!Number.isFinite(radiusMm) || radiusMm <= 0) {
+      setStatus('Fillet radius must be positive')
+      return
+    }
+    const result = filletCorner(lines[0], lines[1], radiusMm)
+    if (!result) {
+      setStatus('Could not fillet: lines are parallel, non-intersecting, or too short')
+      return
+    }
+    setShapes((prev) => {
+      const next = prev.map((shape) => {
+        if (shape.id === result.trimmedA.id) return result.trimmedA
+        if (shape.id === result.trimmedB.id) return result.trimmedB
+        return shape
+      })
+      return [...next, result.arc]
+    })
+    setStatus(`Filleted corner with radius ${radiusMm.toFixed(2)}mm`)
+  }
+
+  // ---------------------------------------------------------------------------
   // handleDrawBoundaryAroundSelection
   // ---------------------------------------------------------------------------
 
@@ -523,5 +609,8 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     handleDeleteDuplicates,
     handleSplitIntoN,
     handleDrawBoundaryAroundSelection,
+    handleFilletSelectedCorner,
+    handleDistanceMarkSelectedPath,
+    handleConvertSelectionToPath,
   }
 }

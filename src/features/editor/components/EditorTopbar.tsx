@@ -98,6 +98,10 @@ type EditorTopbarProps = {
   onDeleteDuplicates: () => void
   onSplitIntoN: () => void
   onDrawBoundaryAroundSelection: () => void
+  onFilletSelectedCorner: () => void
+  onDistanceMarkSelectedPath: () => void
+  onConvertSelectionToPath: () => void
+  onConvertACopyToPath: () => void
   onAddBackdrop: () => void
   onOpenFontListModal: () => void
   onCloseProject: () => void
@@ -137,6 +141,7 @@ type EditorTopbarProps = {
   onAutoPlacePreferredPitchStitchHoles: () => void
   onAutoPlaceFixedPitchStitchHoles: () => void
   onAutoPlaceVariablePitchStitchHoles: () => void
+  onAutoPlaceEvenlySpacedStitchHoles: () => void
   onResequenceSelectedStitchHoles: () => void
   onReverseSelectedStitchHoles: () => void
   onSelectNextStitchHole: () => void
@@ -316,6 +321,10 @@ export function EditorTopbar({
   onDeleteDuplicates,
   onSplitIntoN,
   onDrawBoundaryAroundSelection,
+  onFilletSelectedCorner,
+  onDistanceMarkSelectedPath,
+  onConvertSelectionToPath,
+  onConvertACopyToPath,
   onAddBackdrop,
   onOpenFontListModal,
   onCloseProject,
@@ -355,6 +364,7 @@ export function EditorTopbar({
   onAutoPlacePreferredPitchStitchHoles,
   onAutoPlaceFixedPitchStitchHoles,
   onAutoPlaceVariablePitchStitchHoles,
+  onAutoPlaceEvenlySpacedStitchHoles,
   onResequenceSelectedStitchHoles,
   onReverseSelectedStitchHoles,
   onSelectNextStitchHole,
@@ -754,6 +764,16 @@ export function EditorTopbar({
             <button onClick={onDeleteDuplicates}>Dedupe</button>
             <button onClick={onSplitIntoN} disabled={selectedShapeCount === 0}>Split N…</button>
             <button onClick={onDrawBoundaryAroundSelection} disabled={selectedShapeCount === 0}>Boundary</button>
+            <button onClick={onFilletSelectedCorner} disabled={selectedShapeCount !== 2}>Fillet…</button>
+            <button onClick={onDistanceMarkSelectedPath} disabled={selectedShapeCount !== 1}>
+              Distance Marks…
+            </button>
+            <button onClick={onConvertSelectionToPath} disabled={selectedShapeCount === 0}>
+              → Path
+            </button>
+            <button onClick={onConvertACopyToPath} disabled={selectedShapeCount === 0}>
+              Copy → Path
+            </button>
           </div>
         )}
 
@@ -797,6 +817,7 @@ export function EditorTopbar({
               onAutoPlacePreferredPitch={onAutoPlacePreferredPitchStitchHoles}
               onAutoPlaceFixedPitch={onAutoPlaceFixedPitchStitchHoles}
               onAutoPlaceVariablePitch={onAutoPlaceVariablePitchStitchHoles}
+              onAutoPlaceEvenlySpaced={onAutoPlaceEvenlySpacedStitchHoles}
               onResequenceSelected={onResequenceSelectedStitchHoles}
               onReverseSelected={onReverseSelectedStitchHoles}
               onSelectNextHole={onSelectNextStitchHole}

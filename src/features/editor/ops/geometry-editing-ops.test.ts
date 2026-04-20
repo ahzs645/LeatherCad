@@ -3,6 +3,7 @@ import type { LineShape, Shape } from '../cad/cad-types'
 import {
   buildBoundaryLines,
   buildCenterLineBetween,
+  buildDistanceMarks,
   convexHull,
   filletCorner,
   getLineAngleDeg,
@@ -102,6 +103,32 @@ describe('setLineLength / scaleLineLengthByRatio', () => {
     const line = makeLine('a', 0, 0, 3, 4)
     expect(setLineLength(line, -1)).toBe(line)
     expect(scaleLineLengthByRatio(line, 0)).toBe(line)
+  })
+})
+
+describe('buildDistanceMarks', () => {
+  it('places perpendicular tick marks at the requested distances along a line', () => {
+    const line = makeLine('l', 0, 0, 100, 0)
+    const marks = buildDistanceMarks(line, [25, 75], {
+      layerId: 'layer-1',
+      lineTypeId: 'mark',
+      tickLengthMm: 4,
+    })
+    expect(marks).toHaveLength(2)
+    const first = marks[0]
+    expect(first.start.x).toBe(25)
+    expect(first.start.y).toBe(-2)
+    expect(first.end.x).toBe(25)
+    expect(first.end.y).toBe(2)
+  })
+
+  it('skips distances that exceed the shape length', () => {
+    const line = makeLine('l', 0, 0, 10, 0)
+    const marks = buildDistanceMarks(line, [5, 50], {
+      layerId: 'layer-1',
+      lineTypeId: 'mark',
+    })
+    expect(marks).toHaveLength(1)
   })
 })
 

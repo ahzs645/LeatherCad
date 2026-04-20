@@ -191,6 +191,7 @@ export type EditorToolState = {
   tool: import('../cad/cad-types').Tool
   draftPoints: import('../cad/cad-types').Point[]
   cursorPoint: import('../cad/cad-types').Point | null
+  snapIndicator: { point: import('../cad/cad-types').Point; reason: string } | null
   textDraftValue: string
   textFontFamily: string
   textFontSizeMm: number

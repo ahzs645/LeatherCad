@@ -12,6 +12,7 @@ type UseKeyboardShortcutsParams = {
   handleDuplicateSelection: () => void
   handleSelectAllShapes: () => void
   handleDeselectAll: () => void
+  handleNudgeSelection: (dxMm: number, dyMm: number) => void
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -25,6 +26,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleDuplicateSelection,
     handleSelectAllShapes,
     handleDeselectAll,
+    handleNudgeSelection,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
@@ -48,6 +50,29 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
           }
         }
         return
+      }
+
+      // Arrow-key nudge (Ctrl = 1mm, Ctrl+Shift = 0.1mm, Ctrl+Alt = 0.01mm).
+      const nudgeStepMm = event.altKey ? 0.01 : event.shiftKey ? 0.1 : 1
+      switch (event.key) {
+        case 'ArrowLeft':
+          event.preventDefault()
+          handleNudgeSelection(-nudgeStepMm, 0)
+          return
+        case 'ArrowRight':
+          event.preventDefault()
+          handleNudgeSelection(nudgeStepMm, 0)
+          return
+        case 'ArrowUp':
+          event.preventDefault()
+          handleNudgeSelection(0, -nudgeStepMm)
+          return
+        case 'ArrowDown':
+          event.preventDefault()
+          handleNudgeSelection(0, nudgeStepMm)
+          return
+        default:
+          break
       }
 
       const key = event.key.toLowerCase()
@@ -106,5 +131,6 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleDuplicateSelection,
     handleSelectAllShapes,
     handleDeselectAll,
+    handleNudgeSelection,
   ])
 }

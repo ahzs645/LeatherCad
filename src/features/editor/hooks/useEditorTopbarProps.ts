@@ -52,6 +52,10 @@ type UseEditorTopbarPropsParams = {
   handleDeleteDuplicatesSelection: () => void
   handleSplitIntoNPrompt: () => void
   handleDrawBoundaryAroundSelection: () => void
+  handleFilletSelectedCornerPrompt: () => void
+  handleDistanceMarkSelectedPathPrompt: () => void
+  handleConvertSelectionToPath: () => void
+  handleConvertACopyToPath: () => void
   handleAddBackdrop: () => void
   handleOpenFontListModal: () => void
   handleCloseProject: () => void
@@ -77,6 +81,7 @@ type UseEditorTopbarPropsParams = {
   handleAutoPlacePreferredPitchStitchHoles: () => void
   handleAutoPlaceFixedPitchStitchHoles: () => void
   handleAutoPlaceVariablePitchStitchHoles: () => void
+  handleAutoPlaceEvenlySpacedStitchHolesPrompt: () => void
   handleResequenceSelectedStitchHoles: (reverse: boolean) => void
   handleSelectNextStitchHole: () => void
   handleFixStitchHoleOrderFromSelected: (reverse: boolean) => void
@@ -155,6 +160,10 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleDeleteDuplicatesSelection,
     handleSplitIntoNPrompt,
     handleDrawBoundaryAroundSelection,
+    handleFilletSelectedCornerPrompt,
+    handleDistanceMarkSelectedPathPrompt,
+    handleConvertSelectionToPath,
+    handleConvertACopyToPath,
     handleAddBackdrop,
     handleOpenFontListModal,
     handleCloseProject,
@@ -180,6 +189,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
+    handleAutoPlaceEvenlySpacedStitchHolesPrompt,
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,
@@ -411,6 +421,10 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onDeleteDuplicates: handleDeleteDuplicatesSelection,
     onSplitIntoN: handleSplitIntoNPrompt,
     onDrawBoundaryAroundSelection: handleDrawBoundaryAroundSelection,
+    onFilletSelectedCorner: handleFilletSelectedCornerPrompt,
+    onDistanceMarkSelectedPath: handleDistanceMarkSelectedPathPrompt,
+    onConvertSelectionToPath: handleConvertSelectionToPath,
+    onConvertACopyToPath: handleConvertACopyToPath,
     onAddBackdrop: handleAddBackdrop,
     onOpenFontListModal: handleOpenFontListModal,
     onCloseProject: handleCloseProject,
@@ -454,6 +468,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onAutoPlacePreferredPitchStitchHoles: handleAutoPlacePreferredPitchStitchHoles,
     onAutoPlaceFixedPitchStitchHoles: handleAutoPlaceFixedPitchStitchHoles,
     onAutoPlaceVariablePitchStitchHoles: handleAutoPlaceVariablePitchStitchHoles,
+    onAutoPlaceEvenlySpacedStitchHoles: handleAutoPlaceEvenlySpacedStitchHolesPrompt,
     onResequenceSelectedStitchHoles: () => handleResequenceSelectedStitchHoles(false),
     onReverseSelectedStitchHoles: () => handleResequenceSelectedStitchHoles(true),
     onSelectNextStitchHole: handleSelectNextStitchHole,

@@ -139,7 +139,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     customHardwareSpacingMm: state.customHardwareSpacingMm,
   }))
   const { setStatus } = useEditorUIActions()
-  const { setDraftPoints, setCursorPoint, clearDraft } = useEditorToolActions()
+  const { setDraftPoints, setCursorPoint, setSnapIndicator, clearDraft } = useEditorToolActions()
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current
@@ -294,9 +294,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     if (!rawPoint) {
       return
     }
-    const point = getSnappedPoint(rawPoint).point
-    setCursorPoint(point)
-    handleToolPointerDown(point)
+    const snap = getSnappedPoint(rawPoint)
+    setCursorPoint(snap.point)
+    setSnapIndicator(snap.reason ? { point: snap.point, reason: snap.reason } : null)
+    handleToolPointerDown(snap.point)
   }
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -313,7 +314,9 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
     const point = toWorldPoint(event.clientX, event.clientY)
     if (point) {
-      setCursorPoint(getSnappedPoint(point).point)
+      const snap = getSnappedPoint(point)
+      setCursorPoint(snap.point)
+      setSnapIndicator(snap.reason ? { point: snap.point, reason: snap.reason } : null)
     }
   }
 

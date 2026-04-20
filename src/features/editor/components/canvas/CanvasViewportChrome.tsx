@@ -35,11 +35,11 @@ export function CanvasViewportChrome({
   return (
     <>
       <defs>
-        <marker id="arrow-end" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="strokeWidth">
-          <polygon points="0 0, 10 3.5, 0 7" fill="context-stroke" />
+        <marker id="arrow-end" markerWidth="6" markerHeight="4" refX="5.5" refY="2" orient="auto" markerUnits="strokeWidth">
+          <polygon points="0 0, 6 2, 0 4" fill="context-stroke" />
         </marker>
-        <marker id="arrow-start" markerWidth="10" markerHeight="7" refX="1" refY="3.5" orient="auto" markerUnits="strokeWidth">
-          <polygon points="10 0, 0 3.5, 10 7" fill="context-stroke" />
+        <marker id="arrow-start" markerWidth="6" markerHeight="4" refX="0.5" refY="2" orient="auto" markerUnits="strokeWidth">
+          <polygon points="6 0, 0 2, 6 4" fill="context-stroke" />
         </marker>
         <pattern id={minorGridPatternId} width={minorGridStep} height={minorGridStep} patternUnits="userSpaceOnUse">
           <path d={`M ${minorGridStep} 0 L 0 0 0 ${minorGridStep}`} className="grid-line-minor" fill="none" />

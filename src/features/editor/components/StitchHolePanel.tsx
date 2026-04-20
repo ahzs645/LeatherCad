@@ -38,6 +38,7 @@ type StitchHolePanelProps = {
   onAutoPlacePreferredPitch: () => void
   onAutoPlaceFixedPitch: () => void
   onAutoPlaceVariablePitch: () => void
+  onAutoPlaceEvenlySpaced: () => void
   onResequenceSelected: () => void
   onReverseSelected: () => void
   onSelectNextHole: () => void
@@ -79,6 +80,7 @@ export function StitchHolePanel({
   onAutoPlacePreferredPitch,
   onAutoPlaceFixedPitch,
   onAutoPlaceVariablePitch,
+  onAutoPlaceEvenlySpaced,
   onResequenceSelected,
   onReverseSelected,
   onSelectNextHole,
@@ -444,6 +446,9 @@ export function StitchHolePanel({
       </button>
       <button onClick={onAutoPlaceVariablePitch} disabled={selectedShapeCount === 0}>
         Auto Variable
+      </button>
+      <button onClick={onAutoPlaceEvenlySpaced} disabled={selectedShapeCount === 0}>
+        Auto Even N…
       </button>
       <button onClick={onResequenceSelected} disabled={selectedHoleCount === 0}>
         Re-sequence

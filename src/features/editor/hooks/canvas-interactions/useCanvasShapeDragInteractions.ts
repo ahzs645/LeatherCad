@@ -241,8 +241,14 @@ export function useCanvasShapeDragInteractions({
     if (!point) {
       return true
     }
-    const deltaX = point.x - shapeDragState.start.x
-    const deltaY = point.y - shapeDragState.start.y
+    const rawDeltaX = point.x - shapeDragState.start.x
+    const rawDeltaY = point.y - shapeDragState.start.y
+    // Shift held → lock drag to the dominant axis (source-app behavior).
+    const [deltaX, deltaY] = event.shiftKey
+      ? Math.abs(rawDeltaX) >= Math.abs(rawDeltaY)
+        ? [rawDeltaX, 0]
+        : [0, rawDeltaY]
+      : [rawDeltaX, rawDeltaY]
     if (!shapeDragState.didMove && (Math.abs(deltaX) > 1e-4 || Math.abs(deltaY) > 1e-4)) {
       shapeDragState.didMove = true
     }

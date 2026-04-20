@@ -764,6 +764,140 @@ export function getLineAngleDeg(line: LineShape): number {
 }
 
 // ---------------------------------------------------------------------------
+// Convert to Path (actConvertToPath / actConvertACopyToPath)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert a shape into one or more Bezier curves. Lines become a single
+ * degenerate Bezier whose control is the segment midpoint. Arcs use the
+ * existing arc→bezier converter. Text shapes are returned unchanged.
+ */
+export function convertShapeToPathBeziers(shape: Shape): Shape[] {
+  if (shape.type === 'bezier') return [shape]
+  if (shape.type === 'arc') return convertArcToBezier(shape)
+  if (shape.type === 'line') {
+    const midpoint: Point = {
+      x: (shape.start.x + shape.end.x) / 2,
+      y: (shape.start.y + shape.end.y) / 2,
+    }
+    return [
+      {
+        id: uid(),
+        type: 'bezier',
+        layerId: shape.layerId,
+        lineTypeId: shape.lineTypeId,
+        groupId: shape.groupId,
+        start: { x: shape.start.x, y: shape.start.y },
+        control: midpoint,
+        end: { x: shape.end.x, y: shape.end.y },
+      },
+    ]
+  }
+  return [shape]
+}
+
+// ---------------------------------------------------------------------------
+// Distance Marking (actDistMarking — stamp ticks along a path)
+// ---------------------------------------------------------------------------
+
+/** Approximate arc length of a shape from t=0 to t=tEnd using simple chord sums. */
+function shapeArcLengthToT(shape: Shape, tEnd: number, samples = 200): number {
+  if (shape.type === 'line' || shape.type === 'text') {
+    return distance(shape.start, shape.end) * Math.max(0, Math.min(1, tEnd))
+  }
+  const steps = Math.max(4, Math.floor(samples * Math.max(0.05, tEnd)))
+  let total = 0
+  let previous = evaluateShapeAt(shape, 0)
+  for (let i = 1; i <= steps; i++) {
+    const t = (i / steps) * tEnd
+    const current = evaluateShapeAt(shape, t)
+    total += distance(previous, current)
+    previous = current
+  }
+  return total
+}
+
+function shapeTotalArcLength(shape: Shape): number {
+  return shapeArcLengthToT(shape, 1)
+}
+
+function findTForArcLength(shape: Shape, targetLengthMm: number, samples = 400): number {
+  if (shape.type === 'line' || shape.type === 'text') {
+    const total = distance(shape.start, shape.end)
+    if (total < 1e-8) return 0
+    return Math.max(0, Math.min(1, targetLengthMm / total))
+  }
+  let accumulated = 0
+  let previous = evaluateShapeAt(shape, 0)
+  for (let i = 1; i <= samples; i++) {
+    const t = i / samples
+    const current = evaluateShapeAt(shape, t)
+    const segLen = distance(previous, current)
+    if (accumulated + segLen >= targetLengthMm) {
+      const needed = targetLengthMm - accumulated
+      const tPrev = (i - 1) / samples
+      const ratio = segLen > 1e-8 ? needed / segLen : 0
+      return tPrev + (t - tPrev) * ratio
+    }
+    accumulated += segLen
+    previous = current
+  }
+  return 1
+}
+
+/** Estimate tangent direction at parameter t on a shape. */
+function shapeTangentAt(shape: Shape, t: number): { x: number; y: number } {
+  const eps = 1e-3
+  const t1 = Math.max(0, t - eps)
+  const t2 = Math.min(1, t + eps)
+  const p1 = evaluateShapeAt(shape, t1)
+  const p2 = evaluateShapeAt(shape, t2)
+  const dx = p2.x - p1.x
+  const dy = p2.y - p1.y
+  const len = Math.hypot(dx, dy)
+  if (len < 1e-8) return { x: 1, y: 0 }
+  return { x: dx / len, y: dy / len }
+}
+
+/**
+ * Build small perpendicular tick marks at specified distances along a shape.
+ * Returns an empty array when any distance is out of range.
+ */
+export function buildDistanceMarks(
+  shape: Shape,
+  distancesMm: number[],
+  props: { layerId: string; lineTypeId: string; tickLengthMm?: number; groupId?: string },
+): LineShape[] {
+  if (shape.type === 'text') return []
+  const totalLength = shapeTotalArcLength(shape)
+  if (totalLength < 1e-6) return []
+  const tickLength = Math.max(0.5, props.tickLengthMm ?? 3)
+  const marks: LineShape[] = []
+  for (const d of distancesMm) {
+    if (!Number.isFinite(d) || d < 0 || d > totalLength + 1e-6) {
+      continue
+    }
+    const t = findTForArcLength(shape, d)
+    const point = evaluateShapeAt(shape, t)
+    const tangent = shapeTangentAt(shape, t)
+    const normal = { x: -tangent.y, y: tangent.x }
+    const half = tickLength / 2
+    marks.push({
+      id: uid(),
+      type: 'line',
+      layerId: props.layerId,
+      lineTypeId: props.lineTypeId,
+      groupId: props.groupId,
+      start: { x: round(point.x - normal.x * half), y: round(point.y - normal.y * half) },
+      end: { x: round(point.x + normal.x * half), y: round(point.y + normal.y * half) },
+    })
+  }
+  return marks
+}
+
+export { shapeTotalArcLength }
+
+// ---------------------------------------------------------------------------
 // Chamfer / Fillet corner (actMentori — corner beveling)
 // ---------------------------------------------------------------------------
 

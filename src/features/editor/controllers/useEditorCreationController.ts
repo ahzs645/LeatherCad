@@ -274,6 +274,19 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
       })
   }
 
+  const handleGenerateWhiteSilverGuides = (center: { x: number; y: number }, size: number) => {
+    void import('../ops/mandala-ops')
+      .then(({ generateWhiteSilverGuides }) => {
+        const guides = generateWhiteSilverGuides(center, size, activeLayerId, activeLineTypeId)
+        setShapes((prev) => [...prev, ...guides])
+        setShowMandalaModal(false)
+        setStatus(`Generated ${guides.length} white-silver (1:√2) guide lines`)
+      })
+      .catch(() => {
+        setStatus('White-silver ratio tools failed to load')
+      })
+  }
+
   const handleGenerateWizardPattern = (
     type: WizardType,
     params: WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams,
@@ -333,6 +346,7 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
     handleGenerateMandalaRadial,
     handleGenerateSpiral,
     handleGenerateGoldenGuides,
+    handleGenerateWhiteSilverGuides,
     handleGenerateWizardPattern,
     handleGenerateLetterStamp,
   }

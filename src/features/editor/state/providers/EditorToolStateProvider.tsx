@@ -18,6 +18,7 @@ const initialEditorToolState: EditorToolState = {
   tool: 'pan',
   draftPoints: [],
   cursorPoint: null,
+  snapIndicator: null,
   textDraftValue: 'Leathercraft CAD',
   textFontFamily: 'Georgia, serif',
   textFontSizeMm: 14,
@@ -48,6 +49,7 @@ function createEditorToolStateActions(
   const clearDraft = () => {
     dispatch({ type: 'draftPoints', value: [] })
     dispatch({ type: 'cursorPoint', value: null })
+    dispatch({ type: 'snapIndicator', value: null })
   }
 
   return {
@@ -57,6 +59,8 @@ function createEditorToolStateActions(
       dispatch({ type: 'draftPoints', value }),
     setCursorPoint: (value: React.SetStateAction<EditorToolState['cursorPoint']>) =>
       dispatch({ type: 'cursorPoint', value }),
+    setSnapIndicator: (value: React.SetStateAction<EditorToolState['snapIndicator']>) =>
+      dispatch({ type: 'snapIndicator', value }),
     clearDraft,
     setActiveTool: (nextTool: EditorToolState['tool']) => {
       dispatch({ type: 'tool', value: nextTool })

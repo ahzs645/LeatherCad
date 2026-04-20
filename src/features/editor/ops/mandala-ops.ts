@@ -346,3 +346,60 @@ export function generateGoldenRatioGuides(
 
   return lines
 }
+
+const SILVER_RATIO = Math.SQRT2
+
+/**
+ * White-silver ratio guide (1:√2) — sibling of golden ratio. Source app calls
+ * this "White Silver Guide".
+ */
+export function generateWhiteSilverGuides(
+  center: Point,
+  size: number,
+  layerId: string,
+  lineTypeId: string,
+): LineShape[] {
+  const half = size / 2
+  const left = center.x - half
+  const right = center.x + half
+  const top = center.y - half
+  const bottom = center.y + half
+  const silverOffset = size / SILVER_RATIO
+
+  const lines: LineShape[] = [
+    {
+      id: uid(),
+      type: 'line',
+      layerId,
+      lineTypeId,
+      start: { x: round(left + silverOffset), y: round(top) },
+      end: { x: round(left + silverOffset), y: round(bottom) },
+    },
+    {
+      id: uid(),
+      type: 'line',
+      layerId,
+      lineTypeId,
+      start: { x: round(right - silverOffset), y: round(top) },
+      end: { x: round(right - silverOffset), y: round(bottom) },
+    },
+    {
+      id: uid(),
+      type: 'line',
+      layerId,
+      lineTypeId,
+      start: { x: round(left), y: round(top + silverOffset) },
+      end: { x: round(right), y: round(top + silverOffset) },
+    },
+    {
+      id: uid(),
+      type: 'line',
+      layerId,
+      lineTypeId,
+      start: { x: round(left), y: round(bottom - silverOffset) },
+      end: { x: round(right), y: round(bottom - silverOffset) },
+    },
+  ]
+
+  return lines
+}
