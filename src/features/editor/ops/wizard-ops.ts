@@ -1,245 +1,34 @@
-import type { Point, Shape, LineShape, ArcShape, BezierShape } from '../cad/cad-types'
+import type { Point, Shape, LineShape } from '../cad/cad-types'
 import { uid, round } from '../cad/cad-geometry'
 import { computeFrustumUnroll } from './frustum-ops'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function makeLine(
-  start: Point,
-  end: Point,
-  layerId: string,
-  lineTypeId: string,
-  groupId?: string,
-): LineShape {
-  return { id: uid(), type: 'line', start, end, layerId, lineTypeId, groupId }
-}
-
-function makeArc(
-  start: Point,
-  mid: Point,
-  end: Point,
-  layerId: string,
-  lineTypeId: string,
-  groupId?: string,
-): ArcShape {
-  return { id: uid(), type: 'arc', start, mid, end, layerId, lineTypeId, groupId }
-}
-
-function makeBezier(
-  start: Point,
-  control: Point,
-  end: Point,
-  layerId: string,
-  lineTypeId: string,
-  groupId?: string,
-): BezierShape {
-  return { id: uid(), type: 'bezier', start, control, end, layerId, lineTypeId, groupId }
-}
-
-/** Approximate a circle as four quarter-arc shapes. */
-function makeCircleArcs(
-  cx: number,
-  cy: number,
-  r: number,
-  layerId: string,
-  lineTypeId: string,
-  groupId?: string,
-): ArcShape[] {
-  const p = (x: number, y: number): Point => ({ x: round(x), y: round(y) })
-  const top = p(cx, cy - r)
-  const right = p(cx + r, cy)
-  const bottom = p(cx, cy + r)
-  const left = p(cx - r, cy)
-  const d = r * Math.SQRT2 / 2
-  const tr = p(cx + d, cy - d)
-  const br = p(cx + d, cy + d)
-  const bl = p(cx - d, cy + d)
-  const tl = p(cx - d, cy - d)
-  return [
-    makeArc(top, tr, right, layerId, lineTypeId, groupId),
-    makeArc(right, br, bottom, layerId, lineTypeId, groupId),
-    makeArc(bottom, bl, left, layerId, lineTypeId, groupId),
-    makeArc(left, tl, top, layerId, lineTypeId, groupId),
-  ]
-}
-
-/** Build a rectangle from four lines. Returns top, right, bottom, left. */
-function makeRect(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  layerId: string,
-  lineTypeId: string,
-  groupId?: string,
-): LineShape[] {
-  const tl: Point = { x: round(x), y: round(y) }
-  const tr: Point = { x: round(x + w), y: round(y) }
-  const br: Point = { x: round(x + w), y: round(y + h) }
-  const bl: Point = { x: round(x), y: round(y + h) }
-  return [
-    makeLine(tl, tr, layerId, lineTypeId, groupId),
-    makeLine(tr, br, layerId, lineTypeId, groupId),
-    makeLine(br, bl, layerId, lineTypeId, groupId),
-    makeLine(bl, tl, layerId, lineTypeId, groupId),
-  ]
-}
-
-/** Build a rounded-corner rectangle. cornerRadius is clamped to half the smallest dimension. */
-function makeRoundedRect(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  cr: number,
-  layerId: string,
-  lineTypeId: string,
-  groupId?: string,
-): Shape[] {
-  const r = Math.min(cr, w / 2, h / 2)
-  if (r <= 0) return makeRect(x, y, w, h, layerId, lineTypeId, groupId)
-
-  const p = (px: number, py: number): Point => ({ x: round(px), y: round(py) })
-  const k = r * (Math.SQRT2 - 1)
-  const shapes: Shape[] = []
-
-  // Top edge
-  shapes.push(makeLine(p(x + r, y), p(x + w - r, y), layerId, lineTypeId, groupId))
-  // Top-right corner arc
-  shapes.push(makeArc(
-    p(x + w - r, y),
-    p(x + w - k, y + k),
-    p(x + w, y + r),
-    layerId, lineTypeId, groupId,
-  ))
-  // Right edge
-  shapes.push(makeLine(p(x + w, y + r), p(x + w, y + h - r), layerId, lineTypeId, groupId))
-  // Bottom-right corner arc
-  shapes.push(makeArc(
-    p(x + w, y + h - r),
-    p(x + w - k, y + h - k),
-    p(x + w - r, y + h),
-    layerId, lineTypeId, groupId,
-  ))
-  // Bottom edge
-  shapes.push(makeLine(p(x + w - r, y + h), p(x + r, y + h), layerId, lineTypeId, groupId))
-  // Bottom-left corner arc
-  shapes.push(makeArc(
-    p(x + r, y + h),
-    p(x + k, y + h - k),
-    p(x, y + h - r),
-    layerId, lineTypeId, groupId,
-  ))
-  // Left edge
-  shapes.push(makeLine(p(x, y + h - r), p(x, y + r), layerId, lineTypeId, groupId))
-  // Top-left corner arc
-  shapes.push(makeArc(
-    p(x, y + r),
-    p(x + k, y + k),
-    p(x + r, y),
-    layerId, lineTypeId, groupId,
-  ))
-
-  return shapes
-}
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type WizardType = 'watch-strap' | 'pass-case' | 'box-joint' | 'jigsaw' | 'dice-cup' | 'cap-pattern'
-
-export type WatchStrapParams = {
-  totalLength: number
-  width: number
-  buckleEndWidth: number
-  taperLength: number
-  holeCount: number
-  holeSpacing: number
-  holeStartOffset: number
-  holeDiameter: number
-  tipShape: 'pointed' | 'round' | 'square'
-  keeperWidth: number
-  layerId: string
-  lineTypeId: string
-}
-
-export type PassCaseParams = {
-  cardWidth: number
-  cardHeight: number
-  margin: number
-  cornerRadius: number
-  flapHeight: number
-  pocketCount: number
-  layerId: string
-  lineTypeId: string
-}
-
-export type BoxJointParams = {
-  length: number
-  width: number
-  height: number
-  materialThickness: number
-  fingerCount: number
-  layerId: string
-  lineTypeId: string
-}
-
-export type JigsawParams = {
-  columns: number
-  rows: number
-  pieceSize: number
-  tabDepth: number
-  tabWidth: number
-  layerId: string
-  lineTypeId: string
-}
-
-export type DiceCupParams = {
-  topDiameter: number
-  bottomDiameter: number
-  height: number
-  segments: number
-  includeBottom: boolean
-  /** Leather thickness in mm. Shrinks effective radii when wrapping around a form. */
-  leatherThickness?: number
-  /** Fraction of leather thickness that compensates the wrap (0..1 typical). */
-  compensationFactor?: number
-  /** Inward offset of a stitch line along the outer arc (bottom rim of cup). */
-  stitchOffsetBottomRim?: number
-  /** Inward offset of a stitch line along the inner arc (top rim of cup). Gated by stitchTopRim. */
-  stitchOffsetTopRim?: number
-  /** Inward offset of stitch lines along radial side edges. */
-  stitchOffsetSide?: number
-  /** Inward offset of stitch line on the bottom-disc piece. */
-  stitchOffsetBottomDisc?: number
-  /** When true, emits a stitch line at the top rim using stitchOffsetTopRim. */
-  stitchTopRim?: boolean
-  layerId: string
-  lineTypeId: string
-}
-
-/**
- * Baseball-cap flat-pack parameters, mirroring TCapPatternOptions from the source app.
- * Produces six bulged crown gore panels + a curved brim/visor piece.
- */
-export type CapPatternParams = {
-  seamMM: number
-  crownBulge: number
-  baseSmile: number
-  brimDepthMM: number
-  brimWidthMM: number
-  brimBackRiseMM: number
-  layerId: string
-  lineTypeId: string
-}
-
-export type WizardResult = {
-  shapes: Shape[]
-  description: string
-}
+import {
+  makeArc,
+  makeBezier,
+  makeCircleArcs,
+  makeLine,
+  makeRect,
+  makeRoundedRect,
+} from './wizard-shape-builders'
+import type {
+  BoxJointParams,
+  CapPatternParams,
+  DiceCupParams,
+  JigsawParams,
+  PassCaseParams,
+  WatchStrapParams,
+  WizardResult,
+} from './wizard-types'
+export { getDefaultWizardParams } from './wizard-defaults'
+export type {
+  BoxJointParams,
+  CapPatternParams,
+  DiceCupParams,
+  JigsawParams,
+  PassCaseParams,
+  WatchStrapParams,
+  WizardResult,
+  WizardType,
+} from './wizard-types'
 
 // ---------------------------------------------------------------------------
 // 1. Watch Strap
@@ -898,89 +687,5 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
   return {
     shapes,
     description: `Cap pattern: ${panelCount} crown panels (base ${round(panelBaseWidth)}mm, bulge ${crownBulge}mm, smile ${baseSmile}mm), brim ${brimWidthMM}×${brimDepthMM}mm (back rise ${brimBackRiseMM}mm), seam ${seamMM}mm`,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// 7. Defaults
-// ---------------------------------------------------------------------------
-
-export function getDefaultWizardParams(type: 'watch-strap'): WatchStrapParams
-export function getDefaultWizardParams(type: 'pass-case'): PassCaseParams
-export function getDefaultWizardParams(type: 'box-joint'): BoxJointParams
-export function getDefaultWizardParams(type: 'jigsaw'): JigsawParams
-export function getDefaultWizardParams(type: 'dice-cup'): DiceCupParams
-export function getDefaultWizardParams(type: 'cap-pattern'): CapPatternParams
-export function getDefaultWizardParams(
-  type: WizardType,
-): WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams | CapPatternParams {
-  switch (type) {
-    case 'watch-strap':
-      return {
-        totalLength: 220,
-        width: 22,
-        buckleEndWidth: 18,
-        taperLength: 30,
-        holeCount: 5,
-        holeSpacing: 8,
-        holeStartOffset: 35,
-        holeDiameter: 2.5,
-        tipShape: 'pointed',
-        keeperWidth: 12,
-        layerId: '',
-        lineTypeId: '',
-      }
-    case 'pass-case':
-      return {
-        cardWidth: 86,
-        cardHeight: 54,
-        margin: 5,
-        cornerRadius: 3,
-        flapHeight: 0,
-        pocketCount: 1,
-        layerId: '',
-        lineTypeId: '',
-      }
-    case 'box-joint':
-      return {
-        length: 100,
-        width: 80,
-        height: 50,
-        materialThickness: 2,
-        fingerCount: 3,
-        layerId: '',
-        lineTypeId: '',
-      }
-    case 'jigsaw':
-      return {
-        columns: 3,
-        rows: 3,
-        pieceSize: 40,
-        tabDepth: 8,
-        tabWidth: 12,
-        layerId: '',
-        lineTypeId: '',
-      }
-    case 'dice-cup':
-      return {
-        topDiameter: 70,
-        bottomDiameter: 50,
-        height: 90,
-        segments: 4,
-        includeBottom: true,
-        layerId: '',
-        lineTypeId: '',
-      }
-    case 'cap-pattern':
-      return {
-        seamMM: 5,
-        crownBulge: 6,
-        baseSmile: 4,
-        brimDepthMM: 70,
-        brimWidthMM: 180,
-        brimBackRiseMM: 8,
-        layerId: '',
-        lineTypeId: '',
-      }
   }
 }

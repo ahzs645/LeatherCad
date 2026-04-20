@@ -8,14 +8,7 @@ const DEFAULT_TS_MAX = 700
 const DEFAULT_SCSS_MAX = 700
 
 const trackedDebt = new Map([
-  ['src/features/editor/useEditorScreenController.ts', { max: 2046, target: 600 }],
-  ['src/features/editor/ops/wizard-ops.ts', { max: 986, target: 700 }],
-  ['src/features/editor/editor-parsers.ts', { max: 851, target: 700 }],
-  ['src/features/editor/hooks/useEditorDerivedState.ts', { max: 817, target: 700 }],
-  ['src/features/editor/ops/box-stitch-ops.ts', { max: 795, target: 700 }],
-  ['src/features/editor/ops/pattern-piece-ops.ts', { max: 792, target: 700 }],
-  ['src/features/editor/solver/constraint-solver.ts', { max: 761, target: 700 }],
-  ['src/features/editor/workbench/WorkbenchThreePreview.tsx', { max: 703, target: 700 }],
+  ['src/features/editor/useEditorScreenController.ts', { max: 2038, target: 600 }],
 ])
 
 const modulePolicies = {

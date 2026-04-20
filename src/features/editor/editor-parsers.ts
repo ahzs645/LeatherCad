@@ -1,6 +1,5 @@
 import { clamp, isPointLike, uid } from './cad/cad-geometry'
 import type {
-  AvatarSpec,
   ConstraintAnchor,
   ConstraintAxis,
   ConstraintEdge,
@@ -10,7 +9,6 @@ import type {
   LegacySeamAllowance,
   Layer,
   PatternPiece,
-  PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
   PieceLabel,
@@ -20,10 +18,6 @@ import type {
   SeamConnection,
   SketchGroup,
   SnapSettings,
-  ThreePreviewSettings,
-  Backdrop,
-  Point,
-  TracingOverlay,
 } from './cad/cad-types'
 import {
   DEFAULT_FOLD_CLEARANCE_MM,
@@ -35,12 +29,20 @@ import {
   parseFoldDirection,
 } from './ops/fold-line-ops'
 import {
-  DEFAULT_THREE_PREVIEW_SETTINGS,
   DEFAULT_SEAM_ALLOWANCE_MM,
   DEFAULT_SNAP_SETTINGS,
   HARDWARE_PRESETS,
 } from './editor-constants'
 import type { DimensionLine, PrintArea } from './cad/cad-types'
+
+export {
+  parseAvatarSpec,
+  parsePiecePlacement3d,
+  parseThreePreviewSettings,
+  sanitizePiecePlacement3d,
+  sanitizeThreePreviewSettings,
+} from './editor-preview-parsers'
+export { parseBackdrop, parseTracingOverlay } from './editor-overlay-parsers'
 
 export function parseFoldLine(value: unknown): FoldLine | null {
   if (typeof value !== 'object' || value === null) {
@@ -263,50 +265,6 @@ export function parsePatternPiece(value: unknown): PatternPiece | null {
   }
 }
 
-export function sanitizePiecePlacement3d(value: PiecePlacement3D): PiecePlacement3D {
-  const numberOrZero = (candidate: unknown) => (typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : 0)
-  return {
-    pieceId: value.pieceId,
-    translationMm: {
-      x: numberOrZero(value.translationMm?.x),
-      y: numberOrZero(value.translationMm?.y),
-      z: numberOrZero(value.translationMm?.z),
-    },
-    rotationDeg: {
-      x: numberOrZero(value.rotationDeg?.x),
-      y: numberOrZero(value.rotationDeg?.y),
-      z: numberOrZero(value.rotationDeg?.z),
-    },
-    flipped: value.flipped === true,
-  }
-}
-
-export function parsePiecePlacement3d(value: unknown): PiecePlacement3D | null {
-  if (typeof value !== 'object' || value === null) {
-    return null
-  }
-
-  const candidate = value as Partial<PiecePlacement3D>
-  if (typeof candidate.pieceId !== 'string' || candidate.pieceId.length === 0) {
-    return null
-  }
-
-  return sanitizePiecePlacement3d({
-    pieceId: candidate.pieceId,
-    translationMm: {
-      x: typeof candidate.translationMm?.x === 'number' ? candidate.translationMm.x : 0,
-      y: typeof candidate.translationMm?.y === 'number' ? candidate.translationMm.y : 0,
-      z: typeof candidate.translationMm?.z === 'number' ? candidate.translationMm.z : 0,
-    },
-    rotationDeg: {
-      x: typeof candidate.rotationDeg?.x === 'number' ? candidate.rotationDeg.x : 0,
-      y: typeof candidate.rotationDeg?.y === 'number' ? candidate.rotationDeg.y : 0,
-      z: typeof candidate.rotationDeg?.z === 'number' ? candidate.rotationDeg.z : 0,
-    },
-    flipped: candidate.flipped === true,
-  })
-}
-
 export function parseSeamConnection(value: unknown): SeamConnection | null {
   if (typeof value !== 'object' || value === null) {
     return null
@@ -339,64 +297,6 @@ export function parseSeamConnection(value: unknown): SeamConnection | null {
         : undefined,
     reversed: candidate.reversed === true,
     kind: candidate.kind === 'aligned' || candidate.kind === 'hinge' ? candidate.kind : 'sewn',
-  }
-}
-
-export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): ThreePreviewSettings {
-  return {
-    mode: value.mode === 'assembled' || value.mode === 'avatar' ? value.mode : 'fold',
-    explodedFactor:
-      typeof value.explodedFactor === 'number' && Number.isFinite(value.explodedFactor)
-        ? clamp(value.explodedFactor, 0, 3)
-        : DEFAULT_THREE_PREVIEW_SETTINGS.explodedFactor,
-    thicknessMm:
-      typeof value.thicknessMm === 'number' && Number.isFinite(value.thicknessMm)
-        ? clamp(Math.abs(value.thicknessMm), 0.2, 20)
-        : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
-    showSeams: value.showSeams !== false,
-    showEdgeLabels: value.showEdgeLabels === true,
-    showStressOverlay: value.showStressOverlay !== false,
-    avatarId: typeof value.avatarId === 'string' && value.avatarId.trim().length > 0 ? value.avatarId.trim() : undefined,
-  }
-}
-
-export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings | null {
-  if (typeof value !== 'object' || value === null) {
-    return null
-  }
-
-  const candidate = value as Partial<ThreePreviewSettings>
-  return sanitizeThreePreviewSettings({
-    mode: candidate.mode === 'assembled' || candidate.mode === 'avatar' ? candidate.mode : 'fold',
-    explodedFactor:
-      typeof candidate.explodedFactor === 'number' ? candidate.explodedFactor : DEFAULT_THREE_PREVIEW_SETTINGS.explodedFactor,
-    thicknessMm:
-      typeof candidate.thicknessMm === 'number' ? candidate.thicknessMm : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
-    showSeams: candidate.showSeams !== false,
-    showEdgeLabels: candidate.showEdgeLabels === true,
-    showStressOverlay: candidate.showStressOverlay !== false,
-    avatarId: typeof candidate.avatarId === 'string' ? candidate.avatarId : undefined,
-  })
-}
-
-export function parseAvatarSpec(value: unknown): AvatarSpec | null {
-  if (typeof value !== 'object' || value === null) {
-    return null
-  }
-
-  const candidate = value as Partial<AvatarSpec>
-  if (typeof candidate.id !== 'string' || candidate.id.length === 0 || typeof candidate.name !== 'string' || candidate.name.length === 0) {
-    return null
-  }
-
-  return {
-    id: candidate.id,
-    name: candidate.name,
-    sourceUrl: typeof candidate.sourceUrl === 'string' ? candidate.sourceUrl : '',
-    scaleMm:
-      typeof candidate.scaleMm === 'number' && Number.isFinite(candidate.scaleMm)
-        ? Math.max(1, Math.abs(candidate.scaleMm))
-        : 1,
   }
 }
 
@@ -766,86 +666,5 @@ export function parsePrintArea(value: unknown): PrintArea | null {
       typeof candidate.scalePercent === 'number' && Number.isFinite(candidate.scalePercent) && candidate.scalePercent > 0
         ? candidate.scalePercent
         : 100,
-  }
-}
-
-function parseBackdropPoint(value: unknown): Point | undefined {
-  if (!value || typeof value !== 'object') return undefined
-  const candidate = value as Partial<Point>
-  if (typeof candidate.x !== 'number' || typeof candidate.y !== 'number') return undefined
-  return { x: candidate.x, y: candidate.y }
-}
-
-export function parseBackdrop(value: unknown): Backdrop | null {
-  if (typeof value !== 'object' || value === null) return null
-  const candidate = value as Partial<Backdrop>
-  if (typeof candidate.id !== 'string' || candidate.id.length === 0) return null
-  if (typeof candidate.bitmapDataUrl !== 'string' || candidate.bitmapDataUrl.length === 0) return null
-  const leftTop = parseBackdropPoint(candidate.leftTop) ?? { x: 0, y: 0 }
-  return {
-    id: candidate.id,
-    name: typeof candidate.name === 'string' && candidate.name.length > 0 ? candidate.name : 'Backdrop',
-    bitmapDataUrl: candidate.bitmapDataUrl,
-    bitmapWidth:
-      typeof candidate.bitmapWidth === 'number' && candidate.bitmapWidth > 0 ? candidate.bitmapWidth : 1,
-    bitmapHeight:
-      typeof candidate.bitmapHeight === 'number' && candidate.bitmapHeight > 0 ? candidate.bitmapHeight : 1,
-    leftTop,
-    width: typeof candidate.width === 'number' && candidate.width > 0 ? candidate.width : 100,
-    height: typeof candidate.height === 'number' && candidate.height > 0 ? candidate.height : 100,
-    angleDeg: typeof candidate.angleDeg === 'number' ? candidate.angleDeg : 0,
-    rotationCenter: parseBackdropPoint(candidate.rotationCenter),
-    dpi:
-      typeof candidate.dpi === 'number' && candidate.dpi > 0 ? candidate.dpi : undefined,
-    fullPath: typeof candidate.fullPath === 'string' ? candidate.fullPath : undefined,
-    visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
-    locked: typeof candidate.locked === 'boolean' ? candidate.locked : false,
-    opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0.05, 1) : 1,
-  }
-}
-
-export function parseTracingOverlay(value: unknown): TracingOverlay | null {
-  if (typeof value !== 'object' || value === null) {
-    return null
-  }
-
-  const candidate = value as Partial<TracingOverlay>
-  if (typeof candidate.id !== 'string' || candidate.id.length === 0) {
-    return null
-  }
-  if (typeof candidate.name !== 'string' || candidate.name.length === 0) {
-    return null
-  }
-  if (candidate.kind !== 'image' && candidate.kind !== 'pdf') {
-    return null
-  }
-  if (typeof candidate.sourceUrl !== 'string' || candidate.sourceUrl.length === 0) {
-    return null
-  }
-
-  return {
-    id: candidate.id,
-    name: candidate.name,
-    kind: candidate.kind,
-    sourceUrl: candidate.sourceUrl,
-    pdfSourceUrl: typeof candidate.pdfSourceUrl === 'string' && candidate.pdfSourceUrl.length > 0 ? candidate.pdfSourceUrl : undefined,
-    pdfPageNumber:
-      typeof candidate.pdfPageNumber === 'number' && Number.isFinite(candidate.pdfPageNumber) && candidate.pdfPageNumber > 0
-        ? Math.round(candidate.pdfPageNumber)
-        : undefined,
-    pdfPageCount:
-      typeof candidate.pdfPageCount === 'number' && Number.isFinite(candidate.pdfPageCount) && candidate.pdfPageCount > 0
-        ? Math.round(candidate.pdfPageCount)
-        : undefined,
-    visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
-    locked: typeof candidate.locked === 'boolean' ? candidate.locked : true,
-    opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0.05, 1) : 0.75,
-    scale: typeof candidate.scale === 'number' ? clamp(candidate.scale, 0.05, 20) : 1,
-    rotationDeg: typeof candidate.rotationDeg === 'number' ? candidate.rotationDeg : 0,
-    offsetX: typeof candidate.offsetX === 'number' ? candidate.offsetX : 0,
-    offsetY: typeof candidate.offsetY === 'number' ? candidate.offsetY : 0,
-    width: typeof candidate.width === 'number' && candidate.width > 0 ? candidate.width : 800,
-    height: typeof candidate.height === 'number' && candidate.height > 0 ? candidate.height : 800,
-    isObjectUrl: typeof candidate.isObjectUrl === 'boolean' ? candidate.isObjectUrl : false,
   }
 }

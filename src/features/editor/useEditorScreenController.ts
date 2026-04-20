@@ -73,6 +73,10 @@ import { buildCanvasPaneParams } from './modules/canvas/buildCanvasPaneParams'
 import { useEditorCanvasController } from './modules/canvas/useEditorCanvasController'
 import { useEditorGlobalShortcuts } from './modules/canvas/useEditorGlobalShortcuts'
 import { useEditorOverlayViewModel } from './modules/overlays/useEditorOverlayViewModel'
+import {
+  buildWorkbenchProps,
+  buildWorkbenchThreeWorkspaceProps,
+} from './modules/workbench/buildWorkbenchShellViewModels'
 import { useEditorScreenRefs } from './controllers/useEditorScreenRefs'
 import {
   buildDocumentInspectorProps,
@@ -1562,23 +1566,7 @@ export function useEditorScreenController() {
     layerCount: layers.length,
     templateCount: templateRepository.length,
   })
-  const {
-    selectionContext,
-    browserNodes,
-    quickActions,
-    ribbonGroups,
-    docLabel,
-    selectionText,
-    handleWorkbenchQuickAction,
-    handleWorkbenchRibbonCommand,
-    handleWorkbenchActivateNode,
-    handleToggleLayerVisibilityById,
-    handleToggleLayerLockById,
-    handleToggleTracingVisibilityById,
-    handleToggleTracingLockById,
-    handleToggleWorkbenchPeek,
-    handleSetWorkbenchMode,
-  } = useEditorWorkbenchController({
+  const workbenchController = useEditorWorkbenchController({
     documentName,
     patternPieces,
     patternPiecesById,
@@ -1667,7 +1655,7 @@ export function useEditorScreenController() {
   })
   const shouldLoadThreeWorkbench = workspaceMode === '3d'
   const selectionInspectorProps = buildSelectionInspectorProps({
-    context: selectionContext,
+    context: workbenchController.selectionContext,
     selectedShapeCount,
     selectedEditableShape,
     selectedStitchHole,
@@ -1770,8 +1758,8 @@ export function useEditorScreenController() {
     handleResetLayerColors,
   })
 
-  const workbenchProps = {
-    docLabel,
+  const workbenchProps = buildWorkbenchProps({
+    controller: workbenchController,
     shellRef,
     workspaceMode,
     secondaryPreviewMode: effectiveSecondaryPreviewMode,
@@ -1781,43 +1769,11 @@ export function useEditorScreenController() {
     peekWidth: effectiveLayout.peekWidth,
     splitterWidth,
     toolRailWidth,
-    quickActions,
-    onInvokeQuickAction: handleWorkbenchQuickAction,
-    onSetWorkspaceMode: handleSetWorkbenchMode,
-    onTogglePeek: handleToggleWorkbenchPeek,
     activeRibbonTab: workbenchRibbonTab,
     themeMode,
-    ribbonGroups,
     onSetRibbonTab: setWorkbenchRibbonTab,
-    onInvokeRibbonCommand: handleWorkbenchRibbonCommand,
     onSetThemeMode: handleSetThemeMode,
-    browserNodes,
-    onActivateNode: handleWorkbenchActivateNode,
-    onToggleLayerVisibility: handleToggleLayerVisibilityById,
-    onToggleLayerGroupVisibility: (layerIds: string[]) => {
-      if (layerIds.length === 0) {
-        return
-      }
-      setLayers((previous) => {
-        const layerIdSet = new Set(layerIds)
-        const targetLayers = previous.filter((layer) => layerIdSet.has(layer.id))
-        if (targetLayers.length === 0) {
-          return previous
-        }
-        const shouldShow = targetLayers.some((layer) => !layer.visible)
-        return previous.map((layer) =>
-          layerIdSet.has(layer.id)
-            ? {
-                ...layer,
-                visible: shouldShow,
-              }
-            : layer,
-        )
-      })
-    },
-    onToggleLayerLock: handleToggleLayerLockById,
-    onToggleTracingVisibility: handleToggleTracingVisibilityById,
-    onToggleTracingLock: handleToggleTracingLockById,
+    setLayers,
     tool,
     onSetActiveTool: setActiveTool,
     activeInspectorTab: effectiveLayout.activeInspectorTab,
@@ -1825,15 +1781,13 @@ export function useEditorScreenController() {
     onStartBrowserResize: handleBrowserResizeStart,
     onStartPeekResize: handlePeekResizeStart,
     onStartInspectorResize: handleInspectorResizeStart,
-    toolLabel: toolLabel(tool),
-    selectionText,
-    zoomPercent: Math.round(viewport.scale * 100),
+    zoomScale: viewport.scale,
     displayUnit,
-    activeLayerName: activeLayer?.name ?? 'None',
-    activeLineTypeName: activeLineType?.name ?? 'None',
+    activeLayer,
+    activeLineType,
     onTogglePrecision: () => setShowPrecisionModal((previous) => !previous),
-  }
-  const workbenchThreeWorkspaceProps = {
+  })
+  const workbenchThreeWorkspaceProps = buildWorkbenchThreeWorkspaceProps({
     workspaceMode,
     shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
     selectedShapeIds,
@@ -1857,7 +1811,7 @@ export function useEditorScreenController() {
     lineTypes,
     themeMode: resolvedThemeMode,
     onUpdateFoldLine: updateFoldLine,
-  }
+  })
   const { mobileShell, desktopShell } = useEditorWorkbenchProps({
     workspaceRef,
     workspaceClassName,
@@ -1874,7 +1828,7 @@ export function useEditorScreenController() {
     pieceInspectorContentProps,
     documentInspectorProps,
     workbenchThreeWorkspaceProps,
-    onOpenThreeWorkspace: () => handleSetWorkbenchMode('3d'),
+    onOpenThreeWorkspace: () => workbenchController.handleSetWorkbenchMode('3d'),
     shouldLoadThreeWorkbench,
     canvasPaneParams: buildCanvasPaneParams({
       svgRef,
