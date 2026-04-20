@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
+import { useMemo, useState, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
 import { CanvasContextMenu, type ContextMenuItem } from './CanvasContextMenu'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type {
@@ -19,8 +19,7 @@ import type { AnnotationLabel, LegendMode, PiecePlacementGuide, SeamGuide, Sketc
 import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
 import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
 import type { PrintPlan } from '../preview/print-preview'
-import { GRID_EXTENT } from '../editor-constants'
-import { computeAdaptiveSpacing } from '../ops/grid-spacing'
+import { useCanvasGrid } from '../hooks/useCanvasGrid'
 import { CanvasEngineV2 } from '../render-v2/CanvasEngineV2'
 import { isEngineV2Enabled } from '../render-v2/engine-v2-flags'
 import type { CanvasInteractionPreview } from '../hooks/useCanvasInteractions'
@@ -203,10 +202,7 @@ export function EditorCanvasPane({
   outlineChains,
 }: EditorCanvasPaneProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
-  const patternIdBase = useId().replace(/:/g, '-')
-  const minorGridPatternId = `${patternIdBase}-minor-grid`
-  const majorGridPatternId = `${patternIdBase}-major-grid`
-  const { major: majorGridStep, minor: minorGridStep } = computeAdaptiveSpacing(viewport.scale, gridSpacing)
+  const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
   const detailPadding = Math.max(32, 96 / Math.max(viewport.scale, 0.1))
 
@@ -379,11 +375,12 @@ export function EditorCanvasPane({
 
   return (
     <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`} style={{ position: 'relative' }}>
+      <canvas ref={gridCanvasRef} className="canvas-grid-layer" aria-hidden="true" />
       {engineV2 && (
         <CanvasEngineV2
           viewport={viewport}
           gridSpacing={gridSpacing}
-          darkMode
+          darkMode={gridBackgroundMode === 'dark'}
           shapes={visibleShapes}
           width={ESTIMATED_CANVAS_WIDTH_PX}
           height={ESTIMATED_CANVAS_HEIGHT_PX}
@@ -407,14 +404,7 @@ export function EditorCanvasPane({
       >
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
           <CanvasViewportChrome
-            minorGridPatternId={minorGridPatternId}
-            majorGridPatternId={majorGridPatternId}
-            minorGridStep={minorGridStep}
-            gridSpacing={majorGridStep}
-            gridExtent={GRID_EXTENT}
             showCanvasRuler={showCanvasRuler}
-            showGrid={showGrid}
-            gridBackgroundMode={gridBackgroundMode}
             displayUnit={displayUnit}
             tracingOverlays={tracingOverlays}
             onTracingOverlayOffset={onTracingOverlayOffset}

@@ -1,15 +1,11 @@
 import { formatDisplayDistance, type DisplayUnit } from '../../ops/unit-ops'
 import { pointInBounds, type Bounds } from './canvas-geometry'
 
+const RULER_TICK_TARGET_SPACING_PX = 44
+const RULER_LABEL_TARGET_SPACING_PX = 150
+
 type CanvasViewportChromeProps = {
-  minorGridPatternId: string
-  majorGridPatternId: string
-  minorGridStep: number
-  gridSpacing: number
-  gridExtent: number
   showCanvasRuler: boolean
-  showGrid?: boolean
-  gridBackgroundMode?: 'light' | 'dark'
   displayUnit: DisplayUnit
   tracingOverlays: import('../../cad/cad-types').TracingOverlay[]
   onTracingOverlayOffset?: (overlayId: string, nextOffsetX: number, nextOffsetY: number) => void
@@ -24,15 +20,41 @@ type CanvasViewportChromeProps = {
   detailPadding: number
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function niceCeil(value: number) {
+  const safeValue = Math.max(value, 0.0001)
+  const exponent = Math.floor(Math.log10(safeValue))
+  const magnitude = 10 ** exponent
+  const normalized = safeValue / magnitude
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10
+  return nice * magnitude
+}
+
+function isNearMultiple(value: number, step: number) {
+  return Math.abs(value / step - Math.round(value / step)) < 0.0001
+}
+
+function buildRulerTickValues(start: number, end: number, step: number) {
+  const first = Math.ceil(start / step) * step
+  const values: number[] = []
+  for (let value = first; value <= end + step * 0.5 && values.length < 260; value += step) {
+    values.push(Math.round(value * 10000) / 10000)
+  }
+  return values
+}
+
+function rulerPrecision(step: number, displayUnit: DisplayUnit) {
+  if (displayUnit === 'in') return step < 25.4 ? 2 : 1
+  if (step < 1) return 2
+  if (step < 10) return 1
+  return 0
+}
+
 export function CanvasViewportChrome({
-  minorGridPatternId,
-  majorGridPatternId,
-  minorGridStep,
-  gridSpacing,
-  gridExtent,
   showCanvasRuler,
-  showGrid = true,
-  gridBackgroundMode = 'light',
   displayUnit,
   tracingOverlays,
   onTracingOverlayOffset,
@@ -46,7 +68,18 @@ export function CanvasViewportChrome({
   viewBounds,
   detailPadding,
 }: CanvasViewportChromeProps) {
-  const rulerTickValues = showCanvasRuler ? Array.from({ length: 81 }, (_, index) => (index - 40) * 50) : []
+  const viewportScale = Math.max(viewport?.scale ?? 1, 0.0001)
+  const rulerTickStep = niceCeil(RULER_TICK_TARGET_SPACING_PX / viewportScale)
+  const rulerLabelStep = niceCeil(RULER_LABEL_TARGET_SPACING_PX / viewportScale)
+  const xRulerTickValues = showCanvasRuler ? buildRulerTickValues(viewBounds.minX, viewBounds.maxX, rulerTickStep) : []
+  const yRulerTickValues = showCanvasRuler ? buildRulerTickValues(viewBounds.minY, viewBounds.maxY, rulerTickStep) : []
+  const rulerFontScreenPx = clamp(11 + Math.log2(Math.max(viewportScale, 1)) * 0.45, 11, 14)
+  const rulerFontWorld = rulerFontScreenPx / viewportScale
+  const rulerLabelStrokeWorld = 2.2 / viewportScale
+  const majorTickWorld = 9 / viewportScale
+  const minorTickWorld = 5 / viewportScale
+  const rulerLabelGapWorld = 5 / viewportScale
+  const rulerLabelPrecision = rulerPrecision(rulerLabelStep, displayUnit)
 
   return (
     <>
@@ -57,65 +90,48 @@ export function CanvasViewportChrome({
         <marker id="arrow-start" markerWidth="6" markerHeight="4" refX="0.5" refY="2" orient="auto" markerUnits="strokeWidth">
           <polygon points="6 0, 0 2, 6 4" fill="context-stroke" />
         </marker>
-        <pattern id={minorGridPatternId} width={minorGridStep} height={minorGridStep} patternUnits="userSpaceOnUse">
-          <path d={`M ${minorGridStep} 0 L 0 0 0 ${minorGridStep}`} className="grid-line-minor" fill="none" />
-        </pattern>
-        <pattern id={majorGridPatternId} width={gridSpacing} height={gridSpacing} patternUnits="userSpaceOnUse">
-          <rect width={gridSpacing} height={gridSpacing} fill={`url(#${minorGridPatternId})`} />
-          <path d={`M ${gridSpacing} 0 L 0 0 0 ${gridSpacing}`} className="grid-line" fill="none" />
-        </pattern>
       </defs>
-
-      <g className="canvas-grid-layer" style={{ pointerEvents: 'none' }}>
-        {gridBackgroundMode === 'dark' && (
-          <rect
-            x={-gridExtent}
-            y={-gridExtent}
-            width={gridExtent * 2}
-            height={gridExtent * 2}
-            fill="#0f172a"
-          />
-        )}
-        {showGrid && (
-          <rect
-            x={-gridExtent}
-            y={-gridExtent}
-            width={gridExtent * 2}
-            height={gridExtent * 2}
-            fill={`url(#${majorGridPatternId})`}
-          />
-        )}
-        <line x1={-gridExtent} y1={0} x2={gridExtent} y2={0} className="axis-line" />
-        <line x1={0} y1={-gridExtent} x2={0} y2={gridExtent} className="axis-line" />
-      </g>
 
       {showCanvasRuler && (
         <g className="xy-ruler-overlay">
           <line x1={-2400} y1={0} x2={2400} y2={0} className="xy-ruler-axis" />
           <line x1={0} y1={-2400} x2={0} y2={2400} className="xy-ruler-axis" />
-          {rulerTickValues.map((value) => {
-            const major = value % 200 === 0
-            const tick = major ? 7 : 4
+          {xRulerTickValues.map((value) => {
+            const major = isNearMultiple(value, rulerLabelStep)
+            const tick = major ? majorTickWorld : minorTickWorld
             return (
               <g key={`ruler-x-${value}`}>
                 <line x1={value} y1={-tick} x2={value} y2={tick} className="xy-ruler-tick" />
                 {major && value !== 0 && (
-                  <text x={value + 2} y={-9} className="xy-ruler-label">
-                    {formatDisplayDistance(value, displayUnit, displayUnit === 'in' ? 2 : 0)}
+                  <text
+                    x={value}
+                    y={-(tick + rulerLabelGapWorld)}
+                    className="xy-ruler-label"
+                    textAnchor="middle"
+                    dominantBaseline="ideographic"
+                    style={{ fontSize: `${rulerFontWorld}px`, strokeWidth: rulerLabelStrokeWorld }}
+                  >
+                    {formatDisplayDistance(value, displayUnit, rulerLabelPrecision)}
                   </text>
                 )}
               </g>
             )
           })}
-          {rulerTickValues.map((value) => {
-            const major = value % 200 === 0
-            const tick = major ? 7 : 4
+          {yRulerTickValues.map((value) => {
+            const major = isNearMultiple(value, rulerLabelStep)
+            const tick = major ? majorTickWorld : minorTickWorld
             return (
               <g key={`ruler-y-${value}`}>
                 <line x1={-tick} y1={value} x2={tick} y2={value} className="xy-ruler-tick" />
                 {major && value !== 0 && (
-                  <text x={8} y={value - 2} className="xy-ruler-label">
-                    {formatDisplayDistance(-value, displayUnit, displayUnit === 'in' ? 2 : 0)}
+                  <text
+                    x={tick + rulerLabelGapWorld}
+                    y={value}
+                    className="xy-ruler-label"
+                    dominantBaseline="middle"
+                    style={{ fontSize: `${rulerFontWorld}px`, strokeWidth: rulerLabelStrokeWorld }}
+                  >
+                    {formatDisplayDistance(-value, displayUnit, rulerLabelPrecision)}
                   </text>
                 )}
               </g>

@@ -28,6 +28,8 @@
   --text-meta: #a5b4fc;
   --grid-line-color: #334155;
   --axis-line-color: #475569;
+  --ruler-label-fill: #bfdbfe;
+  --ruler-label-halo: rgba(15, 23, 42, 0.92);
   --shape-line-color: #e2e8f0;
   --fold-line-color: #ef4444;
   --stitch-hole-fill: #f59e0b;
@@ -69,6 +71,8 @@
   --text-meta: #334155;
   --grid-line-color: #cad7eb;
   --axis-line-color: #a7bad6;
+  --ruler-label-fill: #475569;
+  --ruler-label-halo: rgba(248, 251, 255, 0.96);
   --shape-line-color: #0f172a;
   --fold-line-color: #dc2626;
   --stitch-hole-fill: #b45309;
@@ -654,4 +658,3 @@ button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-

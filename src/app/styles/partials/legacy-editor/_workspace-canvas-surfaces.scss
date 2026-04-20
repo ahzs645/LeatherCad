@@ -46,6 +46,7 @@
 .canvas-grid-layer {
   position: absolute;
   inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -608,11 +609,10 @@
 
 .xy-ruler-label,
 .xy-ruler-origin {
-  fill: #38bdf8;
-  font-size: 3px;
+  fill: var(--ruler-label-fill);
+  font-weight: 650;
   paint-order: stroke;
-  stroke: rgba(15, 23, 42, 0.9);
-  stroke-width: 0.45;
+  stroke: var(--ruler-label-halo);
   pointer-events: none;
   user-select: none;
 }
@@ -653,4 +653,3 @@
   fill: #dbeafe;
   stroke: #0ea5e9;
 }
-
