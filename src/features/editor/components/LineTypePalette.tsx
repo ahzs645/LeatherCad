@@ -17,6 +17,9 @@ type LineTypePaletteProps = {
   onUpdateActiveLineTypeColor: (color: string) => void
   onUpdateActiveLineTypeRole: (role: LineTypeRole) => void
   onUpdateActiveLineTypeStyle: (style: LineTypeStyle) => void
+  onSelectAllOnVisibleLineTypes: () => void
+  onUnselectActiveLineType: () => void
+  onUnselectOtherLineTypes: () => void
   open: boolean
 }
 
@@ -36,6 +39,9 @@ export function LineTypePalette({
   onUpdateActiveLineTypeColor,
   onUpdateActiveLineTypeRole,
   onUpdateActiveLineTypeStyle,
+  onSelectAllOnVisibleLineTypes,
+  onUnselectActiveLineType,
+  onUnselectOtherLineTypes,
   open,
 }: LineTypePaletteProps) {
   if (!open) {
@@ -57,6 +63,18 @@ export function LineTypePalette({
         <div className="line-type-modal-header">
           <h2>Line Type Palette</h2>
           <button onClick={onClose}>Done</button>
+        </div>
+
+        <div className="line-type-palette-selection-actions">
+          <button onClick={onSelectAllOnVisibleLineTypes}>
+            Select all on visible line types
+          </button>
+          <button onClick={onUnselectActiveLineType} disabled={!activeLineType}>
+            Deselect active line type
+          </button>
+          <button onClick={onUnselectOtherLineTypes} disabled={!activeLineType}>
+            Keep only active line type
+          </button>
         </div>
 
         <LineTypeManagerSection

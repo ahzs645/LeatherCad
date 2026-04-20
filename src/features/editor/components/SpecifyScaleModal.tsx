@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 type SpecifyScaleModalProps = {
   open: boolean
@@ -11,14 +11,6 @@ export function SpecifyScaleModal({ open, axis, onClose, onApply }: SpecifyScale
   const [percentX, setPercentX] = useState('100')
   const [percentY, setPercentY] = useState('100')
   const [uniform, setUniform] = useState(axis === 'both')
-
-  useEffect(() => {
-    if (open) {
-      setPercentX('100')
-      setPercentY('100')
-      setUniform(axis === 'both')
-    }
-  }, [open, axis])
 
   if (!open) {
     return null

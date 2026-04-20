@@ -34,6 +34,24 @@ type UseEditorTopbarPropsParams = {
   handleCopySelectionByDistance: () => void
   handleRotateSelection: (angleDeg: number) => void
   handleScaleSelection: (factor: number) => void
+  handleAlignSelectionToEdge: (edge: import('../ops/transform-ops').AlignEdge) => void
+  handleFlipSelection: (axis: 'horizontal' | 'vertical') => void
+  handleReverseSelectedPaths: () => void
+  handleOpenSpecifyRotationModal: () => void
+  handleOpenSpecifyScaleModal: (axis: 'both' | 'vertical') => void
+  handleSetAsRotationCenter: () => void
+  handleClearRotationCenter: () => void
+  handleSetAsSnapPoint: () => void
+  handleClearSnapPoint: () => void
+  handleMakeSelectedLineHorizontal: () => void
+  handleMakeSelectedLineVertical: () => void
+  hasCustomRotationPivot: boolean
+  hasCustomSnapPoint: boolean
+  handleCenterLineBetweenSelection: () => void
+  handleEditSelectedLineAnglePrompt: () => void
+  handleDeleteDuplicatesSelection: () => void
+  handleSplitIntoNPrompt: () => void
+  handleDrawBoundaryAroundSelection: () => void
   handleEnableStitchOnSelection: () => void
   handleDisableStitchOnSelection: () => void
   handleMoveSelectionBackward: () => void
@@ -106,6 +124,24 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleCopySelectionByDistance,
     handleRotateSelection,
     handleScaleSelection,
+    handleAlignSelectionToEdge,
+    handleFlipSelection,
+    handleReverseSelectedPaths,
+    handleOpenSpecifyRotationModal,
+    handleOpenSpecifyScaleModal,
+    handleSetAsRotationCenter,
+    handleClearRotationCenter,
+    handleSetAsSnapPoint,
+    handleClearSnapPoint,
+    handleMakeSelectedLineHorizontal,
+    handleMakeSelectedLineVertical,
+    hasCustomRotationPivot,
+    hasCustomSnapPoint,
+    handleCenterLineBetweenSelection,
+    handleEditSelectedLineAnglePrompt,
+    handleDeleteDuplicatesSelection,
+    handleSplitIntoNPrompt,
+    handleDrawBoundaryAroundSelection,
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -324,6 +360,31 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onScaleSelectionDown1: () => handleScaleSelection(0.99),
     onScaleSelectionUp5: () => handleScaleSelection(1.05),
     onScaleSelectionDown5: () => handleScaleSelection(0.95),
+    onAlignSelectionLeft: () => handleAlignSelectionToEdge('left'),
+    onAlignSelectionRight: () => handleAlignSelectionToEdge('right'),
+    onAlignSelectionTop: () => handleAlignSelectionToEdge('top'),
+    onAlignSelectionBottom: () => handleAlignSelectionToEdge('bottom'),
+    onAlignSelectionMiddleH: () => handleAlignSelectionToEdge('middleH'),
+    onAlignSelectionMiddleV: () => handleAlignSelectionToEdge('middleV'),
+    onFlipSelectionHorizontally: () => handleFlipSelection('horizontal'),
+    onFlipSelectionVertically: () => handleFlipSelection('vertical'),
+    onReverseSelectedPaths: handleReverseSelectedPaths,
+    onSpecifyRotationAngle: handleOpenSpecifyRotationModal,
+    onSpecifyScaleRatio: () => handleOpenSpecifyScaleModal('both'),
+    onSpecifyScaleRatioVertically: () => handleOpenSpecifyScaleModal('vertical'),
+    onSetAsRotationCenter: handleSetAsRotationCenter,
+    onClearRotationCenter: handleClearRotationCenter,
+    onSetAsSnapPoint: handleSetAsSnapPoint,
+    onClearSnapPoint: handleClearSnapPoint,
+    onMakeSelectedLineHorizontal: handleMakeSelectedLineHorizontal,
+    onMakeSelectedLineVertical: handleMakeSelectedLineVertical,
+    hasCustomRotationPivot,
+    hasCustomSnapPoint,
+    onCenterLineBetweenSelection: handleCenterLineBetweenSelection,
+    onEditSelectedLineAngle: handleEditSelectedLineAnglePrompt,
+    onDeleteDuplicates: handleDeleteDuplicatesSelection,
+    onSplitIntoN: handleSplitIntoNPrompt,
+    onDrawBoundaryAroundSelection: handleDrawBoundaryAroundSelection,
     onEnableStitchOnSelection: handleEnableStitchOnSelection,
     onDisableStitchOnSelection: handleDisableStitchOnSelection,
     onMoveSelectionBackward: handleMoveSelectionBackward,

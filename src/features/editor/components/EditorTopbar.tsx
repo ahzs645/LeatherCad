@@ -73,6 +73,31 @@ type EditorTopbarProps = {
   onScaleSelectionDown1: () => void
   onScaleSelectionUp5: () => void
   onScaleSelectionDown5: () => void
+  onAlignSelectionLeft: () => void
+  onAlignSelectionRight: () => void
+  onAlignSelectionTop: () => void
+  onAlignSelectionBottom: () => void
+  onAlignSelectionMiddleH: () => void
+  onAlignSelectionMiddleV: () => void
+  onFlipSelectionHorizontally: () => void
+  onFlipSelectionVertically: () => void
+  onReverseSelectedPaths: () => void
+  onSpecifyRotationAngle: () => void
+  onSpecifyScaleRatio: () => void
+  onSpecifyScaleRatioVertically: () => void
+  onSetAsRotationCenter: () => void
+  onClearRotationCenter: () => void
+  onSetAsSnapPoint: () => void
+  onClearSnapPoint: () => void
+  onMakeSelectedLineHorizontal: () => void
+  onMakeSelectedLineVertical: () => void
+  hasCustomRotationPivot: boolean
+  hasCustomSnapPoint: boolean
+  onCenterLineBetweenSelection: () => void
+  onEditSelectedLineAngle: () => void
+  onDeleteDuplicates: () => void
+  onSplitIntoN: () => void
+  onDrawBoundaryAroundSelection: () => void
   onEnableStitchOnSelection: () => void
   onDisableStitchOnSelection: () => void
   onMoveSelectionBackward: () => void
@@ -253,6 +278,31 @@ export function EditorTopbar({
   onScaleSelectionDown1,
   onScaleSelectionUp5,
   onScaleSelectionDown5,
+  onAlignSelectionLeft,
+  onAlignSelectionRight,
+  onAlignSelectionTop,
+  onAlignSelectionBottom,
+  onAlignSelectionMiddleH,
+  onAlignSelectionMiddleV,
+  onFlipSelectionHorizontally,
+  onFlipSelectionVertically,
+  onReverseSelectedPaths,
+  onSpecifyRotationAngle,
+  onSpecifyScaleRatio,
+  onSpecifyScaleRatioVertically,
+  onSetAsRotationCenter,
+  onClearRotationCenter,
+  onSetAsSnapPoint,
+  onClearSnapPoint,
+  onMakeSelectedLineHorizontal,
+  onMakeSelectedLineVertical,
+  hasCustomRotationPivot,
+  hasCustomSnapPoint,
+  onCenterLineBetweenSelection,
+  onEditSelectedLineAngle,
+  onDeleteDuplicates,
+  onSplitIntoN,
+  onDrawBoundaryAroundSelection,
   onEnableStitchOnSelection,
   onDisableStitchOnSelection,
   onMoveSelectionBackward,
@@ -640,6 +690,44 @@ export function EditorTopbar({
             <button onClick={onBringSelectionToFront} disabled={selectedShapeCount === 0}>
               To Front
             </button>
+          </div>
+        )}
+
+        {showEditSection && (
+          <div className="group transform-controls ribbon-section" data-section="Transform">
+            <button onClick={onAlignSelectionLeft} disabled={selectedShapeCount < 2}>Align L</button>
+            <button onClick={onAlignSelectionRight} disabled={selectedShapeCount < 2}>Align R</button>
+            <button onClick={onAlignSelectionTop} disabled={selectedShapeCount < 2}>Align T</button>
+            <button onClick={onAlignSelectionBottom} disabled={selectedShapeCount < 2}>Align B</button>
+            <button onClick={onAlignSelectionMiddleH} disabled={selectedShapeCount < 2}>Center H</button>
+            <button onClick={onAlignSelectionMiddleV} disabled={selectedShapeCount < 2}>Center V</button>
+            <button onClick={onFlipSelectionHorizontally} disabled={selectedShapeCount === 0}>Flip H</button>
+            <button onClick={onFlipSelectionVertically} disabled={selectedShapeCount === 0}>Flip V</button>
+            <button onClick={onReverseSelectedPaths} disabled={selectedShapeCount === 0}>Reverse Path</button>
+            <button onClick={onSpecifyRotationAngle} disabled={selectedShapeCount === 0}>Rotate…</button>
+            <button onClick={onSpecifyScaleRatio} disabled={selectedShapeCount === 0}>Scale…</button>
+            <button onClick={onSpecifyScaleRatioVertically} disabled={selectedShapeCount === 0}>Scale Y…</button>
+            <button
+              onClick={hasCustomRotationPivot ? onClearRotationCenter : onSetAsRotationCenter}
+              disabled={selectedShapeCount === 0 && !hasCustomRotationPivot}
+              title={hasCustomRotationPivot ? 'Custom rotation pivot active — click to clear' : 'Set selection center as rotation pivot'}
+            >
+              {hasCustomRotationPivot ? 'Clear Pivot' : 'Set Pivot'}
+            </button>
+            <button
+              onClick={hasCustomSnapPoint ? onClearSnapPoint : onSetAsSnapPoint}
+              disabled={selectedShapeCount === 0 && !hasCustomSnapPoint}
+              title={hasCustomSnapPoint ? 'Custom snap anchor active — click to clear' : 'Set selection center as snap anchor'}
+            >
+              {hasCustomSnapPoint ? 'Clear Snap Pt' : 'Set Snap Pt'}
+            </button>
+            <button onClick={onMakeSelectedLineHorizontal} disabled={selectedShapeCount === 0}>Make Horiz</button>
+            <button onClick={onMakeSelectedLineVertical} disabled={selectedShapeCount === 0}>Make Vert</button>
+            <button onClick={onCenterLineBetweenSelection} disabled={selectedShapeCount !== 2}>Center Line</button>
+            <button onClick={onEditSelectedLineAngle} disabled={selectedShapeCount === 0}>Edit Angle…</button>
+            <button onClick={onDeleteDuplicates}>Dedupe</button>
+            <button onClick={onSplitIntoN} disabled={selectedShapeCount === 0}>Split N…</button>
+            <button onClick={onDrawBoundaryAroundSelection} disabled={selectedShapeCount === 0}>Boundary</button>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 type SpecifyRotationModalProps = {
   open: boolean
@@ -8,12 +8,6 @@ type SpecifyRotationModalProps = {
 
 export function SpecifyRotationModal({ open, onClose, onApply }: SpecifyRotationModalProps) {
   const [angleDeg, setAngleDeg] = useState('0')
-
-  useEffect(() => {
-    if (open) {
-      setAngleDeg('0')
-    }
-  }, [open])
 
   if (!open) {
     return null

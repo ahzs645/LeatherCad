@@ -37,6 +37,7 @@ type UseCanvasInteractionsParams = {
   foldLines: FoldLine[]
   displayShapes: Shape[]
   snapShapes: Shape[]
+  customSnapPoint: Point | null
   stitchTargetShapes: Shape[]
   visibleHardwareMarkers: HardwareMarker[]
   lineTypesById: Record<string, LineType>
@@ -79,6 +80,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     foldLines,
     displayShapes,
     snapShapes,
+    customSnapPoint,
     stitchTargetShapes,
     visibleHardwareMarkers,
     lineTypesById,
@@ -154,6 +156,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       foldLines,
       hardwareMarkers: visibleHardwareMarkers,
       viewportScale: viewport.scale,
+      customSnapPoints: customSnapPoint ? [customSnapPoint] : undefined,
     })
 
   const { handleZoomStep, handleResetView, handleFitView } = useCanvasViewportControls({

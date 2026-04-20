@@ -2,21 +2,29 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { Shape, BezierShape, ArcShape, LineShape, Point } from '../cad/cad-types'
 import { distance } from '../cad/cad-geometry'
 import {
+  buildBoundaryLines,
+  buildCenterLineBetween,
   convertArcToBezier,
+  extendLineToShape,
+  findNearestIntersection,
   makeBezierCpFlat,
   makeBezierCpSameLength,
   makeBezierCpSymmetric,
-  extendLineToShape,
-  trimShapeAtPoint,
   mirrorShape,
+  removeDuplicateShapes,
   resizeShapeToDimensions,
-  findNearestIntersection,
+  setLineAngle,
+  splitShapeIntoN,
+  trimShapeAtPoint,
 } from '../ops/geometry-editing-ops'
 
 type UseGeometryEditingActionsParams = {
   shapes: Shape[]
   setShapes: Dispatch<SetStateAction<Shape[]>>
   selectedShapeIdSet: Set<string>
+  setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
+  activeLayerId: string
+  activeLineTypeId: string
   setStatus: Dispatch<SetStateAction<string>>
   showBezierOffsetLines: boolean
   setShowBezierOffsetLines: Dispatch<SetStateAction<boolean>>
@@ -27,6 +35,9 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     shapes,
     setShapes,
     selectedShapeIdSet,
+    setSelectedShapeIds,
+    activeLayerId,
+    activeLineTypeId,
     setStatus,
     showBezierOffsetLines,
     setShowBezierOffsetLines,
@@ -389,6 +400,111 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   }
 
   // ---------------------------------------------------------------------------
+  // handleCenterLineBetweenSelection
+  // ---------------------------------------------------------------------------
+
+  const handleCenterLineBetweenSelection = () => {
+    const selected = getSelectedShapes()
+    if (selected.length !== 2) {
+      setStatus('Select exactly two shapes to build a center line')
+      return
+    }
+    const newLine = buildCenterLineBetween(selected[0], selected[1], {
+      layerId: activeLayerId,
+      lineTypeId: activeLineTypeId,
+    })
+    setShapes((prev) => [...prev, newLine])
+    setSelectedShapeIds([newLine.id])
+    setStatus('Drew center line between selected shapes')
+  }
+
+  // ---------------------------------------------------------------------------
+  // handleEditSelectedLineAngle
+  // ---------------------------------------------------------------------------
+
+  const handleEditSelectedLineAngle = (angleDeg: number) => {
+    const selected = getSelectedShapes()
+    const line = selected.find((shape): shape is LineShape => shape.type === 'line')
+    if (!line) {
+      setStatus('Select a single line whose angle you want to edit')
+      return
+    }
+    if (!Number.isFinite(angleDeg)) {
+      setStatus('Invalid angle')
+      return
+    }
+    const updated = setLineAngle(line, angleDeg)
+    setShapes((prev) => prev.map((shape) => (shape.id === line.id ? updated : shape)))
+    setStatus(`Line angle set to ${angleDeg.toFixed(2)}°`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // handleDeleteDuplicates
+  // ---------------------------------------------------------------------------
+
+  const handleDeleteDuplicates = (tolerance = 0.05) => {
+    const { shapes: kept, removedIds } = removeDuplicateShapes(shapes, tolerance)
+    if (removedIds.length === 0) {
+      setStatus('No duplicate shapes found')
+      return
+    }
+    const removedSet = new Set(removedIds)
+    setShapes(kept)
+    setSelectedShapeIds((prev) => prev.filter((id) => !removedSet.has(id)))
+    setStatus(`Removed ${removedIds.length} duplicate shape${removedIds.length === 1 ? '' : 's'}`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // handleSplitIntoN
+  // ---------------------------------------------------------------------------
+
+  const handleSplitIntoN = (count: number) => {
+    if (!Number.isInteger(count) || count < 2) {
+      setStatus('Split count must be an integer ≥ 2')
+      return
+    }
+    const selected = getSelectedShapes()
+    if (selected.length === 0) {
+      setStatus('Select one or more paths to split')
+      return
+    }
+    setShapes((prev) => {
+      let updated = prev
+      for (const shape of selected) {
+        const parts = splitShapeIntoN(shape, count)
+        if (parts.length > 1 || parts[0].id !== shape.id) {
+          updated = replaceShapeById(updated, shape.id, parts)
+        }
+      }
+      return updated
+    })
+    setStatus(`Split ${selected.length} path${selected.length === 1 ? '' : 's'} into ${count} segments`)
+  }
+
+  // ---------------------------------------------------------------------------
+  // handleDrawBoundaryAroundSelection
+  // ---------------------------------------------------------------------------
+
+  const handleDrawBoundaryAroundSelection = () => {
+    const selected = getSelectedShapes()
+    if (selected.length === 0) {
+      setStatus('Select one or more shapes to draw a boundary around')
+      return
+    }
+    const boundary = buildBoundaryLines(selected, {
+      layerId: activeLayerId,
+      lineTypeId: activeLineTypeId,
+    })
+    if (boundary.length === 0) {
+      setStatus('Could not compute a boundary from the selection')
+      return
+    }
+    setShapes((prev) => [...prev, ...boundary])
+    setSelectedShapeIds(boundary.map((line) => line.id))
+    setStatus(`Drew boundary with ${boundary.length} segments`)
+  }
+
+  // ---------------------------------------------------------------------------
   // Return all handlers
   // ---------------------------------------------------------------------------
 
@@ -402,5 +518,10 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     handleToggleBezierOffsetLines,
     handleResizeShapes,
     handleLineSymmetry,
+    handleCenterLineBetweenSelection,
+    handleEditSelectedLineAngle,
+    handleDeleteDuplicates,
+    handleSplitIntoN,
+    handleDrawBoundaryAroundSelection,
   }
 }

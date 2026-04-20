@@ -29,6 +29,9 @@ type UseEditorModalStackPropsParams = {
   handleSelectShapesByActiveLineType: () => void
   handleAssignSelectedToActiveLineType: () => void
   handleClearShapeSelection: () => void
+  handleLinePaletteSelectAllVisible: () => void
+  handleLinePaletteUnselectActive: () => void
+  handleLinePaletteUnselectOtherThanActive: () => void
   layerColorsById: Record<string, string>
   handleSetLayerColorOverride: (layerId: string, nextColor: string) => void
   handleClearLayerColorOverride: (layerId: string) => void
@@ -127,6 +130,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,
+    handleLinePaletteSelectAllVisible,
+    handleLinePaletteUnselectActive,
+    handleLinePaletteUnselectOtherThanActive,
     layerColorsById,
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
@@ -441,6 +447,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onSelectShapesByActiveType: handleSelectShapesByActiveLineType,
       onAssignSelectedToActiveType: handleAssignSelectedToActiveLineType,
       onClearSelection: handleClearShapeSelection,
+      onSelectAllOnVisibleLineTypes: handleLinePaletteSelectAllVisible,
+      onUnselectActiveLineType: handleLinePaletteUnselectActive,
+      onUnselectOtherLineTypes: handleLinePaletteUnselectOtherThanActive,
     },
     helpModalProps: {
       open: showHelpModal,

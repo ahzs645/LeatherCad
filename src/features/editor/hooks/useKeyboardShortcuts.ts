@@ -11,6 +11,7 @@ type UseKeyboardShortcutsParams = {
   handlePasteClipboard: () => void
   handleDuplicateSelection: () => void
   handleSelectAllShapes: () => void
+  handleDeselectAll: () => void
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -23,6 +24,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handlePasteClipboard,
     handleDuplicateSelection,
     handleSelectAllShapes,
+    handleDeselectAll,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
@@ -31,7 +33,8 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         clearDraft()
-        setStatus('Draft cancelled')
+        handleDeselectAll()
+        setStatus('Draft and selection cleared')
         return
       }
 
@@ -102,5 +105,6 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handlePasteClipboard,
     handleDuplicateSelection,
     handleSelectAllShapes,
+    handleDeselectAll,
   ])
 }

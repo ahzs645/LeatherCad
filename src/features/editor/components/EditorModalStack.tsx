@@ -175,12 +175,15 @@ export function EditorModalStack({
       )}
       {specifyRotationModalProps?.open && (
         <Suspense fallback={null}>
-          <SpecifyRotationModal {...specifyRotationModalProps} />
+          <SpecifyRotationModal key={`rot-${specifyRotationModalProps.open}`} {...specifyRotationModalProps} />
         </Suspense>
       )}
       {specifyScaleModalProps?.open && (
         <Suspense fallback={null}>
-          <SpecifyScaleModal {...specifyScaleModalProps} />
+          <SpecifyScaleModal
+            key={`scale-${specifyScaleModalProps.open}-${specifyScaleModalProps.axis}`}
+            {...specifyScaleModalProps}
+          />
         </Suspense>
       )}
     </>

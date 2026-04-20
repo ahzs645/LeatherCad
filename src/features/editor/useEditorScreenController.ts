@@ -57,6 +57,7 @@ import { useEditorModalStackProps } from './hooks/useEditorModalStackProps'
 import { useEditorStatusBarProps } from './hooks/useEditorStatusBarProps'
 import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
+import { useTransformActions } from './hooks/useTransformActions'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
 import { useEditorViewport } from './hooks/useEditorViewport'
@@ -178,6 +179,11 @@ export function useEditorScreenController() {
     showLetterStampModal, setShowLetterStampModal,
     showChangeShapeSizeModal, setShowChangeShapeSizeModal,
     showBezierOffsetLines, setShowBezierOffsetLines,
+    customRotationPivot, setCustomRotationPivot,
+    customSnapPoint, setCustomSnapPoint,
+    showSpecifyRotationModal, setShowSpecifyRotationModal,
+    showSpecifyScaleModal, setShowSpecifyScaleModal,
+    specifyScaleModalAxis, setSpecifyScaleModalAxis,
   } = useEditorUIState()
 
   // Selection state: selected shapes, stitch holes, hardware markers, clipboard
@@ -512,6 +518,34 @@ export function useEditorScreenController() {
     setStatus,
   })
 
+  const {
+    handleAlignSelectionToEdge,
+    handleFlipSelection,
+    handleReverseSelectedPaths,
+    handleSpecifyRotation,
+    handleSpecifyScale,
+    handleOpenSpecifyRotationModal,
+    handleOpenSpecifyScaleModal,
+    handleSetAsRotationCenter,
+    handleClearRotationCenter,
+    handleSetAsSnapPoint,
+    handleClearSnapPoint,
+    handleMakeSelectedLineHorizontal,
+    handleMakeSelectedLineVertical,
+  } = useTransformActions({
+    shapes,
+    selectedShapeIdSet,
+    customRotationPivot,
+    setShapes,
+    setStitchHoles,
+    setCustomRotationPivot,
+    setCustomSnapPoint,
+    setShowSpecifyRotationModal,
+    setShowSpecifyScaleModal,
+    setSpecifyScaleModalAxis,
+    setStatus,
+  })
+
   const selectedEditableShape =
     selectedShapeIds.length === 1 ? (shapesById[selectedShapeIds[0]] ?? null) : null
   const {
@@ -704,6 +738,11 @@ export function useEditorScreenController() {
     handlePasteClipboard,
     handleDuplicateSelection,
     handleSelectAllShapes,
+    handleDeselectAll: () => {
+      setSelectedShapeIds([])
+      setSelectedStitchHoleId(null)
+      setSelectedHardwareMarkerId(null)
+    },
   })
 
   useEditorAutomationEffects({
@@ -738,6 +777,7 @@ export function useEditorScreenController() {
     foldLines,
     displayShapes: workspaceShapes,
     snapShapes: workspaceShapes,
+    customSnapPoint,
     stitchTargetShapes: workspaceEditableShapes,
     visibleHardwareMarkers: workspaceHardwareMarkers,
     lineTypesById,
@@ -837,6 +877,9 @@ export function useEditorScreenController() {
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,
+    handleLinePaletteSelectAll,
+    handleLinePaletteUnselectLineType,
+    handleLinePaletteUnselectOthers,
   } = useLineTypeActions({
     activeLineType,
     shapes,
@@ -1053,10 +1096,18 @@ export function useEditorScreenController() {
     handleMirrorShapes,
     handleToggleBezierOffsetLines,
     handleResizeShapes,
+    handleCenterLineBetweenSelection,
+    handleEditSelectedLineAngle,
+    handleDeleteDuplicates,
+    handleSplitIntoN,
+    handleDrawBoundaryAroundSelection,
   } = useGeometryEditingActions({
     shapes,
     setShapes,
     selectedShapeIdSet,
+    setSelectedShapeIds,
+    activeLayerId,
+    activeLineTypeId,
     setStatus,
     showBezierOffsetLines,
     setShowBezierOffsetLines,
@@ -1226,6 +1277,48 @@ export function useEditorScreenController() {
     handleCopySelectionByDistance,
     handleRotateSelection,
     handleScaleSelection,
+    handleAlignSelectionToEdge,
+    handleFlipSelection,
+    handleReverseSelectedPaths,
+    handleOpenSpecifyRotationModal,
+    handleOpenSpecifyScaleModal,
+    handleSetAsRotationCenter,
+    handleClearRotationCenter,
+    handleSetAsSnapPoint,
+    handleClearSnapPoint,
+    handleMakeSelectedLineHorizontal,
+    handleMakeSelectedLineVertical,
+    hasCustomRotationPivot: customRotationPivot !== null,
+    hasCustomSnapPoint: customSnapPoint !== null,
+    handleCenterLineBetweenSelection,
+    handleEditSelectedLineAnglePrompt: () => {
+      const raw = window.prompt('Enter new line angle (degrees, CCW from +X)', '0')
+      if (raw === null) {
+        setStatus('Edit angle cancelled')
+        return
+      }
+      const angle = Number(raw)
+      if (!Number.isFinite(angle)) {
+        setStatus('Invalid angle')
+        return
+      }
+      handleEditSelectedLineAngle(angle)
+    },
+    handleDeleteDuplicatesSelection: () => handleDeleteDuplicates(),
+    handleSplitIntoNPrompt: () => {
+      const raw = window.prompt('Split into how many equal segments?', '2')
+      if (raw === null) {
+        setStatus('Split cancelled')
+        return
+      }
+      const count = Number(raw)
+      if (!Number.isInteger(count) || count < 2) {
+        setStatus('Segment count must be an integer ≥ 2')
+        return
+      }
+      handleSplitIntoN(count)
+    },
+    handleDrawBoundaryAroundSelection,
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -1281,6 +1374,13 @@ export function useEditorScreenController() {
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,
+    handleLinePaletteSelectAllVisible: () => handleLinePaletteSelectAll(lineTypes),
+    handleLinePaletteUnselectActive: () => {
+      if (activeLineType) handleLinePaletteUnselectLineType(activeLineType.id)
+    },
+    handleLinePaletteUnselectOtherThanActive: () => {
+      if (activeLineType) handleLinePaletteUnselectOthers(activeLineType.id)
+    },
     layerColorsById,
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
@@ -1852,6 +1952,23 @@ export function useEditorScreenController() {
           },
           currentWidth: selectionBounds?.width ?? 0,
           currentHeight: selectionBounds?.height ?? 0,
+        },
+        specifyRotationModalProps: {
+          open: showSpecifyRotationModal,
+          onClose: () => setShowSpecifyRotationModal(false),
+          onApply: (angleDeg: number) => {
+            handleSpecifyRotation(angleDeg)
+            setShowSpecifyRotationModal(false)
+          },
+        },
+        specifyScaleModalProps: {
+          open: showSpecifyScaleModal,
+          axis: specifyScaleModalAxis,
+          onClose: () => setShowSpecifyScaleModal(false),
+          onApply: (factorX: number, factorY: number) => {
+            handleSpecifyScale(factorX, factorY)
+            setShowSpecifyScaleModal(false)
+          },
         },
       },
       projectMemoModalProps: {

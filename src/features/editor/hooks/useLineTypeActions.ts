@@ -144,6 +144,38 @@ export function useLineTypeActions(params: UseLineTypeActionsParams) {
     setStatus('Shape selection cleared')
   }
 
+  const handleLinePaletteSelectAll = (lineTypes: LineType[]) => {
+    const visibleIds = new Set(lineTypes.filter((lineType) => lineType.visible).map((lineType) => lineType.id))
+    if (visibleIds.size === 0) {
+      setSelectedShapeIds([])
+      setStatus('No visible line types to select')
+      return
+    }
+    const nextSelected = shapes.filter((shape) => visibleIds.has(shape.lineTypeId)).map((shape) => shape.id)
+    setSelectedShapeIds(nextSelected)
+    setStatus(`Selected ${nextSelected.length} shape${nextSelected.length === 1 ? '' : 's'} on visible line types`)
+  }
+
+  const handleLinePaletteUnselectLineType = (lineTypeId: string) => {
+    const removedIds = new Set(
+      shapes.filter((shape) => shape.lineTypeId === lineTypeId).map((shape) => shape.id),
+    )
+    if (removedIds.size === 0) {
+      setStatus('No shapes on that line type to deselect')
+      return
+    }
+    setSelectedShapeIds((previous) => previous.filter((id) => !removedIds.has(id)))
+    setStatus(`Deselected shapes on line type`)
+  }
+
+  const handleLinePaletteUnselectOthers = (lineTypeId: string) => {
+    const keepIds = new Set(
+      shapes.filter((shape) => shape.lineTypeId === lineTypeId).map((shape) => shape.id),
+    )
+    setSelectedShapeIds((previous) => previous.filter((id) => keepIds.has(id)))
+    setStatus('Kept only shapes on the chosen line type selected')
+  }
+
   return {
     handleToggleActiveLineTypeVisibility,
     handleShowAllLineTypes,
@@ -154,5 +186,8 @@ export function useLineTypeActions(params: UseLineTypeActionsParams) {
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,
+    handleLinePaletteSelectAll,
+    handleLinePaletteUnselectLineType,
+    handleLinePaletteUnselectOthers,
   }
 }

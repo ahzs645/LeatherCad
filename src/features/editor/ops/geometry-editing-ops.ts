@@ -703,6 +703,255 @@ function getShapePointRefs(shape: Shape): Point[] {
 // 12. findNearestIntersection
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Center-line between two lines/paths (actCenterLine)
+// ---------------------------------------------------------------------------
+
+function midpointOfShape(shape: Shape): Point {
+  if (shape.type === 'arc') {
+    return { x: shape.mid.x, y: shape.mid.y }
+  }
+  if (shape.type === 'bezier') {
+    return evalQuadBezier(shape.start, shape.control, shape.end, 0.5)
+  }
+  return { x: (shape.start.x + shape.end.x) / 2, y: (shape.start.y + shape.end.y) / 2 }
+}
+
+/**
+ * Construct a line between the midpoints of two input shapes. Caller provides the
+ * layer and line-type context; the returned shape is a new LineShape with a fresh id.
+ */
+export function buildCenterLineBetween(
+  first: Shape,
+  second: Shape,
+  props: { layerId: string; lineTypeId: string; groupId?: string },
+): LineShape {
+  const start = midpointOfShape(first)
+  const end = midpointOfShape(second)
+  return {
+    id: uid(),
+    type: 'line',
+    layerId: props.layerId,
+    lineTypeId: props.lineTypeId,
+    groupId: props.groupId,
+    start: { x: round(start.x), y: round(start.y) },
+    end: { x: round(end.x), y: round(end.y) },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Edit line angle (actEditLineAngle)
+// ---------------------------------------------------------------------------
+
+/**
+ * Rotate a line's endpoint so its direction matches the given angle (degrees,
+ * CCW from +X). Start is held fixed; length is preserved.
+ */
+export function setLineAngle(line: LineShape, angleDeg: number): LineShape {
+  const length = distance(line.start, line.end)
+  const radians = (angleDeg * Math.PI) / 180
+  return {
+    ...line,
+    end: {
+      x: round(line.start.x + Math.cos(radians) * length),
+      y: round(line.start.y + Math.sin(radians) * length),
+    },
+  }
+}
+
+export function getLineAngleDeg(line: LineShape): number {
+  return (Math.atan2(line.end.y - line.start.y, line.end.x - line.start.x) * 180) / Math.PI
+}
+
+// ---------------------------------------------------------------------------
+// Delete duplicates (actDeleteDuplicates)
+// ---------------------------------------------------------------------------
+
+function pointsCoincide(a: Point, b: Point, tolerance: number) {
+  return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance
+}
+
+/** True when two shapes have the same type and identical anchor points (within tolerance). */
+export function shapesCoincide(a: Shape, b: Shape, tolerance = 0.01): boolean {
+  if (a.type !== b.type) return false
+  if (a.type === 'line' && b.type === 'line') {
+    const forward = pointsCoincide(a.start, b.start, tolerance) && pointsCoincide(a.end, b.end, tolerance)
+    const reverse = pointsCoincide(a.start, b.end, tolerance) && pointsCoincide(a.end, b.start, tolerance)
+    return forward || reverse
+  }
+  if (a.type === 'arc' && b.type === 'arc') {
+    return (
+      pointsCoincide(a.start, b.start, tolerance) &&
+      pointsCoincide(a.mid, b.mid, tolerance) &&
+      pointsCoincide(a.end, b.end, tolerance)
+    )
+  }
+  if (a.type === 'bezier' && b.type === 'bezier') {
+    return (
+      pointsCoincide(a.start, b.start, tolerance) &&
+      pointsCoincide(a.control, b.control, tolerance) &&
+      pointsCoincide(a.end, b.end, tolerance)
+    )
+  }
+  return false
+}
+
+/**
+ * Remove shapes that coincide with earlier shapes in the array (keep the first,
+ * drop subsequent duplicates). Returns { shapes, removedIds }.
+ */
+export function removeDuplicateShapes(
+  shapes: Shape[],
+  tolerance = 0.01,
+): { shapes: Shape[]; removedIds: string[] } {
+  const kept: Shape[] = []
+  const removedIds: string[] = []
+  for (const shape of shapes) {
+    if (shape.type === 'text') {
+      kept.push(shape)
+      continue
+    }
+    const duplicate = kept.find((k) => shapesCoincide(shape, k, tolerance))
+    if (duplicate) {
+      removedIds.push(shape.id)
+    } else {
+      kept.push(shape)
+    }
+  }
+  return { shapes: kept, removedIds }
+}
+
+// ---------------------------------------------------------------------------
+// Split into N (actSplitIntoN)
+// ---------------------------------------------------------------------------
+
+/**
+ * Split a shape into `count` sub-shapes at equal parameter spacing. Lines and
+ * beziers yield lines/beziers accordingly; arcs are split into arc sub-shapes
+ * that share the parent arc's circle. Text shapes are returned unchanged.
+ */
+export function splitShapeIntoN(
+  shape: Shape,
+  count: number,
+): Shape[] {
+  if (count < 2) return [shape]
+  if (shape.type === 'text') return [shape]
+
+  const segments: Shape[] = []
+  const props = copyShapeProps(shape)
+  for (let i = 0; i < count; i++) {
+    const tStart = i / count
+    const tEnd = (i + 1) / count
+    const startPoint = evaluateShapeAt(shape, tStart)
+    const endPoint = evaluateShapeAt(shape, tEnd)
+    if (shape.type === 'line') {
+      segments.push({
+        id: uid(),
+        type: 'line',
+        layerId: props.layerId,
+        lineTypeId: props.lineTypeId,
+        groupId: props.groupId,
+        start: { x: round(startPoint.x), y: round(startPoint.y) },
+        end: { x: round(endPoint.x), y: round(endPoint.y) },
+      })
+    } else if (shape.type === 'arc') {
+      const midPoint = evaluateShapeAt(shape, (tStart + tEnd) / 2)
+      segments.push({
+        id: uid(),
+        type: 'arc',
+        layerId: props.layerId,
+        lineTypeId: props.lineTypeId,
+        groupId: props.groupId,
+        start: { x: round(startPoint.x), y: round(startPoint.y) },
+        mid: { x: round(midPoint.x), y: round(midPoint.y) },
+        end: { x: round(endPoint.x), y: round(endPoint.y) },
+      })
+    } else if (shape.type === 'bezier') {
+      const midPoint = evaluateShapeAt(shape, (tStart + tEnd) / 2)
+      segments.push({
+        id: uid(),
+        type: 'bezier',
+        layerId: props.layerId,
+        lineTypeId: props.lineTypeId,
+        groupId: props.groupId,
+        start: { x: round(startPoint.x), y: round(startPoint.y) },
+        control: { x: round(midPoint.x), y: round(midPoint.y) },
+        end: { x: round(endPoint.x), y: round(endPoint.y) },
+      })
+    }
+  }
+  return segments
+}
+
+// ---------------------------------------------------------------------------
+// Boundary / convex hull (actDrawBoundary)
+// ---------------------------------------------------------------------------
+
+function cross(o: Point, a: Point, b: Point): number {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+}
+
+/** Andrew's monotone-chain convex hull. Returns vertices in CCW order. */
+export function convexHull(points: Point[]): Point[] {
+  if (points.length < 2) return points.slice()
+  const sorted = points.slice().sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x))
+
+  const lower: Point[] = []
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+      lower.pop()
+    }
+    lower.push(p)
+  }
+
+  const upper: Point[] = []
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i]
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+      upper.pop()
+    }
+    upper.push(p)
+  }
+
+  lower.pop()
+  upper.pop()
+  return lower.concat(upper)
+}
+
+/**
+ * Build a boundary polyline (as N connected LineShapes) around all sample
+ * points from the supplied shapes. Uses a convex hull by default.
+ */
+export function buildBoundaryLines(
+  shapes: Shape[],
+  props: { layerId: string; lineTypeId: string; groupId?: string },
+  samplesPerShape = 24,
+): LineShape[] {
+  const points: Point[] = []
+  for (const shape of shapes) {
+    for (let i = 0; i <= samplesPerShape; i++) {
+      points.push(evaluateShapeAt(shape, i / samplesPerShape))
+    }
+  }
+  const hull = convexHull(points)
+  if (hull.length < 2) return []
+  const lines: LineShape[] = []
+  for (let i = 0; i < hull.length; i++) {
+    const a = hull[i]
+    const b = hull[(i + 1) % hull.length]
+    lines.push({
+      id: uid(),
+      type: 'line',
+      layerId: props.layerId,
+      lineTypeId: props.lineTypeId,
+      groupId: props.groupId,
+      start: { x: round(a.x), y: round(a.y) },
+      end: { x: round(b.x), y: round(b.y) },
+    })
+  }
+  return lines
+}
+
 export function findNearestIntersection(
   shape: Shape,
   targets: Shape[],
