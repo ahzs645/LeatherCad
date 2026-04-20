@@ -56,12 +56,15 @@ type UseEditorTopbarPropsParams = {
   handleDistanceMarkSelectedPathPrompt: () => void
   handleConvertSelectionToPath: () => void
   handleConvertACopyToPath: () => void
+  handleNotchSelectedShapePrompt: () => void
   handleAddBackdrop: () => void
   handleOpenFontListModal: () => void
   handleCloseProject: () => void
   handleOpenSecretFeatures: () => void
   handleOpenOptionsModal: () => void
   handleOpenLengthAdjustModal: () => void
+  handleImportTranslation: () => void
+  handleStampSimulator: () => void
   handleActivateLayerOfSelectedShape: () => void
   handleDuplicateSelectedShapesOnBelowLayer: () => void
   handleMoveSelectedShapesToLayerBelow: () => void
@@ -164,12 +167,15 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleDistanceMarkSelectedPathPrompt,
     handleConvertSelectionToPath,
     handleConvertACopyToPath,
+    handleNotchSelectedShapePrompt,
     handleAddBackdrop,
     handleOpenFontListModal,
     handleCloseProject,
     handleOpenSecretFeatures,
     handleOpenOptionsModal,
     handleOpenLengthAdjustModal,
+    handleImportTranslation,
+    handleStampSimulator,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,
@@ -425,12 +431,15 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onDistanceMarkSelectedPath: handleDistanceMarkSelectedPathPrompt,
     onConvertSelectionToPath: handleConvertSelectionToPath,
     onConvertACopyToPath: handleConvertACopyToPath,
+    onNotchSelectedShape: handleNotchSelectedShapePrompt,
     onAddBackdrop: handleAddBackdrop,
     onOpenFontListModal: handleOpenFontListModal,
     onCloseProject: handleCloseProject,
     onOpenSecretFeatures: handleOpenSecretFeatures,
     onOpenOptionsModal: handleOpenOptionsModal,
     onOpenLengthAdjustModal: handleOpenLengthAdjustModal,
+    onImportTranslation: handleImportTranslation,
+    onStampSimulator: handleStampSimulator,
     onActivateLayerOfSelectedShape: handleActivateLayerOfSelectedShape,
     onDuplicateSelectionOnLayerBelow: handleDuplicateSelectedShapesOnBelowLayer,
     onMoveSelectionToLayerBelow: handleMoveSelectedShapesToLayerBelow,

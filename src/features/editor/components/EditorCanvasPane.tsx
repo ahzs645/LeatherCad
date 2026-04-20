@@ -1,4 +1,5 @@
-import { useId, useMemo, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
+import { useId, useMemo, useState, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
+import { CanvasContextMenu, type ContextMenuItem } from './CanvasContextMenu'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type {
   DimensionLine,
@@ -58,6 +59,7 @@ export type EditorCanvasPaneProps = {
   onPointerDown: PointerEventHandler<SVGSVGElement>
   onPointerMove: PointerEventHandler<SVGSVGElement>
   onPointerUp: PointerEventHandler<SVGSVGElement>
+  buildCanvasContextMenuItems?: () => ContextMenuItem[]
   viewport: Viewport
   displayUnit: DisplayUnit
   gridSpacing: number
@@ -128,6 +130,7 @@ export function EditorCanvasPane({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  buildCanvasContextMenuItems,
   viewport,
   displayUnit,
   gridSpacing,
@@ -184,6 +187,7 @@ export function EditorCanvasPane({
   stackLegendEntries,
   outlineChains,
 }: EditorCanvasPaneProps) {
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
   const patternIdBase = useId().replace(/:/g, '-')
   const minorGridPatternId = `${patternIdBase}-minor-grid`
   const majorGridPatternId = `${patternIdBase}-major-grid`
@@ -377,7 +381,14 @@ export function EditorCanvasPane({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          if (!buildCanvasContextMenuItems) return
+          const items = buildCanvasContextMenuItems()
+          if (items.length > 0) {
+            setContextMenu({ x: event.clientX, y: event.clientY, items })
+          }
+        }}
       >
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
           <CanvasViewportChrome
@@ -493,6 +504,16 @@ export function EditorCanvasPane({
         stitchStrokeColor={stitchStrokeColor}
         foldStrokeColor={foldStrokeColor}
       />
+
+      {contextMenu && (
+        <CanvasContextMenu
+          open
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={contextMenu.items}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </section>
   )
 }

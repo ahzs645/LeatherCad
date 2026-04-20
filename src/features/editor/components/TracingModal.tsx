@@ -127,6 +127,36 @@ export function TracingModal({
                 }
               />
             </label>
+            <label className="field-row">
+              <span>DPI (physical scale)</span>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                placeholder="(unset)"
+                value={activeTracingOverlay.dpi ?? ''}
+                onChange={(event) => {
+                  const value = Number(event.target.value)
+                  onUpdateTracingOverlay(activeTracingOverlay.id, {
+                    dpi: Number.isFinite(value) && value > 0 ? value : undefined,
+                  })
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const dpi = activeTracingOverlay.dpi
+                  if (!dpi || dpi <= 0) return
+                  // Apply DPI: scale so 1 image-pixel = 25.4/dpi mm.
+                  const mmPerPixel = 25.4 / dpi
+                  onUpdateTracingOverlay(activeTracingOverlay.id, { scale: mmPerPixel })
+                }}
+                disabled={!activeTracingOverlay.dpi}
+                title="Set scale from DPI"
+              >
+                Apply DPI
+              </button>
+            </label>
             {activeTracingOverlay.kind === 'pdf' && (activeTracingOverlay.pdfPageCount ?? 1) > 1 && (
               <label className="field-row">
                 <span>PDF Page</span>

@@ -23,6 +23,8 @@ export type SnapContext = {
   hardwareMarkers: HardwareMarker[]
   viewportScale: number
   customSnapPoints?: Point[]
+  /** Draft anchor — when set, tangent-to-circle snap candidates are computed relative to it. */
+  draftAnchor?: Point
 }
 
 export type SnapResult = {
@@ -359,10 +361,53 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
     }
   }
 
+  if (settings.endpoints && context.draftAnchor) {
+    const anchor = context.draftAnchor
+    for (const shape of context.shapes) {
+      if (shape.type !== 'arc') continue
+      const circle = circleFromArc(shape)
+      if (!circle) continue
+      const dx = circle.center.x - anchor.x
+      const dy = circle.center.y - anchor.y
+      const d = Math.hypot(dx, dy)
+      if (d <= circle.radius + 1e-6) continue
+      const phi = Math.atan2(dy, dx)
+      const alpha = Math.acos(circle.radius / d)
+      for (const sign of [1, -1] as const) {
+        const theta = phi + sign * (Math.PI - alpha)
+        registerCandidate(
+          {
+            x: circle.center.x + circle.radius * Math.cos(theta),
+            y: circle.center.y + circle.radius * Math.sin(theta),
+          },
+          'tangent',
+        )
+      }
+    }
+  }
+
   return {
     point: best.point,
     reason: best.reason,
   }
+}
+
+function circleFromArc(arc: { start: Point; mid: Point; end: Point }) {
+  const x1 = arc.start.x
+  const y1 = arc.start.y
+  const x2 = arc.mid.x
+  const y2 = arc.mid.y
+  const x3 = arc.end.x
+  const y3 = arc.end.y
+  const denom = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+  if (Math.abs(denom) < 1e-10) return null
+  const x1Sq = x1 * x1 + y1 * y1
+  const x2Sq = x2 * x2 + y2 * y2
+  const x3Sq = x3 * x3 + y3 * y3
+  const cx = (x1Sq * (y2 - y3) + x2Sq * (y3 - y1) + x3Sq * (y1 - y2)) / denom
+  const cy = (x1Sq * (x3 - x2) + x2Sq * (x1 - x3) + x3Sq * (x2 - x1)) / denom
+  const radius = Math.hypot(x1 - cx, y1 - cy)
+  return { center: { x: cx, y: cy }, radius }
 }
 
 export function buildSeamAllowancePath(shape: Shape, offsetMm: number): string | null {

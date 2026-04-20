@@ -49,4 +49,38 @@ export const constructionToolDefinitions = {
       runtime.setStatus('Fold line assigned')
     },
   },
+  dimension: {
+    onPointerDown(point, runtime) {
+      if (runtime.draftPoints.length === 0) {
+        runtime.setDraftPoints([point])
+        pickToolPoint(runtime, point)
+        runtime.setStatus('Dimension: pick second point')
+        return
+      }
+
+      const start = runtime.draftPoints[0]
+      if (distance(start, point) < MIN_SHAPE_DISTANCE) {
+        runtime.setStatus('Dimension ignored: points overlap')
+        runtime.clearDraft()
+        return
+      }
+
+      const lengthMm = distance(start, point)
+      runtime.setDimensionLines((previous) => [
+        ...previous,
+        {
+          id: uid(),
+          start: { x: start.x, y: start.y },
+          end: { x: point.x, y: point.y },
+          offsetMm: 6,
+          text: `${lengthMm.toFixed(1)}mm`,
+          layerId: runtime.activeLayerId,
+          lineTypeId: runtime.activeLineTypeId,
+        },
+      ])
+      pickToolPoint(runtime, point)
+      runtime.clearDraft()
+      runtime.setStatus(`Dimension placed (${lengthMm.toFixed(1)}mm)`)
+    },
+  },
 } satisfies Partial<Record<string, ToolDefinition>>

@@ -6,11 +6,13 @@ export type EditorHiddenInputsProps = {
   tracingInputRef: RefObject<HTMLInputElement | null>
   templateImportInputRef: RefObject<HTMLInputElement | null>
   catalogImportInputRef: RefObject<HTMLInputElement | null>
+  translationInputRef: RefObject<HTMLInputElement | null>
   onLoadJson: ChangeEventHandler<HTMLInputElement>
   onImportSvg: ChangeEventHandler<HTMLInputElement>
   onImportTracing: ChangeEventHandler<HTMLInputElement>
   onImportTemplateRepositoryFile: ChangeEventHandler<HTMLInputElement>
   onImportCatalogFile: ChangeEventHandler<HTMLInputElement>
+  onImportTranslation: ChangeEventHandler<HTMLInputElement>
 }
 
 export function EditorHiddenInputs({
@@ -19,11 +21,13 @@ export function EditorHiddenInputs({
   tracingInputRef,
   templateImportInputRef,
   catalogImportInputRef,
+  translationInputRef,
   onLoadJson,
   onImportSvg,
   onImportTracing,
   onImportTemplateRepositoryFile,
   onImportCatalogFile,
+  onImportTranslation,
 }: EditorHiddenInputsProps) {
   return (
     <>
@@ -49,6 +53,13 @@ export function EditorHiddenInputs({
         accept=".ctlg,application/json"
         className="hidden-input"
         onChange={onImportCatalogFile}
+      />
+      <input
+        ref={translationInputRef}
+        type="file"
+        accept=".tsv,.txt,.json,text/plain"
+        className="hidden-input"
+        onChange={onImportTranslation}
       />
     </>
   )

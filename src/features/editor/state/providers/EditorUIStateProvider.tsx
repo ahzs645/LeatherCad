@@ -4,6 +4,7 @@ import { DEFAULT_PRESET_ID } from '../../data/sample-doc-meta'
 import { loadFontList } from '../../ops/font-list-ops'
 import { loadAutoSaveEnabled } from '../../ops/autosave'
 import { loadEditorPreferences } from '../../ops/editor-prefs'
+import { loadTranslationMap } from '../../ops/translation-ops'
 import type { EditorUIState } from '../editor-domain-types'
 import {
   propertyStateReducer,
@@ -66,6 +67,8 @@ const initialEditorUIState: EditorUIState = {
   incrementalSelection: loadEditorPreferences().incrementalSelection,
   mentoriWithoutCtrl: loadEditorPreferences().mentoriWithoutCtrl,
   lineToolConstraint: loadEditorPreferences().lineToolConstraint,
+  leatherSimEnabled: false,
+  translationMap: loadTranslationMap(),
   showLengthAdjustModal: false,
   showOptionsModal: false,
   leatherSimTextureRotationDeg: loadEditorPreferences().leatherSimTextureRotationDeg,
@@ -179,6 +182,10 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'mentoriWithoutCtrl', value }),
     setLineToolConstraint: (value: React.SetStateAction<EditorUIState['lineToolConstraint']>) =>
       dispatch({ type: 'lineToolConstraint', value }),
+    setLeatherSimEnabled: (value: React.SetStateAction<EditorUIState['leatherSimEnabled']>) =>
+      dispatch({ type: 'leatherSimEnabled', value }),
+    setTranslationMap: (value: React.SetStateAction<EditorUIState['translationMap']>) =>
+      dispatch({ type: 'translationMap', value }),
     setShowLengthAdjustModal: (value: React.SetStateAction<EditorUIState['showLengthAdjustModal']>) =>
       dispatch({ type: 'showLengthAdjustModal', value }),
     setShowOptionsModal: (value: React.SetStateAction<EditorUIState['showOptionsModal']>) =>

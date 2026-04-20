@@ -1,4 +1,5 @@
 import type {
+  DimensionLine,
   FoldLine,
   HardwareMarker,
   Layer,
@@ -58,6 +59,7 @@ export type ToolRuntime = {
   setSeamConnections: (updater: SeamConnection[] | ((previous: SeamConnection[]) => SeamConnection[])) => void
   setHardwareMarkers: (updater: HardwareMarker[] | ((previous: HardwareMarker[]) => HardwareMarker[])) => void
   setSelectedHardwareMarkerId: (value: string | null) => void
+  setDimensionLines: (updater: DimensionLine[] | ((previous: DimensionLine[]) => DimensionLine[])) => void
   ensureActiveLayerWritable: () => boolean
   ensureActiveLineTypeWritable: () => boolean
   toolSession: EditorToolSession

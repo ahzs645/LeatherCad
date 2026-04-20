@@ -5,6 +5,7 @@ import {
   buildBoundaryLines,
   buildCenterLineBetween,
   buildDistanceMarks,
+  buildNotchOnShape,
   convertArcToBezier,
   convertShapeToPathBeziers,
   extendLineToShape,
@@ -537,6 +538,28 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   }
 
   // ---------------------------------------------------------------------------
+  // handleNotchSelectedShape (Kama / notching)
+  // ---------------------------------------------------------------------------
+
+  const handleNotchSelectedShape = (depthMm: number, widthMm: number) => {
+    const selected = getSelectedShapes()
+    if (selected.length !== 1) {
+      setStatus('Select exactly one path to notch')
+      return
+    }
+    const notchLines = buildNotchOnShape(selected[0], 0.5, depthMm, widthMm, {
+      layerId: activeLayerId,
+      lineTypeId: activeLineTypeId,
+    })
+    if (notchLines.length === 0) {
+      setStatus('Could not build a notch on the selected shape')
+      return
+    }
+    setShapes((prev) => [...prev, ...notchLines])
+    setStatus(`Notched path with ${depthMm}mm depth, ${widthMm}mm width`)
+  }
+
+  // ---------------------------------------------------------------------------
   // handleFilletSelectedCorner (Mentori / chamfer)
   // ---------------------------------------------------------------------------
 
@@ -612,5 +635,6 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     handleFilletSelectedCorner,
     handleDistanceMarkSelectedPath,
     handleConvertSelectionToPath,
+    handleNotchSelectedShape,
   }
 }

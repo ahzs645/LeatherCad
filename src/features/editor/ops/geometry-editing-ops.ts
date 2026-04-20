@@ -764,6 +764,62 @@ export function getLineAngleDeg(line: LineShape): number {
 }
 
 // ---------------------------------------------------------------------------
+// Notching (Kama) — stamp a V-notch at a point along the shape
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a V-notch at parameter t on the supplied shape. The V is two LineShapes
+ * that meet at an apex perpendicular to the path, pointing "outward" in the
+ * normal direction. Depth and width are in mm.
+ */
+export function buildNotchOnShape(
+  shape: Shape,
+  t: number,
+  depthMm: number,
+  widthMm: number,
+  props: { layerId: string; lineTypeId: string; groupId?: string },
+): LineShape[] {
+  if (shape.type === 'text') return []
+  const clampedT = Math.max(0.01, Math.min(0.99, t))
+  const center = evaluateShapeAt(shape, clampedT)
+  const eps = 0.005
+  const before = evaluateShapeAt(shape, Math.max(0, clampedT - eps))
+  const after = evaluateShapeAt(shape, Math.min(1, clampedT + eps))
+  const dx = after.x - before.x
+  const dy = after.y - before.y
+  const len = Math.hypot(dx, dy)
+  if (len < 1e-8) return []
+  const tangent = { x: dx / len, y: dy / len }
+  const normal = { x: -tangent.y, y: tangent.x }
+  const halfWidth = Math.max(0.2, widthMm / 2)
+  const depth = Math.max(0.1, depthMm)
+  const leftBase = { x: center.x - tangent.x * halfWidth, y: center.y - tangent.y * halfWidth }
+  const rightBase = { x: center.x + tangent.x * halfWidth, y: center.y + tangent.y * halfWidth }
+  const apex = { x: center.x + normal.x * depth, y: center.y + normal.y * depth }
+
+  return [
+    {
+      id: uid(),
+      type: 'line',
+      layerId: props.layerId,
+      lineTypeId: props.lineTypeId,
+      groupId: props.groupId,
+      start: { x: round(leftBase.x), y: round(leftBase.y) },
+      end: { x: round(apex.x), y: round(apex.y) },
+    },
+    {
+      id: uid(),
+      type: 'line',
+      layerId: props.layerId,
+      lineTypeId: props.lineTypeId,
+      groupId: props.groupId,
+      start: { x: round(apex.x), y: round(apex.y) },
+      end: { x: round(rightBase.x), y: round(rightBase.y) },
+    },
+  ]
+}
+
+// ---------------------------------------------------------------------------
 // Convert to Path (actConvertToPath / actConvertACopyToPath)
 // ---------------------------------------------------------------------------
 

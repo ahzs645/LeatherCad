@@ -19,6 +19,7 @@ export const toolRegistry: Record<Tool, ToolDefinition> = {
   arc: drawingToolDefinitions.arc,
   bezier: drawingToolDefinitions.bezier,
   fold: constructionToolDefinitions.fold,
+  dimension: constructionToolDefinitions.dimension,
   'stitch-hole': stitchHardwareToolDefinitions['stitch-hole'],
   hardware: stitchHardwareToolDefinitions.hardware,
   seam: stitchHardwareToolDefinitions.seam,

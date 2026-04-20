@@ -126,6 +126,7 @@ export type EditorUIState = {
   mentoriWithoutCtrl: boolean
   lineToolConstraint: 'none' | 'horizontal' | 'vertical'
   leatherSimEnabled: boolean
+  translationMap: Record<string, string>
   showLengthAdjustModal: boolean
   showOptionsModal: boolean
   leatherSimTextureRotationDeg: number

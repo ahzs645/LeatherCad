@@ -69,6 +69,7 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'text', label: 'Text' },
   { value: 'freehand', label: 'Freehand' },
   { value: 'cut-line', label: 'Cut' },
+  { value: 'dimension', label: 'Dimension' },
 ]
 
 const base = import.meta.env.BASE_URL

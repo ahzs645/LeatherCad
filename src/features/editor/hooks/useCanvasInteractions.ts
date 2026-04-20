@@ -1,5 +1,6 @@
 import type { Dispatch, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from 'react'
 import type {
+  DimensionLine,
   FoldLine,
   HardwareMarker,
   Layer,
@@ -66,6 +67,7 @@ type UseCanvasInteractionsParams = {
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
+  setDimensionLines: Dispatch<SetStateAction<DimensionLine[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   ensureActiveLayerWritable: () => boolean
   ensureActiveLineTypeWritable: () => boolean
@@ -115,6 +117,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setFoldLines,
+    setDimensionLines,
     setSelectedShapeIds,
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
@@ -169,6 +172,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       hardwareMarkers: visibleHardwareMarkers,
       viewportScale: viewport.scale,
       customSnapPoints: customSnapPoint ? [customSnapPoint] : undefined,
+      draftAnchor: draftPoints.length > 0 ? draftPoints[0] : undefined,
     })
 
   const { handleZoomStep, handleResetView, handleFitView } = useCanvasViewportControls({
@@ -257,6 +261,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       setStatus,
       setShapes,
       setFoldLines,
+      setDimensionLines,
       setStitchHoles,
       setSelectedStitchHoleId,
       setPieceNotches,

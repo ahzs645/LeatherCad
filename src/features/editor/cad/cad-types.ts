@@ -15,6 +15,7 @@ export type Tool =
   | 'text'
   | 'freehand'
   | 'cut-line'
+  | 'dimension'
 
 export type Point = {
   x: number
@@ -417,6 +418,8 @@ export type TracingOverlay = {
   width: number
   height: number
   isObjectUrl?: boolean
+  /** Source DPI — when set, used for physical-size calibration (mm per pixel = 25.4 / dpi). */
+  dpi?: number
 }
 
 export type TextureSource = {

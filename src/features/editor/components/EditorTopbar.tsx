@@ -102,12 +102,15 @@ type EditorTopbarProps = {
   onDistanceMarkSelectedPath: () => void
   onConvertSelectionToPath: () => void
   onConvertACopyToPath: () => void
+  onNotchSelectedShape: () => void
   onAddBackdrop: () => void
   onOpenFontListModal: () => void
   onCloseProject: () => void
   onOpenSecretFeatures: () => void
   onOpenOptionsModal: () => void
   onOpenLengthAdjustModal: () => void
+  onImportTranslation: () => void
+  onStampSimulator: () => void
   onActivateLayerOfSelectedShape: () => void
   onDuplicateSelectionOnLayerBelow: () => void
   onMoveSelectionToLayerBelow: () => void
@@ -325,12 +328,15 @@ export function EditorTopbar({
   onDistanceMarkSelectedPath,
   onConvertSelectionToPath,
   onConvertACopyToPath,
+  onNotchSelectedShape,
   onAddBackdrop,
   onOpenFontListModal,
   onCloseProject,
   onOpenSecretFeatures,
   onOpenOptionsModal,
   onOpenLengthAdjustModal,
+  onImportTranslation,
+  onStampSimulator,
   onActivateLayerOfSelectedShape,
   onDuplicateSelectionOnLayerBelow,
   onMoveSelectionToLayerBelow,
@@ -774,6 +780,9 @@ export function EditorTopbar({
             <button onClick={onConvertACopyToPath} disabled={selectedShapeCount === 0}>
               Copy → Path
             </button>
+            <button onClick={onNotchSelectedShape} disabled={selectedShapeCount !== 1}>
+              Notch (Kama)…
+            </button>
           </div>
         )}
 
@@ -1029,6 +1038,10 @@ export function EditorTopbar({
                     <button onClick={onOpenFontListModal}>Fonts…</button>
                     <button onClick={onOpenSecretFeatures}>Secret Features…</button>
                     <button onClick={onOpenOptionsModal}>Options…</button>
+                    <button onClick={onImportTranslation}>Load Translation…</button>
+                    <button onClick={onStampSimulator} disabled={selectedShapeCount === 0}>
+                      Stamp Simulator…
+                    </button>
                     <button onClick={onOpenLengthAdjustModal} disabled={selectedShapeCount === 0}>
                       Length Adjust…
                     </button>

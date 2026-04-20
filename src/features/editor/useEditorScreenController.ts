@@ -59,6 +59,8 @@ import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useTransformActions } from './hooks/useTransformActions'
 import { addFontToList, removeFontFromList, saveFontList } from './ops/font-list-ops'
+import { parseTranslationFile, saveTranslationMap } from './ops/translation-ops'
+import { tileSelectionAsStamp } from './ops/stamp-simulator-ops'
 import { saveAutoSaveEnabled } from './ops/autosave'
 import { saveEditorPreferences, getDefaultEditorPreferences } from './ops/editor-prefs'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -202,6 +204,8 @@ export function useEditorScreenController() {
     incrementalSelection, setIncrementalSelection,
     mentoriWithoutCtrl, setMentoriWithoutCtrl,
     lineToolConstraint, setLineToolConstraint,
+    leatherSimEnabled,
+    setTranslationMap,
     showLengthAdjustModal, setShowLengthAdjustModal,
     showOptionsModal, setShowOptionsModal,
     leatherSimTextureRotationDeg,
@@ -311,6 +315,7 @@ export function useEditorScreenController() {
   const tracingInputRef = useRef<HTMLInputElement | null>(null)
   const templateImportInputRef = useRef<HTMLInputElement | null>(null)
   const catalogImportInputRef = useRef<HTMLInputElement | null>(null)
+  const translationInputRef = useRef<HTMLInputElement | null>(null)
   const fontInputRef = useRef<HTMLInputElement | null>(null)
   const pasteCountRef = useRef(0)
   const tracingObjectUrlsRef = useRef<Set<string>>(new Set())
@@ -868,6 +873,7 @@ export function useEditorScreenController() {
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setFoldLines,
+    setDimensionLines,
     setSelectedShapeIds,
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
@@ -922,6 +928,14 @@ export function useEditorScreenController() {
     buildDoc: () => buildCurrentDocFile(),
     setStatus,
   })
+
+  // Leather-sim ↔ stitch-sim coupling: when leather-sim turns on, auto-open the
+  // stitch simulator (source-app v2.5.6 behavior).
+  useEffect(() => {
+    if (leatherSimEnabled && !showStitchSimulatorModal) {
+      setShowStitchSimulatorModal(true)
+    }
+  }, [leatherSimEnabled, showStitchSimulatorModal, setShowStitchSimulatorModal])
 
   const {
     handleAddLayer,
@@ -1190,6 +1204,7 @@ export function useEditorScreenController() {
     handleFilletSelectedCorner,
     handleDistanceMarkSelectedPath,
     handleConvertSelectionToPath,
+    handleNotchSelectedShape,
   } = useGeometryEditingActions({
     shapes,
     setShapes,
@@ -1423,6 +1438,57 @@ export function useEditorScreenController() {
       }
     },
     handleOpenSecretFeatures: () => setShowWizardModal(true),
+    handleImportTranslation: () => translationInputRef.current?.click(),
+    handleStampSimulator: () => {
+      if (selectedShapeIdSet.size === 0) {
+        setStatus('Select one or more shapes to stamp')
+        return
+      }
+      const rowsRaw = window.prompt('Stamp rows?', '3')
+      if (rowsRaw === null) {
+        setStatus('Stamp cancelled')
+        return
+      }
+      const colsRaw = window.prompt('Stamp columns?', '3')
+      if (colsRaw === null) {
+        setStatus('Stamp cancelled')
+        return
+      }
+      const pitchXRaw = window.prompt('X pitch (mm)?', '20')
+      if (pitchXRaw === null) {
+        setStatus('Stamp cancelled')
+        return
+      }
+      const pitchYRaw = window.prompt('Y pitch (mm)?', '20')
+      if (pitchYRaw === null) {
+        setStatus('Stamp cancelled')
+        return
+      }
+      const rows = Number(rowsRaw)
+      const cols = Number(colsRaw)
+      const pitchXMm = Number(pitchXRaw)
+      const pitchYMm = Number(pitchYRaw)
+      if (
+        !Number.isInteger(rows) || rows < 1 ||
+        !Number.isInteger(cols) || cols < 1 ||
+        !Number.isFinite(pitchXMm) || !Number.isFinite(pitchYMm)
+      ) {
+        setStatus('Invalid stamp parameters')
+        return
+      }
+      const stamps = tileSelectionAsStamp(shapes, selectedShapeIdSet, {
+        rows,
+        cols,
+        pitchXMm,
+        pitchYMm,
+      })
+      if (stamps.length === 0) {
+        setStatus('No stamps produced')
+        return
+      }
+      setShapes((prev) => [...prev, ...stamps])
+      setStatus(`Stamped ${stamps.length} shape${stamps.length === 1 ? '' : 's'} in ${rows}×${cols} grid`)
+    },
     handleOpenOptionsModal: () => setShowOptionsModal(true),
     handleOpenLengthAdjustModal: () => setShowLengthAdjustModal(true),
     handleActivateLayerOfSelectedShape,
@@ -1466,6 +1532,25 @@ export function useEditorScreenController() {
     },
     handleConvertSelectionToPath: () => handleConvertSelectionToPath(false),
     handleConvertACopyToPath: () => handleConvertSelectionToPath(true),
+    handleNotchSelectedShapePrompt: () => {
+      const depthRaw = window.prompt('Notch depth (mm)?', '3')
+      if (depthRaw === null) {
+        setStatus('Notch cancelled')
+        return
+      }
+      const widthRaw = window.prompt('Notch width (mm)?', '2')
+      if (widthRaw === null) {
+        setStatus('Notch cancelled')
+        return
+      }
+      const depth = Number(depthRaw)
+      const width = Number(widthRaw)
+      if (!Number.isFinite(depth) || depth <= 0 || !Number.isFinite(width) || width <= 0) {
+        setStatus('Notch depth and width must be positive')
+        return
+      }
+      handleNotchSelectedShape(depth, width)
+    },
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -1967,6 +2052,28 @@ export function useEditorScreenController() {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
+      buildCanvasContextMenuItems: () => {
+        const items: Array<{ id: string; label: string; disabled?: boolean; onSelect: () => void }> = []
+        if (selectedShapeIdSet.size > 0) {
+          items.push(
+            { id: 'bring-to-front', label: 'Bring to Front', onSelect: handleBringSelectionToFront },
+            { id: 'send-to-back', label: 'Send to Back', onSelect: handleSendSelectionToBack },
+            { id: 'duplicate', label: 'Duplicate', onSelect: handleDuplicateSelection },
+            { id: 'convert-to-path', label: 'Convert to Path', onSelect: handleConvertSelectionToPath },
+            { id: 'delete', label: 'Delete', onSelect: handleDeleteSelection },
+          )
+        }
+        if (selectedStitchHole) {
+          items.push({
+            id: 'stitch-end-here',
+            label: selectedStitchHole.endHole ? 'Clear "ends here" marker' : 'Ends stitch here',
+            onSelect: selectedStitchHole.endHole
+              ? handleClearSelectedStitchHoleEnd
+              : handleMarkSelectedStitchHoleAsEnd,
+          })
+        }
+        return items
+      },
       viewport,
       displayUnit,
       gridSpacing,
@@ -2315,11 +2422,23 @@ export function useEditorScreenController() {
         tracingInputRef,
         templateImportInputRef,
         catalogImportInputRef,
+        translationInputRef,
         onLoadJson: handleLoadJson,
         onImportSvg: handleImportSvg,
         onImportTracing: handleImportTracing,
         onImportTemplateRepositoryFile: handleImportTemplateRepositoryFile,
         onImportCatalogFile: handleImportCatalogFile,
+        onImportTranslation: (event: React.ChangeEvent<HTMLInputElement>) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (!file) return
+          void file.text().then((raw: string) => {
+            const map = parseTranslationFile(raw)
+            setTranslationMap(map)
+            saveTranslationMap(map)
+            setStatus(`Loaded ${Object.keys(map).length} translation entries`)
+          })
+        },
       },
       fontInputRef,
       onFontInputChange: handleFontInputChange,
