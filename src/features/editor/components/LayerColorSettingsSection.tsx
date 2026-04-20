@@ -34,10 +34,26 @@ export function LayerColorSettingsSection({
         <label className="field-row">
           <span>Front color</span>
           <input type="color" value={frontLayerColor} onChange={(event) => onFrontLayerColorChange(event.target.value)} />
+          <input
+            type="text"
+            value={frontLayerColor}
+            onChange={(event) => onFrontLayerColorChange(event.target.value)}
+            placeholder="#000000"
+            style={{ width: 96 }}
+            aria-label="Front color (hex)"
+          />
         </label>
         <label className="field-row">
           <span>Back color</span>
           <input type="color" value={backLayerColor} onChange={(event) => onBackLayerColorChange(event.target.value)} />
+          <input
+            type="text"
+            value={backLayerColor}
+            onChange={(event) => onBackLayerColorChange(event.target.value)}
+            placeholder="#000000"
+            style={{ width: 96 }}
+            aria-label="Back color (hex)"
+          />
         </label>
       </div>
 
@@ -57,6 +73,14 @@ export function LayerColorSettingsSection({
               <span className="layer-color-order">{index + 1}</span>
               <span className="layer-color-name">{layer.name}</span>
               <input type="color" value={color} onChange={(event) => onSetLayerColorOverride(layer.id, event.target.value)} />
+              <input
+                type="text"
+                value={color}
+                onChange={(event) => onSetLayerColorOverride(layer.id, event.target.value)}
+                placeholder="#000000"
+                style={{ width: 90 }}
+                aria-label={`${layer.name} color (hex)`}
+              />
               <button
                 onClick={() => onClearLayerColorOverride(layer.id)}
                 disabled={!hasOverride}

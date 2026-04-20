@@ -80,6 +80,7 @@ type UseCanvasShapeDragInteractionsParams = {
   toWorldPoint: (clientX: number, clientY: number) => Point | null
   getSnappedPoint: (point: Point) => { point: Point }
   incrementalSelection?: boolean
+  onPickLineTypeFromShape?: (shapeId: string) => void
 }
 
 export function useCanvasShapeDragInteractions({
@@ -95,6 +96,7 @@ export function useCanvasShapeDragInteractions({
   toWorldPoint,
   getSnappedPoint,
   incrementalSelection = false,
+  onPickLineTypeFromShape,
 }: UseCanvasShapeDragInteractionsParams) {
   const shapeDragRef = useRef<ShapeDragState | null>(null)
   const handleDragRef = useRef<HandleDragState | null>(null)
@@ -114,6 +116,13 @@ export function useCanvasShapeDragInteractions({
     }
 
     event.stopPropagation()
+
+    // Ctrl+Alt+Click (Cmd+Option+Click on Mac) picks the clicked shape's line type.
+    if ((event.ctrlKey || event.metaKey) && event.altKey && onPickLineTypeFromShape) {
+      onPickLineTypeFromShape(shapeId)
+      return
+    }
+
     setSelectedHardwareMarkerId(null)
 
     const isAlreadySelected = selectedShapeIds.includes(shapeId)

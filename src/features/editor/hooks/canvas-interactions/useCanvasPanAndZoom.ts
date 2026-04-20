@@ -11,6 +11,8 @@ type UseCanvasPanAndZoomParams = {
   viewport: Viewport
   setViewport: Dispatch<SetStateAction<Viewport>>
   reverseZoomDirection?: boolean
+  onWheelRotateSelection?: (deltaDeg: number) => void
+  onWheelScaleSelection?: (factor: number) => void
 }
 
 export function useCanvasPanAndZoom({
@@ -19,6 +21,8 @@ export function useCanvasPanAndZoom({
   viewport,
   setViewport,
   reverseZoomDirection = false,
+  onWheelRotateSelection,
+  onWheelScaleSelection,
 }: UseCanvasPanAndZoomParams) {
   useEffect(() => {
     const svg = svgRef.current
@@ -58,6 +62,22 @@ export function useCanvasPanAndZoom({
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
+
+      // Mouse-wheel modifiers (mirror source-app):
+      // - Alt+Shift wheel  → scale selection (1% per tick)
+      // - Alt wheel        → rotate selection (1° per tick)
+      // The plain/Ctrl wheel stays as zoom so pinch-zoom still works on trackpads.
+      if (event.altKey && event.shiftKey && onWheelScaleSelection) {
+        const factor = event.deltaY < 0 ? 1.01 : 0.99
+        onWheelScaleSelection(factor)
+        return
+      }
+      if (event.altKey && onWheelRotateSelection) {
+        const deltaDeg = event.deltaY < 0 ? 1 : -1
+        onWheelRotateSelection(deltaDeg)
+        return
+      }
+
       const rect = svg.getBoundingClientRect()
       const screenX = event.clientX - rect.left
       const screenY = event.clientY - rect.top
@@ -82,7 +102,7 @@ export function useCanvasPanAndZoom({
     return () => {
       svg.removeEventListener('wheel', handleWheel)
     }
-  }, [setViewport, svgRef, reverseZoomDirection])
+  }, [setViewport, svgRef, reverseZoomDirection, onWheelRotateSelection, onWheelScaleSelection])
 
   const beginPan = (clientX: number, clientY: number, pointerId: number) => {
     panRef.current = {

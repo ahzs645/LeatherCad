@@ -29,14 +29,20 @@ export const drawingToolDefinitions = {
       }
 
       const start = runtime.draftPoints[0]
-      if (distance(start, point) < MIN_SHAPE_DISTANCE) {
+      const constrainedEnd =
+        runtime.lineToolConstraint === 'horizontal'
+          ? { x: point.x, y: start.y }
+          : runtime.lineToolConstraint === 'vertical'
+            ? { x: start.x, y: point.y }
+            : point
+      if (distance(start, constrainedEnd) < MIN_SHAPE_DISTANCE) {
         runtime.setStatus('Line ignored: start and end overlap')
         runtime.clearDraft()
         return
       }
 
-      addLineShape(runtime, start, point)
-      pickToolPoint(runtime, point)
+      addLineShape(runtime, start, constrainedEnd)
+      pickToolPoint(runtime, constrainedEnd)
       runtime.clearDraft()
       runtime.setStatus('Line created')
     },

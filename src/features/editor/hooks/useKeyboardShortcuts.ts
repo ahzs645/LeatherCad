@@ -45,12 +45,28 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
       }
 
       const isMeta = event.ctrlKey || event.metaKey
+      const targetEl = event.target as HTMLElement | null
+      const isTypingContext = targetEl?.tagName === 'INPUT' || targetEl?.tagName === 'TEXTAREA'
+
       if (!isMeta) {
         if (event.key === 'Delete' || event.key === 'Backspace') {
-          const target = event.target as HTMLElement | null
-          if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA')) {
+          if (!isTypingContext) {
             event.preventDefault()
             handleDeleteSelection()
+          }
+          return
+        }
+        // Plain-key single-letter hotkeys.
+        if (!isTypingContext && !event.altKey) {
+          if (event.key === 's' || event.key === 'S') {
+            event.preventDefault()
+            handleToggleCanvasRuler()
+            return
+          }
+          if ((event.key === 'J' || event.key === 'j') && event.shiftKey) {
+            event.preventDefault()
+            handleHideBezierOffsetGuides()
+            return
           }
         }
         return
@@ -136,5 +152,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleSelectAllShapes,
     handleDeselectAll,
     handleNudgeSelection,
+    handleToggleCanvasRuler,
+    handleHideBezierOffsetGuides,
   ])
 }

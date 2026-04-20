@@ -124,6 +124,8 @@ export type EditorUIState = {
   reverseZoomDirection: boolean
   incrementalSelection: boolean
   mentoriWithoutCtrl: boolean
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
+  leatherSimEnabled: boolean
   showLengthAdjustModal: boolean
   showOptionsModal: boolean
   leatherSimTextureRotationDeg: number

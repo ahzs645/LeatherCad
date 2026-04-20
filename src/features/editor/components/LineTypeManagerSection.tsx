@@ -113,7 +113,20 @@ export function LineTypeManagerSection({
 
           <label className="field-row">
             <span>Color</span>
-            <input type="color" value={activeLineType.color} onChange={(event) => onUpdateActiveLineTypeColor(event.target.value)} />
+            <input
+              type="color"
+              value={activeLineType.color}
+              onChange={(event) => onUpdateActiveLineTypeColor(event.target.value)}
+            />
+            <input
+              type="text"
+              value={activeLineType.color}
+              onChange={(event) => onUpdateActiveLineTypeColor(event.target.value)}
+              placeholder="#000000"
+              pattern="#[0-9a-fA-F]{6}"
+              style={{ width: 96 }}
+              aria-label="Line type color (hex)"
+            />
           </label>
         </div>
       )}

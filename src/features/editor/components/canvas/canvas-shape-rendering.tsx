@@ -36,6 +36,8 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
     })
   }
 
+  const paintedFill = 'fillColor' in shape && shape.fillColor ? shape.fillColor : undefined
+
   if (shape.type === 'line') {
     return (
       <line
@@ -57,7 +59,13 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
         key={options.key}
         d={arcPath(shape.start, shape.mid, shape.end)}
         className={options.className}
-        style={{ stroke: options.color, strokeDasharray: options.strokeDasharray, strokeOpacity: options.opacity, ...arrowMarkerStyle(shape) }}
+        style={{
+          stroke: options.color,
+          strokeDasharray: options.strokeDasharray,
+          strokeOpacity: options.opacity,
+          fill: paintedFill,
+          ...arrowMarkerStyle(shape),
+        }}
         onPointerDown={options.interactive ? (event) => options.onShapePointerDown(event, shape.id) : undefined}
       />
     )
@@ -70,7 +78,13 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
         shape.end.x,
       )} ${round(shape.end.y)}`}
       className={options.className}
-      style={{ stroke: options.color, strokeDasharray: options.strokeDasharray, strokeOpacity: options.opacity, ...arrowMarkerStyle(shape) }}
+      style={{
+        stroke: options.color,
+        strokeDasharray: options.strokeDasharray,
+        strokeOpacity: options.opacity,
+        fill: paintedFill,
+        ...arrowMarkerStyle(shape),
+      }}
       onPointerDown={options.interactive ? (event) => options.onShapePointerDown(event, shape.id) : undefined}
     />
   )

@@ -28,6 +28,7 @@ export type ToolRuntime = {
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
   viewportScale: number
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
   stitchHoleDefaults: StitchHoleDefaults
   hardwarePreset: HardwareKind
   customHardwareDiameterMm: number

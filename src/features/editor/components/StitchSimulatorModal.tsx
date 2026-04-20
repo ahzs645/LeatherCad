@@ -85,6 +85,19 @@ export function StitchSimulatorModal({
               }))
             }
           />
+          <input
+            type="text"
+            value={draftSettings.threadColor}
+            onChange={(e) =>
+              setDraftSettings((previous) => ({
+                ...previous,
+                threadColor: e.target.value,
+              }))
+            }
+            placeholder="#000000"
+            style={{ width: 96 }}
+            aria-label="Thread color (hex)"
+          />
         </label>
 
         {draftSettings.stitchType === 'saddle' && (
@@ -99,6 +112,19 @@ export function StitchSimulatorModal({
                   secondThreadColor: e.target.value,
                 }))
               }
+            />
+            <input
+              type="text"
+              value={draftSettings.secondThreadColor}
+              onChange={(e) =>
+                setDraftSettings((previous) => ({
+                  ...previous,
+                  secondThreadColor: e.target.value,
+                }))
+              }
+              placeholder="#000000"
+              style={{ width: 96 }}
+              aria-label="Second thread color (hex)"
             />
           </label>
         )}

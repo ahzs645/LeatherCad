@@ -9,6 +9,7 @@ export type EditorPreferences = {
   exportIncludeText: boolean
   exportIncludeTemplateMetadata: boolean
   leatherSimTextureRotationDeg: number
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
 }
 
 export function getDefaultEditorPreferences(): EditorPreferences {
@@ -19,6 +20,7 @@ export function getDefaultEditorPreferences(): EditorPreferences {
     exportIncludeText: true,
     exportIncludeTemplateMetadata: false,
     leatherSimTextureRotationDeg: 0,
+    lineToolConstraint: 'none',
   }
 }
 
@@ -44,6 +46,10 @@ export function loadEditorPreferences(): EditorPreferences {
         Number.isFinite(parsed.leatherSimTextureRotationDeg)
           ? ((parsed.leatherSimTextureRotationDeg % 360) + 360) % 360
           : defaults.leatherSimTextureRotationDeg,
+      lineToolConstraint:
+        parsed.lineToolConstraint === 'horizontal' || parsed.lineToolConstraint === 'vertical'
+          ? parsed.lineToolConstraint
+          : 'none',
     }
   } catch {
     return getDefaultEditorPreferences()

@@ -40,6 +40,10 @@ type UseCanvasInteractionsParams = {
   customSnapPoint: Point | null
   reverseZoomDirection?: boolean
   incrementalSelection?: boolean
+  lineToolConstraint?: 'none' | 'horizontal' | 'vertical'
+  onWheelRotateSelection?: (deltaDeg: number) => void
+  onWheelScaleSelection?: (factor: number) => void
+  onPickLineTypeFromShape?: (shapeId: string) => void
   stitchTargetShapes: Shape[]
   visibleHardwareMarkers: HardwareMarker[]
   lineTypesById: Record<string, LineType>
@@ -85,6 +89,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     customSnapPoint,
     reverseZoomDirection,
     incrementalSelection,
+    lineToolConstraint = 'none',
+    onWheelRotateSelection,
+    onWheelScaleSelection,
+    onPickLineTypeFromShape,
     stitchTargetShapes,
     visibleHardwareMarkers,
     lineTypesById,
@@ -176,6 +184,8 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     viewport,
     setViewport,
     reverseZoomDirection,
+    onWheelRotateSelection,
+    onWheelScaleSelection,
   })
 
   const { handleStitchHolePointerDown, handleHardwarePointerDown } = useCanvasSelectionInteractions({
@@ -209,6 +219,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     toWorldPoint,
     getSnappedPoint,
     incrementalSelection,
+    onPickLineTypeFromShape,
   })
 
   let toolSessionRef: ToolRuntime['toolSession'] | null = null
@@ -222,6 +233,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       activeLineTypeId,
       activeSketchGroup,
       viewportScale: viewport.scale,
+      lineToolConstraint,
       stitchHoleDefaults,
       hardwarePreset,
       customHardwareDiameterMm,

@@ -46,6 +46,8 @@ type BaseShape = {
   arrowStart?: boolean
   arrowEnd?: boolean
   boxStitchSource?: BoxStitchSource
+  /** Fill color (hex) — renders closed paths as painted regions. Source-app "Painted Part". */
+  fillColor?: string
 }
 
 export type LineShape = {

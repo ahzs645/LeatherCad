@@ -65,6 +65,7 @@ const initialEditorUIState: EditorUIState = {
   reverseZoomDirection: loadEditorPreferences().reverseZoomDirection,
   incrementalSelection: loadEditorPreferences().incrementalSelection,
   mentoriWithoutCtrl: loadEditorPreferences().mentoriWithoutCtrl,
+  lineToolConstraint: loadEditorPreferences().lineToolConstraint,
   showLengthAdjustModal: false,
   showOptionsModal: false,
   leatherSimTextureRotationDeg: loadEditorPreferences().leatherSimTextureRotationDeg,
@@ -176,6 +177,8 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'incrementalSelection', value }),
     setMentoriWithoutCtrl: (value: React.SetStateAction<EditorUIState['mentoriWithoutCtrl']>) =>
       dispatch({ type: 'mentoriWithoutCtrl', value }),
+    setLineToolConstraint: (value: React.SetStateAction<EditorUIState['lineToolConstraint']>) =>
+      dispatch({ type: 'lineToolConstraint', value }),
     setShowLengthAdjustModal: (value: React.SetStateAction<EditorUIState['showLengthAdjustModal']>) =>
       dispatch({ type: 'showLengthAdjustModal', value }),
     setShowOptionsModal: (value: React.SetStateAction<EditorUIState['showOptionsModal']>) =>

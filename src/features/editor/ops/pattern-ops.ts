@@ -297,17 +297,38 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
   if (settings.midpoints) {
     for (const shape of context.shapes) {
       if (shape.type === 'line') {
+        const mid = {
+          x: (shape.start.x + shape.end.x) / 2,
+          y: (shape.start.y + shape.end.y) / 2,
+        }
+        registerCandidate(mid, 'midpoint')
         registerCandidate(
-          {
-            x: (shape.start.x + shape.end.x) / 2,
-            y: (shape.start.y + shape.end.y) / 2,
-          },
-          'midpoint',
+          { x: (shape.start.x + mid.x) / 2, y: (shape.start.y + mid.y) / 2 },
+          'quarter',
+        )
+        registerCandidate(
+          { x: (shape.end.x + mid.x) / 2, y: (shape.end.y + mid.y) / 2 },
+          'quarter',
         )
       } else if (shape.type === 'arc') {
         registerCandidate(shape.mid, 'midpoint')
       } else if (shape.type === 'bezier') {
-        registerCandidate(shape.control, 'midpoint')
+        const t25 = {
+          x: 0.5625 * shape.start.x + 0.375 * shape.control.x + 0.0625 * shape.end.x,
+          y: 0.5625 * shape.start.y + 0.375 * shape.control.y + 0.0625 * shape.end.y,
+        }
+        const t50 = {
+          x: 0.25 * shape.start.x + 0.5 * shape.control.x + 0.25 * shape.end.x,
+          y: 0.25 * shape.start.y + 0.5 * shape.control.y + 0.25 * shape.end.y,
+        }
+        const t75 = {
+          x: 0.0625 * shape.start.x + 0.375 * shape.control.x + 0.5625 * shape.end.x,
+          y: 0.0625 * shape.start.y + 0.375 * shape.control.y + 0.5625 * shape.end.y,
+        }
+        registerCandidate(t50, 'midpoint')
+        registerCandidate(t25, 'quarter')
+        registerCandidate(t75, 'quarter')
+        registerCandidate(shape.control, 'control')
       } else {
         registerCandidate(
           {

@@ -6,12 +6,14 @@ type OptionsModalProps = {
   mentoriWithoutCtrl: boolean
   exportIncludeText: boolean
   exportIncludeTemplateMetadata: boolean
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
   onChangeAutoSaveEnabled: (value: boolean) => void
   onChangeReverseZoomDirection: (value: boolean) => void
   onChangeIncrementalSelection: (value: boolean) => void
   onChangeMentoriWithoutCtrl: (value: boolean) => void
   onChangeExportIncludeText: (value: boolean) => void
   onChangeExportIncludeTemplateMetadata: (value: boolean) => void
+  onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical') => void
   onClose: () => void
 }
 
@@ -29,6 +31,8 @@ export function OptionsModal({
   onChangeMentoriWithoutCtrl,
   onChangeExportIncludeText,
   onChangeExportIncludeTemplateMetadata,
+  lineToolConstraint,
+  onChangeLineToolConstraint,
   onClose,
 }: OptionsModalProps) {
   if (!open) {
@@ -70,6 +74,21 @@ export function OptionsModal({
             />
             <span>Chamfer (mentori) acts without holding Ctrl</span>
           </label>
+        </section>
+
+        <section className="help-section">
+          <h4>Line tool constraint</h4>
+          {(['none', 'horizontal', 'vertical'] as const).map((mode) => (
+            <label className="layer-toggle-item" key={mode}>
+              <input
+                type="radio"
+                name="line-tool-constraint"
+                checked={lineToolConstraint === mode}
+                onChange={() => onChangeLineToolConstraint(mode)}
+              />
+              <span>{mode === 'none' ? 'Free' : mode === 'horizontal' ? 'Horizontal only' : 'Vertical only'}</span>
+            </label>
+          ))}
         </section>
 
         <section className="help-section">

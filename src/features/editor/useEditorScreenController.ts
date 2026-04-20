@@ -201,6 +201,7 @@ export function useEditorScreenController() {
     reverseZoomDirection, setReverseZoomDirection,
     incrementalSelection, setIncrementalSelection,
     mentoriWithoutCtrl, setMentoriWithoutCtrl,
+    lineToolConstraint, setLineToolConstraint,
     showLengthAdjustModal, setShowLengthAdjustModal,
     showOptionsModal, setShowOptionsModal,
     leatherSimTextureRotationDeg,
@@ -766,6 +767,13 @@ export function useEditorScreenController() {
       setSelectedStitchHoleId(null)
       setSelectedHardwareMarkerId(null)
     },
+    handleToggleCanvasRuler: () => {
+      setShowCanvasRuler((previous) => !previous)
+    },
+    handleHideBezierOffsetGuides: () => {
+      setShowBezierOffsetLines(false)
+      setStatus('Bezier offset guides hidden')
+    },
     handleNudgeSelection: (dxMm: number, dyMm: number) => {
       if (selectedShapeIdSet.size === 0) return
       setShapes((previous) =>
@@ -822,6 +830,22 @@ export function useEditorScreenController() {
     customSnapPoint,
     reverseZoomDirection,
     incrementalSelection,
+    lineToolConstraint,
+    onWheelRotateSelection: (deltaDeg: number) => {
+      if (selectedShapeIdSet.size === 0) return
+      handleRotateSelection(deltaDeg)
+    },
+    onWheelScaleSelection: (factor: number) => {
+      if (selectedShapeIdSet.size === 0) return
+      handleScaleSelection(factor)
+    },
+    onPickLineTypeFromShape: (shapeId: string) => {
+      const shape = shapesById[shapeId]
+      if (!shape) return
+      setActiveLineTypeId(shape.lineTypeId)
+      const lineType = lineTypesById[shape.lineTypeId]
+      setStatus(`Active line type set to "${lineType?.name ?? shape.lineTypeId}"`)
+    },
     stitchTargetShapes: workspaceEditableShapes,
     visibleHardwareMarkers: workspaceHardwareMarkers,
     lineTypesById,
@@ -2197,6 +2221,21 @@ export function useEditorScreenController() {
               exportIncludeText,
               exportIncludeTemplateMetadata: value,
               leatherSimTextureRotationDeg,
+              lineToolConstraint,
+            })
+          },
+          lineToolConstraint,
+          onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical') => {
+            setLineToolConstraint(value)
+            saveEditorPreferences({
+              ...getDefaultEditorPreferences(),
+              reverseZoomDirection,
+              incrementalSelection,
+              mentoriWithoutCtrl,
+              exportIncludeText,
+              exportIncludeTemplateMetadata,
+              leatherSimTextureRotationDeg,
+              lineToolConstraint: value,
             })
           },
         },
