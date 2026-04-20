@@ -17,6 +17,7 @@ type RenderShapeOptions = {
   buildTextGlyphPlacements: (shape: TextShape) => Array<{ x: number; y: number; rotationDeg: number; char: string }>
   normalizeTextShape: (shape: TextShape) => TextShape
   textBaselineAngleDeg: (shape: TextShape) => number
+  viewportScale?: number
 }
 
 export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
@@ -31,6 +32,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
       buildTextGlyphPlacements: options.buildTextGlyphPlacements,
       normalizeTextShape: options.normalizeTextShape,
       textBaselineAngleDeg: options.textBaselineAngleDeg,
+      viewportScale: options.viewportScale,
     })
   }
 

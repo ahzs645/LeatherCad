@@ -84,6 +84,7 @@ export function CanvasShapeLayer({
             buildTextGlyphPlacements,
             normalizeTextShape,
             textBaselineAngleDeg,
+            viewportScale,
           })
         })}
       </g>
@@ -110,6 +111,7 @@ export function CanvasShapeLayer({
             buildTextGlyphPlacements,
             normalizeTextShape,
             textBaselineAngleDeg,
+            viewportScale,
           })
         })}
       </g>

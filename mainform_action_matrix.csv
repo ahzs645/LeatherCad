@@ -43,7 +43,7 @@ actFlipHorizontally,actFlipHorizontally,TfrmLeat;TfrmLeat_Macintosh,Other,,,,imp
 actFlipSelectedPaths,actFlipSelectedPathsExecute,TfrmLeat,Other,,,,implemented,src/features/editor/ops/transform-ops.ts
 actFlipVertically,actFlipVertically,TfrmLeat;TfrmLeat_Macintosh,Other,,,,implemented,src/features/editor/ops/transform-ops.ts
 actHowToUseMandala,actHowToUseMandala;actHowToUseMandalaExecute,TfrmLeat,Other,LC-P2-015,Mandala,P2,mapped,
-actIgnoreLayer,actIgnoreLayer,TfrmLeat,LayerAdvanced,,,,unmapped,
+actIgnoreLayer,actIgnoreLayer,TfrmLeat,LayerAdvanced,,,,implemented,src/features/editor/hooks/useLayerActions.ts
 actImportCatalog,actImportCatalog;actImportCatalogExecute,TfrmLeat,Other,LC-MVP-010,Templates,MVP,mapped,
 actImportRepository,actImportRepository;actImportRepositoryExecute,TfrmLeat,Other,LC-MVP-010,Templates,MVP,mapped,
 actImportSVG,actImportSVG;actImportSVGExecute,TfrmLeat,Other,LC-MVP-001,ImportExport,MVP,mapped,

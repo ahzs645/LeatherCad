@@ -202,11 +202,23 @@ type RenderTextShapeOptions = {
   buildTextGlyphPlacements: (shape: TextShape) => Array<{ x: number; y: number; rotationDeg: number; char: string }>
   normalizeTextShape: (shape: TextShape) => TextShape
   textBaselineAngleDeg: (shape: TextShape) => number
+  viewportScale?: number
 }
+
+// Clamp the on-screen glyph size so text doesn't balloon as the user zooms
+// in. The inner <g transform="scale(viewport.scale)"> would otherwise make a
+// 2mm font appear as 2 * scale screen pixels — readable at 100% but huge at
+// 1000%. We cap the effective screen size at TEXT_MAX_SCREEN_PX by
+// shrinking the world-space fontSize proportionally at high zoom.
+const TEXT_MAX_SCREEN_PX = 14
+const TEXT_MIN_WORLD_PX = 2.5
 
 export function renderTextShape(shape: TextShape, options: RenderTextShapeOptions) {
   const normalized = options.normalizeTextShape(shape)
-  const fontSize = Math.max(4, round(normalized.fontSizeMm))
+  const scale = options.viewportScale && options.viewportScale > 0 ? options.viewportScale : 1
+  const cap = TEXT_MAX_SCREEN_PX / scale
+  const worldFontSize = Math.max(TEXT_MIN_WORLD_PX, Math.min(normalized.fontSizeMm, cap))
+  const fontSize = round(worldFontSize)
 
   if (normalized.transform === 'none') {
     const baselineAngle = options.textBaselineAngleDeg(normalized)
