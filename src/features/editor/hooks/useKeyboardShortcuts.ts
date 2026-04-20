@@ -13,6 +13,8 @@ type UseKeyboardShortcutsParams = {
   handleSelectAllShapes: () => void
   handleDeselectAll: () => void
   handleNudgeSelection: (dxMm: number, dyMm: number) => void
+  handleToggleCanvasRuler: () => void
+  handleHideBezierOffsetGuides: () => void
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -27,6 +29,8 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleSelectAllShapes,
     handleDeselectAll,
     handleNudgeSelection,
+    handleToggleCanvasRuler,
+    handleHideBezierOffsetGuides,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
