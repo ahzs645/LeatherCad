@@ -231,6 +231,7 @@ export function WorkbenchThreePreviewInspector({
     applyPreset,
     setLeatherColor,
     enableShadows,
+    rotateLeatherTexture,
     selectedClosedShapeIds,
     applyTextureToSelection,
     applyTextureGlobally,
@@ -631,6 +632,16 @@ export function WorkbenchThreePreviewInspector({
           <label className="field-row">
             <span>Shadows</span>
             <input type="checkbox" onChange={(event) => enableShadows(event.target.checked)} />
+          </label>
+          <label className="field-row">
+            <span>Texture rotation</span>
+            <span className="control-row">
+              <button type="button" onClick={() => rotateLeatherTexture(-90)}>-90°</button>
+              <button type="button" onClick={() => rotateLeatherTexture(-15)}>-15°</button>
+              <button type="button" onClick={() => rotateLeatherTexture(15)}>+15°</button>
+              <button type="button" onClick={() => rotateLeatherTexture(90)}>+90°</button>
+              <button type="button" onClick={() => rotateLeatherTexture(0)}>Reset</button>
+            </span>
           </label>
         </div>
       </div>

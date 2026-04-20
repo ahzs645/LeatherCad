@@ -69,6 +69,10 @@ export function useExportActions(params: UseExportActionsParams) {
     dxfVersion: state.dxfVersion,
   }))
   const { setStatus } = useEditorUIActions()
+  const { exportIncludeText, exportIncludeTemplateMetadata } = useEditorUISelector((state) => ({
+    exportIncludeText: state.exportIncludeText,
+    exportIncludeTemplateMetadata: state.exportIncludeTemplateMetadata,
+  }))
 
   const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
 
@@ -96,6 +100,9 @@ export function useExportActions(params: UseExportActionsParams) {
   const getExportableShapes = () =>
     shapes.filter((shape) => {
       if (!isShapeEligibleForExport(shape)) {
+        return false
+      }
+      if (!exportIncludeText && shape.type === 'text') {
         return false
       }
       const lineType = lineTypesById[shape.lineTypeId]
@@ -301,7 +308,10 @@ export function useExportActions(params: UseExportActionsParams) {
           .join('\n  ')
       : ''
 
-    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}" width="${round(exportWidth)}${exportUnit}" height="${round(exportHeight)}${exportUnit}">\n  <rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${stitchHoleMarkup}\n  ${foldMarkup}\n</svg>`
+    const templateMetadata = exportIncludeTemplateMetadata
+      ? `<!-- leathercad:template shapes=${exportShapes.length} stitchHoles=${exportStitchHoles.length} folds=${includeFoldLines ? foldLines.length : 0} unit=${exportUnit} -->\n  `
+      : ''
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${round(bounds.minX)} ${round(bounds.minY)} ${round(bounds.width)} ${round(bounds.height)}" width="${round(exportWidth)}${exportUnit}" height="${round(exportHeight)}${exportUnit}">\n  ${templateMetadata}<rect x="${round(bounds.minX)}" y="${round(bounds.minY)}" width="${round(bounds.width)}" height="${round(bounds.height)}" fill="white"/>\n  ${objectMarkup}\n  ${stitchHoleMarkup}\n  ${foldMarkup}\n</svg>`
 
     downloadFile('leathercraft-export.svg', svg, 'image/svg+xml;charset=utf-8')
     setStatus(

@@ -417,6 +417,14 @@ export class ThreeBridge {
     this.materialManager.setLeatherColor(color)
   }
 
+  setLeatherTextureRotationDeg(angleDeg: number) {
+    this.materialManager.setTextureRotationDeg(angleDeg)
+  }
+
+  getLeatherTextureRotationDeg(): number {
+    return (this.materialManager.textureRotationRad * 180) / Math.PI
+  }
+
   enableShadows(enabled: boolean) {
     this.runtimeManager.enableShadows(enabled)
   }

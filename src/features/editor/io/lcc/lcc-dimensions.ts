@@ -149,14 +149,16 @@ function mergeSplitDimensionComponents(components: RawDimensionSegment[][], text
 }
 
 export function rebuildImportedDimensions(segments: RawDimensionSegment[], texts: RawDimensionText[]): DimensionLine[] {
-  if (segments.length === 0) {
+  if (segments.length === 0 && texts.length === 0) {
     return []
   }
 
   const components = mergeSplitDimensionComponents(clusterDimensionSegments(segments), texts)
   const remainingTexts = [...texts]
+  const fallbackLineTypeId = segments[0]?.lineTypeId
+  const fallbackLayerId = segments[0]?.layerId
 
-  return components
+  const built = components
     .map<DimensionLine | null>((component) => {
       const analysis = analyzeDimensionComponent(component)
       if (!analysis) return null
@@ -238,4 +240,26 @@ export function rebuildImportedDimensions(segments: RawDimensionSegment[], texts
       }
     })
     .filter((entry): entry is DimensionLine => entry !== null)
+
+  // Fallback: any dimension text we couldn't bind to a reconstructed
+  // dimension line still gets surfaced as a zero-length label placed at its
+  // original center, so the user sees every "28mm", "14mm", ... that the
+  // source file authored — even if the extension-line geometry didn't match
+  // the strict reconstruction pattern.
+  for (const text of remainingTexts) {
+    const layerId = text.layerId || fallbackLayerId
+    const lineTypeId = fallbackLineTypeId
+    if (!layerId || !lineTypeId) continue
+    built.push({
+      id: uid(),
+      start: { x: text.center.x - 0.001, y: text.center.y },
+      end: { x: text.center.x + 0.001, y: text.center.y },
+      offsetMm: 0,
+      text: text.text,
+      layerId,
+      lineTypeId,
+    })
+  }
+
+  return built
 }

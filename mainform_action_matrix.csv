@@ -61,7 +61,7 @@ actLayer_MoveToAnotherLayer,actLayer_MoveToAnotherLayer,TfrmLeat;TfrmLeat_Macint
 actLayer_MoveUp,actLayer_MoveUp;actLayer_MoveUpExecute,TfrmLeat;TfrmLeat_Macintosh,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
 actLayer_ShowAllLayers,actLayer_ShowAllLayers;actLayer_ShowAllLayersExecute,TfrmLeat;TfrmLeat_Macintosh,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
 actLayer_ToggleIndependentLayer,actLayer_ToggleIndependentLayer,TfrmLeat,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
-actLeatherSim_RotateImage,actLeatherSim_RotateImage,TfrmLeat,Other,LC-P2-013,LeatherSim,P2,mapped,
+actLeatherSim_RotateImage,actLeatherSim_RotateImage,TfrmLeat,Other,LC-P2-013,LeatherSim,P2,implemented,src/features/editor/three/material-manager.ts
 actLinePaletteSelectAll,actLinePaletteSelectAll;actLinePaletteSelectAllExecute;actLinePalletSelectAll,TfrmLeat,LineTypePalette,,,,implemented,src/features/editor/hooks/useLineTypeActions.ts
 actLinePaletteShowHide,actLinePaletteShowHide;actLinePaletteShowHideExecute;actLinePalletShowHide,TfrmLeat,LineTypePalette,,,,unmapped,
 actLinePaletteUnselectLineType,actLinePaletteUnselectLineType;actLinePalletUnselectLineType,TfrmLeat,LineTypePalette,,,,implemented,src/features/editor/hooks/useLineTypeActions.ts
@@ -74,7 +74,7 @@ actMirrorMandalaItem,actMirrorMandalaItem;actMirrorMandalaItemExecute,TfrmLeat,O
 actMoveOrCopyWithSetDistance,actMoveOrCopyWithSetDistance,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actNewProject,actNewProject;actNewProjectExecute,TfrmLeat;TfrmLeat_Macintosh,ProjectLifecycle,,,,implemented,src/features/editor/hooks/useEditorStateActions.ts
 actOpenDemoProject,actOpenDemoProject;actOpenDemoProjectExecute,TfrmLeat,ProjectLifecycle,,,,unmapped,
-actOpenOptions,actOpenOptions;actOpenOptionsExecute,TfrmLeat,ProjectLifecycle,,,,unmapped,
+actOpenOptions,actOpenOptions;actOpenOptionsExecute,TfrmLeat,ProjectLifecycle,,,,implemented,src/features/editor/components/OptionsModal.tsx
 actOpenSecretFeatureList,actOpenSecretFeatureList;actOpenSecretFeatureListExecute,TfrmLeat,Other,,,,implemented,src/features/editor/useEditorScreenController.ts
 actOrder,actOrder;actOrderExecute,TfrmLeat,SelectionOrdering,,,,unmapped,
 actOrder_BringToFront,actOrder_BringToFront;actOrder_BringToFrontExecute,TfrmLeat,SelectionOrdering,,,,implemented,src/features/editor/hooks/useSelectionActions.ts

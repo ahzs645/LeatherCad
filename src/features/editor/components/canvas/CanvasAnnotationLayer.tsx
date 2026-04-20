@@ -88,7 +88,7 @@ export function CanvasAnnotationLayer({
         </text>
       ))}
 
-      {renderableOutlineChains.map((chain) => {
+      {showAnnotations && renderableOutlineChains.map((chain) => {
         const centroid = chain.polygon.reduce(
           (acc, point) => ({ x: acc.x + point.x / chain.polygon.length, y: acc.y + point.y / chain.polygon.length }),
           { x: 0, y: 0 },

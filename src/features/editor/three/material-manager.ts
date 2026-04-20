@@ -78,9 +78,28 @@ export class ThreeMaterialManager {
   currentRoughness: Texture | null = null
   texturedShapeIdSet = new Set<string>()
   threadColor = DEFAULT_STITCH_THREAD_COLOR
+  textureRotationRad = 0
 
   constructor() {
     this.textureLoader.crossOrigin = 'anonymous'
+  }
+
+  private applyTextureRotation(texture: Texture | null) {
+    if (!texture) return
+    texture.center.set(0.5, 0.5)
+    texture.rotation = this.textureRotationRad
+    texture.needsUpdate = true
+  }
+
+  setTextureRotationDeg(angleDeg: number) {
+    const next = (((angleDeg % 360) + 360) % 360) * (Math.PI / 180)
+    if (Math.abs(next - this.textureRotationRad) < 1e-6) {
+      return
+    }
+    this.textureRotationRad = next
+    this.applyTextureRotation(this.currentAlbedo)
+    this.applyTextureRotation(this.currentNormal)
+    this.applyTextureRotation(this.currentRoughness)
   }
 
   applyTextureMaps(albedo: Texture | null, normal: Texture | null, roughness: Texture | null) {
@@ -97,6 +116,9 @@ export class ThreeMaterialManager {
     this.currentAlbedo = albedo
     this.currentNormal = normal
     this.currentRoughness = roughness
+    this.applyTextureRotation(albedo)
+    this.applyTextureRotation(normal)
+    this.applyTextureRotation(roughness)
 
     for (const material of [
       this.leftTextureMaterial,

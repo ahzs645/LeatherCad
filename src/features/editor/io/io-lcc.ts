@@ -363,7 +363,7 @@ export function importLccDocument(raw: string): LccImportResult {
     stitchHoles,
     dimensionLines: dimensionLines.length > 0 ? dimensionLines : undefined,
     printAreas: printAreas.length > 0 ? printAreas : undefined,
-    showDimensions: false,
+    showDimensions: dimensionLines.length > 0,
   }
 
   return {

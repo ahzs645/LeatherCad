@@ -19,6 +19,7 @@ import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
 import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
 import type { PrintPlan } from '../preview/print-preview'
 import { GRID_EXTENT } from '../editor-constants'
+import { computeAdaptiveSpacing } from '../ops/grid-spacing'
 import type { CanvasInteractionPreview } from '../hooks/useCanvasInteractions'
 import { LayerLegendPanel } from './LayerLegendPanel'
 import { CanvasAnnotationLayer } from './canvas/CanvasAnnotationLayer'
@@ -185,7 +186,7 @@ export function EditorCanvasPane({
   const patternIdBase = useId().replace(/:/g, '-')
   const minorGridPatternId = `${patternIdBase}-minor-grid`
   const majorGridPatternId = `${patternIdBase}-major-grid`
-  const minorGridStep = Math.max(gridSpacing / (gridSpacing <= 2 ? 2 : 5), 0.1)
+  const { major: majorGridStep, minor: minorGridStep } = computeAdaptiveSpacing(viewport.scale, gridSpacing)
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
   const detailPadding = Math.max(32, 96 / Math.max(viewport.scale, 0.1))
 
@@ -370,7 +371,7 @@ export function EditorCanvasPane({
             minorGridPatternId={minorGridPatternId}
             majorGridPatternId={majorGridPatternId}
             minorGridStep={minorGridStep}
-            gridSpacing={gridSpacing}
+            gridSpacing={majorGridStep}
             gridExtent={GRID_EXTENT}
             showCanvasRuler={showCanvasRuler}
             displayUnit={displayUnit}

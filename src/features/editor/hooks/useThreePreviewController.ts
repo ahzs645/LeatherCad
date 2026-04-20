@@ -471,6 +471,20 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     }))
   }
 
+  const rotateLeatherTexture = (deltaDeg: number) => {
+    const bridge = bridgeRef.current
+    if (!bridge) {
+      return
+    }
+    const nextDeg = deltaDeg === 0 ? 0 : bridge.getLeatherTextureRotationDeg() + deltaDeg
+    bridge.setLeatherTextureRotationDeg(nextDeg)
+    setTextureStatus(
+      deltaDeg === 0
+        ? 'Reset leather texture rotation'
+        : `Rotated leather texture to ${Math.round(((nextDeg % 360) + 360) % 360)}°`,
+    )
+  }
+
   const applyTextureToSelection = async () => {
     if (selectedClosedShapeIds.length === 0) {
       setTextureStatus('Select one or more closed shapes in 2D first')
@@ -560,6 +574,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     applyPreset,
     setLeatherColor,
     enableShadows,
+    rotateLeatherTexture,
     applyTextureToSelection,
     applyTextureGlobally,
     clearSelectionTexture,

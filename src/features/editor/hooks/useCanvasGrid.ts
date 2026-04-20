@@ -1,36 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Viewport } from '../cad/cad-types'
-
-/**
- * Compute the "nice" grid spacing for the current zoom level.
- * Uses a 1-2-5 sequence (like engineering graph paper) so that as you zoom in,
- * the grid smoothly subdivides into finer increments.
- */
-function computeAdaptiveSpacing(scale: number, baseSpacing: number): { major: number; minor: number } {
-  // Target: major grid lines should be ~60-150 screen-pixels apart
-  const targetScreenPx = 80
-  const idealWorldSpacing = targetScreenPx / scale
-
-  // 1-2-5 sequence steps
-  const steps = [1, 2, 5, 10, 25, 50, 100, 250, 500, 1000]
-
-  // Find the step closest to idealWorldSpacing
-  let major = baseSpacing
-  let bestDiff = Infinity
-  for (const step of steps) {
-    const diff = Math.abs(step - idealWorldSpacing)
-    if (diff < bestDiff) {
-      bestDiff = diff
-      major = step
-    }
-  }
-
-  // Minor subdivisions: 5 per major (or 2 for very small spacings)
-  const subdivisions = major <= 2 ? 2 : 5
-  const minor = major / subdivisions
-
-  return { major, minor }
-}
+import { computeAdaptiveSpacing } from '../ops/grid-spacing'
 
 type UseCanvasGridParams = {
   viewport: Viewport
