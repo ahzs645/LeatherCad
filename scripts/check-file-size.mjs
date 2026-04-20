@@ -8,7 +8,7 @@ const DEFAULT_TS_MAX = 700
 const DEFAULT_SCSS_MAX = 700
 
 const trackedDebt = new Map([
-  ['src/features/editor/useEditorScreenController.ts', { max: 2038, target: 600 }],
+  ['src/features/editor/useEditorScreenController.ts', { max: 1150, target: 600 }],
 ])
 
 const modulePolicies = {

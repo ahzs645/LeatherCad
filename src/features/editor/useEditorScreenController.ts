@@ -6,6 +6,7 @@ import {
 import {
   STITCH_LINE_TYPE_ID,
 } from './cad/line-types'
+import type { EditorScreenShellActions } from './editorScreenShellTypes'
 import {
   saveCatalogRepository,
 } from './templates/catalog-repository'
@@ -14,9 +15,6 @@ import { detectOutlines, type OutlineChain } from './ops/outline-detection'
 import type {
   ResolvedThemeMode,
 } from './editor-types'
-import {
-  toolLabel,
-} from './editor-utils'
 import { useEditorDerivedState } from './hooks/useEditorDerivedState'
 import { useExportActions } from './hooks/useExportActions'
 import { useLayerActions } from './hooks/useLayerActions'
@@ -34,13 +32,10 @@ import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
 import { useCombinedDraftAndSnapElement } from './hooks/useDraftCanvasElements'
 import { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
-import { useEditorLayoutFlags } from './hooks/useEditorLayoutFlags'
 import { useLoadedDocumentActions } from './hooks/useLoadedDocumentActions'
-import { useEditorPreviewPaneProps } from './hooks/useEditorPreviewPaneProps'
 import { useSketchGroupActions } from './hooks/useSketchGroupActions'
 import { useHistoryActions } from './hooks/useHistoryActions'
 import { useEditorStateActions } from './hooks/useEditorStateActions'
-import { useEditorStatusBarProps } from './hooks/useEditorStatusBarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useTransformActions } from './hooks/useTransformActions'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -68,25 +63,13 @@ import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
 import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
 import { useEditorCreationController } from './controllers/useEditorCreationController'
 import { useEditorDocumentBootstrap } from './controllers/useEditorDocumentBootstrap'
-import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchController'
-import { buildCanvasPaneParams } from './modules/canvas/buildCanvasPaneParams'
 import { useEditorCanvasController } from './modules/canvas/useEditorCanvasController'
 import { useEditorGlobalShortcuts } from './modules/canvas/useEditorGlobalShortcuts'
-import { useEditorOverlayViewModel } from './modules/overlays/useEditorOverlayViewModel'
-import {
-  buildWorkbenchProps,
-  buildWorkbenchThreeWorkspaceProps,
-} from './modules/workbench/buildWorkbenchShellViewModels'
+import { useEditorScreenOverlay } from './modules/overlays/useEditorScreenOverlay'
 import { useEditorScreenRefs } from './controllers/useEditorScreenRefs'
-import {
-  buildDocumentInspectorProps,
-  buildPieceInspectorContentProps,
-  buildSelectionInspectorProps,
-} from './view-models/buildWorkbenchInspectorViewModels'
-import { useEditorTopbarViewModel } from './view-models/useEditorTopbarViewModel'
+import { useEditorScreenShells } from './controllers/useEditorScreenShells'
 import { useEditorDocumentCommands } from './useEditorDocumentCommands'
 import { useEditorAssetCommands } from './useEditorAssetCommands'
-import { useEditorWorkbenchProps } from './useEditorWorkbenchProps'
 
 export type EditorScreenLayoutModel = {
   isMobileLayout: boolean
@@ -98,6 +81,7 @@ export type { EditorOverlayProps } from './controllers/buildEditorOverlayProps'
 
 export function useEditorScreenController() {
   // Document state: shapes, constraints, layers, overlays, etc.
+  const documentState = useEditorDocumentState()
   const {
     documentName, setDocumentName,
     lineTypes, setLineTypes,
@@ -122,7 +106,7 @@ export function useEditorScreenController() {
     snapSettings, setSnapSettings,
     showAnnotations, setShowAnnotations,
     tracingOverlays, setTracingOverlays,
-    activeTracingOverlayId, setActiveTracingOverlayId,
+    setActiveTracingOverlayId,
     backdrops, setBackdrops,
     activeBackdropId, setActiveBackdropId,
     projectMemo, setProjectMemo,
@@ -134,29 +118,22 @@ export function useEditorScreenController() {
     threeTextureShapeIds, setThreeTextureShapeIds,
     showCanvasRuler, setShowCanvasRuler,
     showDimensions, setShowDimensions,
-  } = useEditorDocumentState()
+  } = documentState
 
   // UI state: layout, modals, theme, display settings
+  const uiState = useEditorUIState()
   const {
     setStatus,
     showThreePreview, setShowThreePreview,
     isMobileLayout, setIsMobileLayout,
-    mobileViewMode, setMobileViewMode,
-    showMobileMenu, setShowMobileMenu,
-    mobileOptionsTab, setMobileOptionsTab,
-    showPrecisionModal, setShowPrecisionModal,
-    showProjectMemoModal, setShowProjectMemoModal,
-    showNestingModal, setShowNestingModal,
-    desktopRibbonTab,
-    workbenchRibbonTab, setWorkbenchRibbonTab,
+    setMobileViewMode,
+    setShowMobileMenu,
+    setMobileOptionsTab,
     workspaceMode, setWorkspaceMode,
     secondaryPreviewMode, setSecondaryPreviewMode,
     mobileLayerAction,
     mobileFileAction,
-    displayUnit, setDisplayUnit,
-    gridSpacing, setGridSpacing,
-    legendMode, setLegendMode,
-    sketchWorkspaceMode, setSketchWorkspaceMode,
+    displayUnit,
     selectedPresetId, setSelectedPresetId,
     themeMode, setThemeMode,
     systemThemeMode, setSystemThemeMode,
@@ -164,53 +141,44 @@ export function useEditorScreenController() {
     constraintSuggestions, setConstraintSuggestions,
     autoConstraintSettings,
     showStitchSimulatorModal, setShowStitchSimulatorModal,
-    showBoxStitchHelperModal, setShowBoxStitchHelperModal,
-    showBoxStitchModal, setShowBoxStitchModal,
-    showMandalaModal, setShowMandalaModal,
-    showWizardModal, setShowWizardModal,
-    showBackdropModal, setShowBackdropModal,
-    showLetterStampModal, setShowLetterStampModal,
-    showChangeShapeSizeModal, setShowChangeShapeSizeModal,
+    setShowBoxStitchHelperModal,
+    setShowBoxStitchModal,
+    setShowMandalaModal,
+    setShowWizardModal,
+    setShowLetterStampModal,
     showBezierOffsetLines, setShowBezierOffsetLines,
     customRotationPivot, setCustomRotationPivot,
     customSnapPoint, setCustomSnapPoint,
-    showSpecifyRotationModal, setShowSpecifyRotationModal,
-    showSpecifyScaleModal, setShowSpecifyScaleModal,
-    specifyScaleModalAxis, setSpecifyScaleModalAxis,
-    showFontListModal, setShowFontListModal,
-    fontList, setFontList,
-    autoSaveEnabled, setAutoSaveEnabled,
-    reverseZoomDirection, setReverseZoomDirection,
-    incrementalSelection, setIncrementalSelection,
-    mentoriWithoutCtrl, setMentoriWithoutCtrl,
-    lineToolConstraint, setLineToolConstraint,
+    setShowSpecifyRotationModal,
+    setShowSpecifyScaleModal,
+    setSpecifyScaleModalAxis,
+    autoSaveEnabled,
+    reverseZoomDirection,
+    incrementalSelection,
+    lineToolConstraint,
     leatherSimEnabled,
-    setTranslationMap,
-    showGrid, setShowGrid,
-    gridBackgroundMode, setGridBackgroundMode,
-    showLengthAdjustModal, setShowLengthAdjustModal,
-    showOptionsModal, setShowOptionsModal,
-    leatherSimTextureRotationDeg,
-    exportIncludeText, setExportIncludeText,
-    exportIncludeTemplateMetadata, setExportIncludeTemplateMetadata,
-  } = useEditorUIState()
+    setShowGrid,
+  } = uiState
 
   // Selection state: selected shapes, stitch holes, hardware markers, clipboard
+  const selectionState = useEditorSelectionState()
   const {
     selectedShapeIds, setSelectedShapeIds,
     selectedStitchHoleId, setSelectedStitchHoleId,
     selectedHardwareMarkerId, setSelectedHardwareMarkerId,
     clipboardPayload, setClipboardPayload,
-  } = useEditorSelectionState()
+  } = selectionState
 
   // Repository state: templates, catalogs
+  const repositoryState = useEditorRepositoryState()
   const {
     templateRepository, setTemplateRepository,
     selectedTemplateEntryId, setSelectedTemplateEntryId,
     catalogRepository, setCatalogRepository,
     bundledCatalogRepository,
     selectedCatalogShopId, setSelectedCatalogShopId,
-  } = useEditorRepositoryState()
+  } = repositoryState
+  const panelState = useEditorPanelState()
   const {
     setShowLayerColorModal,
     setShowExportOptionsModal,
@@ -224,26 +192,22 @@ export function useEditorScreenController() {
     setDxfVersion,
     setShowTracingModal,
     setShowPatternToolsModal,
-    setShowAiBuilderModal,
-    setShowHelpModal,
     setShowTemplateRepositoryModal,
-    showPrintAreas,
     setShowPrintAreas,
     setShowPrintPreviewModal,
-  } = useEditorPanelState()
+  } = panelState
+  const layerState = useEditorLayers()
   const {
     layers,
     setLayers,
     activeLayerId,
     setActiveLayerId,
-    frontLayerColor,
     setFrontLayerColor,
-    backLayerColor,
     setBackLayerColor,
-    layerColorOverrides,
     setLayerColorOverrides,
-  } = useEditorLayers()
+  } = layerState
 
+  const toolState = useEditorTools()
   const {
     tool,
     setTool,
@@ -251,34 +215,25 @@ export function useEditorScreenController() {
     setActiveTool,
     textDraftValue,
     textFontFamily,
-    setTextFontFamily,
     textFontSizeMm,
     textTransformMode,
     textRadiusMm,
     textSweepDeg,
-    showStitchSequenceLabels,
-  } = useEditorTools()
+  } = toolState
 
+  const viewportState = useEditorViewport({ isMobileLayout, showThreePreview })
   const {
     viewport,
     setViewport,
-    workspaceRef,
-  } = useEditorViewport({ isMobileLayout, showThreePreview })
-  const {
-    shellRef,
-    showPeek,
-    effectiveSecondaryPreviewMode,
-    effectiveLayout,
-    setActiveInspectorTab,
-    handleBrowserResizeStart,
-    handlePeekResizeStart,
-    handleInspectorResizeStart,
-    splitterWidth,
-    toolRailWidth,
-  } = useWorkbenchShellState({
+  } = viewportState
+  const workbenchShellState = useWorkbenchShellState({
     enabled: !isMobileLayout,
     secondaryPreviewMode,
   })
+  const {
+    effectiveLayout,
+    setActiveInspectorTab,
+  } = workbenchShellState
 
   const resolvedThemeMode: ResolvedThemeMode = themeMode === 'system' ? systemThemeMode : themeMode
 
@@ -291,21 +246,23 @@ export function useEditorScreenController() {
     setActiveInspectorTab,
   })
 
+  const screenRefs = useEditorScreenRefs()
   const {
     svgRef,
     fileInputRef,
     svgInputRef,
     tracingInputRef,
-    backdropInputRef,
-    templateImportInputRef,
-    catalogImportInputRef,
-    translationInputRef,
     fontInputRef,
     pasteCountRef,
     tracingObjectUrlsRef,
     panRef,
-  } = useEditorScreenRefs()
+  } = screenRefs
   const [showPieceInspectorModal, setShowPieceInspectorModal] = useState(false)
+  const derivedState = useEditorDerivedState({
+    templateRepository,
+    selectedTemplateEntryId,
+    themeMode: resolvedThemeMode,
+  })
   const {
     activeLayer,
     sketchGroupsById,
@@ -317,48 +274,28 @@ export function useEditorScreenController() {
     patternPieceByBoundaryShapeId,
     patternPieceChains,
     selectedShapeIdSet,
-    shapeCountsByLineType,
     stitchHoleCountsByShape,
-    selectedShapeCount,
     selectedStitchHoleCount,
     selectedStitchHole,
     selectedHardwareMarker,
     selectedTemplateEntry,
-    canUndo,
-    canRedo,
     assemblyShapes,
-    visibleStitchHoles,
     visibleLayerIdSet,
     workspaceShapes,
     workspaceEditableShapes,
-    workspaceLinkedShapes,
-    workspaceStitchHoles,
     workspaceHardwareMarkers,
-    seamGuides,
     annotationLabels,
     pieceGrainlineSegments,
     pieceNotchLines,
     piecePlacementGuides,
     lineTypeStylesById,
     printableShapes,
-    activeExportRoleCount,
     layerColorsById,
-    layerStackLevels,
-    stackLegendEntries,
-    displayLayerColorsById,
-    fallbackLayerStroke,
-    cutStrokeColor,
-    stitchStrokeColor,
-    foldStrokeColor,
     activeLineTypeStrokeColor,
     activeLineTypeDasharray,
     currentSnapshot,
     currentSnapshotSignature,
-  } = useEditorDerivedState({
-    templateRepository,
-    selectedTemplateEntryId,
-    themeMode: resolvedThemeMode,
-  })
+  } = derivedState
 
   // Detect closed outlines and open paths for canvas labels
   const outlineChains = useMemo<OutlineChain[]>(
@@ -366,12 +303,7 @@ export function useEditorScreenController() {
     [workspaceEditableShapes, lineTypes],
   )
 
-  const {
-    applyEditorSnapshot,
-    ensureActiveLayerWritable,
-    ensureActiveLineTypeWritable,
-    resetDocument,
-  } = useEditorStateActions({
+  const editorStateActions = useEditorStateActions({
     activeLayer,
     activeSketchGroup,
     activeLineType,
@@ -419,6 +351,12 @@ export function useEditorScreenController() {
     setShowPrintAreas,
     setStatus,
   })
+  const {
+    applyEditorSnapshot,
+    ensureActiveLayerWritable,
+    ensureActiveLineTypeWritable,
+    resetDocument,
+  } = editorStateActions
 
   const { applyLoadedDocument } = useLoadedDocumentActions({
     clearDraft,
@@ -478,29 +416,13 @@ export function useEditorScreenController() {
     activeLineTypeDasharray,
   })
 
-  const { handleUndo, handleRedo } = useHistoryActions({
+  const historyActions = useHistoryActions({
     currentSnapshot,
     applyEditorSnapshot,
   })
+  const { handleUndo, handleRedo } = historyActions
 
-  const {
-    handleCopySelection,
-    handleDeleteSelection,
-    handleCutSelection,
-    handlePasteClipboard,
-    handleDuplicateSelection,
-    handleSelectAllShapes,
-    handleGroupSelection,
-    handleUngroupSelection,
-    handleMoveSelectionByDistance,
-    handleCopySelectionByDistance,
-    handleRotateSelection,
-    handleScaleSelection,
-    handleMoveSelectionForward,
-    handleMoveSelectionBackward,
-    handleBringSelectionToFront,
-    handleSendSelectionToBack,
-  } = useSelectionActions({
+  const selectionActions = useSelectionActions({
     selectedShapeIdSet,
     selectedHardwareMarkerId,
     shapes,
@@ -533,22 +455,18 @@ export function useEditorScreenController() {
     setHardwareMarkers,
     setStatus,
   })
-
   const {
-    handleAlignSelectionToEdge,
-    handleFlipSelection,
-    handleReverseSelectedPaths,
-    handleSpecifyRotation,
-    handleSpecifyScale,
-    handleOpenSpecifyRotationModal,
-    handleOpenSpecifyScaleModal,
-    handleSetAsRotationCenter,
-    handleClearRotationCenter,
-    handleSetAsSnapPoint,
-    handleClearSnapPoint,
-    handleMakeSelectedLineHorizontal,
-    handleMakeSelectedLineVertical,
-  } = useTransformActions({
+    handleCopySelection,
+    handleDeleteSelection,
+    handleCutSelection,
+    handlePasteClipboard,
+    handleDuplicateSelection,
+    handleSelectAllShapes,
+    handleRotateSelection,
+    handleScaleSelection,
+  } = selectionActions
+
+  const transformActions = useTransformActions({
     shapes,
     selectedShapeIdSet,
     customRotationPivot,
@@ -564,15 +482,7 @@ export function useEditorScreenController() {
 
   const selectedEditableShape =
     selectedShapeIds.length === 1 ? (shapesById[selectedShapeIds[0]] ?? null) : null
-  const {
-    buildCurrentDocFile,
-    handleEnableStitchOnSelection,
-    handleDisableStitchOnSelection,
-    handleUpdateSelectedShapePoint,
-    handleUpdateSelectedStitchHole,
-    handleResetExportOptions,
-    updateFoldLine,
-  } = useEditorDocumentCommands({
+  const documentCommands = useEditorDocumentCommands({
     documentName,
     layers,
     activeLayerId,
@@ -626,15 +536,9 @@ export function useEditorScreenController() {
     setStatus,
   })
   const {
-    handleSaveTemplateToRepository,
-    handleDeleteTemplateFromRepository,
-    handleLoadTemplateAsDocument,
-    handleInsertTemplateIntoDocument,
-    handleExportTemplateRepository,
-    handleImportTemplateRepositoryFile,
-    handleImportCatalogFile,
-    handleDeleteCatalogShop,
-  } = useTemplateActions({
+    buildCurrentDocFile,
+  } = documentCommands
+  const templateActions = useTemplateActions({
     templateRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
@@ -661,10 +565,7 @@ export function useEditorScreenController() {
     setActiveLayerId,
     setStatus,
   })
-  const {
-    handleLoadAiBuilderDocument,
-    handleInsertAiBuilderDocument,
-  } = useAiBuilderActions({
+  const aiBuilderActions = useAiBuilderActions({
     applyLoadedDocument,
     layers,
     lineTypes,
@@ -687,26 +588,14 @@ export function useEditorScreenController() {
     saveCatalogRepository(catalogRepository)
   }, [catalogRepository])
 
-  const {
-    handleUpdateTracingOverlay,
-    handleDeleteTracingOverlay,
-    handleSetPdfTracingPage,
-    handleImportTracing,
-  } = useTracingActions({
+  const tracingActions = useTracingActions({
     setTracingOverlays,
     setActiveTracingOverlayId,
     setShowTracingModal,
     setStatus,
   })
 
-  const {
-    handleImportBackdrop,
-    handleDeleteActiveBackdrop,
-    handleUpdateBackdrop,
-    handleBackdropUndo,
-    handleBackdropRedo,
-    activeBackdrop,
-  } = useBackdropActions({
+  const backdropActions = useBackdropActions({
     backdrops,
     setBackdrops,
     activeBackdropId,
@@ -790,21 +679,7 @@ export function useEditorScreenController() {
     setConstraintSuggestions,
   })
 
-  const {
-    handleZoomStep,
-    handleResetView,
-    handleFitView,
-    handlePointerDown,
-    handleShapePointerDown,
-    handleShapeHandlePointerDown,
-    handleStitchHolePointerDown,
-    handleHardwarePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    interactionPreview,
-    runPrecisionCommand,
-    toolHint,
-  } = useEditorCanvasController({
+  const canvasController = useEditorCanvasController({
     svgRef,
     panRef,
     viewport,
@@ -851,7 +726,7 @@ export function useEditorScreenController() {
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
   })
-  const { handleExportSvg, handleExportDxf, handleExportPdf, handleExportLaserSvg } = useExportActions({
+  const exportActions = useExportActions({
     shapes: assemblyShapes,
     foldLines,
     stitchHoles,
@@ -870,16 +745,9 @@ export function useEditorScreenController() {
     stitchAlwaysShapeIdSet: new Set(stitchAlwaysShapeIds),
     exportUnit: displayUnit,
   })
+  const { handleExportSvg, handleExportDxf, handleExportPdf } = exportActions
 
-  const {
-    handleSaveJson,
-    handleSaveLcc,
-    handleExportGarmentJson,
-    handleLoadJson,
-    handleImportSvg,
-    handleLoadPreset,
-    handleOpenInNewTab,
-  } = useFileActions({
+  const fileActions = useFileActions({
     buildCurrentDocFile,
     applyLoadedDocument,
     selectedPresetId,
@@ -895,6 +763,11 @@ export function useEditorScreenController() {
     setMobileViewMode,
     setShowMobileMenu,
   })
+  const {
+    handleSaveJson,
+    handleSaveLcc,
+    handleLoadPreset,
+  } = fileActions
 
   useAutoSave({
     enabled: autoSaveEnabled,
@@ -910,21 +783,7 @@ export function useEditorScreenController() {
     }
   }, [leatherSimEnabled, showStitchSimulatorModal, setShowStitchSimulatorModal])
 
-  const {
-    handleAddLayer,
-    handleRenameActiveLayer,
-    handleToggleLayerVisibility,
-    handleToggleLayerLock,
-    handleMoveLayer,
-    handleDeleteLayer,
-    handleActivateLayerOfSelectedShape,
-    handleDuplicateSelectedShapesOnBelowLayer,
-    handleMoveSelectedShapesToLayerBelow,
-    handleMoveSelectedShapesToAnotherLayer,
-    handleHighlightShapesOnCurrentLayer,
-    handleToggleLayerIgnored,
-    handleToggleIndependentLayer,
-  } = useLayerActions({
+  const layerActions = useLayerActions({
     activeLayer,
     layers,
     shapes,
@@ -938,21 +797,16 @@ export function useEditorScreenController() {
     setSelectedShapeIds,
     setStatus,
   })
-
   const {
-    handleToggleActiveLineTypeVisibility,
-    handleShowAllLineTypes,
-    handleIsolateActiveLineType,
-    handleUpdateActiveLineTypeRole,
-    handleUpdateActiveLineTypeStyle,
-    handleUpdateActiveLineTypeColor,
-    handleSelectShapesByActiveLineType,
-    handleAssignSelectedToActiveLineType,
-    handleClearShapeSelection,
-    handleLinePaletteSelectAll,
-    handleLinePaletteUnselectLineType,
-    handleLinePaletteUnselectOthers,
-  } = useLineTypeActions({
+    handleAddLayer,
+    handleRenameActiveLayer,
+    handleToggleLayerVisibility,
+    handleToggleLayerLock,
+    handleMoveLayer,
+    handleDeleteLayer,
+  } = layerActions
+
+  const lineTypeActions = useLineTypeActions({
     activeLineType,
     shapes,
     selectedShapeIdSet,
@@ -962,11 +816,7 @@ export function useEditorScreenController() {
     setStatus,
   })
 
-  const {
-    handleSetLayerColorOverride,
-    handleClearLayerColorOverride,
-    handleResetLayerColors,
-  } = useLayerColorActions({
+  const layerColorActions = useLayerColorActions({
     layerColorsById,
     setLayerColorOverrides,
     setFrontLayerColor,
@@ -974,20 +824,7 @@ export function useEditorScreenController() {
     setStatus,
   })
 
-  const {
-    handleCreateSketchGroupFromSelection,
-    handleCreateLinkedSketchGroup,
-    handleRenameActiveSketchGroup,
-    handleToggleActiveSketchGroupVisibility,
-    handleToggleActiveSketchGroupLock,
-    handleSetActiveSketchLink,
-    handleClearActiveSketchLink,
-    handleClearActiveSketchGroup,
-    handleDeleteActiveSketchGroup,
-    handleDuplicateActiveSketchGroup,
-    handleSetActiveLayerAnnotation,
-    handleSetActiveSketchAnnotation,
-  } = useSketchGroupActions({
+  const sketchGroupActions = useSketchGroupActions({
     activeLayer,
     activeSketchGroup,
     selectedShapeIdSet,
@@ -1022,23 +859,7 @@ export function useEditorScreenController() {
   const [boxStitchHelperSettings, setBoxStitchHelperSettings] = useState<BoxStitchHelperSettings>(() =>
     loadBoxStitchHelperSettings(),
   )
-  const {
-    handleAddEdgeConstraintFromSelection,
-    handleAddAlignConstraintsFromSelection,
-    handleApplyConstraints,
-    handleAlignSelection,
-    handleAlignSelectionToGrid,
-    handleApplySeamAllowanceToSelection,
-    handleClearSeamAllowanceOnSelection,
-    handleClearAllSeamAllowances,
-    handleToggleConstraintEnabled,
-    handleDeleteConstraint,
-    handleBevelSelectedCorner,
-    handleRoundSelectedCorner,
-    handleCreateOffsetGeometryFromSelection,
-    preloadBoxStitchGeneration,
-    applyBoxStitchToSelection,
-  } = useConstraintActions({
+  const constraintActions = useConstraintActions({
     activeLayer,
     activeLayerId: activeLayer?.id ?? null,
     activeLineTypeId,
@@ -1058,23 +879,12 @@ export function useEditorScreenController() {
     setConstraints,
     setSeamAllowances,
   })
-
   const {
-    selectedShapes,
-    selectionBounds,
-    selectedPatternPiece,
-    selectedPieceGrainline,
-    selectedPieceLabel,
-    selectedPatternLabel,
-    selectedPieceSeamAllowance,
-    selectedPieceSeamConnections,
-    selectedPieceNotches,
-    selectedPiecePlacementLabels,
-    selectedPieceInternalShapeIdSet,
-    selectedPatternPieceEdgeCount,
-    pieceEdgeLabels,
-    selectedPieceAvailableInternalShapes,
-  } = usePatternPieceSelection({
+    preloadBoxStitchGeneration,
+    applyBoxStitchToSelection,
+  } = constraintActions
+
+  const patternPieceSelection = usePatternPieceSelection({
     isPieceInspectorOpen: showPieceInspectorModal,
     tool,
     selectedShapeIds,
@@ -1092,22 +902,12 @@ export function useEditorScreenController() {
     piecePlacementLabels,
     visibleLayerIdSet,
   })
-
   const {
-    ensurePatternPieceSupportRecords,
-    openSelectedPatternPieceInspector,
-    handleCreatePatternPieceFromSelection,
-    handleUpdateSelectedPatternPiece,
-    handleToggleSelectedPieceInternalShape,
-    updateSelectedLabel,
-    handleUpdateSelectedPieceGrainline,
-    handleUpdateSelectedPieceSeamAllowance,
-    handleUpdateSelectedPieceSeamConnection,
-    handleUpdateSelectedPieceNotch,
-    handleAddSelectedPiecePlacementLabel,
-    handleUpdateSelectedPiecePlacementLabel,
-    handleDeleteSelectedPiecePlacementLabel,
-  } = usePatternPieceCommands({
+    selectedPatternPiece,
+    selectedPatternPieceEdgeCount,
+  } = patternPieceSelection
+
+  const patternPieceCommands = usePatternPieceCommands({
     isMobileLayout,
     selectedShapeIds,
     shapesById,
@@ -1130,25 +930,13 @@ export function useEditorScreenController() {
     setActiveInspectorTab,
     setStatus,
   })
-
-  const { handleDeleteSelectedHardwareMarker, handleUpdateSelectedHardwareMarker } = useHardwareMarkerActions({
+  const hardwareMarkerActions = useHardwareMarkerActions({
     selectedHardwareMarker,
     setHardwareMarkers,
     setSelectedHardwareMarkerId,
     setStatus,
   })
-  const {
-    handleCountStitchHolesOnSelectedShapes,
-    handleDeleteStitchHolesOnSelectedShapes,
-    handleClearAllStitchHoles,
-    handleAutoPlacePreferredPitchStitchHoles,
-    handleAutoPlaceFixedPitchStitchHoles,
-    handleAutoPlaceVariablePitchStitchHoles,
-    handleAutoPlaceEvenlySpacedStitchHoles,
-    handleResequenceSelectedStitchHoles,
-    handleSelectNextStitchHole,
-    handleFixStitchHoleOrderFromSelected,
-  } = useStitchActions({
+  const stitchActions = useStitchActions({
     selectedShapeIdSet,
     selectedStitchHoleCount,
     stitchHoles,
@@ -1161,26 +949,7 @@ export function useEditorScreenController() {
     layers,
     stitchHoleCountsByShape,
   })
-
-  const {
-    handleConvertArcToBezier,
-    handleMakeBezierCpFlat,
-    handleMakeBezierCpSameLength,
-    handleMakeBezierCpSymmetric,
-    handleExtendOrTrimLines,
-    handleMirrorShapes,
-    handleToggleBezierOffsetLines,
-    handleResizeShapes,
-    handleCenterLineBetweenSelection,
-    handleEditSelectedLineAngle,
-    handleDeleteDuplicates,
-    handleSplitIntoN,
-    handleDrawBoundaryAroundSelection,
-    handleFilletSelectedCorner,
-    handleDistanceMarkSelectedPath,
-    handleConvertSelectionToPath,
-    handleNotchSelectedShape,
-  } = useGeometryEditingActions({
+  const geometryActions = useGeometryEditingActions({
     shapes,
     setShapes,
     selectedShapeIdSet,
@@ -1191,23 +960,7 @@ export function useEditorScreenController() {
     showBezierOffsetLines,
     setShowBezierOffsetLines,
   })
-  const {
-    stitchSimulatorResult,
-    handleMarkSelectedStitchHoleAsEnd,
-    handleClearSelectedStitchHoleEnd,
-    handleExtractSelectedBoxStitchSources,
-    handleClearSelectedBoxStitchSources,
-    handleApplyTextDefaultsToSelection,
-    handleGenerateBoxStitch,
-    handleOpenBoxStitchHelperModal,
-    handleApplyBoxStitchHelper,
-    handleGenerateMandalaRadial,
-    handleGenerateSpiral,
-    handleGenerateGoldenGuides,
-    handleGenerateWhiteSilverGuides,
-    handleGenerateWizardPattern,
-    handleGenerateLetterStamp,
-  } = useEditorCreationController({
+  const creationController = useEditorCreationController({
     shapes,
     setShapes,
     stitchHoles,
@@ -1236,7 +989,7 @@ export function useEditorScreenController() {
     applyBoxStitchToSelection,
   })
 
-  const { handleRunMobileLayerAction, handleRunMobileFileAction } = useMobileActions({
+  const mobileActions = useMobileActions({
     mobileLayerAction,
     mobileFileAction,
     fileInputRef,
@@ -1267,17 +1020,11 @@ export function useEditorScreenController() {
     setShowPrintPreviewModal,
     setShowThreePreview,
   })
-
-  const { handleSetThemeMode } = useThemeActions({
+  const themeActions = useThemeActions({
     setThemeMode,
     setStatus,
   })
-  const {
-    handleBooleanOp,
-    handleClipperOffset,
-    handleTextToPath,
-    handleFontInputChange,
-  } = useEditorAssetCommands({
+  const assetCommands = useEditorAssetCommands({
     loadedFontUrl,
     shapes,
     selectedShapeIds,
@@ -1291,10 +1038,7 @@ export function useEditorScreenController() {
     fontInputRef,
   })
 
-  const {
-    printOutputPlan,
-    handleOpenPrintTiles,
-  } = usePrintPreviewState({
+  const printPreviewState = usePrintPreviewState({
     lineTypes,
     activeLineTypeId,
     activeLayerId,
@@ -1309,720 +1053,88 @@ export function useEditorScreenController() {
     foldLines,
     lineTypesById,
   })
+  const screenActions: EditorScreenShellActions = {
+    editorStateActions,
+    documentCommands,
+    exportActions,
+    fileActions,
+    historyActions,
+    selectionActions,
+    transformActions,
+    layerActions,
+    lineTypeActions,
+    layerColorActions,
+    constraintActions,
+    sketchGroupActions,
+    patternPieceCommands,
+    hardwareMarkerActions,
+    stitchActions,
+    geometryActions,
+    creationController,
+    mobileActions,
+    themeActions,
+  }
 
   const {
-    workspaceClassName,
-    topbarClassName,
-    hideCanvasPane,
-    hidePreviewPane,
-    showToolSection,
-    showZoomSection,
-    showEditSection,
-    showLineTypeSection,
-    showStitchSection,
-    showLayerSection,
-    showFileSection,
-    showLayerLegend,
-  } = useEditorLayoutFlags({
-    isMobileLayout,
-    mobileViewMode,
-    showThreePreview,
-    showMobileMenu,
-    mobileOptionsTab,
-    desktopRibbonTab,
-  })
-  const topbarProps = useEditorTopbarViewModel({
-    tracingInputRef,
-    translationInputRef,
-    shapes,
-    stitchHoles,
-    foldLines,
-    selectedShapeIds,
-    selectedShapeIdSet,
-    setShapes,
-    setStitchHoles,
-    setFoldLines,
-    setSelectedShapeIds,
-    setSelectedStitchHoleId,
-    setStatus,
-    resetDocument,
-    setShowFontListModal,
-    setShowWizardModal,
-    setShowBackdropModal,
-    setShowOptionsModal,
-    setShowLengthAdjustModal,
-    handleEditSelectedLineAngle,
-    handleDeleteDuplicates,
-    handleSplitIntoN,
-    handleFilletSelectedCorner,
-    handleDistanceMarkSelectedPath,
-    handleConvertSelectionToPath,
-    handleNotchSelectedShape,
-    topbarClassName,
-    selectedShapeCount,
-    selectedStitchHoleCount,
-    showToolSection,
-    handleLoadPreset,
-    handleSetThemeMode,
-    showZoomSection,
-    showEditSection,
-    canUndo,
-    canRedo,
-    handleUndo,
-    handleRedo,
-    handleCopySelection,
-    handleCutSelection,
-    handlePasteClipboard,
-    canPaste: true,
-    handleSelectAllShapes,
-    handleDuplicateSelection,
-    handleDeleteSelection,
-    handleGroupSelection,
-    handleUngroupSelection,
-    handleMoveSelectionByDistance,
-    handleCopySelectionByDistance,
-    handleRotateSelection,
-    handleScaleSelection,
-    handleAlignSelectionToEdge,
-    handleFlipSelection,
-    handleReverseSelectedPaths,
-    handleOpenSpecifyRotationModal,
-    handleOpenSpecifyScaleModal,
-    handleSetAsRotationCenter,
-    handleClearRotationCenter,
-    handleSetAsSnapPoint,
-    handleClearSnapPoint,
-    handleMakeSelectedLineHorizontal,
-    handleMakeSelectedLineVertical,
-    hasCustomRotationPivot: customRotationPivot !== null,
-    hasCustomSnapPoint: customSnapPoint !== null,
-    handleCenterLineBetweenSelection,
-    handleDrawBoundaryAroundSelection,
-    handleActivateLayerOfSelectedShape,
-    handleDuplicateSelectedShapesOnBelowLayer,
-    handleMoveSelectedShapesToLayerBelow,
-    handleMoveSelectedShapesToAnotherLayer,
-    handleHighlightShapesOnCurrentLayer,
-    handleToggleLayerIgnored,
-    handleToggleIndependentLayer,
-    handleEnableStitchOnSelection,
-    handleDisableStitchOnSelection,
-    handleMoveSelectionBackward,
-    handleMoveSelectionForward,
-    handleSendSelectionToBack,
-    handleBringSelectionToFront,
-    showLineTypeSection,
-    handleToggleActiveLineTypeVisibility,
-    showStitchSection,
-    handleAutoPlacePreferredPitchStitchHoles,
-    handleAutoPlaceFixedPitchStitchHoles,
-    handleAutoPlaceVariablePitchStitchHoles,
-    handleAutoPlaceEvenlySpacedStitchHoles,
-    handleResequenceSelectedStitchHoles,
-    handleSelectNextStitchHole,
-    handleFixStitchHoleOrderFromSelected,
-    handleCountStitchHolesOnSelectedShapes,
-    handleDeleteStitchHolesOnSelectedShapes,
-    handleClearAllStitchHoles,
-    stitchHolesLength: stitchHoles.length,
-    hasSelectedStitchHole: selectedStitchHole !== null,
-    showLayerSection,
-    activeLayer,
-    layerStackLevels,
-    handleRunMobileLayerAction,
-    handleAddLayer,
-    handleRenameActiveLayer,
-    handleToggleLayerVisibility,
-    handleToggleLayerLock,
-    handleMoveLayer,
-    handleDeleteLayer,
-    setShowLayerColorModal,
-    showFileSection,
-    handleRunMobileFileAction,
-    handleSaveJson,
-    fileInputRef,
-    svgInputRef,
-    handleExportSvg,
-    handleExportPdf,
-    handleExportDxf,
-    handleExportLaserSvg,
-    handleOpenInNewTab,
-  })
-
-  const overlayModalStackParams = {
-    shapeCountsByLineType,
-    selectedShapeCount,
-    handleShowAllLineTypes,
-    handleIsolateActiveLineType,
-    handleUpdateActiveLineTypeRole,
-    handleUpdateActiveLineTypeStyle,
-    handleUpdateActiveLineTypeColor,
-    handleSelectShapesByActiveLineType,
-    handleAssignSelectedToActiveLineType,
-    handleClearShapeSelection,
-    handleLinePaletteSelectAllVisible: () => handleLinePaletteSelectAll(lineTypes),
-    handleLinePaletteUnselectActive: () => {
-      if (activeLineType) handleLinePaletteUnselectLineType(activeLineType.id)
-    },
-    handleLinePaletteUnselectOtherThanActive: () => {
-      if (activeLineType) handleLinePaletteUnselectOthers(activeLineType.id)
-    },
-    layerColorsById,
-    handleSetLayerColorOverride,
-    handleClearLayerColorOverride,
-    handleResetLayerColors,
-    handleSaveJson,
-    handleExportGarmentJson,
-    handleSaveLcc,
-    handleExportSvg,
-    handleExportPdf,
-    handleExportDxf,
-    handleExportLaserSvg,
-    activeExportRoleCount,
-    handleResetExportOptions,
-    templateRepository,
-    catalogRepository: mergedCatalogRepository,
-    selectedTemplateEntryId,
-    selectedTemplateEntry,
-    selectedCatalogShopId,
-    setSelectedTemplateEntryId,
-    setSelectedCatalogShopId,
-    handleSaveTemplateToRepository,
-    handleExportTemplateRepository,
-    templateImportInputRef,
-    catalogImportInputRef,
-    handleLoadPreset,
-    handleLoadTemplateAsDocument,
-    handleInsertTemplateIntoDocument,
-    handleDeleteTemplateFromRepository,
-    handleDeleteCatalogShop,
-    handleAlignSelection,
-    handleAlignSelectionToGrid,
-    activeLayer,
-    handleCreateSketchGroupFromSelection,
-    handleCreateLinkedSketchGroup,
-    handleDuplicateActiveSketchGroup,
-    handleRenameActiveSketchGroup,
-    handleToggleActiveSketchGroupVisibility,
-    handleToggleActiveSketchGroupLock,
-    handleSetActiveSketchLink,
-    handleClearActiveSketchLink,
-    handleClearActiveSketchGroup,
-    handleDeleteActiveSketchGroup,
-    handleSetActiveLayerAnnotation,
-    handleSetActiveSketchAnnotation,
-    handleAddEdgeConstraintFromSelection,
-    handleAddAlignConstraintsFromSelection,
-    handleApplyConstraints,
-    handleToggleConstraintEnabled,
-    handleDeleteConstraint,
-    handleApplySeamAllowanceToSelection,
-    handleClearSeamAllowanceOnSelection,
-    handleClearAllSeamAllowances,
-    handleBevelSelectedCorner,
-    handleRoundSelectedCorner,
-    handleCreateOffsetGeometryFromSelection,
-    handleCreateBoxStitchFromSelection: handleOpenBoxStitchHelperModal,
-    selectedEditableShape,
-    handleUpdateSelectedShapePoint,
-    handleApplyTextDefaultsToSelection,
-    selectedHardwareMarker,
-    handleUpdateSelectedHardwareMarker,
-    handleDeleteSelectedHardwareMarker,
-    handleBooleanOp,
-    handleClipperOffset,
-    handleTextToPath,
-    handleOpenNesting: () => setShowNestingModal(true),
-    tracingInputRef,
-    handleDeleteTracingOverlay,
-    handleUpdateTracingOverlay,
-    handleSetPdfTracingPage,
-    printPlan: printOutputPlan,
-    handleFitView,
-    handleOpenPrintTiles,
-    handleLoadAiBuilderDocument,
-    handleInsertAiBuilderDocument,
-  }
-  const previewPaneProps = useEditorPreviewPaneProps({
-    hidePreviewPane,
-    shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
-    stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
-    themeMode: resolvedThemeMode,
-    activeLayer,
-    layerStackLevels,
-    layerColorsById,
-    onClearDraft: clearDraft,
-    onAddLayer: handleAddLayer,
-    onRenameActiveLayer: handleRenameActiveLayer,
-    onMoveLayerUp: () => handleMoveLayer(-1),
-    onMoveLayerDown: () => handleMoveLayer(1),
-    onDeleteLayer: handleDeleteLayer,
-    onOpenLayerColorModal: () => setShowLayerColorModal(true),
-  })
-  const statusBarProps = useEditorStatusBarProps({
-    toolLabel: toolLabel(tool),
-    zoomPercent: Math.round(viewport.scale * 100),
-    visibleShapeCount: workspaceShapes.length,
-    layerCount: layers.length,
-    templateCount: templateRepository.length,
-  })
-  const workbenchController = useEditorWorkbenchController({
-    documentName,
-    patternPieces,
-    patternPiecesById,
-    pieceLabels,
-    seamAllowances,
-    pieceNotches,
-    piecePlacementLabels,
-    seamConnections,
-    layers,
-    activeLayerId,
-    sketchGroups,
-    activeSketchGroupId,
-    tracingOverlays,
-    activeTracingOverlayId,
-    avatars,
-    threeTextureSource,
-    selectedShapes,
-    selectedPatternPiece,
-    selectedStitchHole,
-    selectedHardwareMarker,
-    selectedShapeCount,
-    selectedShapeIdSet,
-    canUndo,
-    canRedo,
-    workbenchRibbonTab,
-    setActiveInspectorTab,
-    isMobileLayout,
-    workspaceMode,
-    handleSaveJson,
-    handleUndo,
-    handleRedo,
-    setShowHelpModal,
-    handleFitView,
-    handleResetView,
-    setShowCanvasRuler,
-    setShowDimensions,
-    handleLoadPreset,
-    setShowAnnotations,
-    handleCopySelection,
-    handlePasteClipboard,
-    handleDeleteSelection,
-    handleMoveSelectionByDistance,
-    handleRotateSelection,
-    handleScaleSelection,
-    handleCreatePatternPieceFromSelection,
-    openSelectedPatternPieceInspector,
-    handleApplySeamAllowanceToSelection,
-    setShowNestingModal,
-    handleAutoPlaceFixedPitchStitchHoles,
-    handleAutoPlaceVariablePitchStitchHoles,
-    handleCountStitchHolesOnSelectedShapes,
-    handleResequenceSelectedStitchHoles,
-    handleSelectNextStitchHole,
-    handleClearAllStitchHoles,
-    fileInputRef,
-    svgInputRef,
-    handleExportSvg,
-    handleExportPdf,
-    handleExportDxf,
-    setShowPrintPreviewModal,
-    setShowTemplateRepositoryModal,
-    setShowTracingModal,
-    setShowAiBuilderModal,
-    handleConvertArcToBezier,
-    handleExtendOrTrimLines,
-    handleMirrorShapes,
-    handleMakeBezierCpSymmetric,
-    handleToggleBezierOffsetLines,
-    setShowChangeShapeSizeModal,
-    setShowStitchSimulatorModal,
-    setShowBoxStitchHelperModal,
-    setShowBoxStitchModal,
-    setShowWizardModal,
-    setShowMandalaModal,
-    setShowLetterStampModal,
-    ensurePatternPieceSupportRecords,
-    setSelectedShapeIds,
-    setActiveLayerId,
-    clearDraft,
-    setActiveSketchGroupId,
-    setActiveTracingOverlayId,
-    setLayers,
-    setTracingOverlays,
-    setSecondaryPreviewMode,
-    setWorkspaceMode,
-  })
-  const shouldLoadThreeWorkbench = workspaceMode === '3d'
-  const selectionInspectorProps = buildSelectionInspectorProps({
-    context: workbenchController.selectionContext,
-    selectedShapeCount,
-    selectedEditableShape,
-    selectedStitchHole,
-    selectedHardwareMarker,
-    shapeCount: shapes.length,
-    layerCount: layers.length,
-    handleAlignSelection,
-    handleAlignSelectionToGrid,
-    handleCreateOffsetGeometryFromSelection,
-    handleOpenBoxStitchHelperModal,
-    handleBevelSelectedCorner,
-    handleRoundSelectedCorner,
-    handleAddEdgeConstraintFromSelection,
-    handleAddAlignConstraintsFromSelection,
-    handleApplyConstraints,
-    handleCreatePatternPieceFromSelection,
-    openSelectedPatternPieceInspector,
-    canOpenPieceTab: selectedPatternPiece !== null,
-    handleApplySeamAllowanceToSelection,
-    handleClearSeamAllowanceOnSelection,
-    handleApplyTextDefaultsToSelection,
-    handleExtractSelectedBoxStitchSources,
-    handleClearSelectedBoxStitchSources,
-    handleUpdateSelectedShapePoint,
-    handleUpdateSelectedStitchHole,
-    handleMarkSelectedStitchHoleAsEnd,
-    handleClearSelectedStitchHoleEnd,
-    handleUpdateSelectedHardwareMarker,
-    handleDeleteSelectedHardwareMarker,
-  })
-
-  const pieceInspectorContentProps = buildPieceInspectorContentProps({
-    selectedPatternPiece,
-    selectedPieceGrainline,
-    selectedPieceLabel,
-    selectedPatternLabel,
-    selectedPieceSeamAllowance,
-    selectedPieceSeamConnections,
-    selectedPieceNotches,
-    selectedPiecePlacementLabels,
-    selectedPatternPieceEdgeCount,
-    selectedPieceAvailableInternalShapes,
-    selectedPieceInternalShapeIdSet,
-    handleUpdateSelectedPatternPiece,
-    handleToggleSelectedPieceInternalShape,
-    handleUpdateSelectedPieceGrainline,
-    updateSelectedLabel,
-    handleUpdateSelectedPieceSeamAllowance,
-    handleUpdateSelectedPieceSeamConnection,
-    setSeamConnections,
-    handleUpdateSelectedPieceNotch,
-    setPieceNotches,
-    handleAddSelectedPiecePlacementLabel,
-    handleUpdateSelectedPiecePlacementLabel,
-    handleDeleteSelectedPiecePlacementLabel,
-  })
-
-  const documentInspectorProps = buildDocumentInspectorProps({
-    displayUnit,
-    setDisplayUnit,
-    gridSpacing,
-    setGridSpacing,
-    showCanvasRuler,
-    setShowCanvasRuler,
-    showDimensions,
-    setShowDimensions,
-    showAnnotations,
-    setShowAnnotations,
-    sketchWorkspaceMode,
-    setSketchWorkspaceMode,
-    themeMode,
-    handleSetThemeMode,
-    snapSettings,
-    setSnapSettings,
-    projectMemo,
-    setProjectMemo,
-    activeLineType,
-    lineTypes,
-    shapeCountsByLineType,
-    selectedShapeCount,
-    handleAssignSelectedToActiveLineType,
-    handleClearShapeSelection,
-    handleIsolateActiveLineType,
-    handleSelectShapesByActiveLineType,
-    setActiveLineTypeId,
-    handleShowAllLineTypes,
-    setLineTypes,
-    handleUpdateActiveLineTypeColor,
-    handleUpdateActiveLineTypeRole,
-    handleUpdateActiveLineTypeStyle,
-    layers,
-    layerColorsById,
-    layerColorOverrides,
-    frontLayerColor,
-    backLayerColor,
-    setFrontLayerColor,
-    setBackLayerColor,
-    handleSetLayerColorOverride,
-    handleClearLayerColorOverride,
-    handleResetLayerColors,
-  })
-
-  const workbenchProps = buildWorkbenchProps({
-    controller: workbenchController,
-    shellRef,
-    workspaceMode,
-    secondaryPreviewMode: effectiveSecondaryPreviewMode,
-    showPeek,
-    browserWidth: effectiveLayout.browserWidth,
-    inspectorWidth: effectiveLayout.inspectorWidth,
-    peekWidth: effectiveLayout.peekWidth,
-    splitterWidth,
-    toolRailWidth,
-    activeRibbonTab: workbenchRibbonTab,
-    themeMode,
-    onSetRibbonTab: setWorkbenchRibbonTab,
-    onSetThemeMode: handleSetThemeMode,
-    setLayers,
-    tool,
-    onSetActiveTool: setActiveTool,
-    activeInspectorTab: effectiveLayout.activeInspectorTab,
-    onSetActiveInspectorTab: setActiveInspectorTab,
-    onStartBrowserResize: handleBrowserResizeStart,
-    onStartPeekResize: handlePeekResizeStart,
-    onStartInspectorResize: handleInspectorResizeStart,
-    zoomScale: viewport.scale,
-    displayUnit,
-    activeLayer,
-    activeLineType,
-    onTogglePrecision: () => setShowPrecisionModal((previous) => !previous),
-  })
-  const workbenchThreeWorkspaceProps = buildWorkbenchThreeWorkspaceProps({
-    workspaceMode,
-    shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
-    selectedShapeIds,
-    stitchHoles: sketchWorkspaceMode === 'assembly' ? visibleStitchHoles : workspaceStitchHoles,
-    stitchThreadColor,
-    onSetStitchThreadColor: setStitchThreadColor,
-    patternPieces,
-    piecePlacements3d,
-    seamConnections,
-    threePreviewSettings,
-    avatars,
-    onSetPiecePlacements3d: setPiecePlacements3d,
-    onSetThreePreviewSettings: setThreePreviewSettings,
-    onSetAvatars: setAvatars,
-    threeTextureSource,
-    onSetThreeTextureSource: setThreeTextureSource,
-    threeTextureShapeIds,
-    onSetThreeTextureShapeIds: setThreeTextureShapeIds,
-    foldLines,
-    layers,
-    lineTypes,
-    themeMode: resolvedThemeMode,
-    onUpdateFoldLine: updateFoldLine,
-  })
-  const { mobileShell, desktopShell } = useEditorWorkbenchProps({
-    workspaceRef,
-    workspaceClassName,
-    topbarProps,
-    hideCanvasPane,
-    previewPaneProps,
-    statusBarProps,
-    toolHint,
-    runPrecisionCommand,
-    showPrecisionModal,
-    setShowPrecisionModal,
-    workbenchProps,
-    selectionInspectorProps,
+    mobileShell,
+    desktopShell,
     pieceInspectorContentProps,
-    documentInspectorProps,
-    workbenchThreeWorkspaceProps,
-    onOpenThreeWorkspace: () => workbenchController.handleSetWorkbenchMode('3d'),
     shouldLoadThreeWorkbench,
-    canvasPaneParams: buildCanvasPaneParams({
-      svgRef,
-      onPointerDown: handlePointerDown,
-      onPointerMove: handlePointerMove,
-      onPointerUp: handlePointerUp,
-      showGrid,
-      gridBackgroundMode,
-      setTracingOverlays,
-      setBackdrops,
-      setActiveBackdropId,
-      shapes,
-      selectedStitchHole,
-      handleBringSelectionToFront,
-      handleSendSelectionToBack,
-      handleDuplicateSelection,
-      handleConvertSelectionToPath,
-      handleDeleteSelection,
-      handleMakeBezierCpFlat,
-      handleMakeBezierCpSameLength,
-      handleMakeBezierCpSymmetric,
-      handleClearSelectedStitchHoleEnd,
-      handleMarkSelectedStitchHoleAsEnd,
-      viewport,
-      displayUnit,
-      gridSpacing,
-      showCanvasRuler,
-      showDimensions,
-      handleZoomStep,
-      onFitView: handleFitView,
-      onResetView: handleResetView,
-      tracingOverlays,
-      backdrops,
-      activeBackdropId,
-      showPrintAreas,
-      dimensionLines,
-      printPlan: printOutputPlan,
-      seamGuides,
-      pieceEdgeLabels,
-      showAnnotations,
-      pieceGrainlineSegments,
-      pieceNotchLines,
-      piecePlacementGuides,
-      visibleShapes: workspaceEditableShapes,
-      linkedShapes: workspaceLinkedShapes,
-      sketchWorkspaceMode,
-      lineTypes,
-      lineTypesById,
-      selectedShapeIdSet,
-      stitchStrokeColor,
-      foldStrokeColor,
-      cutStrokeColor,
-      displayLayerColorsById,
-      onShapePointerDown: handleShapePointerDown,
-      onShapeHandlePointerDown: handleShapeHandlePointerDown,
-      tool,
-      visibleStitchHoles: workspaceStitchHoles,
-      selectedStitchHoleId,
-      showStitchSequenceLabels,
-      onStitchHolePointerDown: handleStitchHolePointerDown,
-      stitchSimulatorResult,
-      stitchSimulatorSettings,
-      visibleHardwareMarkers: workspaceHardwareMarkers,
-      selectedHardwareMarkerId,
-      onHardwarePointerDown: handleHardwarePointerDown,
-      foldLines,
-      annotationLabels,
-      constraintSuggestions,
-      previewElement,
-      interactionPreview,
-      showLayerLegend,
-      legendMode,
-      onSetLegendMode: setLegendMode,
-      layers,
-      layerColorsById,
-      fallbackLayerStroke,
-      stackLegendEntries,
-      outlineChains,
-    }),
+  } = useEditorScreenShells({
+    resolvedThemeMode,
+    documentState,
+    uiState,
+    selectionState,
+    repositoryState,
+    panelState,
+    layerState,
+    toolState,
+    viewportState,
+    workbenchShellState,
+    screenRefs,
+    derivedState,
+    canvasController,
+    patternPieceSelection,
+    printPreviewState,
+    previewElement,
+    outlineChains,
+    selectedEditableShape,
+    stitchSimulatorSettings,
+    actions: screenActions,
   })
 
-  const overlay = useEditorOverlayViewModel({
-    modalStack: overlayModalStackParams,
-    overlay: {
-    showStitchSimulatorModal,
-    setShowStitchSimulatorModal,
+  const overlay = useEditorScreenOverlay({
+    resolvedThemeMode,
+    documentState,
+    uiState,
+    selectionState,
+    repositoryState,
+    panelState,
+    layerState,
+    toolState,
+    viewportState,
+    workbenchShellState,
+    screenRefs,
+    derivedState,
+    canvasController,
+    patternPieceSelection,
+    printPreviewState,
+    previewElement,
+    outlineChains,
+    selectedEditableShape,
     stitchSimulatorSettings,
+    actions: screenActions,
+    mergedCatalogRepository,
     setStitchSimulatorSettings,
-    stitchSimulatorResult,
-    stitchHoles,
-    selectedStitchHole,
-    showBoxStitchHelperModal,
-    setShowBoxStitchHelperModal,
     boxStitchHelperSettings,
-    handleApplyBoxStitchHelper,
-    selectedShapeCount,
-    showBoxStitchModal,
-    setShowBoxStitchModal,
-    handleGenerateBoxStitch,
-    activeLayerId,
-    activeLineTypeId,
-    showMandalaModal,
-    setShowMandalaModal,
-    handleGenerateMandalaRadial,
-    handleGenerateSpiral,
-    handleGenerateGoldenGuides,
-    handleGenerateWhiteSilverGuides,
-    showWizardModal,
-    setShowWizardModal,
-    handleGenerateWizardPattern,
-    showBackdropModal,
-    setShowBackdropModal,
-    backdrops,
-    activeBackdrop,
-    onSelectBackdrop: setActiveBackdropId,
-    onImportBackdrop: () => backdropInputRef.current?.click(),
-    onDeleteActiveBackdrop: handleDeleteActiveBackdrop,
-    onUpdateBackdrop: handleUpdateBackdrop,
-    onBackdropUndo: handleBackdropUndo,
-    onBackdropRedo: handleBackdropRedo,
-    backdropFileInputRef: backdropInputRef,
-    onBackdropFileChange: handleImportBackdrop,
-    showLetterStampModal,
-    setShowLetterStampModal,
-    handleGenerateLetterStamp,
-    showChangeShapeSizeModal,
-    setShowChangeShapeSizeModal,
-    handleResizeShapes,
-    selectionBounds,
-    showSpecifyRotationModal,
-    setShowSpecifyRotationModal,
-    handleSpecifyRotation,
-    showSpecifyScaleModal,
-    setShowSpecifyScaleModal,
-    specifyScaleModalAxis,
-    handleSpecifyScale,
-    showFontListModal,
-    setShowFontListModal,
-    fontList,
-    setFontList,
-    setTextFontFamily,
-    showOptionsModal,
-    setShowOptionsModal,
-    autoSaveEnabled,
-    reverseZoomDirection,
-    incrementalSelection,
-    mentoriWithoutCtrl,
-    exportIncludeText,
-    exportIncludeTemplateMetadata,
-    setAutoSaveEnabled,
-    setReverseZoomDirection,
-    setIncrementalSelection,
-    setMentoriWithoutCtrl,
-    setExportIncludeText,
-    setExportIncludeTemplateMetadata,
-    leatherSimTextureRotationDeg,
-    lineToolConstraint,
-    setLineToolConstraint,
-    gridBackgroundMode,
-    setGridBackgroundMode,
-    showLengthAdjustModal,
-    setShowLengthAdjustModal,
-    shapes,
-    selectedShapeIdSet,
-    setShapes,
-    showProjectMemoModal,
-    setShowProjectMemoModal,
-    projectMemo,
-    setProjectMemo,
-    isMobileLayout,
     showPieceInspectorModal,
     setShowPieceInspectorModal,
     pieceInspectorContentProps,
-    showNestingModal,
-    setShowNestingModal,
-    patternPieces,
-    pieceGrainlines,
-    patternPieceChainsByShapeId: patternPieceChains.byShapeId,
-    fileInputRef,
-    svgInputRef,
-    tracingInputRef,
-    templateImportInputRef,
-    catalogImportInputRef,
-    translationInputRef,
-    handleLoadJson,
-    handleImportSvg,
-    handleImportTracing,
-    handleImportTemplateRepositoryFile,
-    handleImportCatalogFile,
-    setTranslationMap,
-    fontInputRef,
-    onFontInputChange: handleFontInputChange,
-    setStatus,
-    },
+    templateActions,
+    aiBuilderActions,
+    tracingActions,
+    backdropActions,
+    assetCommands,
   })
 
   return {
