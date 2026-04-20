@@ -25,6 +25,7 @@ import { useStitchActions } from './hooks/useStitchActions'
 import { useFileActions } from './hooks/useFileActions'
 import { useTemplateActions } from './hooks/useTemplateActions'
 import { useTracingActions } from './hooks/useTracingActions'
+import { useBackdropActions } from './hooks/useBackdropActions'
 import { useMobileActions } from './hooks/useMobileActions'
 import { useResponsiveLayout } from './hooks/useResponsiveLayout'
 import { useEditorAutomationEffects } from './hooks/useEditorAutomationEffects'
@@ -39,9 +40,7 @@ import { useEditorPreviewPaneProps } from './hooks/useEditorPreviewPaneProps'
 import { useSketchGroupActions } from './hooks/useSketchGroupActions'
 import { useHistoryActions } from './hooks/useHistoryActions'
 import { useEditorStateActions } from './hooks/useEditorStateActions'
-import { useEditorModalStackProps } from './hooks/useEditorModalStackProps'
 import { useEditorStatusBarProps } from './hooks/useEditorStatusBarProps'
-import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useTransformActions } from './hooks/useTransformActions'
 import { useAutoSave } from './hooks/useAutoSave'
@@ -70,11 +69,17 @@ import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
 import { useEditorCreationController } from './controllers/useEditorCreationController'
 import { useEditorDocumentBootstrap } from './controllers/useEditorDocumentBootstrap'
 import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchController'
-import { useEditorCanvasController } from './controllers/useEditorCanvasController'
-import { useEditorGlobalShortcuts } from './controllers/useEditorGlobalShortcuts'
-import { createEditorTopbarCommandHandlers } from './controllers/editor-topbar-command-handlers'
-import { buildEditorOverlayProps } from './controllers/buildEditorOverlayProps'
+import { buildCanvasPaneParams } from './modules/canvas/buildCanvasPaneParams'
+import { useEditorCanvasController } from './modules/canvas/useEditorCanvasController'
+import { useEditorGlobalShortcuts } from './modules/canvas/useEditorGlobalShortcuts'
+import { useEditorOverlayViewModel } from './modules/overlays/useEditorOverlayViewModel'
 import { useEditorScreenRefs } from './controllers/useEditorScreenRefs'
+import {
+  buildDocumentInspectorProps,
+  buildPieceInspectorContentProps,
+  buildSelectionInspectorProps,
+} from './view-models/buildWorkbenchInspectorViewModels'
+import { useEditorTopbarViewModel } from './view-models/useEditorTopbarViewModel'
 import { useEditorDocumentCommands } from './useEditorDocumentCommands'
 import { useEditorAssetCommands } from './useEditorAssetCommands'
 import { useEditorWorkbenchProps } from './useEditorWorkbenchProps'
@@ -114,6 +119,8 @@ export function useEditorScreenController() {
     showAnnotations, setShowAnnotations,
     tracingOverlays, setTracingOverlays,
     activeTracingOverlayId, setActiveTracingOverlayId,
+    backdrops, setBackdrops,
+    activeBackdropId, setActiveBackdropId,
     projectMemo, setProjectMemo,
     stitchAlwaysShapeIds, setStitchAlwaysShapeIds,
     stitchThreadColor, setStitchThreadColor,
@@ -157,6 +164,7 @@ export function useEditorScreenController() {
     showBoxStitchModal, setShowBoxStitchModal,
     showMandalaModal, setShowMandalaModal,
     showWizardModal, setShowWizardModal,
+    showBackdropModal, setShowBackdropModal,
     showLetterStampModal, setShowLetterStampModal,
     showChangeShapeSizeModal, setShowChangeShapeSizeModal,
     showBezierOffsetLines, setShowBezierOffsetLines,
@@ -284,6 +292,7 @@ export function useEditorScreenController() {
     fileInputRef,
     svgInputRef,
     tracingInputRef,
+    backdropInputRef,
     templateImportInputRef,
     catalogImportInputRef,
     translationInputRef,
@@ -386,6 +395,8 @@ export function useEditorScreenController() {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
@@ -430,6 +441,8 @@ export function useEditorScreenController() {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
@@ -579,6 +592,7 @@ export function useEditorScreenController() {
     snapSettings,
     showAnnotations,
     tracingOverlays,
+    backdrops,
     projectMemo,
     stitchAlwaysShapeIds,
     stitchThreadColor,
@@ -678,6 +692,21 @@ export function useEditorScreenController() {
     setTracingOverlays,
     setActiveTracingOverlayId,
     setShowTracingModal,
+    setStatus,
+  })
+
+  const {
+    handleImportBackdrop,
+    handleDeleteActiveBackdrop,
+    handleUpdateBackdrop,
+    handleBackdropUndo,
+    handleBackdropRedo,
+    activeBackdrop,
+  } = useBackdropActions({
+    backdrops,
+    setBackdrops,
+    activeBackdropId,
+    setActiveBackdropId,
     setStatus,
   })
 
@@ -1298,7 +1327,7 @@ export function useEditorScreenController() {
     mobileOptionsTab,
     desktopRibbonTab,
   })
-  const topbarCommandHandlers = createEditorTopbarCommandHandlers({
+  const topbarProps = useEditorTopbarViewModel({
     tracingInputRef,
     translationInputRef,
     shapes,
@@ -1315,6 +1344,7 @@ export function useEditorScreenController() {
     resetDocument,
     setShowFontListModal,
     setShowWizardModal,
+    setShowBackdropModal,
     setShowOptionsModal,
     setShowLengthAdjustModal,
     handleEditSelectedLineAngle,
@@ -1324,8 +1354,6 @@ export function useEditorScreenController() {
     handleDistanceMarkSelectedPath,
     handleConvertSelectionToPath,
     handleNotchSelectedShape,
-  })
-  const topbarProps = useEditorTopbarProps({
     topbarClassName,
     selectedShapeCount,
     selectedStitchHoleCount,
@@ -1365,20 +1393,7 @@ export function useEditorScreenController() {
     hasCustomRotationPivot: customRotationPivot !== null,
     hasCustomSnapPoint: customSnapPoint !== null,
     handleCenterLineBetweenSelection,
-    handleEditSelectedLineAnglePrompt: topbarCommandHandlers.handleEditSelectedLineAnglePrompt,
-    handleDeleteDuplicatesSelection: topbarCommandHandlers.handleDeleteDuplicatesSelection,
-    handleSplitIntoNPrompt: topbarCommandHandlers.handleSplitIntoNPrompt,
     handleDrawBoundaryAroundSelection,
-    handleAddBackdrop: topbarCommandHandlers.handleAddBackdrop,
-    handleOpenFontListModal: topbarCommandHandlers.handleOpenFontListModal,
-    handleCloseProject: topbarCommandHandlers.handleCloseProject,
-    handleOpenSecretFeatures: topbarCommandHandlers.handleOpenSecretFeatures,
-    handleImportTranslation: topbarCommandHandlers.handleImportTranslation,
-    handleClearAll: topbarCommandHandlers.handleClearAll,
-    handleSelectConnectedChain: topbarCommandHandlers.handleSelectConnectedChain,
-    handleStampSimulator: topbarCommandHandlers.handleStampSimulator,
-    handleOpenOptionsModal: topbarCommandHandlers.handleOpenOptionsModal,
-    handleOpenLengthAdjustModal: topbarCommandHandlers.handleOpenLengthAdjustModal,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,
@@ -1386,11 +1401,6 @@ export function useEditorScreenController() {
     handleHighlightShapesOnCurrentLayer,
     handleToggleLayerIgnored,
     handleToggleIndependentLayer,
-    handleFilletSelectedCornerPrompt: topbarCommandHandlers.handleFilletSelectedCornerPrompt,
-    handleDistanceMarkSelectedPathPrompt: topbarCommandHandlers.handleDistanceMarkSelectedPathPrompt,
-    handleConvertSelectionToPath: topbarCommandHandlers.handleConvertSelectionToPath,
-    handleConvertACopyToPath: topbarCommandHandlers.handleConvertACopyToPath,
-    handleNotchSelectedShapePrompt: topbarCommandHandlers.handleNotchSelectedShapePrompt,
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -1403,8 +1413,7 @@ export function useEditorScreenController() {
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
-    handleAutoPlaceEvenlySpacedStitchHolesPrompt: () =>
-      topbarCommandHandlers.handleAutoPlaceEvenlySpacedStitchHolesPrompt(handleAutoPlaceEvenlySpacedStitchHoles),
+    handleAutoPlaceEvenlySpacedStitchHoles,
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,
@@ -1429,15 +1438,14 @@ export function useEditorScreenController() {
     handleSaveJson,
     fileInputRef,
     svgInputRef,
-    tracingInputRef,
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
     handleExportLaserSvg,
     handleOpenInNewTab,
-    resetDocument,
   })
-  const modalStackProps = useEditorModalStackProps({
+
+  const overlayModalStackParams = {
     shapeCountsByLineType,
     selectedShapeCount,
     handleShowAllLineTypes,
@@ -1530,7 +1538,7 @@ export function useEditorScreenController() {
     handleOpenPrintTiles,
     handleLoadAiBuilderDocument,
     handleInsertAiBuilderDocument,
-  })
+  }
   const previewPaneProps = useEditorPreviewPaneProps({
     hidePreviewPane,
     shapes: sketchWorkspaceMode === 'assembly' ? assemblyShapes : workspaceShapes,
@@ -1658,7 +1666,7 @@ export function useEditorScreenController() {
     setWorkspaceMode,
   })
   const shouldLoadThreeWorkbench = workspaceMode === '3d'
-  const selectionInspectorProps = {
+  const selectionInspectorProps = buildSelectionInspectorProps({
     context: selectionContext,
     selectedShapeCount,
     selectedEditableShape,
@@ -1666,109 +1674,102 @@ export function useEditorScreenController() {
     selectedHardwareMarker,
     shapeCount: shapes.length,
     layerCount: layers.length,
-    onAlignX: () => handleAlignSelection('x'),
-    onAlignY: () => handleAlignSelection('y'),
-    onAlignBoth: () => handleAlignSelection('both'),
-    onAlignToGrid: handleAlignSelectionToGrid,
-    onCreateOffset: handleCreateOffsetGeometryFromSelection,
-    onCreateBoxStitch: handleOpenBoxStitchHelperModal,
-    onBevelCorner: handleBevelSelectedCorner,
-    onRoundCorner: handleRoundSelectedCorner,
-    onAddEdgeConstraint: handleAddEdgeConstraintFromSelection,
-    onAddAlignConstraints: handleAddAlignConstraintsFromSelection,
-    onApplyConstraints: handleApplyConstraints,
-    onCreatePatternPiece: handleCreatePatternPieceFromSelection,
-    onOpenPieceTab: openSelectedPatternPieceInspector,
+    handleAlignSelection,
+    handleAlignSelectionToGrid,
+    handleCreateOffsetGeometryFromSelection,
+    handleOpenBoxStitchHelperModal,
+    handleBevelSelectedCorner,
+    handleRoundSelectedCorner,
+    handleAddEdgeConstraintFromSelection,
+    handleAddAlignConstraintsFromSelection,
+    handleApplyConstraints,
+    handleCreatePatternPieceFromSelection,
+    openSelectedPatternPieceInspector,
     canOpenPieceTab: selectedPatternPiece !== null,
-    onApplySeamAllowance: handleApplySeamAllowanceToSelection,
-    onClearSeamAllowance: handleClearSeamAllowanceOnSelection,
-    onApplyTextDefaults: handleApplyTextDefaultsToSelection,
-    onExtractBoxStitchSource: handleExtractSelectedBoxStitchSources,
-    onClearBoxStitchSource: handleClearSelectedBoxStitchSources,
-    onUpdateSelectedShapePoint: handleUpdateSelectedShapePoint,
-    onUpdateSelectedStitchHole: handleUpdateSelectedStitchHole,
-    onMarkSelectedStitchHoleAsEnd: handleMarkSelectedStitchHoleAsEnd,
-    onClearSelectedStitchHoleEnd: handleClearSelectedStitchHoleEnd,
-    onUpdateSelectedHardwareMarker: handleUpdateSelectedHardwareMarker,
-    onDeleteSelectedHardwareMarker: handleDeleteSelectedHardwareMarker,
-  }
-  const pieceInspectorContentProps = {
-    piece: selectedPatternPiece,
-    grainline: selectedPieceGrainline,
-    pieceLabel: selectedPieceLabel,
-    patternLabel: selectedPatternLabel,
-    seamAllowance: selectedPieceSeamAllowance,
-    seamConnections: selectedPieceSeamConnections,
-    notches: selectedPieceNotches,
-    placementLabels: selectedPiecePlacementLabels,
-    edgeCount: selectedPatternPieceEdgeCount,
-    availableInternalShapes: selectedPieceAvailableInternalShapes,
-    selectedInternalShapeIds: selectedPieceInternalShapeIdSet,
-    onUpdatePiece: handleUpdateSelectedPatternPiece,
-    onToggleInternalShape: handleToggleSelectedPieceInternalShape,
-    onUpdateGrainline: handleUpdateSelectedPieceGrainline,
-    onUpdatePieceLabel: (patch: Parameters<typeof updateSelectedLabel>[1]) => updateSelectedLabel('piece', patch),
-    onUpdatePatternLabel: (patch: Parameters<typeof updateSelectedLabel>[1]) => updateSelectedLabel('pattern', patch),
-    onUpdateSeamAllowance: handleUpdateSelectedPieceSeamAllowance,
-    onUpdateSeamConnection: handleUpdateSelectedPieceSeamConnection,
-    onDeleteSeamConnection: (connectionId: string) =>
-      setSeamConnections((previous) => previous.filter((entry) => entry.id !== connectionId)),
-    onUpdateNotch: handleUpdateSelectedPieceNotch,
-    onDeleteNotch: (notchId: string) => setPieceNotches((previous) => previous.filter((entry) => entry.id !== notchId)),
-    onAddPlacementLabel: handleAddSelectedPiecePlacementLabel,
-    onUpdatePlacementLabel: handleUpdateSelectedPiecePlacementLabel,
-    onDeletePlacementLabel: handleDeleteSelectedPiecePlacementLabel,
-  }
-  const documentInspectorProps = {
+    handleApplySeamAllowanceToSelection,
+    handleClearSeamAllowanceOnSelection,
+    handleApplyTextDefaultsToSelection,
+    handleExtractSelectedBoxStitchSources,
+    handleClearSelectedBoxStitchSources,
+    handleUpdateSelectedShapePoint,
+    handleUpdateSelectedStitchHole,
+    handleMarkSelectedStitchHoleAsEnd,
+    handleClearSelectedStitchHoleEnd,
+    handleUpdateSelectedHardwareMarker,
+    handleDeleteSelectedHardwareMarker,
+  })
+
+  const pieceInspectorContentProps = buildPieceInspectorContentProps({
+    selectedPatternPiece,
+    selectedPieceGrainline,
+    selectedPieceLabel,
+    selectedPatternLabel,
+    selectedPieceSeamAllowance,
+    selectedPieceSeamConnections,
+    selectedPieceNotches,
+    selectedPiecePlacementLabels,
+    selectedPatternPieceEdgeCount,
+    selectedPieceAvailableInternalShapes,
+    selectedPieceInternalShapeIdSet,
+    handleUpdateSelectedPatternPiece,
+    handleToggleSelectedPieceInternalShape,
+    handleUpdateSelectedPieceGrainline,
+    updateSelectedLabel,
+    handleUpdateSelectedPieceSeamAllowance,
+    handleUpdateSelectedPieceSeamConnection,
+    setSeamConnections,
+    handleUpdateSelectedPieceNotch,
+    setPieceNotches,
+    handleAddSelectedPiecePlacementLabel,
+    handleUpdateSelectedPiecePlacementLabel,
+    handleDeleteSelectedPiecePlacementLabel,
+  })
+
+  const documentInspectorProps = buildDocumentInspectorProps({
     displayUnit,
-    onSetDisplayUnit: setDisplayUnit,
+    setDisplayUnit,
     gridSpacing,
-    onSetGridSpacing: setGridSpacing,
+    setGridSpacing,
     showCanvasRuler,
-    onToggleCanvasRuler: () => setShowCanvasRuler((previous) => !previous),
+    setShowCanvasRuler,
     showDimensions,
-    onToggleDimensions: () => setShowDimensions((previous) => !previous),
+    setShowDimensions,
     showAnnotations,
-    onToggleAnnotations: () => setShowAnnotations((previous) => !previous),
+    setShowAnnotations,
     sketchWorkspaceMode,
-    onSetSketchWorkspaceMode: setSketchWorkspaceMode,
+    setSketchWorkspaceMode,
     themeMode,
-    onSetThemeMode: handleSetThemeMode,
+    handleSetThemeMode,
     snapSettings,
-    onUpdateSnapSettings: (patch: Partial<typeof snapSettings>) =>
-      setSnapSettings((previous) => ({ ...previous, ...patch })),
+    setSnapSettings,
     projectMemo,
-    onProjectMemoChange: setProjectMemo,
+    setProjectMemo,
     activeLineType,
     lineTypes,
     shapeCountsByLineType,
     selectedShapeCount,
-    onAssignSelectedToActiveType: handleAssignSelectedToActiveLineType,
-    onClearSelection: handleClearShapeSelection,
-    onIsolateActiveType: handleIsolateActiveLineType,
-    onSelectShapesByActiveType: handleSelectShapesByActiveLineType,
-    onSetActiveLineTypeId: setActiveLineTypeId,
-    onShowAllTypes: handleShowAllLineTypes,
-    onToggleLineTypeVisibility: (lineTypeId: string) =>
-      setLineTypes((previous) =>
-        previous.map((lineType) =>
-          lineType.id === lineTypeId ? { ...lineType, visible: !lineType.visible } : lineType,
-        ),
-      ),
-    onUpdateActiveLineTypeColor: handleUpdateActiveLineTypeColor,
-    onUpdateActiveLineTypeRole: handleUpdateActiveLineTypeRole,
-    onUpdateActiveLineTypeStyle: handleUpdateActiveLineTypeStyle,
+    handleAssignSelectedToActiveLineType,
+    handleClearShapeSelection,
+    handleIsolateActiveLineType,
+    handleSelectShapesByActiveLineType,
+    setActiveLineTypeId,
+    handleShowAllLineTypes,
+    setLineTypes,
+    handleUpdateActiveLineTypeColor,
+    handleUpdateActiveLineTypeRole,
+    handleUpdateActiveLineTypeStyle,
     layers,
     layerColorsById,
     layerColorOverrides,
     frontLayerColor,
     backLayerColor,
-    onFrontLayerColorChange: setFrontLayerColor,
-    onBackLayerColorChange: setBackLayerColor,
-    onSetLayerColorOverride: handleSetLayerColorOverride,
-    onClearLayerColorOverride: handleClearLayerColorOverride,
-    onResetLayerColors: handleResetLayerColors,
-  }
+    setFrontLayerColor,
+    setBackLayerColor,
+    handleSetLayerColorOverride,
+    handleClearLayerColorOverride,
+    handleResetLayerColors,
+  })
+
   const workbenchProps = {
     docLabel,
     shellRef,
@@ -1875,63 +1876,39 @@ export function useEditorScreenController() {
     workbenchThreeWorkspaceProps,
     onOpenThreeWorkspace: () => handleSetWorkbenchMode('3d'),
     shouldLoadThreeWorkbench,
-    canvasPaneParams: {
-      hideCanvasPane: false,
+    canvasPaneParams: buildCanvasPaneParams({
       svgRef,
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,
       onPointerUp: handlePointerUp,
       showGrid,
       gridBackgroundMode,
-      onTracingOverlayOffset: (overlayId: string, nextOffsetX: number, nextOffsetY: number) => {
-        setTracingOverlays((previous) =>
-          previous.map((overlay) =>
-            overlay.id === overlayId ? { ...overlay, offsetX: nextOffsetX, offsetY: nextOffsetY } : overlay,
-          ),
-        )
-      },
-      buildCanvasContextMenuItems: () => {
-        const items: Array<{ id: string; label: string; disabled?: boolean; onSelect: () => void }> = []
-        if (selectedShapeIdSet.size > 0) {
-          items.push(
-            { id: 'bring-to-front', label: 'Bring to Front', onSelect: handleBringSelectionToFront },
-            { id: 'send-to-back', label: 'Send to Back', onSelect: handleSendSelectionToBack },
-            { id: 'duplicate', label: 'Duplicate', onSelect: handleDuplicateSelection },
-            { id: 'convert-to-path', label: 'Convert to Path', onSelect: () => handleConvertSelectionToPath(false) },
-            { id: 'delete', label: 'Delete', onSelect: handleDeleteSelection },
-          )
-        }
-        // Bezier-pair commands when exactly 2 beziers are selected.
-        const selectedShapesForContext = shapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-        const bezierCount = selectedShapesForContext.filter((shape) => shape.type === 'bezier').length
-        if (selectedShapeIdSet.size === 2 && bezierCount === 2) {
-          items.push(
-            { id: 'bezier-flat', label: 'Bezier handle: flat', onSelect: handleMakeBezierCpFlat },
-            { id: 'bezier-same-length', label: 'Bezier handle: same length', onSelect: handleMakeBezierCpSameLength },
-            { id: 'bezier-symmetric', label: 'Bezier handle: symmetric', onSelect: handleMakeBezierCpSymmetric },
-          )
-        }
-        if (selectedStitchHole) {
-          items.push({
-            id: 'stitch-end-here',
-            label: selectedStitchHole.endHole ? 'Clear "ends here" marker' : 'Ends stitch here',
-            onSelect: selectedStitchHole.endHole
-              ? handleClearSelectedStitchHoleEnd
-              : handleMarkSelectedStitchHoleAsEnd,
-          })
-        }
-        return items
-      },
+      setTracingOverlays,
+      setBackdrops,
+      setActiveBackdropId,
+      shapes,
+      selectedStitchHole,
+      handleBringSelectionToFront,
+      handleSendSelectionToBack,
+      handleDuplicateSelection,
+      handleConvertSelectionToPath,
+      handleDeleteSelection,
+      handleMakeBezierCpFlat,
+      handleMakeBezierCpSameLength,
+      handleMakeBezierCpSymmetric,
+      handleClearSelectedStitchHoleEnd,
+      handleMarkSelectedStitchHoleAsEnd,
       viewport,
       displayUnit,
       gridSpacing,
       showCanvasRuler,
       showDimensions,
-      onZoomOut: () => handleZoomStep(0.85),
-      onZoomIn: () => handleZoomStep(1.15),
+      handleZoomStep,
       onFitView: handleFitView,
       onResetView: handleResetView,
       tracingOverlays,
+      backdrops,
+      activeBackdropId,
       showPrintAreas,
       dimensionLines,
       printPlan: printOutputPlan,
@@ -1953,15 +1930,13 @@ export function useEditorScreenController() {
       displayLayerColorsById,
       onShapePointerDown: handleShapePointerDown,
       onShapeHandlePointerDown: handleShapeHandlePointerDown,
-      showShapeHandles: tool === 'pan',
+      tool,
       visibleStitchHoles: workspaceStitchHoles,
       selectedStitchHoleId,
       showStitchSequenceLabels,
       onStitchHolePointerDown: handleStitchHolePointerDown,
-      simulatedStitchSegments:
-        stitchSimulatorSettings.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : [],
+      stitchSimulatorResult,
       stitchSimulatorSettings,
-      stitchSimulatorTerminalHoleId: stitchSimulatorResult?.terminalHoleId ?? null,
       visibleHardwareMarkers: workspaceHardwareMarkers,
       selectedHardwareMarkerId,
       onHardwarePointerDown: handleHardwarePointerDown,
@@ -1978,11 +1953,12 @@ export function useEditorScreenController() {
       fallbackLayerStroke,
       stackLegendEntries,
       outlineChains,
-    },
+    }),
   })
 
-  const overlay = buildEditorOverlayProps({
-    modalStackProps,
+  const overlay = useEditorOverlayViewModel({
+    modalStack: overlayModalStackParams,
+    overlay: {
     showStitchSimulatorModal,
     setShowStitchSimulatorModal,
     stitchSimulatorSettings,
@@ -2009,6 +1985,18 @@ export function useEditorScreenController() {
     showWizardModal,
     setShowWizardModal,
     handleGenerateWizardPattern,
+    showBackdropModal,
+    setShowBackdropModal,
+    backdrops,
+    activeBackdrop,
+    onSelectBackdrop: setActiveBackdropId,
+    onImportBackdrop: () => backdropInputRef.current?.click(),
+    onDeleteActiveBackdrop: handleDeleteActiveBackdrop,
+    onUpdateBackdrop: handleUpdateBackdrop,
+    onBackdropUndo: handleBackdropUndo,
+    onBackdropRedo: handleBackdropRedo,
+    backdropFileInputRef: backdropInputRef,
+    onBackdropFileChange: handleImportBackdrop,
     showLetterStampModal,
     setShowLetterStampModal,
     handleGenerateLetterStamp,
@@ -2080,6 +2068,7 @@ export function useEditorScreenController() {
     fontInputRef,
     onFontInputChange: handleFontInputChange,
     setStatus,
+    },
   })
 
   return {

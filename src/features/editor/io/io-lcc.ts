@@ -11,6 +11,7 @@
 
 import { uid } from '../cad/cad-geometry'
 import type {
+  Backdrop,
   BezierShape,
   DocFile,
   Layer,
@@ -375,12 +376,46 @@ export function importLccDocument(raw: string): LccImportResult {
     })
   }
 
-  // Convert LCC backdrops to tracing overlay placeholders
-  // Note: LCC backdrops reference local file paths which we can't load,
-  // but we preserve the metadata so users know what was referenced
+  // Convert LCC backdrops. The source-app `.lcc` format stores either:
+  //   - a local file path in `src` (can't be resolved from the browser), or
+  //   - an inline base64 data URL (recognizable by the `data:` prefix).
+  // Embedded bitmaps round-trip; path-only references become placeholders the
+  // user can redirect by re-importing the file.
   const lccBackdrops = Array.isArray(data.backdrops) ? data.backdrops : []
-  if (lccBackdrops.length > 0) {
-    warnings.push(`${lccBackdrops.length} backdrop image(s) referenced but cannot be loaded (local file paths)`)
+  const nextBackdrops: Backdrop[] = []
+  let backdropPathOnlyCount = 0
+  for (const entry of lccBackdrops) {
+    const src = typeof entry.src === 'string' ? entry.src : ''
+    const width = typeof entry.w === 'number' && entry.w > 0 ? entry.w : 100
+    const height = typeof entry.h === 'number' && entry.h > 0 ? entry.h : 100
+    const x = typeof entry.x === 'number' ? entry.x : 0
+    const y = typeof entry.y === 'number' ? entry.y : 0
+    const opcRaw = typeof entry.opc === 'string' ? Number(entry.opc) : 1
+    const opacity = Number.isFinite(opcRaw) && opcRaw > 0 ? Math.min(1, Math.max(0.05, opcRaw)) : 1
+    const locked = typeof entry.lock === 'string' ? entry.lock === 'true' || entry.lock === '1' : false
+    if (src.startsWith('data:')) {
+      nextBackdrops.push({
+        id: uid(),
+        name: 'Backdrop',
+        bitmapDataUrl: src,
+        bitmapWidth: Math.round(width),
+        bitmapHeight: Math.round(height),
+        leftTop: { x, y },
+        width,
+        height,
+        angleDeg: 0,
+        visible: true,
+        locked,
+        opacity,
+      })
+    } else if (src.length > 0) {
+      backdropPathOnlyCount += 1
+    }
+  }
+  if (backdropPathOnlyCount > 0) {
+    warnings.push(
+      `${backdropPathOnlyCount} backdrop image(s) referenced by local path and cannot be loaded — re-import them to embed`,
+    )
   }
 
   const doc: DocFile = {
@@ -393,6 +428,7 @@ export function importLccDocument(raw: string): LccImportResult {
     objects: shapes,
     foldLines: [],
     stitchHoles,
+    backdrops: nextBackdrops.length > 0 ? nextBackdrops : undefined,
     dimensionLines: dimensionLines.length > 0 ? dimensionLines : undefined,
     printAreas: printAreas.length > 0 ? printAreas : undefined,
     showDimensions: dimensionLines.length > 0,
@@ -594,11 +630,21 @@ export function exportLccDocument(doc: DocFile): string {
     scalepos: pa.scalePercent === 100 ? 0 : 1,
   }))
 
+  const exportedBackdrops = (doc.backdrops ?? []).map((backdrop) => ({
+    src: backdrop.bitmapDataUrl,
+    x: backdrop.leftTop.x,
+    y: backdrop.leftTop.y,
+    w: backdrop.width,
+    h: backdrop.height,
+    opc: String(backdrop.opacity),
+    lock: backdrop.locked ? 'true' : 'false',
+  }))
+
   const lccFile: LccFile = {
     meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
     layers: lccLayers,
     shapes: lccShapes,
-    backdrops: [],
+    backdrops: exportedBackdrops,
     printareas: lccPrintAreas.length > 0 ? lccPrintAreas : [{ offset: [0, 0], target: true, scalepos: 0 }],
   }
 

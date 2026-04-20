@@ -43,6 +43,9 @@ const MandalaModal = lazy(() =>
 const WizardModal = lazy(() =>
   import('./WizardModal').then((mod) => ({ default: mod.WizardModal })),
 )
+const BackdropModal = lazy(() =>
+  import('./BackdropModal').then((mod) => ({ default: mod.BackdropModal })),
+)
 const LetterStampModal = lazy(() =>
   import('./LetterStampModal').then((mod) => ({ default: mod.LetterStampModal })),
 )
@@ -81,6 +84,7 @@ type EditorModalStackProps = {
   boxStitchModalProps?: ComponentProps<typeof BoxStitchModal>
   mandalaModalProps?: ComponentProps<typeof MandalaModal>
   wizardModalProps?: ComponentProps<typeof WizardModal>
+  backdropModalProps?: ComponentProps<typeof BackdropModal>
   letterStampModalProps?: ComponentProps<typeof LetterStampModal>
   changeShapeSizeModalProps?: ComponentProps<typeof ChangeShapeSizeModal>
   specifyRotationModalProps?: ComponentProps<typeof SpecifyRotationModal>
@@ -106,6 +110,7 @@ export function EditorModalStack({
   boxStitchModalProps,
   mandalaModalProps,
   wizardModalProps,
+  backdropModalProps,
   letterStampModalProps,
   changeShapeSizeModalProps,
   specifyRotationModalProps,
@@ -173,6 +178,11 @@ export function EditorModalStack({
       {wizardModalProps?.open && (
         <Suspense fallback={null}>
           <WizardModal {...wizardModalProps} />
+        </Suspense>
+      )}
+      {backdropModalProps?.open && (
+        <Suspense fallback={null}>
+          <BackdropModal {...backdropModalProps} />
         </Suspense>
       )}
       {letterStampModalProps && (

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import type {
   BoxJointParams,
+  CapPatternParams,
   DiceCupParams,
   JigsawParams,
   PassCaseParams,
@@ -289,10 +290,23 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
 
   const handleGenerateWizardPattern = (
     type: WizardType,
-    params: WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams,
+    params:
+      | WatchStrapParams
+      | PassCaseParams
+      | BoxJointParams
+      | JigsawParams
+      | DiceCupParams
+      | CapPatternParams,
   ) => {
     void import('../ops/wizard-ops')
-      .then(({ generateWatchStrap, generatePassCase, generateBoxJoint, generateJigsaw, generateDiceCup }) => {
+      .then(({
+        generateWatchStrap,
+        generatePassCase,
+        generateBoxJoint,
+        generateJigsaw,
+        generateDiceCup,
+        generateCapPattern,
+      }) => {
         let result: { shapes: Shape[]; description: string }
         switch (type) {
           case 'watch-strap':
@@ -309,6 +323,9 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
             break
           case 'dice-cup':
             result = generateDiceCup(params as DiceCupParams)
+            break
+          case 'cap-pattern':
+            result = generateCapPattern(params as CapPatternParams)
             break
         }
         setShapes((prev) => [...prev, ...result.shapes])

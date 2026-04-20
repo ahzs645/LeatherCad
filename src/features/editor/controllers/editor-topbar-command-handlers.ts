@@ -3,9 +3,10 @@ import type { FoldLine, Shape, StitchHole } from '../cad/cad-types'
 import { findConnectedShapeIds } from '../ops/shape-selection-ops'
 import { tileSelectionAsStamp } from '../ops/stamp-simulator-ops'
 
-type CreateEditorTopbarCommandHandlersParams = {
+export type CreateEditorTopbarCommandHandlersParams = {
   tracingInputRef: RefObject<HTMLInputElement | null>
   translationInputRef: RefObject<HTMLInputElement | null>
+  setShowBackdropModal: Dispatch<SetStateAction<boolean>>
   shapes: Shape[]
   stitchHoles: StitchHole[]
   foldLines: FoldLine[]
@@ -32,8 +33,8 @@ type CreateEditorTopbarCommandHandlersParams = {
 }
 
 export function createEditorTopbarCommandHandlers({
-  tracingInputRef,
   translationInputRef,
+  setShowBackdropModal,
   shapes,
   stitchHoles,
   foldLines,
@@ -87,8 +88,7 @@ export function createEditorTopbarCommandHandlers({
       handleSplitIntoN(count)
     },
     handleAddBackdrop: () => {
-      tracingInputRef.current?.click()
-      setStatus('Choose an image to add as a backdrop')
+      setShowBackdropModal(true)
     },
     handleOpenFontListModal: () => setShowFontListModal(true),
     handleCloseProject: () => {

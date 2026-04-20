@@ -1,0 +1,339 @@
+.contextual-actions-panel {
+  display: grid;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+  padding: 10px 14px;
+  background: var(--surface-panel);
+}
+
+.contextual-actions-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted-strong);
+}
+
+.contextual-actions-meta,
+.precision-help,
+.precision-hint {
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.contextual-actions-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.precision-modal {
+  width: min(520px, 100%);
+  max-height: min(78vh, 760px);
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-modal);
+  overflow: auto;
+}
+
+.precision-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.precision-modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--app-text);
+}
+
+.precision-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.precision-form input {
+  min-width: min(360px, 100%);
+  width: min(460px, 100%);
+}
+
+.precision-log {
+  display: grid;
+  gap: 5px;
+}
+
+.precision-log-line {
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.precision-log-command {
+  color: var(--text-muted-strong);
+}
+
+.precision-log-result {
+  color: var(--text-subtle);
+}
+
+.project-memo-panel {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+  padding: 8px 14px;
+  background: var(--surface-panel);
+}
+
+.project-memo-label {
+  font-size: 12px;
+  color: var(--text-muted-strong);
+}
+
+.project-memo-modal {
+  width: min(620px, 100%);
+  max-height: min(82vh, 860px);
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-modal);
+  overflow: auto;
+}
+
+.project-memo-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-memo-modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--app-text);
+}
+
+.project-memo-input {
+  min-height: 64px;
+  resize: vertical;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--app-text);
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.ai-builder-modal {
+  width: min(960px, 100%);
+  max-height: min(88vh, 980px);
+}
+
+.ai-builder-textarea {
+  min-height: 116px;
+  resize: vertical;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+  color: var(--app-text);
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px 10px;
+}
+
+.ai-builder-textarea-code {
+  min-height: 220px;
+  font-family: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.ai-builder-summary-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.ai-builder-summary-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+}
+
+.ai-builder-summary-label {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ai-builder-error-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-subtle);
+}
+
+.statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+  padding: 8px 14px;
+  font-size: 12px;
+  background: var(--surface-status);
+  color: var(--text-muted);
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.statusbar-meta {
+  color: var(--text-meta);
+}
+
+.hidden-input {
+  display: none;
+}
+
+.legend-stack {
+  position: absolute;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 7;
+  display: grid;
+  gap: 8px;
+  width: min(310px, 52vw);
+}
+
+.legend-panel {
+  width: min(270px, 45vw);
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-legend);
+  backdrop-filter: blur(4px);
+  overflow: visible;
+}
+
+.legend-single {
+  width: 100%;
+}
+
+.layer-legend-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted-strong);
+}
+
+.legend-mode-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.legend-mode-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+.layer-legend-items {
+  display: grid;
+  gap: 6px;
+}
+
+.layer-legend-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--app-text);
+}
+
+.layer-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid var(--swatch-border);
+}
+
+.layer-legend-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.legend-key-list {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+}
+
+.legend-key-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+.legend-line-swatch {
+  width: 24px;
+  height: 14px;
+  overflow: visible;
+  flex: 0 0 auto;
+}
+
+.legend-line-swatch line {
+  vector-effect: non-scaling-stroke;
+}
+
+.legend-empty-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.stack-legend-items {
+  display: grid;
+  gap: 6px;
+}
+
+.stack-legend-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.stack-level-chip {
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: var(--surface-input);
+}
+
+.stack-level-label {
+  font-size: 12px;
+  color: var(--app-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

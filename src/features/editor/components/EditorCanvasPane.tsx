@@ -74,6 +74,10 @@ export type EditorCanvasPaneProps = {
   onFitView: () => void
   onResetView: () => void
   tracingOverlays: TracingOverlay[]
+  backdrops: import('../cad/cad-types').Backdrop[]
+  activeBackdropId: string | null
+  onBackdropLeftTop?: (backdropId: string, nextX: number, nextY: number) => void
+  onSelectBackdrop?: (backdropId: string | null) => void
   showPrintAreas: boolean
   dimensionLines: DimensionLine[]
   printPlan: PrintPlan | null
@@ -148,6 +152,10 @@ export function EditorCanvasPane({
   onFitView,
   onResetView,
   tracingOverlays,
+  backdrops,
+  activeBackdropId,
+  onBackdropLeftTop,
+  onSelectBackdrop,
   showPrintAreas,
   dimensionLines,
   printPlan,
@@ -410,6 +418,10 @@ export function EditorCanvasPane({
             displayUnit={displayUnit}
             tracingOverlays={tracingOverlays}
             onTracingOverlayOffset={onTracingOverlayOffset}
+            backdrops={backdrops}
+            activeBackdropId={activeBackdropId}
+            onBackdropLeftTop={onBackdropLeftTop}
+            onSelectBackdrop={onSelectBackdrop}
             viewport={viewport}
             showPrintAreas={showPrintAreas}
             printPlan={printPlan}

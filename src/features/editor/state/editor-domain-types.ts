@@ -1,5 +1,6 @@
 import type {
   AvatarSpec,
+  Backdrop,
   DimensionLine,
   FoldLine,
   HardwareMarker,
@@ -67,6 +68,8 @@ export type EditorDocumentState = {
   showAnnotations: boolean
   tracingOverlays: TracingOverlay[]
   activeTracingOverlayId: string | null
+  backdrops: Backdrop[]
+  activeBackdropId: string | null
   projectMemo: string
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
@@ -110,6 +113,7 @@ export type EditorUIState = {
   showBoxStitchModal: boolean
   showMandalaModal: boolean
   showWizardModal: boolean
+  showBackdropModal: boolean
   showLetterStampModal: boolean
   showChangeShapeSizeModal: boolean
   showBezierOffsetLines: boolean

@@ -7,6 +7,7 @@ import {
 } from '../cad/line-types'
 import type {
   AvatarSpec,
+  Backdrop,
   FoldLine,
   HardwareMarker,
   Layer,
@@ -60,6 +61,8 @@ type UseEditorStateActionsParams = {
   setSnapSettings: Dispatch<SetStateAction<SnapSettings>>
   setShowAnnotations: Dispatch<SetStateAction<boolean>>
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
+  setBackdrops: Dispatch<SetStateAction<Backdrop[]>>
+  setActiveBackdropId: Dispatch<SetStateAction<string | null>>
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
@@ -108,6 +111,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
@@ -150,6 +155,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings(snapshot.snapSettings)
     setShowAnnotations(snapshot.showAnnotations)
     setTracingOverlays(snapshot.tracingOverlays)
+    setBackdrops(snapshot.backdrops)
+    setActiveBackdropId(null)
     setProjectMemo(snapshot.projectMemo)
     setStitchAlwaysShapeIds(snapshot.stitchAlwaysShapeIds)
     setStitchThreadColor(snapshot.stitchThreadColor)
@@ -188,6 +195,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
@@ -279,6 +288,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings(DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(true)
     setTracingOverlays([])
+    setBackdrops([])
+    setActiveBackdropId(null)
     setProjectMemo('')
     setStitchAlwaysShapeIds([])
     setStitchThreadColor('#fb923c')
@@ -320,6 +331,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,

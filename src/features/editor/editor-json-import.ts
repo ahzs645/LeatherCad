@@ -1,6 +1,7 @@
 import { isShapeLike, uid } from './cad/cad-geometry'
 import type {
   AlignConstraint,
+  Backdrop,
   DimensionLine,
   DocFile,
   FoldLine,
@@ -50,6 +51,7 @@ import {
   parseSnapSettings,
   parseThreePreviewSettings,
   parseTracingOverlay,
+  parseBackdrop,
   parseAvatarSpec,
 } from './editor-parsers'
 import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from './editor-constants'
@@ -77,6 +79,7 @@ type ImportedJsonCandidate = {
   snapSettings?: unknown
   showAnnotations?: unknown
   tracingOverlays?: unknown[]
+  backdrops?: unknown[]
   projectMemo?: unknown
   stitchAlwaysShapeIds?: unknown[]
   stitchThreadColor?: unknown
@@ -444,6 +447,12 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         .filter((overlay): overlay is TracingOverlay => overlay !== null)
     : []
 
+  const nextBackdrops = Array.isArray(parsed.backdrops)
+    ? parsed.backdrops
+        .map((backdrop) => parseBackdrop(backdrop))
+        .filter((backdrop): backdrop is Backdrop => backdrop !== null)
+    : []
+
   const nextDimensionLines = Array.isArray(parsed.dimensionLines)
     ? parsed.dimensionLines
         .map(parseDimensionLine)
@@ -487,6 +496,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       snapSettings: nextSnapSettings,
       showAnnotations: nextShowAnnotations,
       tracingOverlays: nextTracingOverlays,
+      backdrops: nextBackdrops,
       projectMemo,
       stitchAlwaysShapeIds,
       stitchThreadColor,

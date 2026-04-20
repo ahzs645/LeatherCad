@@ -1,13 +1,13 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { Point } from '../cad/cad-types'
+import type { Point } from '../../cad/cad-types'
 import {
   useCanvasInteractions,
   type UseCanvasInteractionsParams,
-} from '../hooks/useCanvasInteractions'
+} from '../../hooks/useCanvasInteractions'
 import {
   findBezierTNearestPoint,
   splitBezierAtT,
-} from '../ops/geometry-editing-ops'
+} from '../../ops/geometry-editing-ops'
 
 type UseEditorCanvasControllerParams = Omit<
   UseCanvasInteractionsParams,

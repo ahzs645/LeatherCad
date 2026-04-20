@@ -52,6 +52,7 @@ const initialEditorUIState: EditorUIState = {
   showBoxStitchModal: false,
   showMandalaModal: false,
   showWizardModal: false,
+  showBackdropModal: false,
   showLetterStampModal: false,
   showChangeShapeSizeModal: false,
   showBezierOffsetLines: false,
@@ -154,6 +155,8 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'showMandalaModal', value }),
     setShowWizardModal: (value: React.SetStateAction<EditorUIState['showWizardModal']>) =>
       dispatch({ type: 'showWizardModal', value }),
+    setShowBackdropModal: (value: React.SetStateAction<EditorUIState['showBackdropModal']>) =>
+      dispatch({ type: 'showBackdropModal', value }),
     setShowLetterStampModal: (value: React.SetStateAction<EditorUIState['showLetterStampModal']>) =>
       dispatch({ type: 'showLetterStampModal', value }),
     setShowChangeShapeSizeModal: (value: React.SetStateAction<EditorUIState['showChangeShapeSizeModal']>) =>

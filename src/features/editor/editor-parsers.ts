@@ -21,6 +21,8 @@ import type {
   SketchGroup,
   SnapSettings,
   ThreePreviewSettings,
+  Backdrop,
+  Point,
   TracingOverlay,
 } from './cad/cad-types'
 import {
@@ -764,6 +766,41 @@ export function parsePrintArea(value: unknown): PrintArea | null {
       typeof candidate.scalePercent === 'number' && Number.isFinite(candidate.scalePercent) && candidate.scalePercent > 0
         ? candidate.scalePercent
         : 100,
+  }
+}
+
+function parseBackdropPoint(value: unknown): Point | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const candidate = value as Partial<Point>
+  if (typeof candidate.x !== 'number' || typeof candidate.y !== 'number') return undefined
+  return { x: candidate.x, y: candidate.y }
+}
+
+export function parseBackdrop(value: unknown): Backdrop | null {
+  if (typeof value !== 'object' || value === null) return null
+  const candidate = value as Partial<Backdrop>
+  if (typeof candidate.id !== 'string' || candidate.id.length === 0) return null
+  if (typeof candidate.bitmapDataUrl !== 'string' || candidate.bitmapDataUrl.length === 0) return null
+  const leftTop = parseBackdropPoint(candidate.leftTop) ?? { x: 0, y: 0 }
+  return {
+    id: candidate.id,
+    name: typeof candidate.name === 'string' && candidate.name.length > 0 ? candidate.name : 'Backdrop',
+    bitmapDataUrl: candidate.bitmapDataUrl,
+    bitmapWidth:
+      typeof candidate.bitmapWidth === 'number' && candidate.bitmapWidth > 0 ? candidate.bitmapWidth : 1,
+    bitmapHeight:
+      typeof candidate.bitmapHeight === 'number' && candidate.bitmapHeight > 0 ? candidate.bitmapHeight : 1,
+    leftTop,
+    width: typeof candidate.width === 'number' && candidate.width > 0 ? candidate.width : 100,
+    height: typeof candidate.height === 'number' && candidate.height > 0 ? candidate.height : 100,
+    angleDeg: typeof candidate.angleDeg === 'number' ? candidate.angleDeg : 0,
+    rotationCenter: parseBackdropPoint(candidate.rotationCenter),
+    dpi:
+      typeof candidate.dpi === 'number' && candidate.dpi > 0 ? candidate.dpi : undefined,
+    fullPath: typeof candidate.fullPath === 'string' ? candidate.fullPath : undefined,
+    visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
+    locked: typeof candidate.locked === 'boolean' ? candidate.locked : false,
+    opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0.05, 1) : 1,
   }
 }
 

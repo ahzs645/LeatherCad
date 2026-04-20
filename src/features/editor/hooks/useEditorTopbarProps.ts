@@ -8,7 +8,7 @@ import { useEditorPanelActions, useEditorPanelSelector } from '../state/provider
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 
-type UseEditorTopbarPropsParams = {
+export type UseEditorTopbarPropsParams = {
   topbarClassName: string
   selectedShapeCount: number
   selectedStitchHoleCount: number

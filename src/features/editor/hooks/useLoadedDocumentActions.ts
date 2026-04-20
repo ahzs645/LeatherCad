@@ -62,6 +62,8 @@ type UseLoadedDocumentActionsParams = {
   setSnapSettings: Dispatch<SetStateAction<import('../cad/cad-types').SnapSettings>>
   setShowAnnotations: Dispatch<SetStateAction<boolean>>
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
+  setBackdrops: Dispatch<SetStateAction<import('../cad/cad-types').Backdrop[]>>
+  setActiveBackdropId: Dispatch<SetStateAction<string | null>>
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
@@ -108,6 +110,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
@@ -271,6 +275,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSnapSettings(parseSnapSettings(doc.snapSettings) ?? DEFAULT_SNAP_SETTINGS)
     setShowAnnotations(typeof doc.showAnnotations === 'boolean' ? doc.showAnnotations : true)
     setTracingOverlays(doc.tracingOverlays ?? [])
+    setBackdrops(doc.backdrops ?? [])
+    setActiveBackdropId(null)
     setProjectMemo(normalizedProjectMemo)
     setStitchAlwaysShapeIds(normalizedStitchAlwaysShapeIds)
     setStitchThreadColor(normalizedStitchThreadColor)
@@ -315,6 +321,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSnapSettings,
     setShowAnnotations,
     setTracingOverlays,
+    setBackdrops,
+    setActiveBackdropId,
     setProjectMemo,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,

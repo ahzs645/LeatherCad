@@ -1,4 +1,5 @@
 import type {
+  Backdrop,
   FoldLine,
   HardwareMarker,
   Layer,
@@ -130,6 +131,7 @@ export type EditorSnapshot = {
   snapSettings: SnapSettings
   showAnnotations: boolean
   tracingOverlays: TracingOverlay[]
+  backdrops: Backdrop[]
   projectMemo: string
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string

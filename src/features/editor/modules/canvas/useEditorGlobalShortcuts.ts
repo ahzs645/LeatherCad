@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { Point, Shape, Tool } from '../cad/cad-types'
-import { useEditorGlobalBindings } from '../hooks/useEditorGlobalBindings'
+import type { Point, Shape, Tool } from '../../cad/cad-types'
+import { useEditorGlobalBindings } from '../../hooks/useEditorGlobalBindings'
 
 type UseEditorGlobalShortcutsParams = {
   handleDeleteSelection: () => void

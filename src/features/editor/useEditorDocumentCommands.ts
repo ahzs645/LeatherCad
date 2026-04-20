@@ -31,6 +31,7 @@ type UseEditorDocumentCommandsParams = {
   snapSettings: DocFile['snapSettings']
   showAnnotations: boolean
   tracingOverlays: DocFile['tracingOverlays']
+  backdrops: DocFile['backdrops']
   projectMemo: string
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
@@ -84,6 +85,7 @@ export function useEditorDocumentCommands({
   snapSettings,
   showAnnotations,
   tracingOverlays,
+  backdrops,
   projectMemo,
   stitchAlwaysShapeIds,
   stitchThreadColor,
@@ -137,6 +139,7 @@ export function useEditorDocumentCommands({
       snapSettings,
       showAnnotations,
       tracingOverlays,
+      backdrops,
       projectMemo,
       stitchAlwaysShapeIds: stitchAlwaysShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
       stitchThreadColor,
@@ -190,6 +193,7 @@ export function useEditorDocumentCommands({
       threeTextureShapeIds,
       threeTextureSource,
       tracingOverlays,
+      backdrops,
     ],
   )
 

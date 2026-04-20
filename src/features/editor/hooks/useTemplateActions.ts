@@ -177,8 +177,29 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
       return
     }
     try {
-      const raw = await file.text()
-      const importedEntries = parseTemplateRepositoryImport(raw)
+      const buffer = await file.arrayBuffer()
+      const bytes = new Uint8Array(buffer)
+      const isZip =
+        bytes.length >= 4 &&
+        bytes[0] === 0x50 &&
+        bytes[1] === 0x4b &&
+        (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07) &&
+        (bytes[3] === 0x04 || bytes[3] === 0x06 || bytes[3] === 0x08)
+
+      let importedEntries
+      let skippedSummary = ''
+      if (isZip) {
+        const { importRepositoryZip } = await import('../io/io-repository-zip')
+        const result = await importRepositoryZip(bytes)
+        importedEntries = result.entries
+        if (result.skipped.length > 0) {
+          skippedSummary = ` (${result.skipped.length} unsupported entr${result.skipped.length === 1 ? 'y' : 'ies'} skipped)`
+        }
+      } else {
+        const raw = new TextDecoder('utf-8').decode(bytes).replace(/^\uFEFF/, '')
+        importedEntries = parseTemplateRepositoryImport(raw)
+      }
+
       setTemplateRepository((previous) => {
         const existingById = new Map(previous.map((entry) => [entry.id, entry]))
         importedEntries.forEach((entry) => existingById.set(entry.id, entry))
@@ -186,7 +207,9 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
           left.updatedAt > right.updatedAt ? -1 : 1,
         )
       })
-      setStatus(`Imported ${importedEntries.length} template${importedEntries.length === 1 ? '' : 's'}`)
+      setStatus(
+        `Imported ${importedEntries.length} template${importedEntries.length === 1 ? '' : 's'}${skippedSummary}`,
+      )
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
       setStatus(`Template import failed: ${message}`)

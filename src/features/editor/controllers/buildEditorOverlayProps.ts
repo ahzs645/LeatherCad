@@ -40,6 +40,7 @@ type BoxStitchModalProps = NonNullable<ModalStackProps['boxStitchModalProps']>
 type BoxStitchHelperModalProps = NonNullable<ModalStackProps['boxStitchHelperModalProps']>
 type MandalaModalProps = NonNullable<ModalStackProps['mandalaModalProps']>
 type WizardModalProps = NonNullable<ModalStackProps['wizardModalProps']>
+type BackdropModalProps = NonNullable<ModalStackProps['backdropModalProps']>
 type LetterStampModalProps = NonNullable<ModalStackProps['letterStampModalProps']>
 type SpecifyScaleModalProps = NonNullable<ModalStackProps['specifyScaleModalProps']>
 type FontListModalProps = NonNullable<ModalStackProps['fontListModalProps']>
@@ -55,7 +56,7 @@ export type EditorOverlayProps = {
   onFontInputChange: ChangeEventHandler<HTMLInputElement>
 }
 
-type BuildEditorOverlayPropsParams = {
+export type BuildEditorOverlayPropsParams = {
   modalStackProps: ModalStackProps
   showStitchSimulatorModal: boolean
   setShowStitchSimulatorModal: Dispatch<SetStateAction<boolean>>
@@ -83,6 +84,18 @@ type BuildEditorOverlayPropsParams = {
   showWizardModal: boolean
   setShowWizardModal: Dispatch<SetStateAction<boolean>>
   handleGenerateWizardPattern: WizardModalProps['onGenerate']
+  showBackdropModal: boolean
+  setShowBackdropModal: Dispatch<SetStateAction<boolean>>
+  backdrops: BackdropModalProps['backdrops']
+  activeBackdrop: BackdropModalProps['activeBackdrop']
+  onSelectBackdrop: BackdropModalProps['onSelectBackdrop']
+  onImportBackdrop: BackdropModalProps['onImportBackdrop']
+  onDeleteActiveBackdrop: BackdropModalProps['onDeleteActiveBackdrop']
+  onUpdateBackdrop: BackdropModalProps['onUpdateBackdrop']
+  onBackdropUndo: BackdropModalProps['onBackdropUndo']
+  onBackdropRedo: BackdropModalProps['onBackdropRedo']
+  backdropFileInputRef: BackdropModalProps['fileInputRef']
+  onBackdropFileChange: BackdropModalProps['onFileChange']
   showLetterStampModal: boolean
   setShowLetterStampModal: Dispatch<SetStateAction<boolean>>
   handleGenerateLetterStamp: LetterStampModalProps['onGenerate']
@@ -184,6 +197,18 @@ export function buildEditorOverlayProps({
   showWizardModal,
   setShowWizardModal,
   handleGenerateWizardPattern,
+  showBackdropModal,
+  setShowBackdropModal,
+  backdrops,
+  activeBackdrop,
+  onSelectBackdrop,
+  onImportBackdrop,
+  onDeleteActiveBackdrop,
+  onUpdateBackdrop,
+  onBackdropUndo,
+  onBackdropRedo,
+  backdropFileInputRef,
+  onBackdropFileChange,
   showLetterStampModal,
   setShowLetterStampModal,
   handleGenerateLetterStamp,
@@ -318,6 +343,20 @@ export function buildEditorOverlayProps({
         onGenerate: handleGenerateWizardPattern,
         defaultLayerId: activeLayerId,
         defaultLineTypeId: activeLineTypeId,
+      },
+      backdropModalProps: {
+        open: showBackdropModal,
+        onClose: () => setShowBackdropModal(false),
+        backdrops,
+        activeBackdrop,
+        onSelectBackdrop,
+        onImportBackdrop,
+        onDeleteActiveBackdrop,
+        onUpdateBackdrop,
+        onBackdropUndo,
+        onBackdropRedo,
+        fileInputRef: backdropFileInputRef,
+        onFileChange: onBackdropFileChange,
       },
       letterStampModalProps: {
         open: showLetterStampModal,

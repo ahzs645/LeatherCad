@@ -13,6 +13,10 @@ type CanvasViewportChromeProps = {
   displayUnit: DisplayUnit
   tracingOverlays: import('../../cad/cad-types').TracingOverlay[]
   onTracingOverlayOffset?: (overlayId: string, nextOffsetX: number, nextOffsetY: number) => void
+  backdrops: import('../../cad/cad-types').Backdrop[]
+  onBackdropLeftTop?: (backdropId: string, nextX: number, nextY: number) => void
+  onSelectBackdrop?: (backdropId: string | null) => void
+  activeBackdropId?: string | null
   viewport?: { scale: number }
   showPrintAreas: boolean
   printPlan: import('../../preview/print-preview').PrintPlan | null
@@ -32,6 +36,10 @@ export function CanvasViewportChrome({
   displayUnit,
   tracingOverlays,
   onTracingOverlayOffset,
+  backdrops,
+  onBackdropLeftTop,
+  onSelectBackdrop,
+  activeBackdropId,
   viewport,
   showPrintAreas,
   printPlan,
@@ -115,6 +123,81 @@ export function CanvasViewportChrome({
           })}
         </g>
       )}
+
+      <g className="canvas-backdrop-layer">
+        {backdrops
+          .filter((backdrop) => backdrop.visible)
+          .map((backdrop) => {
+            const cx = backdrop.leftTop.x + backdrop.width / 2
+            const cy = backdrop.leftTop.y + backdrop.height / 2
+            const pivot = backdrop.rotationCenter ?? { x: cx, y: cy }
+            const transform = `rotate(${Math.round(backdrop.angleDeg * 1000) / 1000} ${pivot.x} ${pivot.y})`
+            const draggable = !backdrop.locked && Boolean(onBackdropLeftTop)
+            const isActive = activeBackdropId === backdrop.id
+            return (
+              <g
+                key={backdrop.id}
+                transform={transform}
+                opacity={backdrop.opacity}
+                style={{ cursor: draggable ? 'move' : undefined, pointerEvents: draggable ? 'auto' : 'none' }}
+                onPointerDown={
+                  draggable
+                    ? (event) => {
+                        event.stopPropagation()
+                        onSelectBackdrop?.(backdrop.id)
+                        const target = event.currentTarget
+                        const startClientX = event.clientX
+                        const startClientY = event.clientY
+                        const startX = backdrop.leftTop.x
+                        const startY = backdrop.leftTop.y
+                        const viewportScale = viewport?.scale ?? 1
+                        try {
+                          target.setPointerCapture(event.pointerId)
+                        } catch {
+                          // ignore
+                        }
+                        const onMove = (moveEvent: PointerEvent) => {
+                          const dx = (moveEvent.clientX - startClientX) / viewportScale
+                          const dy = (moveEvent.clientY - startClientY) / viewportScale
+                          onBackdropLeftTop?.(backdrop.id, startX + dx, startY + dy)
+                        }
+                        const onUp = () => {
+                          window.removeEventListener('pointermove', onMove)
+                          window.removeEventListener('pointerup', onUp)
+                          window.removeEventListener('pointercancel', onUp)
+                        }
+                        window.addEventListener('pointermove', onMove)
+                        window.addEventListener('pointerup', onUp)
+                        window.addEventListener('pointercancel', onUp)
+                      }
+                    : undefined
+                }
+              >
+                <image
+                  href={backdrop.bitmapDataUrl}
+                  x={Math.round(backdrop.leftTop.x * 1000) / 1000}
+                  y={Math.round(backdrop.leftTop.y * 1000) / 1000}
+                  width={Math.round(backdrop.width * 1000) / 1000}
+                  height={Math.round(backdrop.height * 1000) / 1000}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+                {isActive && (
+                  <rect
+                    x={Math.round(backdrop.leftTop.x * 1000) / 1000}
+                    y={Math.round(backdrop.leftTop.y * 1000) / 1000}
+                    width={Math.round(backdrop.width * 1000) / 1000}
+                    height={Math.round(backdrop.height * 1000) / 1000}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth={1}
+                    strokeDasharray="4 3"
+                    pointerEvents="none"
+                  />
+                )}
+              </g>
+            )
+          })}
+      </g>
 
       <g className="canvas-tracing-layer">
         {tracingOverlays

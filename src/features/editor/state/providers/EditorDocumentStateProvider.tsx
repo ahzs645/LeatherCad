@@ -36,6 +36,8 @@ const initialEditorDocumentState: EditorDocumentState = {
   showAnnotations: true,
   tracingOverlays: [],
   activeTracingOverlayId: null,
+  backdrops: [],
+  activeBackdropId: null,
   projectMemo: '',
   stitchAlwaysShapeIds: [],
   stitchThreadColor: '#fb923c',
@@ -97,6 +99,10 @@ function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyActio
       dispatch({ type: 'tracingOverlays', value }),
     setActiveTracingOverlayId: (value: React.SetStateAction<EditorDocumentState['activeTracingOverlayId']>) =>
       dispatch({ type: 'activeTracingOverlayId', value }),
+    setBackdrops: (value: React.SetStateAction<EditorDocumentState['backdrops']>) =>
+      dispatch({ type: 'backdrops', value }),
+    setActiveBackdropId: (value: React.SetStateAction<EditorDocumentState['activeBackdropId']>) =>
+      dispatch({ type: 'activeBackdropId', value }),
     setProjectMemo: (value: React.SetStateAction<EditorDocumentState['projectMemo']>) =>
       dispatch({ type: 'projectMemo', value }),
     setStitchAlwaysShapeIds: (value: React.SetStateAction<EditorDocumentState['stitchAlwaysShapeIds']>) =>

@@ -400,6 +400,48 @@ export type SnapSettings = {
   hardware: boolean
 }
 
+/**
+ * Backdrop — a persistent image embedded in the document, independent of TracingOverlay.
+ * Mirrors the Delphi TBackdrop entity: bitmap bytes embedded as a data URL, custom
+ * rotation pivot, DPI for physical sizing, and per-instance undo history.
+ */
+export type Backdrop = {
+  id: string
+  name: string
+  /** Base64 data URL of the embedded bitmap (image/png, image/jpeg, etc). */
+  bitmapDataUrl: string
+  /** Native pixel dimensions of the bitmap. */
+  bitmapWidth: number
+  bitmapHeight: number
+  /** Placement top-left in document mm. */
+  leftTop: Point
+  /** Rendered size in document mm. */
+  width: number
+  height: number
+  /** Rotation angle in degrees. */
+  angleDeg: number
+  /**
+   * Rotation pivot in document mm. When undefined, rotates around the center.
+   * Matches TBackdrop.RotationCenter.
+   */
+  rotationCenter?: Point
+  /** Source DPI — optional, mirrors TBackdrop.DPI for physical-size calibration. */
+  dpi?: number
+  /** Original file path, if provided by the user. */
+  fullPath?: string
+  visible: boolean
+  locked: boolean
+  opacity: number
+}
+
+export type BackdropUndoEntry = {
+  leftTop: Point
+  width: number
+  height: number
+  angleDeg: number
+  rotationCenter?: Point
+}
+
 export type TracingOverlayKind = 'image' | 'pdf'
 
 export type TracingOverlay = {
@@ -475,6 +517,7 @@ export type DocFile = {
   snapSettings?: SnapSettings
   showAnnotations?: boolean
   tracingOverlays?: TracingOverlay[]
+  backdrops?: Backdrop[]
   projectMemo?: string
   stitchAlwaysShapeIds?: string[]
   stitchThreadColor?: string

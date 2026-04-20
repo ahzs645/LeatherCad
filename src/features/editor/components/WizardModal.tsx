@@ -6,6 +6,7 @@ import type {
   BoxJointParams,
   JigsawParams,
   DiceCupParams,
+  CapPatternParams,
 } from '../ops/wizard-ops'
 
 type WizardTab = {
@@ -19,12 +20,22 @@ const WIZARD_TABS: WizardTab[] = [
   { type: 'box-joint', label: 'Box Joint' },
   { type: 'jigsaw', label: 'Jigsaw' },
   { type: 'dice-cup', label: 'Dice Cup' },
+  { type: 'cap-pattern', label: 'Cap Pattern' },
 ]
 
 type WizardModalProps = {
   open: boolean
   onClose: () => void
-  onGenerate: (type: WizardType, params: WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams) => void
+  onGenerate: (
+    type: WizardType,
+    params:
+      | WatchStrapParams
+      | PassCaseParams
+      | BoxJointParams
+      | JigsawParams
+      | DiceCupParams
+      | CapPatternParams,
+  ) => void
   defaultLayerId: string
   defaultLineTypeId: string
 }
@@ -80,6 +91,21 @@ export function WizardModal({
   const [cupHeight, setCupHeight] = useState(100)
   const [segments, setSegments] = useState(8)
   const [includeBottom, setIncludeBottom] = useState(true)
+  const [cupLeatherThickness, setCupLeatherThickness] = useState(0)
+  const [cupCompensationFactor, setCupCompensationFactor] = useState(0.5)
+  const [cupStitchBottomRim, setCupStitchBottomRim] = useState(0)
+  const [cupStitchTopRimOffset, setCupStitchTopRimOffset] = useState(0)
+  const [cupStitchSide, setCupStitchSide] = useState(0)
+  const [cupStitchBottomDisc, setCupStitchBottomDisc] = useState(0)
+  const [cupStitchTopRim, setCupStitchTopRim] = useState(false)
+
+  // Cap Pattern
+  const [capSeamMM, setCapSeamMM] = useState(5)
+  const [capCrownBulge, setCapCrownBulge] = useState(6)
+  const [capBaseSmile, setCapBaseSmile] = useState(4)
+  const [capBrimDepthMM, setCapBrimDepthMM] = useState(70)
+  const [capBrimWidthMM, setCapBrimWidthMM] = useState(180)
+  const [capBrimBackRiseMM, setCapBrimBackRiseMM] = useState(8)
 
   if (!open) {
     return null
@@ -150,6 +176,25 @@ export function WizardModal({
           height: cupHeight,
           segments,
           includeBottom,
+          leatherThickness: cupLeatherThickness,
+          compensationFactor: cupCompensationFactor,
+          stitchOffsetBottomRim: cupStitchBottomRim,
+          stitchOffsetTopRim: cupStitchTopRimOffset,
+          stitchOffsetSide: cupStitchSide,
+          stitchOffsetBottomDisc: cupStitchBottomDisc,
+          stitchTopRim: cupStitchTopRim,
+          layerId: defaultLayerId,
+          lineTypeId: defaultLineTypeId,
+        })
+        break
+      case 'cap-pattern':
+        onGenerate('cap-pattern', {
+          seamMM: capSeamMM,
+          crownBulge: capCrownBulge,
+          baseSmile: capBaseSmile,
+          brimDepthMM: capBrimDepthMM,
+          brimWidthMM: capBrimWidthMM,
+          brimBackRiseMM: capBrimBackRiseMM,
           layerId: defaultLayerId,
           lineTypeId: defaultLineTypeId,
         })
@@ -327,6 +372,69 @@ export function WizardModal({
                 onChange={(e) => setIncludeBottom(e.target.checked)}
               />
               <span>Include bottom piece</span>
+            </label>
+            <label className="field-row">
+              <span>Leather Thickness (mm)</span>
+              <input type="number" min={0} step={0.5} value={cupLeatherThickness} onChange={(e) => setCupLeatherThickness(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Compensation Factor</span>
+              <input type="number" min={0} max={1} step={0.05} value={cupCompensationFactor} onChange={(e) => setCupCompensationFactor(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Stitch Offset — Bottom Rim (mm)</span>
+              <input type="number" min={0} step={0.5} value={cupStitchBottomRim} onChange={(e) => setCupStitchBottomRim(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Stitch Offset — Side Edges (mm)</span>
+              <input type="number" min={0} step={0.5} value={cupStitchSide} onChange={(e) => setCupStitchSide(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Stitch Offset — Bottom Disc (mm)</span>
+              <input type="number" min={0} step={0.5} value={cupStitchBottomDisc} onChange={(e) => setCupStitchBottomDisc(Number(e.target.value))} />
+            </label>
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={cupStitchTopRim}
+                onChange={(e) => setCupStitchTopRim(e.target.checked)}
+              />
+              <span>Stitch top rim</span>
+            </label>
+            {cupStitchTopRim && (
+              <label className="field-row">
+                <span>Stitch Offset — Top Rim (mm)</span>
+                <input type="number" min={0} step={0.5} value={cupStitchTopRimOffset} onChange={(e) => setCupStitchTopRimOffset(Number(e.target.value))} />
+              </label>
+            )}
+          </>
+        )}
+
+        {activeType === 'cap-pattern' && (
+          <>
+            <label className="field-row">
+              <span>Brim Width (mm)</span>
+              <input type="number" min={60} step={5} value={capBrimWidthMM} onChange={(e) => setCapBrimWidthMM(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Brim Depth (mm)</span>
+              <input type="number" min={20} step={5} value={capBrimDepthMM} onChange={(e) => setCapBrimDepthMM(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Brim Back Rise (mm)</span>
+              <input type="number" min={0} step={1} value={capBrimBackRiseMM} onChange={(e) => setCapBrimBackRiseMM(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Crown Bulge (mm)</span>
+              <input type="number" min={0} step={1} value={capCrownBulge} onChange={(e) => setCapCrownBulge(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Base Smile (mm)</span>
+              <input type="number" min={0} step={1} value={capBaseSmile} onChange={(e) => setCapBaseSmile(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Seam Allowance (mm)</span>
+              <input type="number" min={0} step={1} value={capSeamMM} onChange={(e) => setCapSeamMM(Number(e.target.value))} />
             </label>
           </>
         )}

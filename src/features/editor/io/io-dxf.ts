@@ -1,8 +1,9 @@
 import { sampleShapePoints } from '../cad/cad-geometry'
-import type { LineTypeStyle, Shape, StitchHole } from '../cad/cad-types'
+import type { ArcShape, BezierShape, LineTypeStyle, Point, Shape, StitchHole } from '../cad/cad-types'
 import { createStitchHolePrimitive, type StitchHoleRenderMode } from '../ops/stitch-hole-render'
 
 type DxfVersion = 'r12' | 'r14'
+const TAU = Math.PI * 2
 type DxfExportOptions = {
   flipY?: boolean
   version?: DxfVersion
@@ -111,6 +112,94 @@ type CircleEntity = {
   layerName: string
 }
 
+type ArcEntity = {
+  center: { x: number; y: number }
+  radius: number
+  startDeg: number
+  endDeg: number
+  layerName: string
+  lineTypeName: Segment['lineTypeName']
+}
+
+type SplineEntity = {
+  controls: Array<{ x: number; y: number }>
+  layerName: string
+  lineTypeName: Segment['lineTypeName']
+}
+
+function circleThroughPoints(p1: Point, p2: Point, p3: Point) {
+  const denominator = 2 * (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y))
+  if (Math.abs(denominator) < 1e-6) {
+    return null
+  }
+  const s1 = p1.x * p1.x + p1.y * p1.y
+  const s2 = p2.x * p2.x + p2.y * p2.y
+  const s3 = p3.x * p3.x + p3.y * p3.y
+  const cx = (s1 * (p2.y - p3.y) + s2 * (p3.y - p1.y) + s3 * (p1.y - p2.y)) / denominator
+  const cy = (s1 * (p3.x - p2.x) + s2 * (p1.x - p3.x) + s3 * (p2.x - p1.x)) / denominator
+  const radius = Math.hypot(p1.x - cx, p1.y - cy)
+  return { center: { x: cx, y: cy }, radius }
+}
+
+function arcShapeToArcEntity(
+  shape: ArcShape,
+  options: { flipY: boolean; unit: 'mm' | 'in' },
+  meta: Pick<Segment, 'layerName' | 'lineTypeName'>,
+): ArcEntity | null {
+  const circle = circleThroughPoints(shape.start, shape.mid, shape.end)
+  if (!circle || circle.radius < 1e-6) {
+    return null
+  }
+  const signY = options.flipY ? -1 : 1
+  const scale = options.unit === 'in' ? 1 / 25.4 : 1
+  const toDxf = (p: Point) => ({ x: p.x * scale, y: p.y * signY * scale })
+  const center = toDxf(circle.center)
+  const start = toDxf(shape.start)
+  const mid = toDxf(shape.mid)
+  const end = toDxf(shape.end)
+
+  const angleAt = (p: { x: number; y: number }) => Math.atan2(p.y - center.y, p.x - center.x)
+  const startA = angleAt(start)
+  const midA = angleAt(mid)
+  const endA = angleAt(end)
+  const ccwDelta = (a: number, b: number) => ((b - a) % TAU + TAU) % TAU
+  const startToEnd = ccwDelta(startA, endA)
+  const startToMid = ccwDelta(startA, midA)
+  const ccwFromStart = startToMid <= startToEnd
+  const [rawStart, rawEnd] = ccwFromStart ? [startA, endA] : [endA, startA]
+  const norm = (r: number) => ((r * 180) / Math.PI + 360) % 360
+
+  return {
+    center,
+    radius: circle.radius * scale,
+    startDeg: norm(rawStart),
+    endDeg: norm(rawEnd),
+    layerName: meta.layerName,
+    lineTypeName: meta.lineTypeName,
+  }
+}
+
+function bezierShapeToSplineEntity(
+  shape: BezierShape,
+  options: { flipY: boolean; unit: 'mm' | 'in' },
+  meta: Pick<Segment, 'layerName' | 'lineTypeName'>,
+): SplineEntity {
+  const signY = options.flipY ? -1 : 1
+  const scale = options.unit === 'in' ? 1 / 25.4 : 1
+  const toDxf = (p: Point) => ({ x: p.x * scale, y: p.y * signY * scale })
+  const s = toDxf(shape.start)
+  const c = toDxf(shape.control)
+  const e = toDxf(shape.end)
+  // Degree-elevate the quadratic into a cubic for broader reader support.
+  const c1 = { x: s.x + (2 / 3) * (c.x - s.x), y: s.y + (2 / 3) * (c.y - s.y) }
+  const c2 = { x: e.x + (2 / 3) * (c.x - e.x), y: e.y + (2 / 3) * (c.y - e.y) }
+  return {
+    controls: [s, c1, c2, e],
+    layerName: meta.layerName,
+    lineTypeName: meta.lineTypeName,
+  }
+}
+
 function stitchHoleToPrimitives(
   stitchHole: StitchHole,
   parentShape: Shape | undefined,
@@ -168,6 +257,64 @@ function encodeCircleEntity(circle: CircleEntity) {
     '40',
     circle.radius.toFixed(6),
   ]
+}
+
+function encodeArcEntity(arc: ArcEntity) {
+  return [
+    '0',
+    'ARC',
+    '8',
+    arc.layerName,
+    '6',
+    arc.lineTypeName,
+    '10',
+    arc.center.x.toFixed(6),
+    '20',
+    arc.center.y.toFixed(6),
+    '30',
+    '0.0',
+    '40',
+    arc.radius.toFixed(6),
+    '50',
+    arc.startDeg.toFixed(6),
+    '51',
+    arc.endDeg.toFixed(6),
+  ]
+}
+
+function encodeSplineEntity(spline: SplineEntity) {
+  const out = [
+    '0',
+    'SPLINE',
+    '8',
+    spline.layerName,
+    '6',
+    spline.lineTypeName,
+    '70',
+    '8',
+    '71',
+    '3',
+    '72',
+    '8',
+    '73',
+    '4',
+    '74',
+    '0',
+    '42',
+    '0.0000001',
+    '43',
+    '0.0000001',
+    '44',
+    '0.0000001',
+  ]
+  const knots = [0, 0, 0, 0, 1, 1, 1, 1]
+  for (const knot of knots) {
+    out.push('40', knot.toFixed(6))
+  }
+  for (const point of spline.controls) {
+    out.push('10', point.x.toFixed(6), '20', point.y.toFixed(6), '30', '0.0')
+  }
+  return out
 }
 
 function encodeLineEntity(segment: Segment) {
@@ -328,8 +475,30 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
     }),
   )
   const circles: CircleEntity[] = stitchHolePrimitives.flatMap((entry) => entry.circles)
+  const arcs: ArcEntity[] = []
+  const splines: SplineEntity[] = []
+  const shapeSegments: Segment[] = []
+  const useNativeCurves = version === 'r14'
+
+  for (const shape of shapes) {
+    if (useNativeCurves && shape.type === 'arc') {
+      const meta = buildShapeSegmentMeta(shape, shapeOptions)
+      const arc = arcShapeToArcEntity(shape, { flipY, unit }, meta)
+      if (arc) {
+        arcs.push(arc)
+        continue
+      }
+    }
+    if (useNativeCurves && shape.type === 'bezier') {
+      const meta = buildShapeSegmentMeta(shape, shapeOptions)
+      splines.push(bezierShapeToSplineEntity(shape, { flipY, unit }, meta))
+      continue
+    }
+    shapeSegments.push(...toSegments(shape, shapeOptions))
+  }
+
   const segments = [
-    ...shapes.flatMap((shape) => toSegments(shape, shapeOptions)),
+    ...shapeSegments,
     ...stitchHolePrimitives.flatMap((entry) => entry.segments),
   ]
   const usedLineTypes = new Set<Segment['lineTypeName']>(segments.map((segment) => segment.lineTypeName))
@@ -383,6 +552,14 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
     body.push(...encodeLineEntity(segment))
   }
 
+  for (const arc of arcs) {
+    body.push(...encodeArcEntity(arc))
+  }
+
+  for (const spline of splines) {
+    body.push(...encodeSplineEntity(spline))
+  }
+
   for (const circle of circles) {
     body.push(...encodeCircleEntity(circle))
   }
@@ -392,5 +569,7 @@ export function buildDxfFromShapes(shapes: Shape[], options: DxfExportOptions = 
     content: body.join('\n') + '\n',
     segmentCount: segments.length,
     circleCount: circles.length,
+    arcCount: arcs.length,
+    splineCount: splines.length,
   }
 }

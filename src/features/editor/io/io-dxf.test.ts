@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildDxfFromShapes } from './io-dxf'
-import type { LineShape, StitchHole } from '../cad/cad-types'
+import type { ArcShape, BezierShape, LineShape, StitchHole } from '../cad/cad-types'
 
 function makeLineShape(overrides: Partial<LineShape> = {}): LineShape {
   return {
@@ -138,6 +138,46 @@ describe('buildDxfFromShapes', () => {
     expect(result.segmentCount).toBe(2)
     expect((result.content.match(/\nLINE\n/g) ?? []).length).toBe(2)
     expect(result.content).toContain('layer-1')
+  })
+
+  it('r14 emits native ARC entity for arc shapes instead of sampled lines', () => {
+    const arc: ArcShape = {
+      id: 'arc-1',
+      type: 'arc',
+      layerId: 'L',
+      lineTypeId: 'lt',
+      start: { x: 10, y: 0 },
+      mid: { x: 0, y: 10 },
+      end: { x: -10, y: 0 },
+    }
+    const r14 = buildDxfFromShapes([arc], { version: 'r14' })
+    expect(r14.arcCount).toBe(1)
+    expect(r14.segmentCount).toBe(0)
+    expect(r14.content).toMatch(/\nARC\n/)
+    const r12 = buildDxfFromShapes([arc], { version: 'r12' })
+    expect(r12.arcCount).toBe(0)
+    expect(r12.segmentCount).toBeGreaterThan(10)
+    expect(r12.content).not.toMatch(/\nARC\n/)
+  })
+
+  it('r14 emits native SPLINE entity for bezier shapes instead of sampled lines', () => {
+    const bezier: BezierShape = {
+      id: 'bez-1',
+      type: 'bezier',
+      layerId: 'L',
+      lineTypeId: 'lt',
+      start: { x: 0, y: 0 },
+      control: { x: 50, y: 100 },
+      end: { x: 100, y: 0 },
+    }
+    const r14 = buildDxfFromShapes([bezier], { version: 'r14' })
+    expect(r14.splineCount).toBe(1)
+    expect(r14.segmentCount).toBe(0)
+    expect(r14.content).toMatch(/\nSPLINE\n/)
+    const r12 = buildDxfFromShapes([bezier], { version: 'r12' })
+    expect(r12.splineCount).toBe(0)
+    expect(r12.segmentCount).toBeGreaterThan(10)
+    expect(r12.content).not.toMatch(/\nSPLINE\n/)
   })
 
   it('emits a native CIRCLE entity for round stitch-hole dots', () => {

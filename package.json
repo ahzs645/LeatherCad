@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "check:architecture": "node scripts/check-file-size.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

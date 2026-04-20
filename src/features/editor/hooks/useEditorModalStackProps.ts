@@ -18,7 +18,7 @@ import { useEditorPanelActions, useEditorPanelSelector } from '../state/provider
 import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
-type UseEditorModalStackPropsParams = {
+export type UseEditorModalStackPropsParams = {
   shapeCountsByLineType: Record<string, number>
   selectedShapeCount: number
   handleShowAllLineTypes: () => void

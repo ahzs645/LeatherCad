@@ -1,5 +1,6 @@
 import type { Point, Shape, LineShape, ArcShape, BezierShape } from '../cad/cad-types'
 import { uid, round } from '../cad/cad-geometry'
+import { computeFrustumUnroll } from './frustum-ops'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -148,7 +149,7 @@ function makeRoundedRect(
 // Types
 // ---------------------------------------------------------------------------
 
-export type WizardType = 'watch-strap' | 'pass-case' | 'box-joint' | 'jigsaw' | 'dice-cup'
+export type WizardType = 'watch-strap' | 'pass-case' | 'box-joint' | 'jigsaw' | 'dice-cup' | 'cap-pattern'
 
 export type WatchStrapParams = {
   totalLength: number
@@ -202,6 +203,35 @@ export type DiceCupParams = {
   height: number
   segments: number
   includeBottom: boolean
+  /** Leather thickness in mm. Shrinks effective radii when wrapping around a form. */
+  leatherThickness?: number
+  /** Fraction of leather thickness that compensates the wrap (0..1 typical). */
+  compensationFactor?: number
+  /** Inward offset of a stitch line along the outer arc (bottom rim of cup). */
+  stitchOffsetBottomRim?: number
+  /** Inward offset of a stitch line along the inner arc (top rim of cup). Gated by stitchTopRim. */
+  stitchOffsetTopRim?: number
+  /** Inward offset of stitch lines along radial side edges. */
+  stitchOffsetSide?: number
+  /** Inward offset of stitch line on the bottom-disc piece. */
+  stitchOffsetBottomDisc?: number
+  /** When true, emits a stitch line at the top rim using stitchOffsetTopRim. */
+  stitchTopRim?: boolean
+  layerId: string
+  lineTypeId: string
+}
+
+/**
+ * Baseball-cap flat-pack parameters, mirroring TCapPatternOptions from the source app.
+ * Produces six bulged crown gore panels + a curved brim/visor piece.
+ */
+export type CapPatternParams = {
+  seamMM: number
+  crownBulge: number
+  baseSmile: number
+  brimDepthMM: number
+  brimWidthMM: number
+  brimBackRiseMM: number
   layerId: string
   lineTypeId: string
 }
@@ -665,97 +695,214 @@ export function generateJigsaw(params: JigsawParams): WizardResult {
 // 5. Dice Cup
 // ---------------------------------------------------------------------------
 
-/** Compute the outer radius of the annular sector for a truncated cone. */
-function computeConeRadii(params: DiceCupParams): { innerR: number; outerR: number; sectorAngleRad: number } {
-  const rTop = params.topDiameter / 2
-  const rBottom = params.bottomDiameter / 2
-  const slantHeight = Math.sqrt(
-    params.height * params.height + (rTop - rBottom) * (rTop - rBottom),
-  )
-  const apexDist = rBottom * slantHeight / Math.abs(rTop - rBottom)
-  const innerR = apexDist
-  const outerR = apexDist + slantHeight
-  const sectorAngleRad = (2 * Math.PI * rBottom) / apexDist
-  return { innerR, outerR, sectorAngleRad }
-}
-
 export function generateDiceCup(params: DiceCupParams): WizardResult {
   const {
     topDiameter, bottomDiameter, height, segments, includeBottom,
+    leatherThickness = 0,
+    compensationFactor = 0,
+    stitchOffsetBottomRim = 0,
+    stitchOffsetTopRim = 0,
+    stitchOffsetSide = 0,
+    stitchOffsetBottomDisc = 0,
+    stitchTopRim = false,
     layerId, lineTypeId,
   } = params
 
   const shapes: Shape[] = []
   const groupId = uid()
 
-  const rTop = topDiameter / 2
-  const rBottom = bottomDiameter / 2
-  const slantHeight = Math.sqrt(height * height + (rTop - rBottom) * (rTop - rBottom))
-  const isCylinder = Math.abs(rTop - rBottom) < 1e-6
+  // Thickness compensation: shrink effective radii so assembled cup matches target.
+  const compensation = leatherThickness * compensationFactor
+  const rTop = Math.max(0, topDiameter / 2 - compensation)
+  const rBottom = Math.max(0, bottomDiameter / 2 - compensation)
+  const unroll = computeFrustumUnroll({ topRadius: rTop, bottomRadius: rBottom, height })
 
-  if (isCylinder) {
-    // Cylinder: each panel unfolds to a rectangle
-    const circumference = Math.PI * bottomDiameter
+  if (!unroll) {
+    // Cylinder degenerate case: each panel unfolds to a rectangle.
+    const slantHeight = height
+    const circumference = 2 * Math.PI * rBottom
     const panelWidth = circumference / segments
+    const panelGap = 5
 
     for (let i = 0; i < segments; i++) {
-      const px = round(i * (panelWidth + 5))
+      const px = round(i * (panelWidth + panelGap))
       shapes.push(...makeRect(px, 0, round(panelWidth), round(slantHeight), layerId, lineTypeId, groupId))
+
+      if (stitchOffsetBottomRim > 0) {
+        const y = round(slantHeight - stitchOffsetBottomRim)
+        shapes.push(makeLine({ x: px, y }, { x: round(px + panelWidth), y }, layerId, lineTypeId, groupId))
+      }
+      if (stitchTopRim && stitchOffsetTopRim > 0) {
+        const y = round(stitchOffsetTopRim)
+        shapes.push(makeLine({ x: px, y }, { x: round(px + panelWidth), y }, layerId, lineTypeId, groupId))
+      }
+      if (stitchOffsetSide > 0) {
+        shapes.push(makeLine(
+          { x: round(px + stitchOffsetSide), y: 0 },
+          { x: round(px + stitchOffsetSide), y: round(slantHeight) },
+          layerId, lineTypeId, groupId,
+        ))
+        shapes.push(makeLine(
+          { x: round(px + panelWidth - stitchOffsetSide), y: 0 },
+          { x: round(px + panelWidth - stitchOffsetSide), y: round(slantHeight) },
+          layerId, lineTypeId, groupId,
+        ))
+      }
     }
 
-    // Bottom circle
     if (includeBottom) {
-      const totalPanelSpan = segments * (panelWidth + 5) - 5
+      const totalPanelSpan = segments * (panelWidth + panelGap) - panelGap
       const bottomCx = round(totalPanelSpan / 2)
       const bottomCy = round(slantHeight + 10 + rBottom)
       shapes.push(...makeCircleArcs(bottomCx, bottomCy, rBottom, layerId, lineTypeId, groupId))
+      if (stitchOffsetBottomDisc > 0) {
+        const inner = Math.max(0, rBottom - stitchOffsetBottomDisc)
+        shapes.push(...makeCircleArcs(bottomCx, bottomCy, inner, layerId, lineTypeId, groupId))
+      }
     }
   } else {
-    // Truncated cone: unfolds to annular sector
-    const { innerR, outerR, sectorAngleRad } = computeConeRadii(params)
+    // Truncated cone: unfolds to annular sector.
+    const { innerRadius, outerRadius, sectorAngleRad } = unroll
     const segAngle = sectorAngleRad / segments
+    const stitchInnerR = innerRadius + stitchOffsetTopRim
+    const stitchOuterR = outerRadius - stitchOffsetBottomRim
 
     let angleOffset = 0
     for (let i = 0; i < segments; i++) {
       const a0 = angleOffset
       const a1 = angleOffset + segAngle
       const aMid = (a0 + a1) / 2
+      const radialOffsetAngle = stitchOffsetSide > 0
+        ? stitchOffsetSide / ((innerRadius + outerRadius) / 2)
+        : 0
 
-      const innerStart: Point = { x: round(innerR * Math.cos(a0)), y: round(innerR * Math.sin(a0)) }
-      const innerEnd: Point = { x: round(innerR * Math.cos(a1)), y: round(innerR * Math.sin(a1)) }
-      const innerMid: Point = { x: round(innerR * Math.cos(aMid)), y: round(innerR * Math.sin(aMid)) }
+      const pointAt = (r: number, a: number): Point => ({
+        x: round(r * Math.cos(a)),
+        y: round(r * Math.sin(a)),
+      })
 
-      const outerStart: Point = { x: round(outerR * Math.cos(a0)), y: round(outerR * Math.sin(a0)) }
-      const outerEnd: Point = { x: round(outerR * Math.cos(a1)), y: round(outerR * Math.sin(a1)) }
-      const outerMid: Point = { x: round(outerR * Math.cos(aMid)), y: round(outerR * Math.sin(aMid)) }
+      const innerStart = pointAt(innerRadius, a0)
+      const innerEnd = pointAt(innerRadius, a1)
+      const innerMid = pointAt(innerRadius, aMid)
+      const outerStart = pointAt(outerRadius, a0)
+      const outerEnd = pointAt(outerRadius, a1)
+      const outerMid = pointAt(outerRadius, aMid)
 
-      // Inner arc
       shapes.push(makeArc(innerStart, innerMid, innerEnd, layerId, lineTypeId, groupId))
-      // Outer arc
       shapes.push(makeArc(outerStart, outerMid, outerEnd, layerId, lineTypeId, groupId))
-      // Radial side edges
       shapes.push(makeLine(innerStart, outerStart, layerId, lineTypeId, groupId))
       shapes.push(makeLine(innerEnd, outerEnd, layerId, lineTypeId, groupId))
+
+      if (stitchOffsetBottomRim > 0 && stitchOuterR > innerRadius) {
+        shapes.push(makeArc(
+          pointAt(stitchOuterR, a0),
+          pointAt(stitchOuterR, aMid),
+          pointAt(stitchOuterR, a1),
+          layerId, lineTypeId, groupId,
+        ))
+      }
+      if (stitchTopRim && stitchOffsetTopRim > 0 && stitchInnerR < outerRadius) {
+        shapes.push(makeArc(
+          pointAt(stitchInnerR, a0),
+          pointAt(stitchInnerR, aMid),
+          pointAt(stitchInnerR, a1),
+          layerId, lineTypeId, groupId,
+        ))
+      }
+      if (stitchOffsetSide > 0) {
+        shapes.push(makeLine(
+          pointAt(innerRadius, a0 + radialOffsetAngle),
+          pointAt(outerRadius, a0 + radialOffsetAngle),
+          layerId, lineTypeId, groupId,
+        ))
+        shapes.push(makeLine(
+          pointAt(innerRadius, a1 - radialOffsetAngle),
+          pointAt(outerRadius, a1 - radialOffsetAngle),
+          layerId, lineTypeId, groupId,
+        ))
+      }
 
       angleOffset = a1
     }
 
-    // Bottom circle
     if (includeBottom) {
       const bottomCx = round(0)
-      const bottomCy = round(-outerR - 10 - rBottom)
+      const bottomCy = round(-outerRadius - 10 - rBottom)
       shapes.push(...makeCircleArcs(bottomCx, bottomCy, rBottom, layerId, lineTypeId, groupId))
+      if (stitchOffsetBottomDisc > 0) {
+        const inner = Math.max(0, rBottom - stitchOffsetBottomDisc)
+        shapes.push(...makeCircleArcs(bottomCx, bottomCy, inner, layerId, lineTypeId, groupId))
+      }
     }
   }
 
   return {
     shapes,
-    description: `Dice cup: ${topDiameter}mm top, ${bottomDiameter}mm bottom, ${height}mm tall, ${segments} panels${includeBottom ? ', with bottom' : ''}`,
+    description: `Dice cup: ${topDiameter}mm top, ${bottomDiameter}mm bottom, ${height}mm tall, ${segments} panels${includeBottom ? ', with bottom' : ''}${leatherThickness > 0 ? `, ${leatherThickness}mm leather (comp ${compensationFactor})` : ''}`,
   }
 }
 
 // ---------------------------------------------------------------------------
-// 6. Defaults
+// 6. Cap Pattern
+// ---------------------------------------------------------------------------
+
+export function generateCapPattern(params: CapPatternParams): WizardResult {
+  const {
+    seamMM, crownBulge, baseSmile,
+    brimDepthMM, brimWidthMM, brimBackRiseMM,
+    layerId, lineTypeId,
+  } = params
+
+  const shapes: Shape[] = []
+  const panelCount = 6
+  const panelBaseWidth = brimWidthMM / panelCount
+  const panelHeight = brimWidthMM * 0.55
+  const panelGap = 10
+
+  for (let i = 0; i < panelCount; i++) {
+    const groupId = uid()
+    const x0 = i * (panelBaseWidth + panelGap)
+    const cx = x0 + panelBaseWidth / 2
+
+    const baseLeft: Point = { x: round(x0), y: round(panelHeight) }
+    const baseMid: Point = { x: round(cx), y: round(panelHeight + baseSmile) }
+    const baseRight: Point = { x: round(x0 + panelBaseWidth), y: round(panelHeight) }
+    const apex: Point = { x: round(cx), y: round(0) }
+
+    const leftBulge: Point = { x: round(x0 - crownBulge), y: round(panelHeight / 2) }
+    const rightBulge: Point = { x: round(x0 + panelBaseWidth + crownBulge), y: round(panelHeight / 2) }
+
+    shapes.push(makeBezier(baseLeft, leftBulge, apex, layerId, lineTypeId, groupId))
+    shapes.push(makeBezier(apex, rightBulge, baseRight, layerId, lineTypeId, groupId))
+    shapes.push(makeArc(baseLeft, baseMid, baseRight, layerId, lineTypeId, groupId))
+  }
+
+  const brimGroupId = uid()
+  const brimY = panelHeight + baseSmile + 30
+  const crownSpan = panelCount * panelBaseWidth + (panelCount - 1) * panelGap
+  const brimCx = crownSpan / 2
+
+  const innerLeft: Point = { x: round(brimCx - brimWidthMM / 2), y: round(brimY) }
+  const innerMid: Point = { x: round(brimCx), y: round(brimY - brimBackRiseMM) }
+  const innerRight: Point = { x: round(brimCx + brimWidthMM / 2), y: round(brimY) }
+
+  const outerLeft: Point = { x: round(brimCx - brimWidthMM / 2), y: round(brimY + brimDepthMM) }
+  const outerMid: Point = { x: round(brimCx), y: round(brimY + brimDepthMM + brimBackRiseMM) }
+  const outerRight: Point = { x: round(brimCx + brimWidthMM / 2), y: round(brimY + brimDepthMM) }
+
+  shapes.push(makeArc(innerLeft, innerMid, innerRight, layerId, lineTypeId, brimGroupId))
+  shapes.push(makeArc(outerLeft, outerMid, outerRight, layerId, lineTypeId, brimGroupId))
+  shapes.push(makeLine(innerLeft, outerLeft, layerId, lineTypeId, brimGroupId))
+  shapes.push(makeLine(innerRight, outerRight, layerId, lineTypeId, brimGroupId))
+
+  return {
+    shapes,
+    description: `Cap pattern: ${panelCount} crown panels (base ${round(panelBaseWidth)}mm, bulge ${crownBulge}mm, smile ${baseSmile}mm), brim ${brimWidthMM}×${brimDepthMM}mm (back rise ${brimBackRiseMM}mm), seam ${seamMM}mm`,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 7. Defaults
 // ---------------------------------------------------------------------------
 
 export function getDefaultWizardParams(type: 'watch-strap'): WatchStrapParams
@@ -763,9 +910,10 @@ export function getDefaultWizardParams(type: 'pass-case'): PassCaseParams
 export function getDefaultWizardParams(type: 'box-joint'): BoxJointParams
 export function getDefaultWizardParams(type: 'jigsaw'): JigsawParams
 export function getDefaultWizardParams(type: 'dice-cup'): DiceCupParams
+export function getDefaultWizardParams(type: 'cap-pattern'): CapPatternParams
 export function getDefaultWizardParams(
   type: WizardType,
-): WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams {
+): WatchStrapParams | PassCaseParams | BoxJointParams | JigsawParams | DiceCupParams | CapPatternParams {
   switch (type) {
     case 'watch-strap':
       return {
@@ -820,6 +968,17 @@ export function getDefaultWizardParams(
         height: 90,
         segments: 4,
         includeBottom: true,
+        layerId: '',
+        lineTypeId: '',
+      }
+    case 'cap-pattern':
+      return {
+        seamMM: 5,
+        crownBulge: 6,
+        baseSmile: 4,
+        brimDepthMM: 70,
+        brimWidthMM: 180,
+        brimBackRiseMM: 8,
         layerId: '',
         lineTypeId: '',
       }
