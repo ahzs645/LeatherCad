@@ -1,0 +1,235 @@
+.workbench-tool-rail {
+  display: flex;
+  justify-content: center;
+  border-right: 1px solid var(--border-soft);
+  background: var(--surface-panel);
+}
+
+.workbench-tool-rail-grid {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.workbench-tool-rail .tool-icon-button {
+  width: 40px;
+  min-height: 36px;
+}
+
+.workbench-splitter {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.workbench-splitter::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: var(--border-soft);
+  transition: background-color 120ms ease;
+}
+
+.workbench-splitter:hover::before {
+  background: var(--accent-border);
+}
+
+.workbench-surface {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.workbench-surface.hidden-surface {
+  display: none;
+}
+
+.workbench-surface > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workbench-surface .canvas-pane {
+  border-right: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-panel);
+}
+
+.workbench-surface .legend-stack {
+  right: 22px;
+  bottom: 22px;
+}
+
+.workbench-surface.read-only {
+  pointer-events: none;
+}
+
+.workbench-surface.read-only .canvas {
+  cursor: default;
+}
+
+.workbench-surface.read-only .canvas-view-controls,
+.workbench-surface.read-only .legend-stack,
+.workbench-surface.read-only .shape-handle {
+  display: none;
+}
+
+.workbench-inspector-dock {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  border-left: 1px solid var(--border-soft);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent), var(--surface-panel);
+  overflow: hidden;
+}
+
+.workbench-inspector-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.workbench-inspector-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.workbench-inspector-content {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  padding: 10px 2px 2px 0;
+}
+
+.workbench-inspector-content > .control-block {
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.app-shell-workbench.theme-light .workbench-inspector-content > .control-block,
+.app-shell-workbench.theme-light .workbench-tree-section {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.workbench-action-grid,
+.workbench-field-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workbench-inspector-content .layer-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted-strong);
+}
+
+.workbench-inspector-content .layer-field input,
+.workbench-inspector-content .layer-field select,
+.workbench-inspector-content .layer-field textarea {
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface-input);
+  color: var(--app-text);
+  padding: 6px 8px;
+}
+
+.workbench-project-memo {
+  min-height: 140px;
+}
+
+.workbench-three-viewport {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+.workbench-three-viewport.compact {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.workbench-three-viewport-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.workbench-three-viewport-header strong {
+  font-size: 13px;
+  color: var(--text-muted-strong);
+}
+
+.workbench-three-canvas-wrap {
+  min-height: 0;
+}
+
+.workbench-three-warning {
+  padding: 0 12px 12px;
+}
+
+.precision-drawer {
+  width: 100%;
+  max-height: none;
+  display: grid;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 0;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+  background: var(--surface-panel);
+}
+
+.precision-drawer .precision-form input {
+  min-width: 0;
+  width: 100%;
+}
+
+.workbench-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface-status);
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.workbench-statusbar span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workbench-statusbar button {
+  margin-left: auto;
+  min-height: 20px;
+  padding: 3px 8px;
+  font-size: 11px;
+}

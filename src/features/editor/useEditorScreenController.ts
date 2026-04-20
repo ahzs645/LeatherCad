@@ -1,20 +1,8 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type ChangeEventHandler,
-  type ComponentProps,
-  type RefObject,
 } from 'react'
-import type {
-  Shape,
-} from './cad/cad-types'
-import { EditorModalStack } from './components/EditorModalStack'
-import type { EditorHiddenInputsProps } from './components/EditorHiddenInputs'
-import type { NestingModalProps } from './components/NestingModal'
-import type { PieceInspectorModalProps } from './components/PieceInspectorModal'
-import type { ProjectMemoModalProps } from './components/ProjectMemoModal'
 import {
   STITCH_LINE_TYPE_ID,
 } from './cad/line-types'
@@ -38,10 +26,8 @@ import { useFileActions } from './hooks/useFileActions'
 import { useTemplateActions } from './hooks/useTemplateActions'
 import { useTracingActions } from './hooks/useTracingActions'
 import { useMobileActions } from './hooks/useMobileActions'
-import { useCanvasInteractions } from './hooks/useCanvasInteractions'
 import { useResponsiveLayout } from './hooks/useResponsiveLayout'
 import { useEditorAutomationEffects } from './hooks/useEditorAutomationEffects'
-import { useEditorGlobalBindings } from './hooks/useEditorGlobalBindings'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
@@ -58,22 +44,7 @@ import { useEditorStatusBarProps } from './hooks/useEditorStatusBarProps'
 import { useEditorTopbarProps } from './hooks/useEditorTopbarProps'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useTransformActions } from './hooks/useTransformActions'
-import { addFontToList, removeFontFromList, saveFontList } from './ops/font-list-ops'
-import { parseTranslationFile, saveTranslationMap } from './ops/translation-ops'
-import { tileSelectionAsStamp } from './ops/stamp-simulator-ops'
-import { findConnectedShapeIds } from './ops/shape-selection-ops'
-import { saveAutoSaveEnabled } from './ops/autosave'
-import { saveEditorPreferences, getDefaultEditorPreferences } from './ops/editor-prefs'
 import { useAutoSave } from './hooks/useAutoSave'
-import {
-  findBezierTNearestPoint,
-  getLineLengthMm,
-  scaleLineLengthByRatio,
-  setLineLength,
-  splitBezierAtT,
-} from './ops/geometry-editing-ops'
-import type { LineShape } from './cad/cad-types'
-import type { LengthAdjustMode } from './components/LengthAdjustModal'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
 import { useEditorViewport } from './hooks/useEditorViewport'
@@ -86,14 +57,11 @@ import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
 import { type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
-import { loadStitchSimulatorSettings, saveStitchSimulatorSettings } from './ops/stitch-simulator-settings'
+import { loadStitchSimulatorSettings } from './ops/stitch-simulator-settings'
 import {
   loadBoxStitchHelperSettings,
   type BoxStitchHelperSettings,
 } from './ops/box-stitch-settings'
-import {
-  getTerminalStitchHoleIdForShape,
-} from './ops/stitch-hole-ops'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
 import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
@@ -102,6 +70,11 @@ import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
 import { useEditorCreationController } from './controllers/useEditorCreationController'
 import { useEditorDocumentBootstrap } from './controllers/useEditorDocumentBootstrap'
 import { useEditorWorkbenchController } from './controllers/useEditorWorkbenchController'
+import { useEditorCanvasController } from './controllers/useEditorCanvasController'
+import { useEditorGlobalShortcuts } from './controllers/useEditorGlobalShortcuts'
+import { createEditorTopbarCommandHandlers } from './controllers/editor-topbar-command-handlers'
+import { buildEditorOverlayProps } from './controllers/buildEditorOverlayProps'
+import { useEditorScreenRefs } from './controllers/useEditorScreenRefs'
 import { useEditorDocumentCommands } from './useEditorDocumentCommands'
 import { useEditorAssetCommands } from './useEditorAssetCommands'
 import { useEditorWorkbenchProps } from './useEditorWorkbenchProps'
@@ -112,15 +85,7 @@ export type EditorScreenLayoutModel = {
   shouldLoadThreeWorkbench: boolean
 }
 
-export type EditorOverlayProps = {
-  modalStackProps: ComponentProps<typeof EditorModalStack>
-  projectMemoModalProps: ProjectMemoModalProps
-  pieceInspectorModalProps: PieceInspectorModalProps | null
-  nestingModalProps: NestingModalProps
-  hiddenInputsProps: EditorHiddenInputsProps
-  fontInputRef: RefObject<HTMLInputElement | null>
-  onFontInputChange: ChangeEventHandler<HTMLInputElement>
-}
+export type { EditorOverlayProps } from './controllers/buildEditorOverlayProps'
 
 export function useEditorScreenController() {
   // Document state: shapes, constraints, layers, overlays, etc.
@@ -314,20 +279,20 @@ export function useEditorScreenController() {
     setActiveInspectorTab,
   })
 
-  const svgRef = useRef<SVGSVGElement | null>(null)
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const svgInputRef = useRef<HTMLInputElement | null>(null)
-  const tracingInputRef = useRef<HTMLInputElement | null>(null)
-  const templateImportInputRef = useRef<HTMLInputElement | null>(null)
-  const catalogImportInputRef = useRef<HTMLInputElement | null>(null)
-  const translationInputRef = useRef<HTMLInputElement | null>(null)
-  const fontInputRef = useRef<HTMLInputElement | null>(null)
-  const pasteCountRef = useRef(0)
-  const tracingObjectUrlsRef = useRef<Set<string>>(new Set())
+  const {
+    svgRef,
+    fileInputRef,
+    svgInputRef,
+    tracingInputRef,
+    templateImportInputRef,
+    catalogImportInputRef,
+    translationInputRef,
+    fontInputRef,
+    pasteCountRef,
+    tracingObjectUrlsRef,
+    panRef,
+  } = useEditorScreenRefs()
   const [showPieceInspectorModal, setShowPieceInspectorModal] = useState(false)
-  const panRef = useRef<{ startX: number; startY: number; originX: number; originY: number; pointerId: number } | null>(
-    null,
-  )
   const {
     activeLayer,
     sketchGroupsById,
@@ -763,7 +728,7 @@ export function useEditorScreenController() {
     currentSnapshotSignature,
   })
 
-  useEditorGlobalBindings({
+  useEditorGlobalShortcuts({
     handleDeleteSelection,
     handleUndo,
     handleRedo,
@@ -772,47 +737,17 @@ export function useEditorScreenController() {
     handlePasteClipboard,
     handleDuplicateSelection,
     handleSelectAllShapes,
-    handleDeselectAll: () => {
-      setSelectedShapeIds([])
-      setSelectedStitchHoleId(null)
-      setSelectedHardwareMarkerId(null)
-    },
-    handleToggleCanvasRuler: () => {
-      setShowCanvasRuler((previous) => !previous)
-    },
-    handleHideBezierOffsetGuides: () => {
-      setShowBezierOffsetLines(false)
-      setStatus('Bezier offset guides hidden')
-    },
-    handleToggleGrid: () => {
-      setShowGrid((previous) => !previous)
-    },
-    handleBackToSelectMode: () => {
-      setActiveTool('pan')
-    },
-    handleRotateSelectionBy: (angleDeg: number) => {
-      if (selectedShapeIdSet.size === 0) return
-      handleRotateSelection(angleDeg)
-    },
-    handleNudgeSelection: (dxMm: number, dyMm: number) => {
-      if (selectedShapeIdSet.size === 0) return
-      setShapes((previous) =>
-        previous.map((shape) => {
-          if (!selectedShapeIdSet.has(shape.id)) return shape
-          const offset = (point: { x: number; y: number }) => ({
-            x: point.x + dxMm,
-            y: point.y + dyMm,
-          })
-          if (shape.type === 'line' || shape.type === 'text') {
-            return { ...shape, start: offset(shape.start), end: offset(shape.end) }
-          }
-          if (shape.type === 'arc') {
-            return { ...shape, start: offset(shape.start), mid: offset(shape.mid), end: offset(shape.end) }
-          }
-          return { ...shape, start: offset(shape.start), control: offset(shape.control), end: offset(shape.end) }
-        }),
-      )
-    },
+    selectedShapeIdSet,
+    setSelectedShapeIds,
+    setSelectedStitchHoleId,
+    setSelectedHardwareMarkerId,
+    setShowCanvasRuler,
+    setShowBezierOffsetLines,
+    setShowGrid,
+    setActiveTool,
+    handleRotateSelection,
+    setShapes,
+    setStatus,
   })
 
   useEditorAutomationEffects({
@@ -836,7 +771,7 @@ export function useEditorScreenController() {
     interactionPreview,
     runPrecisionCommand,
     toolHint,
-  } = useCanvasInteractions({
+  } = useEditorCanvasController({
     svgRef,
     panRef,
     viewport,
@@ -851,46 +786,6 @@ export function useEditorScreenController() {
     reverseZoomDirection,
     incrementalSelection,
     lineToolConstraint,
-    onWheelRotateSelection: (deltaDeg: number) => {
-      if (selectedShapeIdSet.size === 0) return
-      handleRotateSelection(deltaDeg)
-    },
-    onWheelScaleSelection: (factor: number) => {
-      if (selectedShapeIdSet.size === 0) return
-      handleScaleSelection(factor)
-    },
-    onWheelAdjustThickness: (deltaSteps: number) => {
-      if (selectedShapeIdSet.size === 0) return
-      setShapes((previous) =>
-        previous.map((shape) => {
-          if (!selectedShapeIdSet.has(shape.id)) return shape
-          const rawCurrent = (shape as { strokeWidthOverride?: number }).strokeWidthOverride
-          const current: number = typeof rawCurrent === 'number' ? rawCurrent : 2
-          const next = Math.max(0.2, Math.min(12, current + deltaSteps * 0.3))
-          return { ...shape, strokeWidthOverride: Math.round(next * 100) / 100 }
-        }),
-      )
-    },
-    onPickLineTypeFromShape: (shapeId: string) => {
-      const shape = shapesById[shapeId]
-      if (!shape) return
-      setActiveLineTypeId(shape.lineTypeId)
-      const lineType = lineTypesById[shape.lineTypeId]
-      setStatus(`Active line type set to "${lineType?.name ?? shape.lineTypeId}"`)
-    },
-    onBezierSplitAtPoint: (shapeId: string, worldPoint: { x: number; y: number }) => {
-      const shape = shapesById[shapeId]
-      if (!shape || shape.type !== 'bezier') return
-      const t = findBezierTNearestPoint(shape, worldPoint)
-      const parts = splitBezierAtT(shape, t)
-      if (!parts) {
-        setStatus('Could not split bezier at that point')
-        return
-      }
-      setShapes((previous) => previous.flatMap((entry) => (entry.id === shape.id ? parts : [entry])))
-      setSelectedShapeIds([parts[0].id, parts[1].id])
-      setStatus('Split bezier at click point')
-    },
     stitchTargetShapes: workspaceEditableShapes,
     visibleHardwareMarkers: workspaceHardwareMarkers,
     lineTypesById,
@@ -902,6 +797,7 @@ export function useEditorScreenController() {
     seamConnections,
     hardwareMarkers,
     selectedShapeIds,
+    selectedShapeIdSet,
     selectedStitchHoleId,
     selectedHardwareMarkerId,
     setViewport,
@@ -915,6 +811,10 @@ export function useEditorScreenController() {
     setFoldLines,
     setDimensionLines,
     setSelectedShapeIds,
+    setActiveLineTypeId,
+    setStatus,
+    handleRotateSelection,
+    handleScaleSelection,
     ensureActiveLayerWritable,
     ensureActiveLineTypeWritable,
   })
@@ -1398,6 +1298,33 @@ export function useEditorScreenController() {
     mobileOptionsTab,
     desktopRibbonTab,
   })
+  const topbarCommandHandlers = createEditorTopbarCommandHandlers({
+    tracingInputRef,
+    translationInputRef,
+    shapes,
+    stitchHoles,
+    foldLines,
+    selectedShapeIds,
+    selectedShapeIdSet,
+    setShapes,
+    setStitchHoles,
+    setFoldLines,
+    setSelectedShapeIds,
+    setSelectedStitchHoleId,
+    setStatus,
+    resetDocument,
+    setShowFontListModal,
+    setShowWizardModal,
+    setShowOptionsModal,
+    setShowLengthAdjustModal,
+    handleEditSelectedLineAngle,
+    handleDeleteDuplicates,
+    handleSplitIntoN,
+    handleFilletSelectedCorner,
+    handleDistanceMarkSelectedPath,
+    handleConvertSelectionToPath,
+    handleNotchSelectedShape,
+  })
   const topbarProps = useEditorTopbarProps({
     topbarClassName,
     selectedShapeCount,
@@ -1438,126 +1365,20 @@ export function useEditorScreenController() {
     hasCustomRotationPivot: customRotationPivot !== null,
     hasCustomSnapPoint: customSnapPoint !== null,
     handleCenterLineBetweenSelection,
-    handleEditSelectedLineAnglePrompt: () => {
-      const raw = window.prompt('Enter new line angle (degrees, CCW from +X)', '0')
-      if (raw === null) {
-        setStatus('Edit angle cancelled')
-        return
-      }
-      const angle = Number(raw)
-      if (!Number.isFinite(angle)) {
-        setStatus('Invalid angle')
-        return
-      }
-      handleEditSelectedLineAngle(angle)
-    },
-    handleDeleteDuplicatesSelection: () => handleDeleteDuplicates(),
-    handleSplitIntoNPrompt: () => {
-      const raw = window.prompt('Split into how many equal segments?', '2')
-      if (raw === null) {
-        setStatus('Split cancelled')
-        return
-      }
-      const count = Number(raw)
-      if (!Number.isInteger(count) || count < 2) {
-        setStatus('Segment count must be an integer ≥ 2')
-        return
-      }
-      handleSplitIntoN(count)
-    },
+    handleEditSelectedLineAnglePrompt: topbarCommandHandlers.handleEditSelectedLineAnglePrompt,
+    handleDeleteDuplicatesSelection: topbarCommandHandlers.handleDeleteDuplicatesSelection,
+    handleSplitIntoNPrompt: topbarCommandHandlers.handleSplitIntoNPrompt,
     handleDrawBoundaryAroundSelection,
-    handleAddBackdrop: () => {
-      tracingInputRef.current?.click()
-      setStatus('Choose an image to add as a backdrop')
-    },
-    handleOpenFontListModal: () => setShowFontListModal(true),
-    handleCloseProject: () => {
-      const confirmed = window.confirm(
-        'Close the current project? Unsaved changes will be lost unless you save first.',
-      )
-      if (confirmed) {
-        resetDocument()
-      }
-    },
-    handleOpenSecretFeatures: () => setShowWizardModal(true),
-    handleImportTranslation: () => translationInputRef.current?.click(),
-    handleClearAll: () => {
-      if (shapes.length === 0 && stitchHoles.length === 0 && foldLines.length === 0) {
-        setStatus('Canvas already empty')
-        return
-      }
-      const confirmed = window.confirm(
-        'Clear all shapes, stitch holes, and fold lines? Layers and line types stay put.',
-      )
-      if (!confirmed) return
-      setShapes([])
-      setStitchHoles([])
-      setFoldLines([])
-      setSelectedShapeIds([])
-      setSelectedStitchHoleId(null)
-      setStatus('Canvas cleared')
-    },
-    handleSelectConnectedChain: () => {
-      if (selectedShapeIds.length !== 1) {
-        setStatus('Select one shape first to expand to its connected chain')
-        return
-      }
-      const chain = findConnectedShapeIds(shapes, selectedShapeIds[0])
-      setSelectedShapeIds(chain)
-      setStatus(`Selected connected chain: ${chain.length} shape${chain.length === 1 ? '' : 's'}`)
-    },
-    handleStampSimulator: () => {
-      if (selectedShapeIdSet.size === 0) {
-        setStatus('Select one or more shapes to stamp')
-        return
-      }
-      const rowsRaw = window.prompt('Stamp rows?', '3')
-      if (rowsRaw === null) {
-        setStatus('Stamp cancelled')
-        return
-      }
-      const colsRaw = window.prompt('Stamp columns?', '3')
-      if (colsRaw === null) {
-        setStatus('Stamp cancelled')
-        return
-      }
-      const pitchXRaw = window.prompt('X pitch (mm)?', '20')
-      if (pitchXRaw === null) {
-        setStatus('Stamp cancelled')
-        return
-      }
-      const pitchYRaw = window.prompt('Y pitch (mm)?', '20')
-      if (pitchYRaw === null) {
-        setStatus('Stamp cancelled')
-        return
-      }
-      const rows = Number(rowsRaw)
-      const cols = Number(colsRaw)
-      const pitchXMm = Number(pitchXRaw)
-      const pitchYMm = Number(pitchYRaw)
-      if (
-        !Number.isInteger(rows) || rows < 1 ||
-        !Number.isInteger(cols) || cols < 1 ||
-        !Number.isFinite(pitchXMm) || !Number.isFinite(pitchYMm)
-      ) {
-        setStatus('Invalid stamp parameters')
-        return
-      }
-      const stamps = tileSelectionAsStamp(shapes, selectedShapeIdSet, {
-        rows,
-        cols,
-        pitchXMm,
-        pitchYMm,
-      })
-      if (stamps.length === 0) {
-        setStatus('No stamps produced')
-        return
-      }
-      setShapes((prev) => [...prev, ...stamps])
-      setStatus(`Stamped ${stamps.length} shape${stamps.length === 1 ? '' : 's'} in ${rows}×${cols} grid`)
-    },
-    handleOpenOptionsModal: () => setShowOptionsModal(true),
-    handleOpenLengthAdjustModal: () => setShowLengthAdjustModal(true),
+    handleAddBackdrop: topbarCommandHandlers.handleAddBackdrop,
+    handleOpenFontListModal: topbarCommandHandlers.handleOpenFontListModal,
+    handleCloseProject: topbarCommandHandlers.handleCloseProject,
+    handleOpenSecretFeatures: topbarCommandHandlers.handleOpenSecretFeatures,
+    handleImportTranslation: topbarCommandHandlers.handleImportTranslation,
+    handleClearAll: topbarCommandHandlers.handleClearAll,
+    handleSelectConnectedChain: topbarCommandHandlers.handleSelectConnectedChain,
+    handleStampSimulator: topbarCommandHandlers.handleStampSimulator,
+    handleOpenOptionsModal: topbarCommandHandlers.handleOpenOptionsModal,
+    handleOpenLengthAdjustModal: topbarCommandHandlers.handleOpenLengthAdjustModal,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,
@@ -1565,59 +1386,11 @@ export function useEditorScreenController() {
     handleHighlightShapesOnCurrentLayer,
     handleToggleLayerIgnored,
     handleToggleIndependentLayer,
-    handleFilletSelectedCornerPrompt: () => {
-      const raw = window.prompt('Fillet (chamfer) radius in mm?', '2')
-      if (raw === null) {
-        setStatus('Fillet cancelled')
-        return
-      }
-      const radius = Number(raw)
-      if (!Number.isFinite(radius) || radius <= 0) {
-        setStatus('Fillet radius must be positive')
-        return
-      }
-      handleFilletSelectedCorner(radius)
-    },
-    handleDistanceMarkSelectedPathPrompt: () => {
-      const raw = window.prompt(
-        'Distance(s) in mm from the start of the selected path (comma-separated):',
-        '10, 30',
-      )
-      if (raw === null) {
-        setStatus('Distance marking cancelled')
-        return
-      }
-      const parsed = raw
-        .split(',')
-        .map((entry) => Number(entry.trim()))
-        .filter((entry) => Number.isFinite(entry) && entry >= 0)
-      if (parsed.length === 0) {
-        setStatus('No valid distances provided')
-        return
-      }
-      handleDistanceMarkSelectedPath(parsed)
-    },
-    handleConvertSelectionToPath: () => handleConvertSelectionToPath(false),
-    handleConvertACopyToPath: () => handleConvertSelectionToPath(true),
-    handleNotchSelectedShapePrompt: () => {
-      const depthRaw = window.prompt('Notch depth (mm)?', '3')
-      if (depthRaw === null) {
-        setStatus('Notch cancelled')
-        return
-      }
-      const widthRaw = window.prompt('Notch width (mm)?', '2')
-      if (widthRaw === null) {
-        setStatus('Notch cancelled')
-        return
-      }
-      const depth = Number(depthRaw)
-      const width = Number(widthRaw)
-      if (!Number.isFinite(depth) || depth <= 0 || !Number.isFinite(width) || width <= 0) {
-        setStatus('Notch depth and width must be positive')
-        return
-      }
-      handleNotchSelectedShape(depth, width)
-    },
+    handleFilletSelectedCornerPrompt: topbarCommandHandlers.handleFilletSelectedCornerPrompt,
+    handleDistanceMarkSelectedPathPrompt: topbarCommandHandlers.handleDistanceMarkSelectedPathPrompt,
+    handleConvertSelectionToPath: topbarCommandHandlers.handleConvertSelectionToPath,
+    handleConvertACopyToPath: topbarCommandHandlers.handleConvertACopyToPath,
+    handleNotchSelectedShapePrompt: topbarCommandHandlers.handleNotchSelectedShapePrompt,
     handleEnableStitchOnSelection,
     handleDisableStitchOnSelection,
     handleMoveSelectionBackward,
@@ -1630,19 +1403,8 @@ export function useEditorScreenController() {
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,
     handleAutoPlaceVariablePitchStitchHoles,
-    handleAutoPlaceEvenlySpacedStitchHolesPrompt: () => {
-      const raw = window.prompt('How many holes to place evenly on the selected path?', '10')
-      if (raw === null) {
-        setStatus('Even placement cancelled')
-        return
-      }
-      const count = Number(raw)
-      if (!Number.isInteger(count) || count < 2) {
-        setStatus('Hole count must be an integer ≥ 2')
-        return
-      }
-      handleAutoPlaceEvenlySpacedStitchHoles(count)
-    },
+    handleAutoPlaceEvenlySpacedStitchHolesPrompt: () =>
+      topbarCommandHandlers.handleAutoPlaceEvenlySpacedStitchHolesPrompt(handleAutoPlaceEvenlySpacedStitchHoles),
     handleResequenceSelectedStitchHoles,
     handleSelectNextStitchHole,
     handleFixStitchHoleOrderFromSelected,
@@ -2219,6 +1981,107 @@ export function useEditorScreenController() {
     },
   })
 
+  const overlay = buildEditorOverlayProps({
+    modalStackProps,
+    showStitchSimulatorModal,
+    setShowStitchSimulatorModal,
+    stitchSimulatorSettings,
+    setStitchSimulatorSettings,
+    stitchSimulatorResult,
+    stitchHoles,
+    selectedStitchHole,
+    showBoxStitchHelperModal,
+    setShowBoxStitchHelperModal,
+    boxStitchHelperSettings,
+    handleApplyBoxStitchHelper,
+    selectedShapeCount,
+    showBoxStitchModal,
+    setShowBoxStitchModal,
+    handleGenerateBoxStitch,
+    activeLayerId,
+    activeLineTypeId,
+    showMandalaModal,
+    setShowMandalaModal,
+    handleGenerateMandalaRadial,
+    handleGenerateSpiral,
+    handleGenerateGoldenGuides,
+    handleGenerateWhiteSilverGuides,
+    showWizardModal,
+    setShowWizardModal,
+    handleGenerateWizardPattern,
+    showLetterStampModal,
+    setShowLetterStampModal,
+    handleGenerateLetterStamp,
+    showChangeShapeSizeModal,
+    setShowChangeShapeSizeModal,
+    handleResizeShapes,
+    selectionBounds,
+    showSpecifyRotationModal,
+    setShowSpecifyRotationModal,
+    handleSpecifyRotation,
+    showSpecifyScaleModal,
+    setShowSpecifyScaleModal,
+    specifyScaleModalAxis,
+    handleSpecifyScale,
+    showFontListModal,
+    setShowFontListModal,
+    fontList,
+    setFontList,
+    setTextFontFamily,
+    showOptionsModal,
+    setShowOptionsModal,
+    autoSaveEnabled,
+    reverseZoomDirection,
+    incrementalSelection,
+    mentoriWithoutCtrl,
+    exportIncludeText,
+    exportIncludeTemplateMetadata,
+    setAutoSaveEnabled,
+    setReverseZoomDirection,
+    setIncrementalSelection,
+    setMentoriWithoutCtrl,
+    setExportIncludeText,
+    setExportIncludeTemplateMetadata,
+    leatherSimTextureRotationDeg,
+    lineToolConstraint,
+    setLineToolConstraint,
+    gridBackgroundMode,
+    setGridBackgroundMode,
+    showLengthAdjustModal,
+    setShowLengthAdjustModal,
+    shapes,
+    selectedShapeIdSet,
+    setShapes,
+    showProjectMemoModal,
+    setShowProjectMemoModal,
+    projectMemo,
+    setProjectMemo,
+    isMobileLayout,
+    showPieceInspectorModal,
+    setShowPieceInspectorModal,
+    pieceInspectorContentProps,
+    showNestingModal,
+    setShowNestingModal,
+    patternPieces,
+    pieceGrainlines,
+    patternPieceChainsByShapeId: patternPieceChains.byShapeId,
+    fileInputRef,
+    svgInputRef,
+    tracingInputRef,
+    templateImportInputRef,
+    catalogImportInputRef,
+    translationInputRef,
+    handleLoadJson,
+    handleImportSvg,
+    handleImportTracing,
+    handleImportTemplateRepositoryFile,
+    handleImportCatalogFile,
+    setTranslationMap,
+    fontInputRef,
+    onFontInputChange: handleFontInputChange,
+    setStatus,
+  })
+
   return {
     layout: {
       isMobileLayout,
@@ -2227,309 +2090,6 @@ export function useEditorScreenController() {
     },
     mobileShell,
     desktopShell,
-    overlay: {
-      modalStackProps: {
-        ...modalStackProps,
-        stitchSimulatorModalProps: {
-          open: showStitchSimulatorModal,
-          onClose: () => setShowStitchSimulatorModal(false),
-          settings: stitchSimulatorSettings,
-          onApply: (settings: StitchSimulatorSettings) => {
-            setStitchSimulatorSettings(settings)
-            saveStitchSimulatorSettings(settings)
-            setStatus('Stitch simulator settings updated')
-          },
-          stitchHoleCount: stitchHoles.length,
-          threadLength: stitchSimulatorResult?.threadLength ?? null,
-          selectedHoleLabel: selectedStitchHole ? `Hole ${selectedStitchHole.sequence + 1}` : null,
-          terminalHoleLabel:
-            (selectedStitchHole
-              ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
-              : stitchSimulatorResult?.terminalHoleId)
-              ? `Hole ${
-                  (
-                    stitchHoles.find(
-                      (hole) =>
-                        hole.id ===
-                        (selectedStitchHole
-                          ? getTerminalStitchHoleIdForShape(stitchHoles, selectedStitchHole.shapeId)
-                          : stitchSimulatorResult?.terminalHoleId),
-                    )?.sequence ?? 0
-                  ) + 1
-                }`
-              : null,
-        },
-        boxStitchHelperModalProps: {
-          open: showBoxStitchHelperModal,
-          onClose: () => setShowBoxStitchHelperModal(false),
-          onApply: handleApplyBoxStitchHelper,
-          settings: boxStitchHelperSettings,
-          selectedShapeCount,
-        },
-        boxStitchModalProps: {
-          open: showBoxStitchModal,
-          onClose: () => setShowBoxStitchModal(false),
-          onGenerate: handleGenerateBoxStitch,
-          defaultLayerId: activeLayerId,
-          defaultLineTypeId: activeLineTypeId,
-        },
-        mandalaModalProps: {
-          open: showMandalaModal,
-          onClose: () => setShowMandalaModal(false),
-          onGenerateRadial: handleGenerateMandalaRadial,
-          onGenerateSpiral: handleGenerateSpiral,
-          onGenerateGoldenGuides: handleGenerateGoldenGuides,
-          onGenerateWhiteSilverGuides: handleGenerateWhiteSilverGuides,
-          defaultLayerId: activeLayerId,
-          defaultLineTypeId: activeLineTypeId,
-        },
-        wizardModalProps: {
-          open: showWizardModal,
-          onClose: () => setShowWizardModal(false),
-          onGenerate: handleGenerateWizardPattern,
-          defaultLayerId: activeLayerId,
-          defaultLineTypeId: activeLineTypeId,
-        },
-        letterStampModalProps: {
-          open: showLetterStampModal,
-          onClose: () => setShowLetterStampModal(false),
-          onGenerate: handleGenerateLetterStamp,
-          defaultLayerId: activeLayerId,
-          defaultLineTypeId: activeLineTypeId,
-        },
-        changeShapeSizeModalProps: {
-          open: showChangeShapeSizeModal,
-          onClose: () => setShowChangeShapeSizeModal(false),
-          onApply: (width: number, height: number, lockAspect: boolean) => {
-            handleResizeShapes(width, height, lockAspect)
-            setShowChangeShapeSizeModal(false)
-          },
-          currentWidth: selectionBounds?.width ?? 0,
-          currentHeight: selectionBounds?.height ?? 0,
-        },
-        specifyRotationModalProps: {
-          open: showSpecifyRotationModal,
-          onClose: () => setShowSpecifyRotationModal(false),
-          onApply: (angleDeg: number) => {
-            handleSpecifyRotation(angleDeg)
-            setShowSpecifyRotationModal(false)
-          },
-        },
-        specifyScaleModalProps: {
-          open: showSpecifyScaleModal,
-          axis: specifyScaleModalAxis,
-          onClose: () => setShowSpecifyScaleModal(false),
-          onApply: (factorX: number, factorY: number) => {
-            handleSpecifyScale(factorX, factorY)
-            setShowSpecifyScaleModal(false)
-          },
-        },
-        fontListModalProps: {
-          open: showFontListModal,
-          fonts: fontList,
-          onClose: () => setShowFontListModal(false),
-          onAdd: (fontFamily: string) => {
-            const next = addFontToList(fontList, fontFamily)
-            setFontList(next)
-            saveFontList(next)
-          },
-          onRemove: (fontFamily: string) => {
-            const next = removeFontFromList(fontList, fontFamily)
-            setFontList(next)
-            saveFontList(next)
-          },
-          onSelect: (fontFamily: string) => {
-            setTextFontFamily(fontFamily)
-            setStatus(`Text font family set to ${fontFamily}`)
-          },
-        },
-        optionsModalProps: {
-          open: showOptionsModal,
-          autoSaveEnabled,
-          reverseZoomDirection,
-          incrementalSelection,
-          mentoriWithoutCtrl,
-          exportIncludeText,
-          exportIncludeTemplateMetadata,
-          onClose: () => setShowOptionsModal(false),
-          onChangeAutoSaveEnabled: (value: boolean) => {
-            setAutoSaveEnabled(value)
-            saveAutoSaveEnabled(value)
-          },
-          onChangeReverseZoomDirection: (value: boolean) => {
-            setReverseZoomDirection(value)
-            saveEditorPreferences({
-              ...getDefaultEditorPreferences(),
-              reverseZoomDirection: value,
-              incrementalSelection,
-              mentoriWithoutCtrl,
-              exportIncludeText,
-              exportIncludeTemplateMetadata,
-              leatherSimTextureRotationDeg,
-            })
-          },
-          onChangeIncrementalSelection: (value: boolean) => {
-            setIncrementalSelection(value)
-            saveEditorPreferences({
-              ...getDefaultEditorPreferences(),
-              reverseZoomDirection,
-              incrementalSelection: value,
-              mentoriWithoutCtrl,
-              exportIncludeText,
-              exportIncludeTemplateMetadata,
-              leatherSimTextureRotationDeg,
-            })
-          },
-          onChangeMentoriWithoutCtrl: (value: boolean) => {
-            setMentoriWithoutCtrl(value)
-            saveEditorPreferences({
-              ...getDefaultEditorPreferences(),
-              reverseZoomDirection,
-              incrementalSelection,
-              mentoriWithoutCtrl: value,
-              exportIncludeText,
-              exportIncludeTemplateMetadata,
-              leatherSimTextureRotationDeg,
-            })
-          },
-          onChangeExportIncludeText: (value: boolean) => {
-            setExportIncludeText(value)
-            saveEditorPreferences({
-              ...getDefaultEditorPreferences(),
-              reverseZoomDirection,
-              incrementalSelection,
-              mentoriWithoutCtrl,
-              exportIncludeText: value,
-              exportIncludeTemplateMetadata,
-              leatherSimTextureRotationDeg,
-            })
-          },
-          onChangeExportIncludeTemplateMetadata: (value: boolean) => {
-            setExportIncludeTemplateMetadata(value)
-            saveEditorPreferences({
-              ...getDefaultEditorPreferences(),
-              reverseZoomDirection,
-              incrementalSelection,
-              mentoriWithoutCtrl,
-              exportIncludeText,
-              exportIncludeTemplateMetadata: value,
-              leatherSimTextureRotationDeg,
-              lineToolConstraint,
-            })
-          },
-          lineToolConstraint,
-          gridBackgroundMode,
-          onChangeGridBackgroundMode: (value: 'light' | 'dark') => setGridBackgroundMode(value),
-          onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical') => {
-            setLineToolConstraint(value)
-            saveEditorPreferences({
-              ...getDefaultEditorPreferences(),
-              reverseZoomDirection,
-              incrementalSelection,
-              mentoriWithoutCtrl,
-              exportIncludeText,
-              exportIncludeTemplateMetadata,
-              leatherSimTextureRotationDeg,
-              lineToolConstraint: value,
-            })
-          },
-        },
-        lengthAdjustModalProps: {
-          open: showLengthAdjustModal,
-          currentLengthMm: (() => {
-            const line = shapes.find(
-              (s): s is LineShape => s.type === 'line' && selectedShapeIdSet.has(s.id),
-            )
-            return line ? getLineLengthMm(line) : 0
-          })(),
-          onClose: () => setShowLengthAdjustModal(false),
-          onApply: (mode: LengthAdjustMode, value: number) => {
-            const targets = shapes.filter(
-              (s): s is LineShape => s.type === 'line' && selectedShapeIdSet.has(s.id),
-            )
-            if (targets.length === 0) {
-              setStatus('Select one or more lines to adjust')
-              setShowLengthAdjustModal(false)
-              return
-            }
-            if (mode === 'none') {
-              setShowLengthAdjustModal(false)
-              setStatus('Length adjustment skipped')
-              return
-            }
-            setShapes((prev) =>
-              prev.map((shape) => {
-                if (shape.type !== 'line' || !selectedShapeIdSet.has(shape.id)) {
-                  return shape
-                }
-                return mode === 'length'
-                  ? setLineLength(shape, value)
-                  : scaleLineLengthByRatio(shape, value)
-              }),
-            )
-            setShowLengthAdjustModal(false)
-            setStatus(
-              mode === 'length'
-                ? `Set length to ${value.toFixed(2)}mm on ${targets.length} line(s)`
-                : `Scaled length by ${(value * 100).toFixed(1)}% on ${targets.length} line(s)`,
-            )
-          },
-        },
-      },
-      projectMemoModalProps: {
-        open: showProjectMemoModal,
-        onClose: () => setShowProjectMemoModal(false),
-        value: projectMemo,
-        onChange: (nextValue: string) => setProjectMemo(nextValue.slice(0, 8000)),
-      },
-      pieceInspectorModalProps: isMobileLayout
-        ? {
-            ...pieceInspectorContentProps,
-            open: showPieceInspectorModal && selectedPatternPiece !== null,
-            onClose: () => setShowPieceInspectorModal(false),
-          }
-        : null,
-      nestingModalProps: {
-        open: showNestingModal,
-        onClose: () => setShowNestingModal(false),
-        patternPieces,
-        pieceGrainlines,
-        patternPieceChainsByShapeId: patternPieceChains.byShapeId,
-        selectedShapeIds: selectedShapeIdSet,
-        activeLayerId,
-        activeLineTypeId,
-        onApplyNesting: (createdShapes: Shape[]) => {
-          setShapes((prev) => [...prev, ...createdShapes])
-          setShowNestingModal(false)
-          setStatus(`Nesting applied: ${createdShapes.length} shapes created`)
-        },
-      },
-      hiddenInputsProps: {
-        fileInputRef,
-        svgInputRef,
-        tracingInputRef,
-        templateImportInputRef,
-        catalogImportInputRef,
-        translationInputRef,
-        onLoadJson: handleLoadJson,
-        onImportSvg: handleImportSvg,
-        onImportTracing: handleImportTracing,
-        onImportTemplateRepositoryFile: handleImportTemplateRepositoryFile,
-        onImportCatalogFile: handleImportCatalogFile,
-        onImportTranslation: (event: React.ChangeEvent<HTMLInputElement>) => {
-          const file = event.target.files?.[0]
-          event.target.value = ''
-          if (!file) return
-          void file.text().then((raw: string) => {
-            const map = parseTranslationFile(raw)
-            setTranslationMap(map)
-            saveTranslationMap(map)
-            setStatus(`Loaded ${Object.keys(map).length} translation entries`)
-          })
-        },
-      },
-      fontInputRef,
-      onFontInputChange: handleFontInputChange,
-    },
+    overlay,
   }
 }

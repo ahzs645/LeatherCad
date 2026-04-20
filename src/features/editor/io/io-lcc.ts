@@ -26,7 +26,6 @@ import type { LccFile, LccLayer, LccPrintArea, LccShape, RawDimensionSegment, Ra
 import {
   hexToLccColor,
   layerRole,
-  midpoint,
   parseLccFloat,
   pt,
   resolveLccColor,
@@ -133,7 +132,8 @@ export function importLccDocument(raw: string): LccImportResult {
 
   const activeLineTypeId = lineTypes[0]?.id ?? 'type-cut'
 
-  // Build shapes, stitch holes, and dimension lines
+  // Build editable shapes and stitch holes; source dimension primitives are
+  // collected separately and reconstructed as logical dimension overlays.
   const shapes: Shape[] = []
   const stitchHoles: StitchHole[] = []
   const rawDimensionSegments: RawDimensionSegment[] = []
@@ -156,10 +156,6 @@ export function importLccDocument(raw: string): LccImportResult {
       case 'LINE': {
         const isDimension = lccShape.dim === '-1'
         if (isDimension) {
-          // Still collect for logical-dimension reconstruction (used by the
-          // summary and by callers that want structured dims). The actual
-          // rendering geometry is also kept as a real LineShape below so the
-          // source file's arrows / extension lines display verbatim.
           skippedDimensionShapes++
           rawDimensionSegments.push({
             start: pt(lccShape.sp),
@@ -169,7 +165,7 @@ export function importLccDocument(raw: string): LccImportResult {
             layerId,
             lineTypeId,
           })
-          // Fall through to the regular LINE path so the segment renders.
+          break
         }
 
         const hasArrowStart = lccShape.arst === '-1'
@@ -286,10 +282,8 @@ export function importLccDocument(raw: string): LccImportResult {
           break
         }
 
-        // Dimension label text (e.g. "28mm"): keep a structured record for
-        // the optional logical reconstruction, but also render the text
-        // verbatim as a regular TextShape so the label displays at the
-        // position the source file authored.
+        // Dimension label text (e.g. "28mm") is reconstructed as part of the
+        // logical dimension overlay instead of being imported as editable text.
         if (lccShape.dim === '-1') {
           skippedDimensionShapes++
           rawDimensionTexts.push({
@@ -297,7 +291,7 @@ export function importLccDocument(raw: string): LccImportResult {
             center: pt(lccShape.sp),
             layerId,
           })
-          // Fall through to emit a TextShape below.
+          break
         }
 
         // LCC stores text rotation in the `rt` field (degrees, clockwise in
@@ -399,14 +393,9 @@ export function importLccDocument(raw: string): LccImportResult {
     objects: shapes,
     foldLines: [],
     stitchHoles,
-    // The raw dimension geometry (extension lines, arrow segments, labels)
-    // is imported verbatim as regular Shape entries above, so the source
-    // file's dimensions render without needing a logical reconstruction.
-    // We leave dimensionLines undefined and showDimensions off to avoid
-    // drawing a second, approximate dimension overlay on top of them.
-    dimensionLines: undefined,
+    dimensionLines: dimensionLines.length > 0 ? dimensionLines : undefined,
     printAreas: printAreas.length > 0 ? printAreas : undefined,
-    showDimensions: false,
+    showDimensions: dimensionLines.length > 0,
   }
 
   return {

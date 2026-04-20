@@ -36,7 +36,8 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
     })
   }
 
-  const paintedFill = 'fillColor' in shape && shape.fillColor ? shape.fillColor : undefined
+  const fillColor = (shape as Shape & { fillColor?: string }).fillColor
+  const paintedFill = fillColor ? fillColor : undefined
   const strokeWidthOverride =
     'strokeWidthOverride' in shape && typeof shape.strokeWidthOverride === 'number'
       ? shape.strokeWidthOverride

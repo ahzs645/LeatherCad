@@ -27,7 +27,7 @@ import { useCanvasShapeDragInteractions } from './canvas-interactions/useCanvasS
 import { useCanvasToolExecution } from './canvas-interactions/useCanvasToolExecution'
 import { useCanvasViewportControls } from './canvas-interactions/useCanvasViewportControls'
 
-type UseCanvasInteractionsParams = {
+export type UseCanvasInteractionsParams = {
   svgRef: RefObject<SVGSVGElement | null>
   panRef: RefObject<PanState | null>
   viewport: Viewport

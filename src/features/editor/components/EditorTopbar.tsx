@@ -1,247 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
 import { clamp } from '../cad/cad-geometry'
-import type { Layer, LineType, StitchHoleDefaults, Tool } from '../cad/cad-types'
-import { DESKTOP_RIBBON_TABS, DESKTOP_TOOL_ICON_ITEMS, GRID_SPACING_OPTIONS, MOBILE_OPTIONS_TABS, TOOL_OPTIONS } from '../editor-constants'
-import type { DisplayUnit } from '../ops/unit-ops'
+import { MOBILE_OPTIONS_TABS } from '../editor-constants'
 import type {
-  StitchAutoPitchSettings,
-  DesktopRibbonTab,
   MobileFileAction,
   MobileLayerAction,
-  MobileOptionsTab,
-  MobileViewMode,
-  SketchWorkspaceMode,
-  ThemeMode,
 } from '../editor-types'
 import { StitchHolePanel } from './StitchHolePanel'
-
-type EditorTopbarProps = {
-  topbarClassName: string
-  isMobileLayout: boolean
-  desktopRibbonTab: DesktopRibbonTab
-  onDesktopRibbonTabChange: (tab: DesktopRibbonTab) => void
-  selectedShapeCount: number
-  selectedStitchHoleCount: number
-  showThreePreview: boolean
-  onOpenPrecisionModal: () => void
-  onOpenProjectMemoModal: () => void
-  onOpenHelpModal: () => void
-  showToolSection: boolean
-  tool: Tool
-  onSetActiveTool: (tool: Tool) => void
-  mobileViewMode: MobileViewMode
-  onSetMobileViewMode: (mode: MobileViewMode) => void
-  showMobileMenu: boolean
-  onToggleMobileMenu: () => void
-  mobileOptionsTab: MobileOptionsTab
-  onSetMobileOptionsTab: (tab: MobileOptionsTab) => void
-  onLoadPreset: () => void
-  onSetThemeMode: (mode: ThemeMode) => void
-  themeMode: ThemeMode
-  showZoomSection: boolean
-  displayUnit: DisplayUnit
-  onSetDisplayUnit: (unit: DisplayUnit) => void
-  showCanvasRuler: boolean
-  onToggleCanvasRuler: () => void
-  showDimensions: boolean
-  onToggleDimensions: () => void
-  gridSpacing: number
-  onSetGridSpacing: (spacing: number) => void
-  sketchWorkspaceMode: SketchWorkspaceMode
-  onSetSketchWorkspaceMode: (mode: SketchWorkspaceMode) => void
-  showEditSection: boolean
-  canUndo: boolean
-  canRedo: boolean
-  onUndo: () => void
-  onRedo: () => void
-  onCopySelection: () => void
-  onCutSelection: () => void
-  onPasteClipboard: () => void
-  canPaste: boolean
-  onSelectAllShapes: () => void
-  onDuplicateSelection: () => void
-  onDeleteSelection: () => void
-  onGroupSelection: () => void
-  onUngroupSelection: () => void
-  onMoveSelectionByDistance: () => void
-  onCopySelectionByDistance: () => void
-  onRotateSelectionCw1: () => void
-  onRotateSelectionCw5: () => void
-  onRotateSelectionCcw1: () => void
-  onRotateSelectionCcw5: () => void
-  onScaleSelectionUp1: () => void
-  onScaleSelectionDown1: () => void
-  onScaleSelectionUp5: () => void
-  onScaleSelectionDown5: () => void
-  onAlignSelectionLeft: () => void
-  onAlignSelectionRight: () => void
-  onAlignSelectionTop: () => void
-  onAlignSelectionBottom: () => void
-  onAlignSelectionMiddleH: () => void
-  onAlignSelectionMiddleV: () => void
-  onFlipSelectionHorizontally: () => void
-  onFlipSelectionVertically: () => void
-  onReverseSelectedPaths: () => void
-  onSpecifyRotationAngle: () => void
-  onSpecifyScaleRatio: () => void
-  onSpecifyScaleRatioVertically: () => void
-  onSetAsRotationCenter: () => void
-  onClearRotationCenter: () => void
-  onSetAsSnapPoint: () => void
-  onClearSnapPoint: () => void
-  onMakeSelectedLineHorizontal: () => void
-  onMakeSelectedLineVertical: () => void
-  hasCustomRotationPivot: boolean
-  hasCustomSnapPoint: boolean
-  onCenterLineBetweenSelection: () => void
-  onEditSelectedLineAngle: () => void
-  onDeleteDuplicates: () => void
-  onSplitIntoN: () => void
-  onDrawBoundaryAroundSelection: () => void
-  onFilletSelectedCorner: () => void
-  onDistanceMarkSelectedPath: () => void
-  onConvertSelectionToPath: () => void
-  onConvertACopyToPath: () => void
-  onNotchSelectedShape: () => void
-  onAddBackdrop: () => void
-  onOpenFontListModal: () => void
-  onCloseProject: () => void
-  onOpenSecretFeatures: () => void
-  onOpenOptionsModal: () => void
-  onOpenLengthAdjustModal: () => void
-  onImportTranslation: () => void
-  onStampSimulator: () => void
-  onClearAll: () => void
-  onSelectConnectedChain: () => void
-  onActivateLayerOfSelectedShape: () => void
-  onDuplicateSelectionOnLayerBelow: () => void
-  onMoveSelectionToLayerBelow: () => void
-  onMoveSelectionToAnotherLayer: () => void
-  onHighlightShapesOnCurrentLayer: () => void
-  onToggleLayerIgnored: () => void
-  onToggleIndependentLayer: () => void
-  onEnableStitchOnSelection: () => void
-  onDisableStitchOnSelection: () => void
-  onMoveSelectionBackward: () => void
-  onMoveSelectionForward: () => void
-  onSendSelectionToBack: () => void
-  onBringSelectionToFront: () => void
-  showLineTypeSection: boolean
-  activeLineType: LineType | null
-  lineTypes: LineType[]
-  onSetActiveLineTypeId: (lineTypeId: string) => void
-  onToggleActiveLineTypeVisibility: () => void
-  onOpenLineTypePalette: () => void
-  showStitchSection: boolean
-  stitchHoleDefaults: StitchHoleDefaults
-  onUpdateStitchHoleDefaults: (patch: Partial<StitchHoleDefaults>) => void
-  stitchPitchMm: number
-  onSetStitchPitchMm: (value: number) => void
-  stitchVariablePitchStartMm: number
-  stitchVariablePitchEndMm: number
-  onSetStitchVariablePitchStartMm: (value: number) => void
-  onSetStitchVariablePitchEndMm: (value: number) => void
-  stitchAutoPitchSettings: StitchAutoPitchSettings
-  onUpdateStitchAutoPitchSettings: (patch: Partial<StitchAutoPitchSettings>) => void
-  onAutoPlacePreferredPitchStitchHoles: () => void
-  onAutoPlaceFixedPitchStitchHoles: () => void
-  onAutoPlaceVariablePitchStitchHoles: () => void
-  onAutoPlaceEvenlySpacedStitchHoles: () => void
-  onResequenceSelectedStitchHoles: () => void
-  onReverseSelectedStitchHoles: () => void
-  onSelectNextStitchHole: () => void
-  onFixStitchHoleOrderFromSelected: () => void
-  onFixReverseStitchHoleOrderFromSelected: () => void
-  showStitchSequenceLabels: boolean
-  onToggleStitchSequenceLabels: () => void
-  onCountStitchHolesOnSelectedShapes: () => void
-  onDeleteStitchHolesOnSelectedShapes: () => void
-  onClearAllStitchHoles: () => void
-  selectedHoleCount: number
-  stitchHoleCount: number
-  hasSelectedStitchHole: boolean
-  showLayerSection: boolean
-  activeLayer: Layer | null
-  layers: Layer[]
-  layerStackLevels: Record<string, number>
-  onSetActiveLayerId: (layerId: string) => void
-  onClearDraft: () => void
-  mobileLayerAction: MobileLayerAction
-  onSetMobileLayerAction: (action: MobileLayerAction) => void
-  onRunMobileLayerAction: () => void
-  onAddLayer: () => void
-  onRenameActiveLayer: () => void
-  onToggleLayerVisibility: () => void
-  onToggleLayerLock: () => void
-  onMoveLayerUp: () => void
-  onMoveLayerDown: () => void
-  onDeleteLayer: () => void
-  onOpenLayerColorModal: () => void
-  showFileSection: boolean
-  mobileFileAction: MobileFileAction
-  onSetMobileFileAction: (action: MobileFileAction) => void
-  onRunMobileFileAction: () => void
-  onSaveJson: () => void
-  onOpenLoadJson: () => void
-  onOpenImportSvg: () => void
-  onExportSvg: () => void
-  onExportPdf: () => void
-  onExportDxf: () => void
-  onExportLaserSvg: () => void
-  onOpenInNewTab: () => void
-  onOpenExportModal: () => void
-  onOpenExportOptionsModal: () => void
-  onOpenPatternToolsModal: () => void
-  onOpenTemplateRepositoryModal: () => void
-  onOpenTracingImport: () => void
-  onOpenTracingModal: () => void
-  hasTracingOverlays: boolean
-  onOpenPrintPreviewModal: () => void
-  showPrintAreas: boolean
-  onTogglePrintAreas: () => void
-  onToggleThreePreview: () => void
-  onResetDocument: () => void
-}
-
-const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string }> = [
-  { mode: 'dark', label: 'Dark mode' },
-  { mode: 'light', label: 'Light mode' },
-  { mode: 'system', label: 'System mode' },
-]
-
-function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
-  if (mode === 'light') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-mode-icon">
-        <circle cx="12" cy="12" r="4" />
-        <line x1="12" y1="2.5" x2="12" y2="5" />
-        <line x1="12" y1="19" x2="12" y2="21.5" />
-        <line x1="2.5" y1="12" x2="5" y2="12" />
-        <line x1="19" y1="12" x2="21.5" y2="12" />
-        <line x1="5.2" y1="5.2" x2="6.9" y2="6.9" />
-        <line x1="17.1" y1="17.1" x2="18.8" y2="18.8" />
-        <line x1="5.2" y1="18.8" x2="6.9" y2="17.1" />
-        <line x1="17.1" y1="6.9" x2="18.8" y2="5.2" />
-      </svg>
-    )
-  }
-
-  if (mode === 'dark') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-mode-icon">
-        <path d="M21 13.4A8.4 8.4 0 1 1 10.6 3a7.1 7.1 0 1 0 10.4 10.4z" />
-      </svg>
-    )
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="theme-mode-icon">
-      <rect x="3.5" y="4.5" width="17" height="12" rx="1.8" />
-      <line x1="12" y1="16.5" x2="12" y2="20" />
-      <line x1="8.5" y1="20.5" x2="15.5" y2="20.5" />
-    </svg>
-  )
-}
+import type { EditorTopbarProps } from './topbar/EditorTopbar.types'
+import { DesktopRibbonStrip } from './topbar/DesktopRibbonStrip'
+import { ThemeModeToggle } from './topbar/ThemeModeToggle'
+import { TopbarToolSection } from './topbar/TopbarToolSection'
 
 export function EditorTopbar({
   topbarClassName,
@@ -421,212 +188,53 @@ export function EditorTopbar({
   onToggleThreePreview,
   onResetDocument,
 }: EditorTopbarProps) {
-  const renderThemeModeToggle = (className?: string) => (
-    <div className={`theme-mode-toggle${className ? ` ${className}` : ''}`} role="group" aria-label="Theme mode">
-      {THEME_OPTIONS.map(({ mode, label }) => (
-        <button
-          key={mode}
-          type="button"
-          className={`theme-mode-button${themeMode === mode ? ' active' : ''}`}
-          onClick={() => onSetThemeMode(mode)}
-          aria-label={label}
-          title={label}
-        >
-          <ThemeModeIcon mode={mode} />
-        </button>
-      ))}
-    </div>
-  )
-
-  const [showSettingsDropdown, setShowSettingsDropdown] = useState(false)
-  const settingsDropdownRef = useRef<HTMLDivElement>(null)
-  const settingsButtonRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!showSettingsDropdown) return
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        settingsDropdownRef.current &&
-        !settingsDropdownRef.current.contains(event.target as Node) &&
-        settingsButtonRef.current &&
-        !settingsButtonRef.current.contains(event.target as Node)
-      ) {
-        setShowSettingsDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showSettingsDropdown])
-
   return (
     <header className={topbarClassName}>
       {!isMobileLayout && (
-        <div className="desktop-ribbon-strip">
-          <div className="desktop-ribbon-brand">
-            <span className="desktop-ribbon-app">LeatherCAD</span>
-            <span className="desktop-ribbon-mode">Desktop Builder</span>
-          </div>
-          <nav className="desktop-ribbon-tabs" aria-label="Desktop ribbon tabs">
-            {DESKTOP_RIBBON_TABS.map((tab) => (
-              <button
-                key={tab.value}
-                className={desktopRibbonTab === tab.value ? 'active' : ''}
-                onClick={() => onDesktopRibbonTabChange(tab.value)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-          <div className="desktop-ribbon-strip-meta">
-            <span>{selectedShapeCount} selected</span>
-            <span>{selectedStitchHoleCount} selected holes</span>
-            <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide Panel' : 'Show Panel'}</button>
-            <button onClick={onOpenPrecisionModal}>Precision</button>
-            <button onClick={onOpenProjectMemoModal}>Project Memo</button>
-            <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
-            {renderThemeModeToggle('desktop-theme-toggle')}
-            <div className="settings-dropdown-wrapper">
-              <button
-                ref={settingsButtonRef}
-                type="button"
-                className="help-button settings-button"
-                onClick={() => setShowSettingsDropdown((prev) => !prev)}
-                aria-label="Open settings"
-                title="Settings"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              </button>
-              {showSettingsDropdown && (
-                <div ref={settingsDropdownRef} className="settings-dropdown">
-                  <label className="stitch-pitch-inline">
-                    <span>Units</span>
-                    <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
-                      <option value="mm">mm</option>
-                      <option value="in">in</option>
-                    </select>
-                  </label>
-                  <label className="stitch-pitch-inline">
-                    <span>Grid</span>
-                    <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
-                      {GRID_SPACING_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>{opt}mm</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="button" onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
-                  <button type="button" onClick={onOpenHelpModal}>Help</button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <DesktopRibbonStrip
+          desktopRibbonTab={desktopRibbonTab}
+          onDesktopRibbonTabChange={onDesktopRibbonTabChange}
+          selectedShapeCount={selectedShapeCount}
+          selectedStitchHoleCount={selectedStitchHoleCount}
+          showThreePreview={showThreePreview}
+          onToggleThreePreview={onToggleThreePreview}
+          onOpenPrecisionModal={onOpenPrecisionModal}
+          onOpenProjectMemoModal={onOpenProjectMemoModal}
+          onOpenTemplateRepositoryModal={onOpenTemplateRepositoryModal}
+          themeMode={themeMode}
+          onSetThemeMode={onSetThemeMode}
+          displayUnit={displayUnit}
+          onSetDisplayUnit={onSetDisplayUnit}
+          gridSpacing={gridSpacing}
+          onSetGridSpacing={onSetGridSpacing}
+          showCanvasRuler={showCanvasRuler}
+          onToggleCanvasRuler={onToggleCanvasRuler}
+          onOpenHelpModal={onOpenHelpModal}
+        />
       )}
 
       <div className={`topbar-body ${isMobileLayout ? 'topbar-body-mobile' : 'desktop-ribbon-panel'}`}>
         {showToolSection && (
-          <div className="group tool-group ribbon-section" data-section="Geometry">
-            {isMobileLayout ? (
-              <>
-                <select
-                  className="tool-select-mobile"
-                  value={tool}
-                  onChange={(event) => onSetActiveTool(event.target.value as Tool)}
-                >
-                  {TOOL_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      Tool: {option.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="mobile-view-inline-tabs" role="tablist" aria-label="Mobile view mode">
-                  <button className={mobileViewMode === 'editor' ? 'active' : ''} onClick={() => onSetMobileViewMode('editor')}>
-                    2D
-                  </button>
-                  <button
-                    className={mobileViewMode === 'preview' ? 'active' : ''}
-                    onClick={() => onSetMobileViewMode('preview')}
-                    disabled={!showThreePreview}
-                  >
-                    3D
-                  </button>
-                  <button
-                    className={mobileViewMode === 'split' ? 'active' : ''}
-                    onClick={() => onSetMobileViewMode('split')}
-                    disabled={!showThreePreview}
-                  >
-                    Split
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="tool-icon-grid">
-                {DESKTOP_TOOL_ICON_ITEMS.map((toolItem) => (
-                  <button
-                    key={toolItem.value}
-                    type="button"
-                    className={tool === toolItem.value ? 'tool-icon-button active' : 'tool-icon-button'}
-                    onClick={() => onSetActiveTool(toolItem.value)}
-                    title={toolItem.label}
-                    aria-label={toolItem.label}
-                    data-tooltip={toolItem.label}
-                  >
-                    <span className="tool-icon-badge" aria-hidden="true">
-                      <img src={toolItem.iconSrc} alt="" />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {isMobileLayout && (
-              <>
-                <button onClick={onOpenPrecisionModal}>Precision</button>
-                <button onClick={onOpenProjectMemoModal}>Project Memo</button>
-                <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
-                <div className="settings-dropdown-wrapper">
-                  <button
-                    ref={settingsButtonRef}
-                    type="button"
-                    className="help-button settings-button mobile-help-toggle"
-                    onClick={() => setShowSettingsDropdown((prev) => !prev)}
-                    aria-label="Open settings"
-                    title="Settings"
-                  >
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="3" />
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                    </svg>
-                  </button>
-                  {showSettingsDropdown && (
-                    <div ref={settingsDropdownRef} className="settings-dropdown">
-                      <label className="stitch-pitch-inline">
-                        <span>Units</span>
-                        <select className="line-type-select" value={displayUnit} onChange={(event) => onSetDisplayUnit(event.target.value as DisplayUnit)}>
-                          <option value="mm">mm</option>
-                          <option value="in">in</option>
-                        </select>
-                      </label>
-                      <label className="stitch-pitch-inline">
-                        <span>Grid</span>
-                        <select className="line-type-select" value={gridSpacing} onChange={(event) => onSetGridSpacing(Number(event.target.value))}>
-                          {GRID_SPACING_OPTIONS.map((opt) => (
-                            <option key={opt} value={opt}>{opt}mm</option>
-                          ))}
-                        </select>
-                      </label>
-                      <button type="button" onClick={onToggleCanvasRuler}>{showCanvasRuler ? 'Hide XY Ruler' : 'Show XY Ruler'}</button>
-                      <button type="button" onClick={onOpenHelpModal}>Help</button>
-                    </div>
-                  )}
-                </div>
-                <button className="mobile-menu-toggle" onClick={onToggleMobileMenu}>
-                  {showMobileMenu ? 'Close' : 'Options'}
-                </button>
-              </>
-            )}
-          </div>
+          <TopbarToolSection
+            isMobileLayout={isMobileLayout}
+            tool={tool}
+            onSetActiveTool={onSetActiveTool}
+            mobileViewMode={mobileViewMode}
+            onSetMobileViewMode={onSetMobileViewMode}
+            showMobileMenu={showMobileMenu}
+            onToggleMobileMenu={onToggleMobileMenu}
+            showThreePreview={showThreePreview}
+            onOpenPrecisionModal={onOpenPrecisionModal}
+            onOpenProjectMemoModal={onOpenProjectMemoModal}
+            onOpenTemplateRepositoryModal={onOpenTemplateRepositoryModal}
+            displayUnit={displayUnit}
+            onSetDisplayUnit={onSetDisplayUnit}
+            gridSpacing={gridSpacing}
+            onSetGridSpacing={onSetGridSpacing}
+            showCanvasRuler={showCanvasRuler}
+            onToggleCanvasRuler={onToggleCanvasRuler}
+            onOpenHelpModal={onOpenHelpModal}
+          />
         )}
 
         {isMobileLayout && showMobileMenu && (
@@ -654,7 +262,13 @@ export function EditorTopbar({
               </button>
             </div>
             <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
-            {isMobileLayout && renderThemeModeToggle('mobile-theme-toggle')}
+            {isMobileLayout && (
+              <ThemeModeToggle
+                themeMode={themeMode}
+                onSetThemeMode={onSetThemeMode}
+                className="mobile-theme-toggle"
+              />
+            )}
           </div>
         )}
 
