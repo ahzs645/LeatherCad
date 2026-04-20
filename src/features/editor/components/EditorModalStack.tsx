@@ -49,6 +49,12 @@ const LetterStampModal = lazy(() =>
 const ChangeShapeSizeModal = lazy(() =>
   import('./ChangeShapeSizeModal').then((mod) => ({ default: mod.ChangeShapeSizeModal })),
 )
+const SpecifyRotationModal = lazy(() =>
+  import('./SpecifyRotationModal').then((mod) => ({ default: mod.SpecifyRotationModal })),
+)
+const SpecifyScaleModal = lazy(() =>
+  import('./SpecifyScaleModal').then((mod) => ({ default: mod.SpecifyScaleModal })),
+)
 
 type EditorModalStackProps = {
   lineTypePaletteProps: ComponentProps<typeof LineTypePalette>
@@ -68,6 +74,8 @@ type EditorModalStackProps = {
   wizardModalProps?: ComponentProps<typeof WizardModal>
   letterStampModalProps?: ComponentProps<typeof LetterStampModal>
   changeShapeSizeModalProps?: ComponentProps<typeof ChangeShapeSizeModal>
+  specifyRotationModalProps?: ComponentProps<typeof SpecifyRotationModal>
+  specifyScaleModalProps?: ComponentProps<typeof SpecifyScaleModal>
 }
 
 export function EditorModalStack({
@@ -88,6 +96,8 @@ export function EditorModalStack({
   wizardModalProps,
   letterStampModalProps,
   changeShapeSizeModalProps,
+  specifyRotationModalProps,
+  specifyScaleModalProps,
 }: EditorModalStackProps) {
   return (
     <>
@@ -161,6 +171,16 @@ export function EditorModalStack({
             key={`${changeShapeSizeModalProps.currentWidth}-${changeShapeSizeModalProps.currentHeight}`}
             {...changeShapeSizeModalProps}
           />
+        </Suspense>
+      )}
+      {specifyRotationModalProps?.open && (
+        <Suspense fallback={null}>
+          <SpecifyRotationModal {...specifyRotationModalProps} />
+        </Suspense>
+      )}
+      {specifyScaleModalProps?.open && (
+        <Suspense fallback={null}>
+          <SpecifyScaleModal {...specifyScaleModalProps} />
         </Suspense>
       )}
     </>

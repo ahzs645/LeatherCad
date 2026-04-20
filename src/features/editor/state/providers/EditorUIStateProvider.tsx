@@ -51,6 +51,11 @@ const initialEditorUIState: EditorUIState = {
   showLetterStampModal: false,
   showChangeShapeSizeModal: false,
   showBezierOffsetLines: false,
+  customRotationPivot: null,
+  customSnapPoint: null,
+  showSpecifyRotationModal: false,
+  showSpecifyScaleModal: false,
+  specifyScaleModalAxis: 'both',
 }
 
 const autoConstraintSettings = {
@@ -135,6 +140,16 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'showChangeShapeSizeModal', value }),
     setShowBezierOffsetLines: (value: React.SetStateAction<EditorUIState['showBezierOffsetLines']>) =>
       dispatch({ type: 'showBezierOffsetLines', value }),
+    setCustomRotationPivot: (value: React.SetStateAction<EditorUIState['customRotationPivot']>) =>
+      dispatch({ type: 'customRotationPivot', value }),
+    setCustomSnapPoint: (value: React.SetStateAction<EditorUIState['customSnapPoint']>) =>
+      dispatch({ type: 'customSnapPoint', value }),
+    setShowSpecifyRotationModal: (value: React.SetStateAction<EditorUIState['showSpecifyRotationModal']>) =>
+      dispatch({ type: 'showSpecifyRotationModal', value }),
+    setShowSpecifyScaleModal: (value: React.SetStateAction<EditorUIState['showSpecifyScaleModal']>) =>
+      dispatch({ type: 'showSpecifyScaleModal', value }),
+    setSpecifyScaleModalAxis: (value: React.SetStateAction<EditorUIState['specifyScaleModalAxis']>) =>
+      dispatch({ type: 'specifyScaleModalAxis', value }),
   }
 }
 

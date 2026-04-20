@@ -57,21 +57,12 @@ export function useWorkbenchRouteSync({
             : previous
           : 'hidden',
       )
-      if (nextMode === '2d' && activeInspectorTab === 'preview3d') {
-        setActiveInspectorTab('inspect')
-      }
     }
 
     applyRouteMode()
     window.addEventListener('popstate', applyRouteMode)
     return () => window.removeEventListener('popstate', applyRouteMode)
-  }, [
-    activeInspectorTab,
-    enabled,
-    setActiveInspectorTab,
-    setSecondaryPreviewMode,
-    setWorkspaceMode,
-  ])
+  }, [enabled, setSecondaryPreviewMode, setWorkspaceMode])
 
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {

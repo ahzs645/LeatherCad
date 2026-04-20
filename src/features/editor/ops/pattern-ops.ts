@@ -22,6 +22,7 @@ export type SnapContext = {
   foldLines: FoldLine[]
   hardwareMarkers: HardwareMarker[]
   viewportScale: number
+  customSnapPoints?: Point[]
 }
 
 export type SnapResult = {
@@ -328,6 +329,12 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
   if (settings.hardware) {
     for (const marker of context.hardwareMarkers) {
       registerCandidate(marker.point, 'hardware')
+    }
+  }
+
+  if (context.customSnapPoints) {
+    for (const custom of context.customSnapPoints) {
+      registerCandidate(custom, 'custom')
     }
   }
 

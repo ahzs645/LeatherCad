@@ -208,6 +208,14 @@ export function EditorWorkbench({
           pieceContent={pieceContent}
           previewContent={previewContent}
           documentContent={documentContent}
+          onRequestPreview3D={
+            workspaceMode === '2d'
+              ? () => {
+                  onSetActiveInspectorTab('preview3d')
+                  onSetWorkspaceMode('3d')
+                }
+              : undefined
+          }
         />
       </main>
 

@@ -113,6 +113,11 @@ export type EditorUIState = {
   showLetterStampModal: boolean
   showChangeShapeSizeModal: boolean
   showBezierOffsetLines: boolean
+  customRotationPivot: import('../cad/cad-types').Point | null
+  customSnapPoint: import('../cad/cad-types').Point | null
+  showSpecifyRotationModal: boolean
+  showSpecifyScaleModal: boolean
+  specifyScaleModalAxis: 'both' | 'vertical'
 }
 
 export type EditorSelectionState = {

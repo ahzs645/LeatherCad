@@ -8,6 +8,7 @@ type WorkbenchInspectorDockProps = {
   pieceContent: ReactNode
   previewContent: ReactNode
   documentContent: ReactNode
+  onRequestPreview3D?: () => void
 }
 
 const TABS: Array<{ id: WorkbenchInspectorTab; label: string }> = [
@@ -24,6 +25,7 @@ export function WorkbenchInspectorDock({
   pieceContent,
   previewContent,
   documentContent,
+  onRequestPreview3D,
 }: WorkbenchInspectorDockProps) {
   const contentByTab: Record<WorkbenchInspectorTab, ReactNode> = {
     inspect: inspectContent,
@@ -43,7 +45,13 @@ export function WorkbenchInspectorDock({
             data-testid={`inspector-tab-${tab.id}`}
             aria-selected={activeTab === tab.id}
             className={activeTab === tab.id ? 'active' : ''}
-            onClick={() => onSetActiveTab(tab.id)}
+            onClick={() => {
+              if (tab.id === 'preview3d' && onRequestPreview3D) {
+                onRequestPreview3D()
+                return
+              }
+              onSetActiveTab(tab.id)
+            }}
           >
             {tab.label}
           </button>
