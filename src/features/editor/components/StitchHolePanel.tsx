@@ -99,6 +99,7 @@ export function StitchHolePanel({
   const builtinCatalog = useMemo(() => createBuiltinPrickingIronCatalog(), [])
   const [customCatalog, setCustomCatalog] = useState<PrickingIronCatalog>(() => loadCustomPrickingIronCatalog())
   const [pendingPrickingIronId, setPendingPrickingIronId] = useState<string | null>(null)
+  const [draftBladeCount, setDraftBladeCount] = useState(2)
   const selectedPrickingIronId = pendingPrickingIronId ?? holeDefaults.presetId ?? builtinCatalog.presets[0]?.id ?? ''
 
   const mergedCatalog = useMemo(
@@ -125,6 +126,14 @@ export function StitchHolePanel({
   }, [mergedCatalog.presets])
   const selectedPrickingIron =
     mergedCatalog.presets.find((entry) => entry.id === selectedPrickingIronId) ?? mergedCatalog.presets[0] ?? null
+  const selectedCustomGroup =
+    selectedPrickingIron && !groupsById[selectedPrickingIron.groupId]?.system
+      ? customCatalog.groups.find((group) => group.id === selectedPrickingIron.groupId) ?? null
+      : null
+  const orderedCustomGroupIds = customCatalog.groups
+    .slice()
+    .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name))
+    .map((group) => group.id)
 
   const saveCustomCatalog = (nextCatalog: PrickingIronCatalog) => {
     const normalized = normalizeCatalog(nextCatalog)
@@ -141,6 +150,7 @@ export function StitchHolePanel({
     onChangePitchMm(selectedPrickingIron.pitchMm)
     onChangeVariablePitchStartMm(selectedPrickingIron.pitchMm)
     onChangeVariablePitchEndMm(selectedPrickingIron.pitchMm)
+    setDraftBladeCount(selectedPrickingIron.numBlades)
     setPendingPrickingIronId(null)
   }
 
@@ -195,6 +205,7 @@ export function StitchHolePanel({
       heightMm: holeDefaults.heightMm,
       tiltDeg: holeDefaults.tiltDeg,
       inverted: holeDefaults.inverted,
+      numBlades: draftBladeCount,
     })
     saveCustomCatalog({
       groups: nextGroups,
@@ -202,6 +213,57 @@ export function StitchHolePanel({
     })
     setPendingPrickingIronId(null)
     onUpdateHoleDefaults(prickingIronPresetToDefaults(preset))
+  }
+
+  const handleRenameCustomGroup = () => {
+    if (!selectedCustomGroup) {
+      return
+    }
+    const name = window.prompt('Pricking iron group name', selectedCustomGroup.name)?.trim()
+    if (!name) {
+      return
+    }
+    saveCustomCatalog({
+      groups: customCatalog.groups.map((group) =>
+        group.id === selectedCustomGroup.id ? { ...group, name } : group,
+      ),
+      presets: customCatalog.presets,
+    })
+  }
+
+  const handleDeleteCustomGroup = () => {
+    if (!selectedCustomGroup) {
+      return
+    }
+    if (!window.confirm(`Delete "${selectedCustomGroup.name}" and its pricking iron presets?`)) {
+      return
+    }
+    saveCustomCatalog({
+      groups: customCatalog.groups.filter((group) => group.id !== selectedCustomGroup.id),
+      presets: customCatalog.presets.filter((preset) => preset.groupId !== selectedCustomGroup.id),
+    })
+    setPendingPrickingIronId(builtinCatalog.presets[0]?.id ?? null)
+  }
+
+  const handleMoveCustomGroup = (direction: -1 | 1) => {
+    if (!selectedCustomGroup) {
+      return
+    }
+    const orderedGroups = customCatalog.groups
+      .slice()
+      .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name))
+    const index = orderedGroups.findIndex((group) => group.id === selectedCustomGroup.id)
+    const targetIndex = index + direction
+    if (index < 0 || targetIndex < 0 || targetIndex >= orderedGroups.length) {
+      return
+    }
+    const nextGroups = orderedGroups.slice()
+    const [moved] = nextGroups.splice(index, 1)
+    nextGroups.splice(targetIndex, 0, moved)
+    saveCustomCatalog({
+      groups: nextGroups.map((group, groupIndex) => ({ ...group, order: groupIndex })),
+      presets: customCatalog.presets,
+    })
   }
 
   const handleDeleteCustomPreset = () => {
@@ -228,7 +290,12 @@ export function StitchHolePanel({
         <select
           className="line-type-select"
           value={selectedPrickingIron?.id ?? ''}
-          onChange={(event) => setPendingPrickingIronId(event.target.value)}
+          onChange={(event) => {
+            const nextPresetId = event.target.value
+            setPendingPrickingIronId(nextPresetId)
+            const nextPreset = mergedCatalog.presets.find((entry) => entry.id === nextPresetId)
+            setDraftBladeCount(nextPreset?.numBlades ?? draftBladeCount)
+          }}
         >
           {mergedCatalog.groups.map((group: PrickingIronGroup) => {
             const presets = presetsByGroup.get(group.id) ?? []
@@ -251,10 +318,37 @@ export function StitchHolePanel({
         Apply Iron
       </button>
       <button onClick={handleCreateGroup}>New Group</button>
+      <button onClick={handleRenameCustomGroup} disabled={!selectedCustomGroup}>
+        Rename Group
+      </button>
+      <button onClick={() => handleMoveCustomGroup(-1)} disabled={!selectedCustomGroup || orderedCustomGroupIds[0] === selectedCustomGroup.id}>
+        Group Up
+      </button>
+      <button
+        onClick={() => handleMoveCustomGroup(1)}
+        disabled={!selectedCustomGroup || orderedCustomGroupIds[orderedCustomGroupIds.length - 1] === selectedCustomGroup.id}
+      >
+        Group Down
+      </button>
+      <button onClick={handleDeleteCustomGroup} disabled={!selectedCustomGroup}>
+        Delete Group
+      </button>
       <button onClick={handleSaveCurrentPreset}>Save Preset</button>
       <button onClick={handleDeleteCustomPreset} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
         Delete Preset
       </button>
+
+      <label className="stitch-pitch-inline">
+        <span>Blades</span>
+        <input
+          type="number"
+          min={1}
+          max={64}
+          step={1}
+          value={draftBladeCount}
+          onChange={(event) => setDraftBladeCount(Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 1))))}
+        />
+      </label>
 
       <label className="stitch-pitch-inline">
         <span>Shape</span>

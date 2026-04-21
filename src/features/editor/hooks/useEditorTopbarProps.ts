@@ -436,7 +436,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onMakeSelectedLineVertical: handleMakeSelectedLineVertical,
     hasCustomRotationPivot,
     hasCustomSnapPoint,
-    onLineSymmetry: handleLineSymmetry,
+    onLineSymmetry: () => handleLineSymmetry(),
     onCenterLineBetweenSelection: handleCenterLineBetweenSelection,
     onEditSelectedLineAngle: handleEditSelectedLineAnglePrompt,
     onDeleteDuplicates: handleDeleteDuplicatesSelection,

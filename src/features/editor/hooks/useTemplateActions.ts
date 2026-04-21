@@ -24,6 +24,7 @@ import {
   mergeCatalogShopImport,
   moveCatalogRepositoryShop,
   parseCatalogShopImport,
+  serializeCatalogShop,
   sortCatalogRepository,
   type CatalogRepositoryMoveDirection,
   type CatalogRepositoryShop,
@@ -33,6 +34,7 @@ import { downloadFile } from '../editor-utils'
 
 type UseTemplateActionsParams = {
   templateRepository: TemplateRepositoryEntry[]
+  catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntry: TemplateRepositoryEntry | null
   selectedTemplateEntryId: string | null
   selectedCatalogShopId: string | null
@@ -62,6 +64,7 @@ type UseTemplateActionsParams = {
 export function useTemplateActions(params: UseTemplateActionsParams) {
   const {
     templateRepository,
+    catalogRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
     selectedCatalogShopId,
@@ -265,6 +268,25 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     setStatus('Catalog removed')
   }
 
+  const handleExportCatalogShop = (shopId: string) => {
+    const shop = catalogRepository.find((entry) => entry.id === shopId)
+    if (!shop) {
+      setStatus('Select a catalog to export')
+      return
+    }
+    if (shop.groups.length === 0) {
+      setStatus('Import the source catalog before exporting; summary-only catalogs do not include item data')
+      return
+    }
+
+    const fileBase = (shop.sourceFileName || `${shop.name}.ctlg`)
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-z0-9_-]+/gi, '-')
+      .replace(/(^-|-$)/g, '') || 'leathercraft-catalog'
+    downloadFile(`${fileBase}.ctlg`, serializeCatalogShop(shop), 'application/json;charset=utf-8')
+    setStatus(`Exported catalog "${shop.name}"`)
+  }
+
   const handleMoveCatalogShop = (shopId: string, direction: CatalogRepositoryMoveDirection) => {
     setCatalogRepository((previous) => moveCatalogRepositoryShop(previous, shopId, direction))
     setStatus('Catalog order updated')
@@ -286,6 +308,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleImportTemplateRepositoryFile,
     handleImportCatalogFile,
     handleDeleteCatalogShop,
+    handleExportCatalogShop,
     handleMoveCatalogShop,
     handleSortCatalogShops,
   }

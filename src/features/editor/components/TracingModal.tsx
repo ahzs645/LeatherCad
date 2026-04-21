@@ -70,6 +70,18 @@ export function TracingModal({
 
         {activeTracingOverlay ? (
           <div className="control-block">
+            <div className="tracing-preview-panel">
+              <div className="tracing-preview-media">
+                <img src={activeTracingOverlay.sourceUrl} alt={activeTracingOverlay.name} />
+              </div>
+              <div className="tracing-preview-meta">
+                <span>{activeTracingOverlay.kind === 'pdf' ? `PDF page ${pdfPageNumber}/${pdfPageCount}` : 'Image'}</span>
+                <span>
+                  {Math.round(activeTracingOverlay.width)} x {Math.round(activeTracingOverlay.height)} px
+                </span>
+                <span>{activeTracingOverlay.dpi ? `${activeTracingOverlay.dpi} dpi` : 'DPI unset'}</span>
+              </div>
+            </div>
             <label className="layer-toggle-item">
               <input
                 type="checkbox"

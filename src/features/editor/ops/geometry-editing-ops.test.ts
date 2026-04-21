@@ -1,21 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import type { LineShape, Shape } from '../cad/cad-types'
+import type { ArcShape, LineShape, Shape } from '../cad/cad-types'
 import {
   buildBoundaryLines,
   buildCenterLineBetween,
   buildDistanceMarks,
   convexHull,
   filletCorner,
+  getArcGeometry,
   getLineAngleDeg,
   getLineLengthMm,
   removeDuplicateShapes,
   scaleLineLengthByRatio,
+  setArcGeometry,
   setLineAngle,
   setLineLength,
   shapesCoincide,
   splitShapeIntoN,
 } from './geometry-editing-ops'
-import type { LineShape } from '../cad/cad-types'
 
 function makeLine(id: string, x1: number, y1: number, x2: number, y2: number): LineShape {
   return {
@@ -25,6 +26,18 @@ function makeLine(id: string, x1: number, y1: number, x2: number, y2: number): L
     lineTypeId: 'cut',
     start: { x: x1, y: y1 },
     end: { x: x2, y: y2 },
+  }
+}
+
+function makeArc(id: string, startX: number, startY: number, midX: number, midY: number, endX: number, endY: number): ArcShape {
+  return {
+    id,
+    type: 'arc',
+    layerId: 'layer-1',
+    lineTypeId: 'cut',
+    start: { x: startX, y: startY },
+    mid: { x: midX, y: midY },
+    end: { x: endX, y: endY },
   }
 }
 
@@ -103,6 +116,33 @@ describe('setLineLength / scaleLineLengthByRatio', () => {
     const line = makeLine('a', 0, 0, 3, 4)
     expect(setLineLength(line, -1)).toBe(line)
     expect(scaleLineLengthByRatio(line, 0)).toBe(line)
+  })
+})
+
+describe('getArcGeometry / setArcGeometry', () => {
+  it('reports radius and sweep for a three-point arc', () => {
+    const arc = makeArc('arc', 10, 0, 0, 10, -10, 0)
+    const geometry = getArcGeometry(arc)
+    expect(geometry).not.toBeNull()
+    expect(geometry?.radiusMm).toBeCloseTo(10)
+    expect(geometry?.sweepDeg).toBeCloseTo(180)
+  })
+
+  it('updates arc radius and sweep while preserving the center', () => {
+    const arc = makeArc('arc', 10, 0, 0, 10, -10, 0)
+    const edited = setArcGeometry(arc, 20, 90)
+    expect(edited).not.toBeNull()
+    if (!edited) return
+    const geometry = getArcGeometry(edited)
+    expect(geometry?.radiusMm).toBeCloseTo(20)
+    expect(geometry?.sweepDeg).toBeCloseTo(90)
+    expect(edited.start).toEqual({ x: 20, y: 0 })
+  })
+
+  it('returns null for degenerate arcs', () => {
+    const arc = makeArc('arc', 0, 0, 5, 0, 10, 0)
+    expect(getArcGeometry(arc)).toBeNull()
+    expect(setArcGeometry(arc, 10, 90)).toBeNull()
   })
 })
 

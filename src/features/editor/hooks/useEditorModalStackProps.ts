@@ -59,6 +59,7 @@ export type UseEditorModalStackPropsParams = {
   handleMoveTemplateEntry: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   handleSortTemplates: (sortKey: TemplateRepositorySortKey) => void
   handleDeleteCatalogShop: (shopId: string) => void
+  handleExportCatalogShop: (shopId: string) => void
   handleMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
   handleSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
@@ -166,6 +167,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleMoveTemplateEntry,
     handleSortTemplates,
     handleDeleteCatalogShop,
+    handleExportCatalogShop,
     handleMoveCatalogShop,
     handleSortCatalogShops,
     handleAlignSelection,
@@ -540,6 +542,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onExportRepository: handleExportTemplateRepository,
       onImportRepository: () => templateImportInputRef.current?.click(),
       onImportCatalog: () => catalogImportInputRef.current?.click(),
+      onExportCatalog: handleExportCatalogShop,
       onLoadPreset: handleLoadPreset,
       onLoadAsDocument: handleLoadTemplateAsDocument,
       onInsertIntoDocument: handleInsertTemplateIntoDocument,

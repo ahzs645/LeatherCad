@@ -1,11 +1,43 @@
-import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
-import type { DocFile, Layer, Shape, SketchGroup } from '../cad/cad-types'
+import { useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
+import type { DocFile, Layer, Point, Shape, SketchGroup } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
 import { downloadFile } from '../editor-utils'
 import { safeLocalStorageSet } from '../ops/safe-storage'
 import type { MobileViewMode } from '../editor-types'
+import { computeBoundsFromShapes } from '../ops/pattern-ops'
+import type { SvgImportMode } from '../components/SvgImportOptionsModal'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
+
+type PendingSvgImport = {
+  fileName: string
+  shapes: Shape[]
+  warnings: string[]
+  layerId: string
+  widthMm: number
+  heightMm: number
+  minX: number
+  minY: number
+}
+
+function mapShapePoints(shape: Shape, mapPoint: (point: Point) => Point, scale = 1): Shape {
+  if (shape.type === 'line') {
+    return { ...shape, start: mapPoint(shape.start), end: mapPoint(shape.end) }
+  }
+  if (shape.type === 'arc') {
+    return { ...shape, start: mapPoint(shape.start), mid: mapPoint(shape.mid), end: mapPoint(shape.end) }
+  }
+  if (shape.type === 'bezier') {
+    return { ...shape, start: mapPoint(shape.start), control: mapPoint(shape.control), end: mapPoint(shape.end) }
+  }
+  return {
+    ...shape,
+    start: mapPoint(shape.start),
+    end: mapPoint(shape.end),
+    fontSizeMm: Math.max(0.1, shape.fontSizeMm * scale),
+    radiusMm: Math.max(0.1, shape.radiusMm * scale),
+  }
+}
 
 export function resolveDocumentNameFromFileName(fileName: string): string | null {
   const trimmed = fileName.trim()
@@ -27,6 +59,8 @@ type UseFileActionsParams = {
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
   setShapes: Dispatch<SetStateAction<Shape[]>>
+  setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
+  setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setStatus: Dispatch<SetStateAction<string>>
   setShowThreePreview: Dispatch<SetStateAction<boolean>>
@@ -45,12 +79,15 @@ export function useFileActions(params: UseFileActionsParams) {
     activeLineTypeId,
     activeSketchGroup,
     setShapes,
+    setSketchGroups,
+    setActiveSketchGroupId,
     setSelectedShapeIds,
     setStatus,
     setShowThreePreview,
     setMobileViewMode,
     setShowMobileMenu,
   } = params
+  const [pendingSvgImport, setPendingSvgImport] = useState<PendingSvgImport | null>(null)
 
   const handleSaveJson = () => {
     const doc = buildCurrentDocFile()
@@ -164,22 +201,81 @@ export function useFileActions(params: UseFileActionsParams) {
         setStatus('SVG import produced no drawable shapes')
         return
       }
-      setShapes((previous) => [
-        ...previous,
-        ...imported.shapes.map((shape) => ({
-          ...shape,
-          groupId: activeSketchGroup?.id,
-        })),
-      ])
-      setSelectedShapeIds(imported.shapes.map((shape) => shape.id))
-      if (imported.warnings.length > 0) {
-        setStatus(`Imported SVG (${imported.shapes.length} shapes) with ${imported.warnings.length} warning(s)`)
-      } else {
-        setStatus(`Imported SVG (${imported.shapes.length} shapes)`)
+      const bounds = computeBoundsFromShapes(imported.shapes)
+      if (!bounds) {
+        setStatus('SVG import produced no measurable geometry')
+        return
       }
+      setPendingSvgImport({
+        fileName: file.name,
+        shapes: imported.shapes,
+        warnings: imported.warnings,
+        layerId: activeLayer.id,
+        widthMm: Math.max(0.01, bounds.maxX - bounds.minX),
+        heightMm: Math.max(0.01, bounds.maxY - bounds.minY),
+        minX: bounds.minX,
+        minY: bounds.minY,
+      })
+      setStatus(`Review SVG import options for "${file.name}"`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
       setStatus(`SVG import failed: ${message}`)
+    }
+  }
+
+  const handleApplyPendingSvgImport = (targetWidthMm: number, mode: SvgImportMode) => {
+    if (!pendingSvgImport) {
+      setStatus('No SVG import is pending')
+      return
+    }
+    if (!Number.isFinite(targetWidthMm) || targetWidthMm <= 0) {
+      setStatus('SVG import width must be positive')
+      return
+    }
+
+    const scale = targetWidthMm / pendingSvgImport.widthMm
+    const mapPoint = (point: Point): Point => ({
+      x: pendingSvgImport.minX + (point.x - pendingSvgImport.minX) * scale,
+      y: pendingSvgImport.minY + (point.y - pendingSvgImport.minY) * scale,
+    })
+    let importGroupId: string | undefined
+    let createdGroup: SketchGroup | null = null
+    if (mode === 'grouped') {
+      importGroupId = activeSketchGroup?.id
+      if (!importGroupId) {
+        const groupName = resolveDocumentNameFromFileName(pendingSvgImport.fileName) ?? 'SVG Import'
+        importGroupId = uid()
+        createdGroup = {
+          id: importGroupId,
+          name: groupName,
+          layerId: pendingSvgImport.layerId,
+          visible: true,
+          locked: false,
+        }
+      }
+    }
+
+    const importedShapes = pendingSvgImport.shapes.map((shape) => ({
+      ...mapShapePoints(shape, mapPoint, scale),
+      groupId: importGroupId,
+    }))
+
+    if (createdGroup) {
+      setSketchGroups((previous) => [...previous, createdGroup])
+      setActiveSketchGroupId(createdGroup.id)
+    }
+    setShapes((previous) => [...previous, ...importedShapes])
+    setSelectedShapeIds(importedShapes.map((shape) => shape.id))
+    setPendingSvgImport(null)
+    if (isMobileLayout) {
+      setShowThreePreview(false)
+      setMobileViewMode('editor')
+      setShowMobileMenu(false)
+    }
+    if (pendingSvgImport.warnings.length > 0) {
+      setStatus(`Imported SVG (${importedShapes.length} shapes) with ${pendingSvgImport.warnings.length} warning(s)`)
+    } else {
+      setStatus(`Imported SVG (${importedShapes.length} shapes)`)
     }
   }
 
@@ -248,5 +344,26 @@ export function useFileActions(params: UseFileActionsParams) {
     handleImportSvg,
     handleLoadPreset,
     handleOpenInNewTab,
+    svgImportOptionsModalProps: pendingSvgImport
+      ? {
+          open: true,
+          fileName: pendingSvgImport.fileName,
+          shapeCount: pendingSvgImport.shapes.length,
+          warningCount: pendingSvgImport.warnings.length,
+          sourceWidthMm: pendingSvgImport.widthMm,
+          sourceHeightMm: pendingSvgImport.heightMm,
+          onClose: () => setPendingSvgImport(null),
+          onApply: handleApplyPendingSvgImport,
+        }
+      : {
+          open: false,
+          fileName: '',
+          shapeCount: 0,
+          warningCount: 0,
+          sourceWidthMm: 0,
+          sourceHeightMm: 0,
+          onClose: () => undefined,
+          onApply: () => undefined,
+        },
   }
 }

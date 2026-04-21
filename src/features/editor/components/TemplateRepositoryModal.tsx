@@ -33,6 +33,7 @@ type TemplateRepositoryModalProps = {
   onExportRepository: () => void
   onImportRepository: () => void
   onImportCatalog: () => void
+  onExportCatalog: (shopId: string) => void
   onLoadPreset: () => void
   onLoadAsDocument: () => void
   onInsertIntoDocument: () => void
@@ -83,6 +84,7 @@ export function TemplateRepositoryModal({
   onExportRepository,
   onImportRepository,
   onImportCatalog,
+  onExportCatalog,
   onLoadPreset,
   onLoadAsDocument,
   onInsertIntoDocument,
@@ -342,6 +344,16 @@ export function TemplateRepositoryModal({
           <>
             <div className="line-type-modal-actions">
               <button onClick={onImportCatalog}>Import Catalog</button>
+              <button
+                onClick={() => {
+                  if (selectedCatalogShop) {
+                    onExportCatalog(selectedCatalogShop.id)
+                  }
+                }}
+                disabled={!selectedCatalogShop || selectedCatalogShop.groups.length === 0}
+              >
+                Export Catalog
+              </button>
               <button onClick={() => onSortCatalogShops('name')} disabled={catalogRepository.length < 2}>
                 Sort A-Z
               </button>

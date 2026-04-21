@@ -32,6 +32,9 @@ export function MandalaModal({
   const [radialCenterY, setRadialCenterY] = useState(0)
   const [radius, setRadius] = useState(100)
   const [mirrorSegments, setMirrorSegments] = useState(false)
+  const [relativeDiameterPercent, setRelativeDiameterPercent] = useState(100)
+  const [includeCircleTemplate, setIncludeCircleTemplate] = useState(true)
+  const [includeDivisionLines, setIncludeDivisionLines] = useState(true)
 
   // Golden Spiral state
   const [spiralCenterX, setSpiralCenterX] = useState(0)
@@ -54,6 +57,9 @@ export function MandalaModal({
       center: { x: radialCenterX, y: radialCenterY },
       radius,
       mirrorSegments,
+      relativeDiameterPercent,
+      includeCircleTemplate,
+      includeDivisionLines,
     })
   }
 
@@ -153,6 +159,18 @@ export function MandalaModal({
               />
             </label>
 
+            <label className="field-row">
+              <span>Relative diameter (%)</span>
+              <input
+                type="number"
+                min={1}
+                max={400}
+                step={1}
+                value={relativeDiameterPercent}
+                onChange={(e) => setRelativeDiameterPercent(Number(e.target.value))}
+              />
+            </label>
+
             <label className="layer-toggle-item">
               <input
                 type="checkbox"
@@ -160,6 +178,24 @@ export function MandalaModal({
                 onChange={(e) => setMirrorSegments(e.target.checked)}
               />
               <span>Mirror alternating segments</span>
+            </label>
+
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={includeCircleTemplate}
+                onChange={(e) => setIncludeCircleTemplate(e.target.checked)}
+              />
+              <span>Circle template</span>
+            </label>
+
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={includeDivisionLines}
+                onChange={(e) => setIncludeDivisionLines(e.target.checked)}
+              />
+              <span>Division lines</span>
             </label>
 
             <div className="modal-actions">

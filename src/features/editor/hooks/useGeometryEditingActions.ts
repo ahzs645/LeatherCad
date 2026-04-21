@@ -415,21 +415,34 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
 
     let axisStart: Point
     let axisEnd: Point
+    let sourceShapes = selected
 
     if (axis) {
       axisStart = axis.start
       axisEnd = axis.end
     } else {
-      // Default: vertical axis through center of selection
-      const bbox = getSelectionBoundingBox(selected)
-      axisStart = { x: bbox.centerX, y: bbox.minY - 10 }
-      axisEnd = { x: bbox.centerX, y: bbox.maxY + 10 }
+      const selectedLines = selected.filter((shape): shape is LineShape => shape.type === 'line')
+      if (selected.length > 1 && selectedLines.length === 1) {
+        const axisLine = selectedLines[0]
+        axisStart = axisLine.start
+        axisEnd = axisLine.end
+        sourceShapes = selected.filter((shape) => shape.id !== axisLine.id)
+      } else {
+        const bbox = getSelectionBoundingBox(selected)
+        axisStart = { x: bbox.centerX, y: bbox.minY - 10 }
+        axisEnd = { x: bbox.centerX, y: bbox.maxY + 10 }
+      }
     }
 
-    const mirroredCopies = selected.map((shape) => mirrorShape(shape, axisStart, axisEnd))
+    if (sourceShapes.length === 0) {
+      setStatus('Select shapes plus one line to use as the symmetry axis')
+      return
+    }
+
+    const mirroredCopies = sourceShapes.map((shape) => mirrorShape(shape, axisStart, axisEnd))
 
     setShapes((prev) => [...prev, ...mirroredCopies])
-    setStatus(`Created ${mirroredCopies.length} symmetric copy/copies`)
+    setStatus(`Created ${mirroredCopies.length} symmetric ${mirroredCopies.length === 1 ? 'copy' : 'copies'}`)
   }
 
   // ---------------------------------------------------------------------------

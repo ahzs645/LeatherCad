@@ -551,6 +551,7 @@ export function useEditorScreenController() {
   } = documentCommands
   const templateActions = useTemplateActions({
     templateRepository,
+    catalogRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
     selectedCatalogShopId,
@@ -772,6 +773,8 @@ export function useEditorScreenController() {
     activeLineTypeId,
     activeSketchGroup,
     setShapes,
+    setSketchGroups,
+    setActiveSketchGroupId,
     setSelectedShapeIds,
     setStatus,
     setShowThreePreview,

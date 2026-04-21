@@ -38,6 +38,13 @@ const PAPER_SIZES_MM: Record<PrintPaper, { width: number; height: number }> = {
   a4: { width: 210, height: 297 },
 }
 
+const PRINT_CSS_BASE_DPI = 96
+
+export function resolvePrintCalibrationDpi(calibrationPercent: number, baseDpi = PRINT_CSS_BASE_DPI) {
+  const safeCalibration = Math.max(0.5, Math.min(2, calibrationPercent / 100))
+  return round(baseDpi * safeCalibration)
+}
+
 export function buildPrintPlan(
   shapes: Shape[],
   options: {

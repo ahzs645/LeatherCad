@@ -43,6 +43,8 @@ export function useEditorScreenTopbarProps({
     setShowBackdropModal,
     setShowOptionsModal,
     setShowLengthAdjustModal,
+    setShowMoveCopyDistanceModal,
+    setMoveCopyDistanceMode,
   } = uiState
   const {
     selectedShapeIds,
@@ -90,8 +92,6 @@ export function useEditorScreenTopbarProps({
     handleDeleteSelection,
     handleGroupSelection,
     handleUngroupSelection,
-    handleMoveSelectionByDistance,
-    handleCopySelectionByDistance,
     handleRotateSelection,
     handleScaleSelection,
     handleMoveSelectionBackward,
@@ -158,6 +158,14 @@ export function useEditorScreenTopbarProps({
   } = geometryActions
   const { handleRunMobileLayerAction, handleRunMobileFileAction } = mobileActions
   const { handleSetThemeMode } = themeActions
+  const handleOpenMoveCopyDistanceModal = (mode: 'move' | 'copy') => {
+    if (selectedShapeCount === 0) {
+      setStatus('Select one or more shapes first')
+      return
+    }
+    setMoveCopyDistanceMode(mode)
+    setShowMoveCopyDistanceModal(true)
+  }
 
   return useEditorTopbarViewModel({
     tracingInputRef,
@@ -207,8 +215,8 @@ export function useEditorScreenTopbarProps({
     handleDeleteSelection,
     handleGroupSelection,
     handleUngroupSelection,
-    handleMoveSelectionByDistance,
-    handleCopySelectionByDistance,
+    handleMoveSelectionByDistance: () => handleOpenMoveCopyDistanceModal('move'),
+    handleCopySelectionByDistance: () => handleOpenMoveCopyDistanceModal('copy'),
     handleRotateSelection,
     handleScaleSelection,
     handleAlignSelectionToEdge,

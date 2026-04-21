@@ -65,6 +65,10 @@ export function useEditorScreenShells(params: UseEditorScreenShellsParams) {
       handleRenameActiveLayer,
       handleMoveLayer,
       handleDeleteLayer,
+      handleShowAllLayers,
+      handleHideOtherLayers,
+      handleMergeActiveLayerIntoBelow,
+      handleFlattenAllLayers,
     },
   } = actions
 
@@ -95,6 +99,10 @@ export function useEditorScreenShells(params: UseEditorScreenShellsParams) {
     onMoveLayerUp: () => handleMoveLayer(-1),
     onMoveLayerDown: () => handleMoveLayer(1),
     onDeleteLayer: handleDeleteLayer,
+    onShowAllLayers: handleShowAllLayers,
+    onHideOtherLayers: handleHideOtherLayers,
+    onMergeActiveLayerIntoBelow: handleMergeActiveLayerIntoBelow,
+    onFlattenAllLayers: handleFlattenAllLayers,
     onOpenLayerColorModal: () => params.panelState.setShowLayerColorModal(true),
   })
   const statusBarProps = useEditorStatusBarProps({

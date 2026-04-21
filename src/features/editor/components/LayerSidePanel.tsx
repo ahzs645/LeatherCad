@@ -14,6 +14,10 @@ type LayerSidePanelProps = {
   onMoveLayerUp: () => void
   onMoveLayerDown: () => void
   onDeleteLayer: () => void
+  onShowAllLayers: () => void
+  onHideOtherLayers: () => void
+  onMergeActiveLayerIntoBelow: () => void
+  onFlattenAllLayers: () => void
   onOpenLayerColorModal: () => void
 }
 
@@ -65,6 +69,10 @@ export function LayerSidePanel({
   onMoveLayerUp,
   onMoveLayerDown,
   onDeleteLayer,
+  onShowAllLayers,
+  onHideOtherLayers,
+  onMergeActiveLayerIntoBelow,
+  onFlattenAllLayers,
   onOpenLayerColorModal,
 }: LayerSidePanelProps) {
   return (
@@ -140,6 +148,18 @@ export function LayerSidePanel({
         </button>
         <button type="button" onClick={onOpenLayerColorModal} disabled={layers.length === 0} title="Layer colors">
           Colors
+        </button>
+        <button type="button" onClick={onShowAllLayers} disabled={layers.length === 0} title="Show all layers">
+          Show All
+        </button>
+        <button type="button" onClick={onHideOtherLayers} disabled={!activeLayer || layers.length < 2} title="Hide other layers">
+          Hide Others
+        </button>
+        <button type="button" onClick={onMergeActiveLayerIntoBelow} disabled={!activeLayer || layers.length < 2} title="Merge active layer into below">
+          Merge Below
+        </button>
+        <button type="button" onClick={onFlattenAllLayers} disabled={layers.length < 2} title="Flatten all layers">
+          Flatten
         </button>
         <button type="button" onClick={onDeleteLayer} disabled={!activeLayer || layers.length < 2} title="Delete layer">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

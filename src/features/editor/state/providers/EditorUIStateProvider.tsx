@@ -55,6 +55,8 @@ const initialEditorUIState: EditorUIState = {
   showBackdropModal: false,
   showLetterStampModal: false,
   showChangeShapeSizeModal: false,
+  showMoveCopyDistanceModal: false,
+  moveCopyDistanceMode: 'move',
   showBezierOffsetLines: false,
   customRotationPivot: null,
   customSnapPoint: null,
@@ -161,6 +163,10 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'showLetterStampModal', value }),
     setShowChangeShapeSizeModal: (value: React.SetStateAction<EditorUIState['showChangeShapeSizeModal']>) =>
       dispatch({ type: 'showChangeShapeSizeModal', value }),
+    setShowMoveCopyDistanceModal: (value: React.SetStateAction<EditorUIState['showMoveCopyDistanceModal']>) =>
+      dispatch({ type: 'showMoveCopyDistanceModal', value }),
+    setMoveCopyDistanceMode: (value: React.SetStateAction<EditorUIState['moveCopyDistanceMode']>) =>
+      dispatch({ type: 'moveCopyDistanceMode', value }),
     setShowBezierOffsetLines: (value: React.SetStateAction<EditorUIState['showBezierOffsetLines']>) =>
       dispatch({ type: 'showBezierOffsetLines', value }),
     setCustomRotationPivot: (value: React.SetStateAction<EditorUIState['customRotationPivot']>) =>

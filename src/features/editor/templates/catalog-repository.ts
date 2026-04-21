@@ -270,6 +270,40 @@ export function parseCatalogShopImport(raw: string, sourceFileName: string): Cat
   }
 }
 
+export function serializeCatalogShop(shop: CatalogRepositoryShop): string {
+  const payload = {
+    meta: {
+      file_type: 'LeathercraftCAD_Catalog_Data',
+      version: shop.metaVersion || '1',
+    },
+    shop: {
+      GUID: shop.guid,
+      Name: shop.name,
+      URL: shop.url,
+      Memo: shop.memo,
+      Version: shop.shopVersion,
+      Items: shop.groups.map((group) => ({
+        GUID: group.guid,
+        Name: group.name,
+        URL: group.url,
+        Memo: group.memo,
+        Items: group.items.map((item) => ({
+          GUID: item.guid,
+          Name: item.name,
+          Category: item.category,
+          UnitPrice: item.unitPrice,
+          UnitStr: item.unitStr,
+          URL: item.url,
+          Memo: item.memo,
+          dpi: item.imageDpi,
+          ...(item.zipBmpBase64 ? { zipbmp: item.zipBmpBase64 } : {}),
+        })),
+      })),
+    },
+  }
+  return JSON.stringify(payload, null, 2)
+}
+
 export function mergeCatalogShopImport(
   current: CatalogRepositoryShop[],
   importedShop: CatalogRepositoryShop,

@@ -25,6 +25,9 @@ const AiBuilderModal = lazy(() =>
 const TracingModal = lazy(() =>
   import('./TracingModal').then((mod) => ({ default: mod.TracingModal })),
 )
+const SvgImportOptionsModal = lazy(() =>
+  import('./SvgImportOptionsModal').then((mod) => ({ default: mod.SvgImportOptionsModal })),
+)
 const LayerColorModal = lazy(() =>
   import('./LayerColorModal').then((mod) => ({ default: mod.LayerColorModal })),
 )
@@ -52,6 +55,9 @@ const LetterStampModal = lazy(() =>
 const ChangeShapeSizeModal = lazy(() =>
   import('./ChangeShapeSizeModal').then((mod) => ({ default: mod.ChangeShapeSizeModal })),
 )
+const MoveCopyDistanceModal = lazy(() =>
+  import('./MoveCopyDistanceModal').then((mod) => ({ default: mod.MoveCopyDistanceModal })),
+)
 const SpecifyRotationModal = lazy(() =>
   import('./SpecifyRotationModal').then((mod) => ({ default: mod.SpecifyRotationModal })),
 )
@@ -78,6 +84,7 @@ type EditorModalStackProps = {
   patternToolsModalProps: ComponentProps<typeof PatternToolsModal>
   aiBuilderModalProps: ComponentProps<typeof AiBuilderModal>
   tracingModalProps: ComponentProps<typeof TracingModal>
+  svgImportOptionsModalProps?: ComponentProps<typeof SvgImportOptionsModal>
   printPreviewModalProps: ComponentProps<typeof PrintPreviewModal>
   stitchSimulatorModalProps?: ComponentProps<typeof StitchSimulatorModal>
   boxStitchHelperModalProps?: ComponentProps<typeof BoxStitchHelperModal>
@@ -87,6 +94,7 @@ type EditorModalStackProps = {
   backdropModalProps?: ComponentProps<typeof BackdropModal>
   letterStampModalProps?: ComponentProps<typeof LetterStampModal>
   changeShapeSizeModalProps?: ComponentProps<typeof ChangeShapeSizeModal>
+  moveCopyDistanceModalProps?: ComponentProps<typeof MoveCopyDistanceModal>
   specifyRotationModalProps?: ComponentProps<typeof SpecifyRotationModal>
   specifyScaleModalProps?: ComponentProps<typeof SpecifyScaleModal>
   fontListModalProps?: ComponentProps<typeof FontListModal>
@@ -104,6 +112,7 @@ export function EditorModalStack({
   patternToolsModalProps,
   aiBuilderModalProps,
   tracingModalProps,
+  svgImportOptionsModalProps,
   printPreviewModalProps,
   stitchSimulatorModalProps,
   boxStitchHelperModalProps,
@@ -113,6 +122,7 @@ export function EditorModalStack({
   backdropModalProps,
   letterStampModalProps,
   changeShapeSizeModalProps,
+  moveCopyDistanceModalProps,
   specifyRotationModalProps,
   specifyScaleModalProps,
   fontListModalProps,
@@ -146,6 +156,14 @@ export function EditorModalStack({
       <Suspense fallback={null}>
         <TracingModal {...tracingModalProps} />
       </Suspense>
+      {svgImportOptionsModalProps?.open && (
+        <Suspense fallback={null}>
+          <SvgImportOptionsModal
+            key={`${svgImportOptionsModalProps.fileName}-${svgImportOptionsModalProps.sourceWidthMm}-${svgImportOptionsModalProps.sourceHeightMm}`}
+            {...svgImportOptionsModalProps}
+          />
+        </Suspense>
+      )}
       <Suspense fallback={null}>
         <PrintPreviewModal {...printPreviewModalProps} />
       </Suspense>
@@ -193,8 +211,16 @@ export function EditorModalStack({
       {changeShapeSizeModalProps?.open && (
         <Suspense fallback={null}>
           <ChangeShapeSizeModal
-            key={`${changeShapeSizeModalProps.currentWidth}-${changeShapeSizeModalProps.currentHeight}`}
+            key={`${changeShapeSizeModalProps.currentWidth}-${changeShapeSizeModalProps.currentHeight}-${changeShapeSizeModalProps.selectedLineLengthMm ?? 'none'}-${changeShapeSizeModalProps.selectedLineAngleDeg ?? 'none'}-${changeShapeSizeModalProps.selectedArcRadiusMm ?? 'none'}-${changeShapeSizeModalProps.selectedArcSweepDeg ?? 'none'}-${changeShapeSizeModalProps.selectedTextRadiusMm ?? 'none'}-${changeShapeSizeModalProps.selectedTextSweepDeg ?? 'none'}`}
             {...changeShapeSizeModalProps}
+          />
+        </Suspense>
+      )}
+      {moveCopyDistanceModalProps?.open && (
+        <Suspense fallback={null}>
+          <MoveCopyDistanceModal
+            key={`move-copy-${moveCopyDistanceModalProps.open}-${moveCopyDistanceModalProps.mode}`}
+            {...moveCopyDistanceModalProps}
           />
         </Suspense>
       )}

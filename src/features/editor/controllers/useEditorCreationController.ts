@@ -231,14 +231,16 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
       return
     }
     void import('../ops/mandala-ops')
-      .then(({ generateMandalaGuideCircle, generateRadialCopies }) => {
-        const guides = generateMandalaGuideCircle(
-          settings.center,
-          settings.radius,
-          settings.segmentCount,
-          activeLayerId,
-          activeLineTypeId,
-        )
+      .then(({ generateMandalaCircleTemplate, generateMandalaDivisionLines, generateRadialCopies }) => {
+        const guideRadius = settings.radius * Math.max(0.01, settings.relativeDiameterPercent / 100)
+        const guides = [
+          ...(settings.includeCircleTemplate
+            ? generateMandalaCircleTemplate(settings.center, guideRadius, activeLayerId, activeLineTypeId)
+            : []),
+          ...(settings.includeDivisionLines
+            ? generateMandalaDivisionLines(settings.center, guideRadius, settings.segmentCount, activeLayerId, activeLineTypeId)
+            : []),
+        ]
         const copies = generateRadialCopies(selectedShapes, settings)
         setShapes((prev) => [...prev, ...guides, ...copies])
         setShowMandalaModal(false)

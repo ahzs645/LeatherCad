@@ -7,11 +7,13 @@ import type {
   SetStateAction,
 } from 'react'
 import type {
+  ArcShape,
   LineShape,
   PatternPiece,
   PieceGrainline,
   Shape,
   StitchHole,
+  TextShape,
 } from '../cad/cad-types'
 import { EditorModalStack } from '../components/EditorModalStack'
 import type { EditorHiddenInputsProps } from '../components/EditorHiddenInputs'
@@ -25,8 +27,12 @@ import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import { saveEditorPreferences, getDefaultEditorPreferences } from '../ops/editor-prefs'
 import { addFontToList, removeFontFromList, saveFontList } from '../ops/font-list-ops'
 import {
+  getArcGeometry,
+  getLineAngleDeg,
   getLineLengthMm,
   scaleLineLengthByRatio,
+  setArcGeometry,
+  setLineAngle,
   setLineLength,
 } from '../ops/geometry-editing-ops'
 import type { OutlineChain } from '../ops/outline-detection'
@@ -42,6 +48,8 @@ type MandalaModalProps = NonNullable<ModalStackProps['mandalaModalProps']>
 type WizardModalProps = NonNullable<ModalStackProps['wizardModalProps']>
 type BackdropModalProps = NonNullable<ModalStackProps['backdropModalProps']>
 type LetterStampModalProps = NonNullable<ModalStackProps['letterStampModalProps']>
+type MoveCopyDistanceModalProps = NonNullable<ModalStackProps['moveCopyDistanceModalProps']>
+type SvgImportOptionsModalProps = NonNullable<ModalStackProps['svgImportOptionsModalProps']>
 type SpecifyScaleModalProps = NonNullable<ModalStackProps['specifyScaleModalProps']>
 type FontListModalProps = NonNullable<ModalStackProps['fontListModalProps']>
 type OptionsModalProps = NonNullable<ModalStackProps['optionsModalProps']>
@@ -103,6 +111,11 @@ export type BuildEditorOverlayPropsParams = {
   setShowChangeShapeSizeModal: Dispatch<SetStateAction<boolean>>
   handleResizeShapes: (width: number, height: number, lockAspect: boolean) => void
   selectionBounds: { width: number; height: number } | null
+  showMoveCopyDistanceModal: boolean
+  setShowMoveCopyDistanceModal: Dispatch<SetStateAction<boolean>>
+  moveCopyDistanceMode: MoveCopyDistanceModalProps['mode']
+  handleMoveSelectionByDistance: (dx?: number, dy?: number) => void
+  handleCopySelectionByDistance: (dx?: number, dy?: number) => void
   showSpecifyRotationModal: boolean
   setShowSpecifyRotationModal: Dispatch<SetStateAction<boolean>>
   handleSpecifyRotation: (angleDeg: number) => void
@@ -155,6 +168,7 @@ export type BuildEditorOverlayPropsParams = {
   fileInputRef: RefObject<HTMLInputElement | null>
   svgInputRef: RefObject<HTMLInputElement | null>
   tracingInputRef: RefObject<HTMLInputElement | null>
+  svgImportOptionsModalProps: SvgImportOptionsModalProps
   templateImportInputRef: RefObject<HTMLInputElement | null>
   catalogImportInputRef: RefObject<HTMLInputElement | null>
   translationInputRef: RefObject<HTMLInputElement | null>
@@ -216,6 +230,11 @@ export function buildEditorOverlayProps({
   setShowChangeShapeSizeModal,
   handleResizeShapes,
   selectionBounds,
+  showMoveCopyDistanceModal,
+  setShowMoveCopyDistanceModal,
+  moveCopyDistanceMode,
+  handleMoveSelectionByDistance,
+  handleCopySelectionByDistance,
   showSpecifyRotationModal,
   setShowSpecifyRotationModal,
   handleSpecifyRotation,
@@ -268,6 +287,7 @@ export function buildEditorOverlayProps({
   fileInputRef,
   svgInputRef,
   tracingInputRef,
+  svgImportOptionsModalProps,
   templateImportInputRef,
   catalogImportInputRef,
   translationInputRef,
@@ -374,6 +394,125 @@ export function buildEditorOverlayProps({
         },
         currentWidth: selectionBounds?.width ?? 0,
         currentHeight: selectionBounds?.height ?? 0,
+        selectedLineLengthMm: (() => {
+          const lines = shapes.filter(
+            (shape): shape is LineShape => shape.type === 'line' && selectedShapeIdSet.has(shape.id),
+          )
+          return lines.length === 1 ? getLineLengthMm(lines[0]) : null
+        })(),
+        selectedLineAngleDeg: (() => {
+          const lines = shapes.filter(
+            (shape): shape is LineShape => shape.type === 'line' && selectedShapeIdSet.has(shape.id),
+          )
+          return lines.length === 1 ? getLineAngleDeg(lines[0]) : null
+        })(),
+        selectedArcRadiusMm: (() => {
+          const arcs = shapes.filter(
+            (shape): shape is ArcShape => shape.type === 'arc' && selectedShapeIdSet.has(shape.id),
+          )
+          if (arcs.length !== 1) return null
+          return getArcGeometry(arcs[0])?.radiusMm ?? null
+        })(),
+        selectedArcSweepDeg: (() => {
+          const arcs = shapes.filter(
+            (shape): shape is ArcShape => shape.type === 'arc' && selectedShapeIdSet.has(shape.id),
+          )
+          if (arcs.length !== 1) return null
+          return getArcGeometry(arcs[0])?.sweepDeg ?? null
+        })(),
+        selectedTextRadiusMm: (() => {
+          const textShapes = shapes.filter(
+            (shape): shape is TextShape => shape.type === 'text' && selectedShapeIdSet.has(shape.id),
+          )
+          return textShapes.length === 1 ? textShapes[0].radiusMm : null
+        })(),
+        selectedTextSweepDeg: (() => {
+          const textShapes = shapes.filter(
+            (shape): shape is TextShape => shape.type === 'text' && selectedShapeIdSet.has(shape.id),
+          )
+          return textShapes.length === 1 ? textShapes[0].sweepDeg : null
+        })(),
+        onApplyLineGeometry: (lengthMm, angleDeg) => {
+          const lines = shapes.filter(
+            (shape): shape is LineShape => shape.type === 'line' && selectedShapeIdSet.has(shape.id),
+          )
+          if (lines.length !== 1) {
+            setStatus('Select exactly one line to edit line geometry')
+            return
+          }
+          const targetId = lines[0].id
+          setShapes((previous) =>
+            previous.map((shape) =>
+              shape.id === targetId && shape.type === 'line'
+                ? setLineAngle(setLineLength(shape, lengthMm), angleDeg)
+                : shape,
+            ),
+          )
+          setShowChangeShapeSizeModal(false)
+          setStatus(`Updated line to ${lengthMm.toFixed(2)}mm at ${angleDeg.toFixed(1)} deg`)
+        },
+        onApplyArcGeometry: (radiusMm, sweepDeg) => {
+          const arcs = shapes.filter(
+            (shape): shape is ArcShape => shape.type === 'arc' && selectedShapeIdSet.has(shape.id),
+          )
+          if (arcs.length !== 1) {
+            setStatus('Select exactly one arc to edit arc geometry')
+            return
+          }
+          const nextArc = setArcGeometry(arcs[0], radiusMm, sweepDeg)
+          if (!nextArc) {
+            setStatus('Selected arc cannot be edited with radius/angle controls')
+            return
+          }
+          const targetId = arcs[0].id
+          setShapes((previous) =>
+            previous.map((shape) =>
+              shape.id === targetId && shape.type === 'arc'
+                ? setArcGeometry(shape, radiusMm, sweepDeg) ?? shape
+                : shape,
+            ),
+          )
+          setShowChangeShapeSizeModal(false)
+          setStatus(`Updated arc to ${radiusMm.toFixed(2)}mm radius at ${Math.abs(sweepDeg).toFixed(1)} deg`)
+        },
+        onApplyTextGeometry: (radiusMm, sweepDeg) => {
+          const textShapes = shapes.filter(
+            (shape): shape is TextShape => shape.type === 'text' && selectedShapeIdSet.has(shape.id),
+          )
+          if (textShapes.length !== 1) {
+            setStatus('Select exactly one text shape to edit text curve')
+            return
+          }
+          if (!Number.isFinite(radiusMm) || radiusMm <= 0 || !Number.isFinite(sweepDeg)) {
+            setStatus('Text curve values must be valid')
+            return
+          }
+          const targetId = textShapes[0].id
+          const safeSweepDeg = Math.min(1080, Math.max(-1080, sweepDeg))
+          setShapes((previous) =>
+            previous.map((shape) =>
+              shape.id === targetId && shape.type === 'text'
+                ? { ...shape, radiusMm: Math.max(0.1, radiusMm), sweepDeg: safeSweepDeg }
+                : shape,
+            ),
+          )
+          setShowChangeShapeSizeModal(false)
+          setStatus(`Updated text curve to ${radiusMm.toFixed(2)}mm radius`)
+        },
+      },
+      moveCopyDistanceModalProps: {
+        open: showMoveCopyDistanceModal,
+        mode: moveCopyDistanceMode,
+        selectedShapeCount: selectedShapeIdSet.size,
+        onClose: () => setShowMoveCopyDistanceModal(false),
+        onApply: (dx, dy, mode) => {
+          if (mode === 'copy') {
+            handleCopySelectionByDistance(dx, dy)
+          } else {
+            handleMoveSelectionByDistance(dx, dy)
+          }
+          setShowMoveCopyDistanceModal(false)
+        },
       },
       specifyRotationModalProps: {
         open: showSpecifyRotationModal,
@@ -543,6 +682,7 @@ export function buildEditorOverlayProps({
           )
         },
       },
+      svgImportOptionsModalProps,
     },
     projectMemoModalProps: {
       open: showProjectMemoModal,

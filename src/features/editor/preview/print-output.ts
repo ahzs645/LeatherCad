@@ -1,7 +1,7 @@
 import { arcPath, round } from '../cad/cad-geometry'
 import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 import type { FoldLine, LineType, Shape } from '../cad/cad-types'
-import type { PrintPlan } from './print-preview'
+import { resolvePrintCalibrationDpi, type PrintPlan } from './print-preview'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 
 type PrintTileOutputOptions = {
@@ -170,6 +170,8 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
 }
 
 export function buildPrintableHtml(options: PrintTileOutputOptions) {
+  const activeDpiX = resolvePrintCalibrationDpi(options.calibrationXPercent)
+  const activeDpiY = resolvePrintCalibrationDpi(options.calibrationYPercent)
   const pages = options.printPlan.tiles
     .map(
       (tile) => `
@@ -248,7 +250,7 @@ export function buildPrintableHtml(options: PrintTileOutputOptions) {
 <body>
   <div class="toolbar">
     <button onclick="window.print()">Print</button>
-    <span>${options.printPlan.tiles.length} page(s) | calibration ${options.calibrationXPercent.toFixed(2)}% x ${options.calibrationYPercent.toFixed(2)}%</span>
+    <span>${options.printPlan.tiles.length} page(s) | calibration ${options.calibrationXPercent.toFixed(2)}% x ${options.calibrationYPercent.toFixed(2)}% | active DPI ${activeDpiX} x ${activeDpiY}</span>
   </div>
   ${pages}
 </body>

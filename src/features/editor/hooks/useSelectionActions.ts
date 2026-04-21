@@ -493,13 +493,13 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setStatus('Ungrouped selected shapes')
   }
 
-  const handleMoveSelectionByDistance = () => {
+  const handleMoveSelectionByDistance = (dxInput?: number, dyInput?: number) => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more shapes first')
       return
     }
-    const dx = Number(window.prompt('Move selected shapes by X (mm)', '10'))
-    const dy = Number(window.prompt('Move selected shapes by Y (mm)', '0'))
+    const dx = dxInput ?? Number(window.prompt('Move selected shapes by X (mm)', '10'))
+    const dy = dyInput ?? Number(window.prompt('Move selected shapes by Y (mm)', '0'))
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
       setStatus('Move cancelled')
       return
@@ -514,13 +514,13 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     setStatus(`Moved selected shapes by (${dx.toFixed(2)}, ${dy.toFixed(2)})mm`)
   }
 
-  const handleCopySelectionByDistance = () => {
+  const handleCopySelectionByDistance = (dxInput?: number, dyInput?: number) => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more shapes first')
       return
     }
-    const dx = Number(window.prompt('Copy selected shapes by X (mm)', '10'))
-    const dy = Number(window.prompt('Copy selected shapes by Y (mm)', '0'))
+    const dx = dxInput ?? Number(window.prompt('Copy selected shapes by X (mm)', '10'))
+    const dy = dyInput ?? Number(window.prompt('Copy selected shapes by Y (mm)', '0'))
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) {
       setStatus('Copy cancelled')
       return

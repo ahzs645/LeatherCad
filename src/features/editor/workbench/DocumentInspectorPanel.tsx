@@ -51,6 +51,11 @@ export type DocumentInspectorPanelProps = {
   onAssignSelectedToActiveLeatherImageFill: () => void
   onClearSelectedFromActiveLeatherImageFill: () => void
   layers: Layer[]
+  activeLayer: Layer | null
+  onShowAllLayers: () => void
+  onHideOtherLayers: () => void
+  onMergeActiveLayerIntoBelow: () => void
+  onFlattenAllLayers: () => void
   layerColorsById: Record<string, string>
   layerColorOverrides: Record<string, string>
   frontLayerColor: string
@@ -106,6 +111,11 @@ export function DocumentInspectorPanel({
   onAssignSelectedToActiveLeatherImageFill,
   onClearSelectedFromActiveLeatherImageFill,
   layers,
+  activeLayer,
+  onShowAllLayers,
+  onHideOtherLayers,
+  onMergeActiveLayerIntoBelow,
+  onFlattenAllLayers,
   layerColorsById,
   layerColorOverrides,
   frontLayerColor,
@@ -248,6 +258,24 @@ export function DocumentInspectorPanel({
           onAssignSelectedToActiveLeatherImageFill={onAssignSelectedToActiveLeatherImageFill}
           onClearSelectedFromActiveLeatherImageFill={onClearSelectedFromActiveLeatherImageFill}
         />
+      </div>
+
+      <div className="control-block">
+        <h3>Layer Commands</h3>
+        <div className="button-row">
+          <button type="button" onClick={onShowAllLayers} disabled={layers.length === 0}>
+            Show All
+          </button>
+          <button type="button" onClick={onHideOtherLayers} disabled={!activeLayer || layers.length < 2}>
+            Hide Others
+          </button>
+          <button type="button" onClick={onMergeActiveLayerIntoBelow} disabled={!activeLayer || layers.length < 2}>
+            Merge Below
+          </button>
+          <button type="button" onClick={onFlattenAllLayers} disabled={layers.length < 2}>
+            Flatten All
+          </button>
+        </div>
       </div>
 
       <div className="control-block">

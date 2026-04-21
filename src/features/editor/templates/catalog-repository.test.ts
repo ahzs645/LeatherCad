@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   moveCatalogRepositoryShop,
+  parseCatalogShopImport,
+  serializeCatalogShop,
   sortCatalogRepository,
   type CatalogRepositoryShop,
 } from './catalog-repository'
@@ -67,5 +69,57 @@ describe('catalog repository ordering', () => {
       'apron',
     ])
     expect(shops.map((item) => item.id)).toEqual(['wallet', 'strap', 'apron'])
+  })
+})
+
+describe('catalog export', () => {
+  it('serializes a shop back to browser-safe ctlg JSON', () => {
+    const original: CatalogRepositoryShop = {
+      ...shop('shop-1', 'Tool Shop', '2026-01-02T00:00:00.000Z'),
+      url: 'https://example.test',
+      memo: 'Shop memo',
+      metaVersion: '2',
+      groups: [
+        {
+          id: 'group-1',
+          guid: 'group-1',
+          name: 'Awls',
+          url: '',
+          memo: 'Group memo',
+          items: [
+            {
+              id: 'item-1',
+              guid: 'item-1',
+              name: 'Scratch Awl',
+              category: 'Tools',
+              unitPrice: '12.50',
+              unitStr: 'each',
+              url: 'https://example.test/awl',
+              memo: 'Item memo',
+              hasImage: true,
+              imageDpi: 300,
+              zipBmpBase64: 'AAA=',
+            },
+          ],
+        },
+      ],
+      groupCount: 1,
+      itemCount: 1,
+    }
+
+    const serialized = serializeCatalogShop(original)
+    const parsed = JSON.parse(serialized) as {
+      meta: { file_type: string; version: string }
+      shop: { Items: Array<{ Items: Array<{ zipbmp?: string; dpi: number | null }> }> }
+    }
+
+    expect(parsed.meta.file_type).toBe('LeathercraftCAD_Catalog_Data')
+    expect(parsed.meta.version).toBe('2')
+    expect(parsed.shop.Items[0].Items[0].zipbmp).toBe('AAA=')
+    expect(parsed.shop.Items[0].Items[0].dpi).toBe(300)
+
+    const imported = parseCatalogShopImport(serialized, 'tool-shop.ctlg')
+    expect(imported.name).toBe('Tool Shop')
+    expect(imported.groups[0].items[0].name).toBe('Scratch Awl')
   })
 })

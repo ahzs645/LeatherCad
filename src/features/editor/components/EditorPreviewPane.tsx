@@ -61,6 +61,10 @@ type EditorPreviewPaneProps = {
   onMoveLayerUp: () => void
   onMoveLayerDown: () => void
   onDeleteLayer: () => void
+  onShowAllLayers: () => void
+  onHideOtherLayers: () => void
+  onMergeActiveLayerIntoBelow: () => void
+  onFlattenAllLayers: () => void
   onOpenLayerColorModal: () => void
   // 3D in main area
   show3dInMain: boolean
@@ -108,6 +112,10 @@ export function EditorPreviewPane({
   onMoveLayerUp,
   onMoveLayerDown,
   onDeleteLayer,
+  onShowAllLayers,
+  onHideOtherLayers,
+  onMergeActiveLayerIntoBelow,
+  onFlattenAllLayers,
   onOpenLayerColorModal,
   show3dInMain,
   onToggle3dInMain,
@@ -213,6 +221,10 @@ export function EditorPreviewPane({
           onMoveLayerUp={onMoveLayerUp}
           onMoveLayerDown={onMoveLayerDown}
           onDeleteLayer={onDeleteLayer}
+          onShowAllLayers={onShowAllLayers}
+          onHideOtherLayers={onHideOtherLayers}
+          onMergeActiveLayerIntoBelow={onMergeActiveLayerIntoBelow}
+          onFlattenAllLayers={onFlattenAllLayers}
           onOpenLayerColorModal={onOpenLayerColorModal}
         />
       )}

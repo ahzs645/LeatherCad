@@ -119,6 +119,8 @@ export type EditorUIState = {
   showBackdropModal: boolean
   showLetterStampModal: boolean
   showChangeShapeSizeModal: boolean
+  showMoveCopyDistanceModal: boolean
+  moveCopyDistanceMode: 'move' | 'copy'
   showBezierOffsetLines: boolean
   customRotationPivot: import('../cad/cad-types').Point | null
   customSnapPoint: import('../cad/cad-types').Point | null

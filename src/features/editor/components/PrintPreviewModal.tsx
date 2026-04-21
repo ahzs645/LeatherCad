@@ -1,5 +1,5 @@
 import { clamp } from '../cad/cad-geometry'
-import type { PrintPaper, PrintPlan } from '../preview/print-preview'
+import { resolvePrintCalibrationDpi, type PrintPaper, type PrintPlan } from '../preview/print-preview'
 
 type PrintPreviewModalProps = {
   open: boolean
@@ -79,6 +79,9 @@ export function PrintPreviewModal({
   if (!open) {
     return null
   }
+
+  const activeDpiX = resolvePrintCalibrationDpi(printCalibrationXPercent)
+  const activeDpiY = resolvePrintCalibrationDpi(printCalibrationYPercent)
 
   return (
     <div
@@ -253,6 +256,9 @@ export function PrintPreviewModal({
               Coverage: {printPlan.contentWidthMm} x {printPlan.contentHeightMm} mm
             </div>
             <div>Pages: {printPlan.tiles.length}</div>
+            <div>
+              Active DPI: {activeDpiX} x {activeDpiY}
+            </div>
             <div>
               Color: {printInColor ? 'On' : 'Off'} | Ruler: {printRulerInside ? 'Inside' : 'Outside'}
             </div>

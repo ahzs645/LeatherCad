@@ -22,6 +22,10 @@ type UseEditorPreviewPanePropsParams = Pick<
   onMoveLayerUp: ComponentProps<typeof EditorPreviewPane>['onMoveLayerUp']
   onMoveLayerDown: ComponentProps<typeof EditorPreviewPane>['onMoveLayerDown']
   onDeleteLayer: ComponentProps<typeof EditorPreviewPane>['onDeleteLayer']
+  onShowAllLayers: ComponentProps<typeof EditorPreviewPane>['onShowAllLayers']
+  onHideOtherLayers: ComponentProps<typeof EditorPreviewPane>['onHideOtherLayers']
+  onMergeActiveLayerIntoBelow: ComponentProps<typeof EditorPreviewPane>['onMergeActiveLayerIntoBelow']
+  onFlattenAllLayers: ComponentProps<typeof EditorPreviewPane>['onFlattenAllLayers']
   onOpenLayerColorModal: ComponentProps<typeof EditorPreviewPane>['onOpenLayerColorModal']
 }
 
@@ -40,6 +44,10 @@ export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParam
     onMoveLayerUp,
     onMoveLayerDown,
     onDeleteLayer,
+    onShowAllLayers,
+    onHideOtherLayers,
+    onMergeActiveLayerIntoBelow,
+    onFlattenAllLayers,
     onOpenLayerColorModal,
   } = params
   const { layers } = useEditorLayerSelector((state) => ({
@@ -155,6 +163,10 @@ export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParam
     onMoveLayerUp,
     onMoveLayerDown,
     onDeleteLayer,
+    onShowAllLayers,
+    onHideOtherLayers,
+    onMergeActiveLayerIntoBelow,
+    onFlattenAllLayers,
     onOpenLayerColorModal,
     show3dInMain,
     onToggle3dInMain: () => {

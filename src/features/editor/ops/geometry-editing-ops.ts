@@ -1,4 +1,5 @@
 export * from './geometry/path-editing'
 export * from './geometry/line-editing'
 export * from './geometry/shape-transform'
+export * from './geometry/shape-property-editing'
 export * from './geometry/corner-ops'

@@ -6,6 +6,9 @@ export type MandalaSettings = {
   center: Point
   radius: number
   mirrorSegments: boolean
+  relativeDiameterPercent: number
+  includeCircleTemplate: boolean
+  includeDivisionLines: boolean
 }
 
 export type GoldenSpiralParams = {
@@ -231,7 +234,19 @@ export function generateMandalaGuideCircle(
   layerId: string,
   lineTypeId: string,
 ): Shape[] {
-  const shapes: Shape[] = []
+  return [
+    ...generateMandalaCircleTemplate(center, radius, layerId, lineTypeId),
+    ...generateMandalaDivisionLines(center, radius, segments, layerId, lineTypeId),
+  ]
+}
+
+export function generateMandalaCircleTemplate(
+  center: Point,
+  radius: number,
+  layerId: string,
+  lineTypeId: string,
+): ArcShape[] {
+  const shapes: ArcShape[] = []
 
   // Guide circle approximated as 4 quarter-circle arcs
   const quarterAngles = [0, 90, 180, 270]
@@ -262,7 +277,17 @@ export function generateMandalaGuideCircle(
     shapes.push(arc)
   }
 
-  // Radial division lines from center to guide circle
+  return shapes
+}
+
+export function generateMandalaDivisionLines(
+  center: Point,
+  radius: number,
+  segments: number,
+  layerId: string,
+  lineTypeId: string,
+): LineShape[] {
+  const lines: LineShape[] = []
   const angleStep = 360 / segments
   for (let i = 0; i < segments; i++) {
     const angleDeg = angleStep * i
@@ -280,10 +305,10 @@ export function generateMandalaGuideCircle(
       },
     }
 
-    shapes.push(line)
+    lines.push(line)
   }
 
-  return shapes
+  return lines
 }
 
 export function generateGoldenRatioGuides(

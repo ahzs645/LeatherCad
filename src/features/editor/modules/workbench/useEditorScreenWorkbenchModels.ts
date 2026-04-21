@@ -98,6 +98,8 @@ export function useEditorScreenWorkbenchModels({
     setShowMandalaModal,
     setShowLetterStampModal,
     setShowPrecisionModal,
+    setShowMoveCopyDistanceModal,
+    setMoveCopyDistanceMode,
   } = uiState
   const { selectedShapeIds, setSelectedShapeIds } = selectionState
   const {
@@ -173,6 +175,7 @@ export function useEditorScreenWorkbenchModels({
     fileActions,
     historyActions,
     selectionActions,
+    layerActions,
     lineTypeActions,
     leatherImageFillActions,
     layerColorActions,
@@ -196,10 +199,15 @@ export function useEditorScreenWorkbenchModels({
     handleCopySelection,
     handlePasteClipboard,
     handleDeleteSelection,
-    handleMoveSelectionByDistance,
     handleRotateSelection,
     handleScaleSelection,
   } = selectionActions
+  const {
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
+  } = layerActions
   const {
     handleAddEdgeConstraintFromSelection,
     handleAddAlignConstraintsFromSelection,
@@ -277,6 +285,10 @@ export function useEditorScreenWorkbenchModels({
     handleClearSelectedStitchHoleEnd,
   } = creationController
   const { handleSetThemeMode } = themeActions
+  const handleOpenMoveDistanceModal = () => {
+    setMoveCopyDistanceMode('move')
+    setShowMoveCopyDistanceModal(true)
+  }
 
   const workbenchController = useEditorWorkbenchController({
     documentName,
@@ -320,7 +332,7 @@ export function useEditorScreenWorkbenchModels({
     handleCopySelection,
     handlePasteClipboard,
     handleDeleteSelection,
-    handleMoveSelectionByDistance,
+    handleMoveSelectionByDistance: handleOpenMoveDistanceModal,
     handleRotateSelection,
     handleScaleSelection,
     handleCreatePatternPieceFromSelection,
@@ -468,6 +480,11 @@ export function useEditorScreenWorkbenchModels({
     handleAssignSelectedToActiveLeatherImageFill,
     handleClearSelectedFromActiveLeatherImageFill,
     layers,
+    activeLayer,
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
     layerColorsById,
     layerColorOverrides,
     frontLayerColor,
