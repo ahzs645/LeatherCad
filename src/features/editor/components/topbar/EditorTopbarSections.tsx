@@ -80,6 +80,7 @@ export function TransformSection({
   onSetAsSnapPoint,
   onMakeSelectedLineHorizontal,
   onMakeSelectedLineVertical,
+  onLineSymmetry,
   onCenterLineBetweenSelection,
   onEditSelectedLineAngle,
   onDeleteDuplicates,
@@ -121,6 +122,7 @@ export function TransformSection({
       </button>
       <button onClick={onMakeSelectedLineHorizontal} disabled={selectedShapeCount === 0}>Make Horiz</button>
       <button onClick={onMakeSelectedLineVertical} disabled={selectedShapeCount === 0}>Make Vert</button>
+      <button onClick={onLineSymmetry} disabled={selectedShapeCount === 0}>Line Symmetry</button>
       <button onClick={onCenterLineBetweenSelection} disabled={selectedShapeCount !== 2}>Center Line</button>
       <button onClick={onEditSelectedLineAngle} disabled={selectedShapeCount === 0}>Edit Angle…</button>
       <button onClick={onDeleteDuplicates}>Dedupe</button>
@@ -259,6 +261,10 @@ export function LayerSection({
   onMoveLayerUp,
   onMoveLayerDown,
   onDeleteLayer,
+  onShowAllLayers,
+  onHideOtherLayers,
+  onMergeActiveLayerIntoBelow,
+  onFlattenAllLayers,
   onOpenLayerColorModal,
   selectedShapeCount,
   onActivateLayerOfSelectedShape,
@@ -303,6 +309,10 @@ export function LayerSection({
             <option value="move-up">Move Layer Up</option>
             <option value="move-down">Move Layer Down</option>
             <option value="delete">Delete Layer</option>
+            <option value="show-all">Show All Layers</option>
+            <option value="hide-others">Hide Other Layers</option>
+            <option value="merge-below">Merge Into Below</option>
+            <option value="flatten-all">Flatten All Layers</option>
             <option value="colors">Layer Colors</option>
           </select>
           <button onClick={onRunMobileLayerAction} disabled={layers.length === 0}>
@@ -329,6 +339,34 @@ export function LayerSection({
           </button>
           <button onClick={onDeleteLayer} disabled={!activeLayer || layers.length < 2}>
             Delete
+          </button>
+          <button
+            onClick={onShowAllLayers}
+            disabled={layers.length === 0}
+            title="Show every layer"
+          >
+            Show All
+          </button>
+          <button
+            onClick={onHideOtherLayers}
+            disabled={!activeLayer || layers.length < 2}
+            title="Hide every layer except the active layer"
+          >
+            Hide Others
+          </button>
+          <button
+            onClick={onMergeActiveLayerIntoBelow}
+            disabled={!activeLayer || layers.length < 2}
+            title="Merge the active layer into the layer directly below it"
+          >
+            Merge Below
+          </button>
+          <button
+            onClick={onFlattenAllLayers}
+            disabled={layers.length < 2}
+            title="Move all layer contents onto the active layer and remove the other layers"
+          >
+            Flatten All
           </button>
           <button onClick={onOpenLayerColorModal} disabled={layers.length === 0}>
             Colors

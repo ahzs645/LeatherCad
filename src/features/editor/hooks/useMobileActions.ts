@@ -13,6 +13,10 @@ type UseMobileActionsParams = {
   handleToggleLayerLock: () => void
   handleMoveLayer: (direction: -1 | 1) => void
   handleDeleteLayer: () => void
+  handleShowAllLayers: () => void
+  handleHideOtherLayers: () => void
+  handleMergeActiveLayerIntoBelow: () => void
+  handleFlattenAllLayers: () => void
   handleSaveJson: () => void
   handleSaveLcc: () => void
   handleLoadPreset: () => void
@@ -46,6 +50,10 @@ export function useMobileActions(params: UseMobileActionsParams) {
     handleToggleLayerLock,
     handleMoveLayer,
     handleDeleteLayer,
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
     handleSaveJson,
     handleSaveLcc,
     handleLoadPreset,
@@ -99,6 +107,26 @@ export function useMobileActions(params: UseMobileActionsParams) {
 
     if (mobileLayerAction === 'delete') {
       handleDeleteLayer()
+      return
+    }
+
+    if (mobileLayerAction === 'show-all') {
+      handleShowAllLayers()
+      return
+    }
+
+    if (mobileLayerAction === 'hide-others') {
+      handleHideOtherLayers()
+      return
+    }
+
+    if (mobileLayerAction === 'merge-below') {
+      handleMergeActiveLayerIntoBelow()
+      return
+    }
+
+    if (mobileLayerAction === 'flatten-all') {
+      handleFlattenAllLayers()
       return
     }
 

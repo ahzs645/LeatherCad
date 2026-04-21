@@ -240,6 +240,151 @@ export function useLayerActions(params: UseLayerActionsParams) {
     return layers[index + 1]
   }
 
+  const retargetLayerContents = (sourceLayerId: string, targetLayerId: string) => {
+    setShapes((previous) =>
+      previous.map((shape) =>
+        shape.layerId === sourceLayerId
+          ? {
+              ...shape,
+              layerId: targetLayerId,
+            }
+          : shape,
+      ),
+    )
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.layerId === sourceLayerId
+          ? {
+              ...group,
+              layerId: targetLayerId,
+            }
+          : group,
+      ),
+    )
+    setHardwareMarkers((previous) =>
+      previous.map((marker) =>
+        marker.layerId === sourceLayerId
+          ? {
+              ...marker,
+              layerId: targetLayerId,
+            }
+          : marker,
+      ),
+    )
+    setConstraints((previous) =>
+      previous.map((constraint) =>
+        constraint.type === 'edge-offset' && constraint.referenceLayerId === sourceLayerId
+          ? {
+              ...constraint,
+              referenceLayerId: targetLayerId,
+            }
+          : constraint,
+      ),
+    )
+  }
+
+  const handleShowAllLayers = () => {
+    if (layers.length === 0) {
+      setStatus('No layers to show')
+      return
+    }
+
+    setLayers((previous) => previous.map((layer) => ({ ...layer, visible: true })))
+    setStatus('All layers shown')
+  }
+
+  const handleHideOtherLayers = () => {
+    if (!activeLayer) {
+      setStatus('No active layer to isolate')
+      return
+    }
+
+    setLayers((previous) =>
+      previous.map((layer) => ({
+        ...layer,
+        visible: layer.id === activeLayer.id,
+      })),
+    )
+    setStatus(`Showing only "${activeLayer.name}"`)
+  }
+
+  const handleMergeActiveLayerIntoBelow = () => {
+    if (!activeLayer) {
+      setStatus('No active layer to merge')
+      return
+    }
+
+    if (layers.length < 2) {
+      setStatus('Need at least two layers to merge')
+      return
+    }
+
+    const targetLayer = findLayerBelow(activeLayer)
+    if (!targetLayer) {
+      setStatus('No layer below the active one to merge into')
+      return
+    }
+
+    if (activeLayer.locked || targetLayer.locked) {
+      setStatus('Unlock the active layer and layer below before merging')
+      return
+    }
+
+    retargetLayerContents(activeLayer.id, targetLayer.id)
+    setLayers((previous) => previous.filter((layer) => layer.id !== activeLayer.id))
+    setActiveLayerId(targetLayer.id)
+    setStatus(`Merged "${activeLayer.name}" into "${targetLayer.name}"`)
+  }
+
+  const handleFlattenAllLayers = () => {
+    if (layers.length < 2) {
+      setStatus('Only one layer is present')
+      return
+    }
+
+    const targetLayer = activeLayer ?? layers[0]
+    if (!targetLayer) {
+      setStatus('No layer to flatten into')
+      return
+    }
+
+    const lockedLayer = layers.find((layer) => layer.locked)
+    if (lockedLayer) {
+      setStatus(`Unlock "${lockedLayer.name}" before flattening layers`)
+      return
+    }
+
+    const targetLayerId = targetLayer.id
+    setShapes((previous) =>
+      previous.map((shape) =>
+        shape.layerId === targetLayerId ? shape : { ...shape, layerId: targetLayerId },
+      ),
+    )
+    setSketchGroups((previous) =>
+      previous.map((group) =>
+        group.layerId === targetLayerId ? group : { ...group, layerId: targetLayerId },
+      ),
+    )
+    setHardwareMarkers((previous) =>
+      previous.map((marker) =>
+        marker.layerId === targetLayerId ? marker : { ...marker, layerId: targetLayerId },
+      ),
+    )
+    setConstraints((previous) =>
+      previous.map((constraint) =>
+        constraint.type === 'edge-offset' && constraint.referenceLayerId !== targetLayerId
+          ? {
+              ...constraint,
+              referenceLayerId: targetLayerId,
+            }
+          : constraint,
+      ),
+    )
+    setLayers([{ ...targetLayer, visible: true, stackLevel: 0 }])
+    setActiveLayerId(targetLayerId)
+    setStatus(`Flattened ${layers.length} layers into "${targetLayer.name}"`)
+  }
+
   const handleDuplicateSelectedShapesOnBelowLayer = () => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more shapes to duplicate')
@@ -379,6 +524,10 @@ export function useLayerActions(params: UseLayerActionsParams) {
     handleToggleLayerLock,
     handleMoveLayer,
     handleDeleteLayer,
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,

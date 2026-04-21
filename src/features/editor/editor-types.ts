@@ -56,6 +56,10 @@ export type MobileLayerAction =
   | 'move-up'
   | 'move-down'
   | 'delete'
+  | 'show-all'
+  | 'hide-others'
+  | 'merge-below'
+  | 'flatten-all'
   | 'colors'
 
 export type MobileFileAction =

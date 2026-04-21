@@ -248,6 +248,11 @@ type BuildDocumentInspectorPropsInput = {
   handleAssignSelectedToActiveLeatherImageFill: () => void
   handleClearSelectedFromActiveLeatherImageFill: () => void
   layers: Layer[]
+  activeLayer: Layer | null
+  handleShowAllLayers: () => void
+  handleHideOtherLayers: () => void
+  handleMergeActiveLayerIntoBelow: () => void
+  handleFlattenAllLayers: () => void
   layerColorsById: Record<string, string>
   layerColorOverrides: Record<string, string>
   frontLayerColor: string
@@ -303,6 +308,11 @@ export function buildDocumentInspectorProps({
   handleAssignSelectedToActiveLeatherImageFill,
   handleClearSelectedFromActiveLeatherImageFill,
   layers,
+  activeLayer,
+  handleShowAllLayers,
+  handleHideOtherLayers,
+  handleMergeActiveLayerIntoBelow,
+  handleFlattenAllLayers,
   layerColorsById,
   layerColorOverrides,
   frontLayerColor,
@@ -363,6 +373,11 @@ export function buildDocumentInspectorProps({
     onAssignSelectedToActiveLeatherImageFill: handleAssignSelectedToActiveLeatherImageFill,
     onClearSelectedFromActiveLeatherImageFill: handleClearSelectedFromActiveLeatherImageFill,
     layers,
+    activeLayer,
+    onShowAllLayers: handleShowAllLayers,
+    onHideOtherLayers: handleHideOtherLayers,
+    onMergeActiveLayerIntoBelow: handleMergeActiveLayerIntoBelow,
+    onFlattenAllLayers: handleFlattenAllLayers,
     layerColorsById,
     layerColorOverrides,
     frontLayerColor,

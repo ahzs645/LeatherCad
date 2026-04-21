@@ -47,6 +47,7 @@ export type UseEditorTopbarPropsParams = {
   handleMakeSelectedLineVertical: () => void
   hasCustomRotationPivot: boolean
   hasCustomSnapPoint: boolean
+  handleLineSymmetry: () => void
   handleCenterLineBetweenSelection: () => void
   handleEditSelectedLineAnglePrompt: () => void
   handleDeleteDuplicatesSelection: () => void
@@ -105,6 +106,10 @@ export type UseEditorTopbarPropsParams = {
   handleToggleLayerLock: () => void
   handleMoveLayer: (direction: -1 | 1) => void
   handleDeleteLayer: () => void
+  handleShowAllLayers: () => void
+  handleHideOtherLayers: () => void
+  handleMergeActiveLayerIntoBelow: () => void
+  handleFlattenAllLayers: () => void
   setShowLayerColorModal: Dispatch<SetStateAction<boolean>>
   showFileSection: boolean
   handleRunMobileFileAction: () => void
@@ -160,6 +165,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleMakeSelectedLineVertical,
     hasCustomRotationPivot,
     hasCustomSnapPoint,
+    handleLineSymmetry,
     handleCenterLineBetweenSelection,
     handleEditSelectedLineAnglePrompt,
     handleDeleteDuplicatesSelection,
@@ -218,6 +224,10 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleToggleLayerLock,
     handleMoveLayer,
     handleDeleteLayer,
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
     setShowLayerColorModal,
     showFileSection,
     handleRunMobileFileAction,
@@ -426,6 +436,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onMakeSelectedLineVertical: handleMakeSelectedLineVertical,
     hasCustomRotationPivot,
     hasCustomSnapPoint,
+    onLineSymmetry: handleLineSymmetry,
     onCenterLineBetweenSelection: handleCenterLineBetweenSelection,
     onEditSelectedLineAngle: handleEditSelectedLineAnglePrompt,
     onDeleteDuplicates: handleDeleteDuplicatesSelection,
@@ -513,6 +524,10 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onMoveLayerUp: () => handleMoveLayer(-1),
     onMoveLayerDown: () => handleMoveLayer(1),
     onDeleteLayer: handleDeleteLayer,
+    onShowAllLayers: handleShowAllLayers,
+    onHideOtherLayers: handleHideOtherLayers,
+    onMergeActiveLayerIntoBelow: handleMergeActiveLayerIntoBelow,
+    onFlattenAllLayers: handleFlattenAllLayers,
     onOpenLayerColorModal: () => setShowLayerColorModal(true),
     showFileSection,
     mobileFileAction,

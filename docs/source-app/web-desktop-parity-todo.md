@@ -36,9 +36,67 @@ This list tracks the remaining parity work found by comparing the current web ap
   - Improve catalog item previews for imported source catalog files.
   - Keep template, catalog, and preset persistence paths explicit and independent.
 
+## Remaining Swarm Gap Backlog
+
+These items were added from the 2026-04-21 swarm review. Each item should be implemented as a narrow module or feature slice, not as a single desktop-parity mega-refactor.
+
+- [ ] `MDL-01` Mandala workflow parity.
+  - Add Mandala-specific intersection calculation and clear-intersection commands.
+  - Add set-new-center, relative-diameter, no-intersection, and circle-template controls.
+  - Wire `mirrorMandalaItem` and source-style help actions into the visible UI.
+  - Keep geometry generation in `ops/mandala-ops.ts`; keep modal state in the Mandala UI module; keep controller wiring thin.
+
+- [ ] `CAT-01` Catalog editor and catalog export.
+  - Add dedicated shop, group, and item editing flows for name, URL, memo, category, unit price, and unit label.
+  - Add item image import with DPI, scale, ruler length, rotation, square/max/reset controls.
+  - Add catalog export matching the imported `.ctlg` structure where browser-safe.
+  - Keep catalog parsing/serialization under `templates/catalog-repository.ts` or a sibling serializer module; keep template repository behavior separate.
+
+- [ ] `GEO-01` Move/copy by distance dialog.
+  - Replace prompt-only move/copy by distance with a dedicated reusable form.
+  - Support X/Y fields, reset values, and copy-instead-of-move toggle.
+  - Keep transform math in selection/geometry ops and expose the dialog as UI only.
+
+- [ ] `GEO-02` Desktop-depth shape size editing.
+  - Extend shape size editing beyond width/height to line length, line angle, arc radius/angle, ellipse X length, text radius, and Mandala rotation where applicable.
+  - Reuse existing line/shape editing helpers instead of embedding geometry math in the modal.
+  - Preserve the current simple width/height flow as the default path.
+
+- [ ] `GEO-03` Expose line symmetry.
+  - Wire the existing `handleLineSymmetry` operation into the topbar/workbench command surfaces.
+  - Add a small command path for choosing the symmetry axis when the selection is ambiguous.
+  - Add focused tests around the operation if current coverage does not already protect it.
+
+- [ ] `LAY-01` Layer batch commands.
+  - Add Flatten All Layers, Merge Into Below, Hide Other Layers, and Show All Layers.
+  - Keep layer mutation helpers in `useLayerActions` or a dedicated layer ops module; avoid folding this into unrelated selection logic.
+  - Update UI surfaces in small command additions, with status messages and locked/last-layer guards.
+
+- [ ] `SVG-01` User-facing SVG import options.
+  - Add import width/scale controls before committing imported geometry.
+  - Add grouped-vs-exploded import mode where the existing parser can preserve useful grouping metadata.
+  - Keep parsing in `io/io-svg.ts` and option/UI orchestration outside the parser.
+
+- [ ] `STX-01` Full pricking-iron toolbox surface.
+  - Add explicit blade count, preset name, group CRUD, group delete guards, and group up/down ordering.
+  - Keep builtin/system presets protected from destructive edits.
+  - Reuse `ops/pricking-iron-ops.ts` for catalog rules and persistence; keep `StitchHolePanel` from becoming a monolithic editor by extracting toolbox subcomponents.
+
+- [ ] `PDF-01` PDF/tracing viewer depth.
+  - Add a dedicated PDF preview/page picker surface when importing PDF tracing assets.
+  - Keep PDF rasterization in tracing/PDF ops and avoid mixing PDF viewer state with generic tracing overlay state.
+  - Track what PDFium desktop capabilities are not browser-feasible so parity decisions stay explicit.
+
+- [ ] `PRN-01` Print preview desktop controls.
+  - Add browser-appropriate page add/remove planning controls and active DPI display.
+  - Keep native printer setup/execute concepts out of shared CAD logic unless they have a browser equivalent.
+  - Preserve the existing print tiling planner as the domain module and wire new controls through it.
+
 ## Modularity Guardrails
 
 - New work should land in focused modules or helpers before being wired into the screen controller.
 - Import/export behavior belongs under `src/features/editor/io/` and `src/features/editor/modules/import-export/`.
 - UI state and domain state should not be expanded through one-off controller state unless there is no existing provider/module owner.
 - Add focused tests near the changed adapter or operation layer before broad UI wiring.
+- Prefer small feature-owned components and operation helpers over expanding `EditorApp`, `useEditorScreenController`, or a single catch-all modal.
+- When a desktop form maps to multiple domains, split it by domain first, then compose it in UI.

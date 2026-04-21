@@ -99,6 +99,7 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
     case 'extend-trim':
       return 'trim'
     case 'mirror-shapes':
+    case 'line-symmetry':
       return 'mirror'
     case 'bezier-cp-symmetric':
       return 'bezier-cp'

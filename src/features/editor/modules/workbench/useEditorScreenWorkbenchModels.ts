@@ -264,6 +264,7 @@ export function useEditorScreenWorkbenchModels({
     handleConvertArcToBezier,
     handleExtendOrTrimLines,
     handleMirrorShapes,
+    handleLineSymmetry,
     handleMakeBezierCpSymmetric,
     handleToggleBezierOffsetLines,
   } = geometryActions
@@ -344,6 +345,7 @@ export function useEditorScreenWorkbenchModels({
     handleConvertArcToBezier,
     handleExtendOrTrimLines,
     handleMirrorShapes,
+    handleLineSymmetry,
     handleMakeBezierCpSymmetric,
     handleToggleBezierOffsetLines,
     setShowChangeShapeSizeModal,

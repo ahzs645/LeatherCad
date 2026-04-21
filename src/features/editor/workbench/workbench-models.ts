@@ -335,6 +335,7 @@ export function buildRibbonModel(params: {
           { id: 'arc-to-bezier', label: 'Arc→Bez', icon: 'convert', disabled: selectedShapeCount === 0 },
           { id: 'extend-trim', label: 'Trim', icon: 'trim', disabled: selectedShapeCount < 2 },
           { id: 'mirror-shapes', label: 'Mirror', icon: 'mirror', disabled: selectedShapeCount === 0 },
+          { id: 'line-symmetry', label: 'Line Sym', icon: 'mirror', disabled: selectedShapeCount === 0 },
           { id: 'bezier-cp-symmetric', label: 'Symm CP', icon: 'bezier-cp', disabled: selectedShapeCount < 2 },
           { id: 'toggle-bezier-lines', label: 'Offset', icon: 'bezier-cp' },
         ],

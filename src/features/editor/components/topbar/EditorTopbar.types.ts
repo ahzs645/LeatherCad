@@ -89,6 +89,7 @@ export type EditorTopbarProps = {
   onMakeSelectedLineVertical: () => void
   hasCustomRotationPivot: boolean
   hasCustomSnapPoint: boolean
+  onLineSymmetry: () => void
   onCenterLineBetweenSelection: () => void
   onEditSelectedLineAngle: () => void
   onDeleteDuplicates: () => void
@@ -172,6 +173,10 @@ export type EditorTopbarProps = {
   onMoveLayerUp: () => void
   onMoveLayerDown: () => void
   onDeleteLayer: () => void
+  onShowAllLayers: () => void
+  onHideOtherLayers: () => void
+  onMergeActiveLayerIntoBelow: () => void
+  onFlattenAllLayers: () => void
   onOpenLayerColorModal: () => void
   showFileSection: boolean
   mobileFileAction: MobileFileAction

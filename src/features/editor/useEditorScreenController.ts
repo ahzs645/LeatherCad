@@ -815,6 +815,10 @@ export function useEditorScreenController() {
     handleToggleLayerLock,
     handleMoveLayer,
     handleDeleteLayer,
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
   } = layerActions
 
   const lineTypeActions = useLineTypeActions({
@@ -1017,6 +1021,10 @@ export function useEditorScreenController() {
     handleToggleLayerLock,
     handleMoveLayer,
     handleDeleteLayer,
+    handleShowAllLayers,
+    handleHideOtherLayers,
+    handleMergeActiveLayerIntoBelow,
+    handleFlattenAllLayers,
     handleSaveJson,
     handleSaveLcc,
     handleLoadPreset,

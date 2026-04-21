@@ -90,6 +90,7 @@ type UseEditorWorkbenchControllerParams = {
   handleConvertArcToBezier: () => void
   handleExtendOrTrimLines: () => void
   handleMirrorShapes: () => void
+  handleLineSymmetry: () => void
   handleMakeBezierCpSymmetric: () => void
   handleToggleBezierOffsetLines: () => void
   setShowChangeShapeSizeModal: React.Dispatch<React.SetStateAction<boolean>>
@@ -178,6 +179,7 @@ export function useEditorWorkbenchController({
   handleConvertArcToBezier,
   handleExtendOrTrimLines,
   handleMirrorShapes,
+  handleLineSymmetry,
   handleMakeBezierCpSymmetric,
   handleToggleBezierOffsetLines,
   setShowChangeShapeSizeModal,
@@ -391,6 +393,9 @@ export function useEditorWorkbenchController({
         break
       case 'mirror-shapes':
         handleMirrorShapes()
+        break
+      case 'line-symmetry':
+        handleLineSymmetry()
         break
       case 'bezier-cp-symmetric':
         handleMakeBezierCpSymmetric()
