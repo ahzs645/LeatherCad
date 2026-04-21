@@ -82,6 +82,7 @@ export function parseStitchHole(value: unknown): StitchHole | null {
   const candidate = value as {
     id?: unknown
     shapeId?: unknown
+    chainId?: unknown
     point?: unknown
     angleDeg?: unknown
     holeType?: unknown
@@ -110,6 +111,9 @@ export function parseStitchHole(value: unknown): StitchHole | null {
   return {
     id: typeof candidate.id === 'string' && candidate.id.length > 0 ? candidate.id : uid(),
     shapeId: candidate.shapeId,
+    chainId: typeof candidate.chainId === 'string' && candidate.chainId.trim().length > 0
+      ? candidate.chainId.trim()
+      : undefined,
     point: {
       x: (candidate.point as { x: number }).x,
       y: (candidate.point as { y: number }).y,
@@ -321,9 +325,10 @@ function pointAtDistance(points: Point[], lengths: number[], distanceTarget: num
 export function normalizeStitchHoleSequences(stitchHoles: StitchHole[]) {
   const byShape = new Map<string, StitchHole[]>()
   for (const stitchHole of stitchHoles) {
-    const entries = byShape.get(stitchHole.shapeId) ?? []
+    const groupKey = stitchHole.chainId ? `chain:${stitchHole.chainId}` : `shape:${stitchHole.shapeId}`
+    const entries = byShape.get(groupKey) ?? []
     entries.push(stitchHole)
-    byShape.set(stitchHole.shapeId, entries)
+    byShape.set(groupKey, entries)
   }
 
   const normalized: StitchHole[] = []

@@ -68,6 +68,7 @@ export type CommonRebuildParams = {
 
 export type RebuildAssembledModelParams = CommonRebuildParams & {
   assembledGroup: Group
+  finalProductGroup: Group
   staticSideGroup: Group
   foldingSideGroup: Group
   foldGuideGroup: Group
@@ -80,6 +81,7 @@ export type RebuildFoldModelParams = CommonRebuildParams & {
   foldingSideGroup: Group
   foldGuideGroup: Group
   assembledGroup: Group
+  finalProductGroup: Group
   avatarGroup: Group
   foldingPivot: Group
   modelRoot: Group

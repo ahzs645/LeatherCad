@@ -6,6 +6,7 @@ import {
   generateFixedPitchStitchHoles,
   getTerminalStitchHoleIdForShape,
   normalizeStitchHoleSequences,
+  parseStitchHole,
   setTerminalStitchHole,
 } from './stitch-hole-ops'
 
@@ -45,6 +46,21 @@ const stitchDefaults: StitchHoleDefaults = {
 }
 
 describe('findNearestStitchAnchor', () => {
+  it('preserves stitch chain ids from saved documents', () => {
+    const parsed = parseStitchHole({
+      id: 'hole-1',
+      shapeId: 'shape-1',
+      chainId: 'chain-a',
+      point: { x: 2, y: 4 },
+      angleDeg: 90,
+      holeType: 'round',
+      sequence: 2,
+    })
+
+    expect(parsed?.chainId).toBe('chain-a')
+    expect(parsed?.sequence).toBe(2)
+  })
+
   it('falls back to non-stitch geometry when enabled', () => {
     const anchor = findNearestStitchAnchor(
       { x: 40, y: 2 },
@@ -143,5 +159,17 @@ describe('terminal stitch markers', () => {
     expect(normalized.map((hole) => hole.sequence)).toEqual([0, 1])
     expect(normalized.filter((hole) => hole.endHole === true)).toHaveLength(1)
     expect(normalized.find((hole) => hole.endHole === true)?.id).toBe('h1')
+  })
+
+  it('normalizes imported LCC stitch holes by chain id across marker shapes', () => {
+    const holes = [
+      { id: 'h2', shapeId: 'shape-2', chainId: 'chain-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1 },
+      { id: 'h1', shapeId: 'shape-1', chainId: 'chain-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0 },
+    ]
+
+    const normalized = normalizeStitchHoleSequences(holes)
+
+    expect(normalized.find((hole) => hole.id === 'h1')?.sequence).toBe(0)
+    expect(normalized.find((hole) => hole.id === 'h2')?.sequence).toBe(1)
   })
 })

@@ -81,6 +81,7 @@ export function WorkbenchThreePreviewInspector({
 }: WorkbenchThreePreviewInspectorProps) {
   const {
     threePreviewSettings,
+    finalProductSolveResult,
     onSetThreePreviewSettings,
     avatars,
     activeAvatarId,
@@ -128,13 +129,16 @@ export function WorkbenchThreePreviewInspector({
               onSetThreePreviewSettings((previous) => ({
                 ...previous,
                 mode:
-                  event.target.value === 'assembled' || event.target.value === 'avatar'
+                  event.target.value === 'assembled' ||
+                  event.target.value === 'avatar' ||
+                  event.target.value === 'final'
                     ? event.target.value
                     : 'fold',
               }))
             }
           >
             <option value="fold">Fold</option>
+            <option value="final">Final Product</option>
             <option value="assembled">Assembled</option>
             <option value="avatar">Avatar</option>
           </select>
@@ -215,6 +219,30 @@ export function WorkbenchThreePreviewInspector({
         </div>
       </div>
 
+      {threePreviewSettings.mode === 'final' && (
+        <div className="control-block">
+          <h3>Final Solve</h3>
+          {finalProductSolveResult ? (
+            <>
+              <p className="hint">
+                {`${finalProductSolveResult.converged ? 'Converged' : 'Partial'} | pairs ${finalProductSolveResult.stitchPairs.length} | unpaired ${finalProductSolveResult.unpairedChainCount}`}
+              </p>
+              <p className="hint">
+                {`RMS stitch ${finalProductSolveResult.rmsStitchErrorMm.toFixed(2)}mm | max hinge ${finalProductSolveResult.maxHingeErrorDeg.toFixed(1)}deg | collisions ${finalProductSolveResult.collisionWarningCount}`}
+              </p>
+              <p className="hint">{`Iterations ${finalProductSolveResult.iterations}`}</p>
+              {finalProductSolveResult.diagnostics.slice(0, 5).map((diagnostic) => (
+                <p key={diagnostic.id} className="hint">
+                  {`${diagnostic.severity.toUpperCase()}: ${diagnostic.message}`}
+                </p>
+              ))}
+            </>
+          ) : (
+            <p className="hint">Final Product mode will solve after geometry loads.</p>
+          )}
+        </div>
+      )}
+
       <div className="control-block">
         <h3>3D Layer Visibility</h3>
         <p className="hint">{`Showing ${visibleLayerCountIn3d} of ${layers.length} layers in 3D.`}</p>
@@ -258,8 +286,8 @@ export function WorkbenchThreePreviewInspector({
 
       <div className="control-block">
         <h3>Bend Controls</h3>
-        {threePreviewSettings.mode !== 'fold' ? (
-          <p className="hint">Fold controls are only active in Fold mode.</p>
+        {threePreviewSettings.mode !== 'fold' && threePreviewSettings.mode !== 'final' ? (
+          <p className="hint">Fold controls are active in Fold and Final Product modes.</p>
         ) : foldLines.length === 0 ? (
           <p className="hint">Use the Fold tool in 2D canvas to assign bend lines.</p>
         ) : (

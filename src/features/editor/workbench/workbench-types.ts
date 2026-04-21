@@ -76,6 +76,7 @@ export type DockLayoutState = {
   inspectorWidth: number
   peekWidth: number
   activeInspectorTab: WorkbenchInspectorTab
+  inspectorOpen: boolean
 }
 
 export type DocumentBrowserNodeKind =

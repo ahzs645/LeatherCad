@@ -43,6 +43,7 @@ function createPreviewHarness() {
       shapesIn3dView: [{ id: 'shape-1', layerId: 'layer-1' }],
       visiblePatternPieces: [],
       invalidPatternPieces: [],
+      finalProductSolveResult: null,
       seamConnections: [],
       foldLines: [],
       threePreviewSettings,
@@ -70,6 +71,7 @@ function createPreviewHarness() {
       applyPreset: () => undefined,
       setLeatherColor: () => undefined,
       enableShadows: () => undefined,
+      rotateLeatherTexture: () => undefined,
       selectedClosedShapeIds: [],
       shapes: [{ id: 'shape-1', layerId: 'layer-1' }],
       applyTextureToSelection: async () => undefined,
@@ -97,6 +99,8 @@ describe('WorkbenchThreePreview', () => {
     expect(lastRender.container.textContent).toContain('Mode fold')
     changeValue(lastRender.container.querySelector('select'), 'assembled')
     expect(lastRender.container.textContent).toContain('Mode assembled')
+    changeValue(lastRender.container.querySelector('select'), 'final')
+    expect(lastRender.container.textContent).toContain('Mode final')
 
     const colorInputs = lastRender.container.querySelectorAll('input[type="color"]')
     changeValue(colorInputs[colorInputs.length - 1] as HTMLInputElement, '#112233')

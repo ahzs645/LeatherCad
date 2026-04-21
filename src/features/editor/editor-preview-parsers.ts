@@ -2,6 +2,10 @@ import { clamp } from './cad/cad-geometry'
 import type { AvatarSpec, PiecePlacement3D, ThreePreviewSettings } from './cad/cad-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from './editor-constants'
 
+function parseThreePreviewMode(value: unknown) {
+  return value === 'assembled' || value === 'avatar' || value === 'final' ? value : 'fold'
+}
+
 export function sanitizePiecePlacement3d(value: PiecePlacement3D): PiecePlacement3D {
   const numberOrZero = (candidate: unknown) => (typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : 0)
   return {
@@ -48,7 +52,7 @@ export function parsePiecePlacement3d(value: unknown): PiecePlacement3D | null {
 
 export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): ThreePreviewSettings {
   return {
-    mode: value.mode === 'assembled' || value.mode === 'avatar' ? value.mode : 'fold',
+    mode: parseThreePreviewMode(value.mode),
     explodedFactor:
       typeof value.explodedFactor === 'number' && Number.isFinite(value.explodedFactor)
         ? clamp(value.explodedFactor, 0, 3)
@@ -71,7 +75,7 @@ export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings 
 
   const candidate = value as Partial<ThreePreviewSettings>
   return sanitizeThreePreviewSettings({
-    mode: candidate.mode === 'assembled' || candidate.mode === 'avatar' ? candidate.mode : 'fold',
+    mode: parseThreePreviewMode(candidate.mode),
     explodedFactor:
       typeof candidate.explodedFactor === 'number' ? candidate.explodedFactor : DEFAULT_THREE_PREVIEW_SETTINGS.explodedFactor,
     thicknessMm:

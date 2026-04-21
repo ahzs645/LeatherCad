@@ -174,6 +174,7 @@ export type StitchHoleDefaults = {
 export type StitchHole = {
   id: string
   shapeId: string
+  chainId?: string
   point: Point
   angleDeg: number
   holeType: StitchHoleType
@@ -254,7 +255,7 @@ export type SeamConnection = {
   kind: SeamConnectionKind
 }
 
-export type ThreePreviewMode = 'fold' | 'assembled' | 'avatar'
+export type ThreePreviewMode = 'fold' | 'assembled' | 'avatar' | 'final'
 
 export type AvatarSpec = {
   id: string

@@ -18,6 +18,8 @@ type BuildWorkbenchPropsParams = {
   showPeek: boolean
   browserWidth: number
   inspectorWidth: number
+  inspectorOpen: boolean
+  inspectorRestoreWidth: number
   peekWidth: number
   splitterWidth: number
   toolRailWidth: number
@@ -33,6 +35,7 @@ type BuildWorkbenchPropsParams = {
   onStartBrowserResize: PointerEventHandler<HTMLDivElement>
   onStartPeekResize: PointerEventHandler<HTMLDivElement>
   onStartInspectorResize: PointerEventHandler<HTMLDivElement>
+  onToggleInspector: () => void
   zoomScale: number
   displayUnit: DisplayUnit
   activeLayer: Layer | null
@@ -48,6 +51,8 @@ export function buildWorkbenchProps({
   showPeek,
   browserWidth,
   inspectorWidth,
+  inspectorOpen,
+  inspectorRestoreWidth,
   peekWidth,
   splitterWidth,
   toolRailWidth,
@@ -63,6 +68,7 @@ export function buildWorkbenchProps({
   onStartBrowserResize,
   onStartPeekResize,
   onStartInspectorResize,
+  onToggleInspector,
   zoomScale,
   displayUnit,
   activeLayer,
@@ -80,6 +86,8 @@ export function buildWorkbenchProps({
     showPeek,
     browserWidth,
     inspectorWidth,
+    inspectorOpen,
+    inspectorRestoreWidth,
     peekWidth,
     splitterWidth,
     toolRailWidth,
@@ -127,6 +135,7 @@ export function buildWorkbenchProps({
     onStartBrowserResize,
     onStartPeekResize,
     onStartInspectorResize,
+    onToggleInspector,
     toolLabel: toolLabel(tool),
     selectionText: controller.selectionText,
     zoomPercent: Math.round(zoomScale * 100),

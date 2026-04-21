@@ -15,6 +15,7 @@ const MAX_PEEK_WIDTH = 420
 const MIN_MAIN_WIDTH = 460
 const TOOL_RAIL_WIDTH = 58
 const SPLITTER_WIDTH = 10
+const INSPECTOR_RESTORE_WIDTH = 44
 const AUTO_HIDE_PEEK_BREAKPOINT = 1440
 
 const DEFAULT_LAYOUT: DockLayoutState = {
@@ -22,6 +23,7 @@ const DEFAULT_LAYOUT: DockLayoutState = {
   inspectorWidth: 340,
   peekWidth: 360,
   activeInspectorTab: 'inspect',
+  inspectorOpen: true,
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -48,6 +50,7 @@ function readStoredLayout(): DockLayoutState {
         parsed.activeInspectorTab === 'document'
           ? parsed.activeInspectorTab
           : 'inspect',
+      inspectorOpen: typeof parsed.inspectorOpen === 'boolean' ? parsed.inspectorOpen : DEFAULT_LAYOUT.inspectorOpen,
     }
   } catch {
     return DEFAULT_LAYOUT
@@ -62,6 +65,7 @@ export function clampDockLayoutState(
   let browserWidth = clamp(layout.browserWidth, MIN_BROWSER_WIDTH, MAX_BROWSER_WIDTH)
   let inspectorWidth = clamp(layout.inspectorWidth, MIN_INSPECTOR_WIDTH, MAX_INSPECTOR_WIDTH)
   let peekWidth = clamp(layout.peekWidth, MIN_PEEK_WIDTH, MAX_PEEK_WIDTH)
+  const showInspector = layout.inspectorOpen
 
   if (shellWidth <= 0) {
     return {
@@ -72,10 +76,15 @@ export function clampDockLayoutState(
     }
   }
 
-  const splitterCount = showPeek ? 3 : 2
-  const maxPanelWidth = shellWidth - TOOL_RAIL_WIDTH - splitterCount * SPLITTER_WIDTH - MIN_MAIN_WIDTH
+  const splitterCount = (showPeek ? 2 : 1) + (showInspector ? 1 : 0)
+  const maxPanelWidth =
+    shellWidth -
+    TOOL_RAIL_WIDTH -
+    splitterCount * SPLITTER_WIDTH -
+    (showInspector ? 0 : INSPECTOR_RESTORE_WIDTH) -
+    MIN_MAIN_WIDTH
   if (maxPanelWidth > 0) {
-    let totalPanelWidth = browserWidth + inspectorWidth + (showPeek ? peekWidth : 0)
+    let totalPanelWidth = browserWidth + (showInspector ? inspectorWidth : 0) + (showPeek ? peekWidth : 0)
     let overflow = totalPanelWidth - maxPanelWidth
 
     if (overflow > 0 && showPeek) {
@@ -83,7 +92,7 @@ export function clampDockLayoutState(
       overflow -= peekWidth - nextPeekWidth
       peekWidth = nextPeekWidth
     }
-    if (overflow > 0) {
+    if (overflow > 0 && showInspector) {
       const nextInspectorWidth = Math.max(MIN_INSPECTOR_WIDTH, inspectorWidth - overflow)
       overflow -= inspectorWidth - nextInspectorWidth
       inspectorWidth = nextInspectorWidth
@@ -93,9 +102,9 @@ export function clampDockLayoutState(
       overflow -= browserWidth - nextBrowserWidth
       browserWidth = nextBrowserWidth
     }
-    totalPanelWidth = browserWidth + inspectorWidth + (showPeek ? peekWidth : 0)
-    if (totalPanelWidth > maxPanelWidth) {
-      peekWidth = showPeek ? Math.max(MIN_PEEK_WIDTH, maxPanelWidth - browserWidth - inspectorWidth) : peekWidth
+    totalPanelWidth = browserWidth + (showInspector ? inspectorWidth : 0) + (showPeek ? peekWidth : 0)
+    if (totalPanelWidth > maxPanelWidth && showPeek) {
+      peekWidth = Math.max(MIN_PEEK_WIDTH, maxPanelWidth - browserWidth - (showInspector ? inspectorWidth : 0))
     }
   }
 
@@ -237,6 +246,14 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
     setDockLayout((previous) => ({
       ...previous,
       activeInspectorTab: tab,
+      inspectorOpen: true,
+    }))
+  }, [])
+
+  const toggleInspector = useCallback(() => {
+    setDockLayout((previous) => ({
+      ...previous,
+      inspectorOpen: !previous.inspectorOpen,
     }))
   }, [])
 
@@ -247,10 +264,12 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
     effectiveSecondaryPreviewMode,
     effectiveLayout,
     setActiveInspectorTab,
+    toggleInspector,
     handleBrowserResizeStart,
     handlePeekResizeStart,
     handleInspectorResizeStart,
     splitterWidth: SPLITTER_WIDTH,
     toolRailWidth: TOOL_RAIL_WIDTH,
+    inspectorRestoreWidth: INSPECTOR_RESTORE_WIDTH,
   }
 }

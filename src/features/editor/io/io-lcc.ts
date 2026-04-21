@@ -14,6 +14,7 @@ import type {
   Backdrop,
   BezierShape,
   DocFile,
+  FoldLine,
   Layer,
   LineShape,
   LineType,
@@ -36,6 +37,14 @@ import {
 import { rebuildImportedDimensions } from './lcc/lcc-dimensions'
 import { ellipseArcToShapes, ellipseToArcShapes } from './lcc/lcc-ellipse'
 import { rebuildStitchSequences } from './lcc/lcc-stitch'
+import {
+  DEFAULT_FOLD_CLEARANCE_MM,
+  DEFAULT_FOLD_DIRECTION,
+  DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+  DEFAULT_FOLD_RADIUS_MM,
+  DEFAULT_FOLD_STIFFNESS,
+  DEFAULT_FOLD_THICKNESS_MM,
+} from '../ops/fold-line-ops'
 
 // ---------------------------------------------------------------------------
 // LCC raw types
@@ -51,6 +60,7 @@ export type LccImportResult = {
   summary: {
     shapeCount: number
     stitchHoleCount: number
+    foldCount: number
     layerCount: number
     skippedDimensionShapes: number
     ellipseCount: number
@@ -136,6 +146,7 @@ export function importLccDocument(raw: string): LccImportResult {
   // Build editable shapes and stitch holes; source dimension primitives are
   // collected separately and reconstructed as logical dimension overlays.
   const shapes: Shape[] = []
+  const foldLines: FoldLine[] = []
   const stitchHoles: StitchHole[] = []
   const rawDimensionSegments: RawDimensionSegment[] = []
   const rawDimensionTexts: RawDimensionText[] = []
@@ -171,6 +182,8 @@ export function importLccDocument(raw: string): LccImportResult {
 
         const hasArrowStart = lccShape.arst === '-1'
         const hasArrowEnd = lccShape.ared === '-1'
+        const start = pt(lccShape.sp)
+        const end = pt(lccShape.ep)
 
         // Check for bezier control points – when bz1/bz2 are non-zero,
         // the LCC LINE is actually a cubic bezier. We approximate as a
@@ -180,6 +193,23 @@ export function importLccDocument(raw: string): LccImportResult {
         const hasBezier =
           (bz1[0] !== 0 || bz1[1] !== 0) || (bz2[0] !== 0 || bz2[1] !== 0)
 
+        if (!hasBezier && layerRole(parseInt(lccLayerId, 10)) === 'fold') {
+          foldLines.push({
+            id: uid(),
+            name: lccShape.nm?.trim() || `Crease ${foldLines.length + 1}`,
+            start,
+            end,
+            angleDeg: 90,
+            maxAngleDeg: 180,
+            direction: DEFAULT_FOLD_DIRECTION,
+            radiusMm: DEFAULT_FOLD_RADIUS_MM,
+            thicknessMm: parseLccFloat(lccShape.thk) || DEFAULT_FOLD_THICKNESS_MM,
+            neutralAxisRatio: DEFAULT_FOLD_NEUTRAL_AXIS_RATIO,
+            stiffness: DEFAULT_FOLD_STIFFNESS,
+            clearanceMm: DEFAULT_FOLD_CLEARANCE_MM,
+          })
+        }
+
         if (hasBezier) {
           const bezier: BezierShape = {
             id: uid(),
@@ -188,12 +218,12 @@ export function importLccDocument(raw: string): LccImportResult {
             lineTypeId,
             arrowStart: hasArrowStart || undefined,
             arrowEnd: hasArrowEnd || undefined,
-            start: pt(lccShape.sp),
+            start,
             control: {
               x: (bz1[0] + bz2[0]) / 2,
               y: (bz1[1] + bz2[1]) / 2,
             },
-            end: pt(lccShape.ep),
+            end,
           }
           shapes.push(bezier)
         } else {
@@ -204,8 +234,8 @@ export function importLccDocument(raw: string): LccImportResult {
             lineTypeId,
             arrowStart: hasArrowStart || undefined,
             arrowEnd: hasArrowEnd || undefined,
-            start: pt(lccShape.sp),
-            end: pt(lccShape.ep),
+            start,
+            end,
           }
           shapes.push(line)
         }
@@ -426,7 +456,7 @@ export function importLccDocument(raw: string): LccImportResult {
     lineTypes,
     activeLineTypeId,
     objects: shapes,
-    foldLines: [],
+    foldLines,
     stitchHoles,
     backdrops: nextBackdrops.length > 0 ? nextBackdrops : undefined,
     dimensionLines: dimensionLines.length > 0 ? dimensionLines : undefined,
@@ -440,6 +470,7 @@ export function importLccDocument(raw: string): LccImportResult {
     summary: {
       shapeCount: shapes.length,
       stitchHoleCount: stitchHoles.length,
+      foldCount: foldLines.length,
       layerCount: layers.length,
       skippedDimensionShapes,
       ellipseCount,

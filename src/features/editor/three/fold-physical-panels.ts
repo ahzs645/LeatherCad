@@ -153,6 +153,7 @@ export function buildFoldLayerSlices(layers: Layer[], shapes: Shape[], lineTypes
 
 export function renderPhysicalPanelsForLayer({
   layerSlice,
+  physicalRegionShapes,
   lineTypeById,
   outlinePolygons,
   transform,
@@ -169,6 +170,7 @@ export function renderPhysicalPanelsForLayer({
   foldManager,
 }: {
   layerSlice: FoldLayerSlice
+  physicalRegionShapes?: Shape[]
   lineTypeById: Map<string, LineType>
   outlinePolygons: OutlinePolygon[]
   transform: ModelTransform
@@ -192,12 +194,13 @@ export function renderPhysicalPanelsForLayer({
   const staticMaterial = hasTexturedShape ? materials.leftTextureMaterial : materials.leftMaterial
   const foldingMaterial = hasTexturedShape ? materials.rightTextureMaterial : materials.rightMaterial
 
-  const cutShapes = layerSlice.shapes.filter((shape) => isPhysicalCutShape(shape, lineTypeById))
+  const regionShapes = physicalRegionShapes ?? layerSlice.shapes
+  const cutShapes = regionShapes.filter((shape) => isPhysicalCutShape(shape, lineTypeById))
   const layerOutlines = outlinePolygons.filter((outline) => outline.layerId === layerSlice.layerId)
   let panelRegions: Array<{ outer: Vector2[]; holes: Vector2[][] }>
   let layerProjectedBounds: Bounds2
 
-  const fallbackLayerBounds = buildBoundsFromShapes(cutShapes) ?? buildBoundsFromShapes(layerSlice.shapes) ?? documentBounds
+  const fallbackLayerBounds = buildBoundsFromShapes(cutShapes) ?? buildBoundsFromShapes(regionShapes) ?? documentBounds
   const fallbackLayerArea = Math.max(
     0,
     (fallbackLayerBounds.maxX - fallbackLayerBounds.minX) * (fallbackLayerBounds.maxY - fallbackLayerBounds.minY),
@@ -213,7 +216,7 @@ export function renderPhysicalPanelsForLayer({
     ? []
     : buildPhysicalLayerRegions({
         layerId: layerSlice.layerId,
-        shapes: layerSlice.shapes,
+        shapes: regionShapes,
         lineTypeById,
         closedCutOutlines: layerOutlines,
       })

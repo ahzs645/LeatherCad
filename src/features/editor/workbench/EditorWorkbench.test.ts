@@ -25,6 +25,7 @@ function createHarnessElement() {
     const [secondaryPreviewMode, setSecondaryPreviewMode] = useState<SecondaryPreviewMode>('3d-peek')
     const [activeRibbonTab, setActiveRibbonTab] = useState<WorkbenchRibbonTab>('draft')
     const [activeInspectorTab, setActiveInspectorTab] = useState<WorkbenchInspectorTab>('inspect')
+    const [inspectorOpen, setInspectorOpen] = useState(true)
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
     const [selectionText, setSelectionText] = useState('No selection')
     const [lastCommand, setLastCommand] = useState('')
@@ -125,6 +126,8 @@ function createHarnessElement() {
         showPeek: secondaryPreviewMode !== 'hidden',
         browserWidth: 260,
         inspectorWidth: 340,
+        inspectorOpen,
+        inspectorRestoreWidth: 44,
         peekWidth: 360,
         splitterWidth: 10,
         toolRailWidth: 58,
@@ -195,6 +198,7 @@ function createHarnessElement() {
           setResizeCounts((previous) => ({ ...previous, peek: previous.peek + 1 })),
         onStartInspectorResize: () =>
           setResizeCounts((previous) => ({ ...previous, inspector: previous.inspector + 1 })),
+        onToggleInspector: () => setInspectorOpen((previous) => !previous),
         toolLabel: 'Pan',
         selectionText,
         zoomPercent: 100,
@@ -249,5 +253,21 @@ describe('EditorWorkbench', () => {
 
     click(getByText<HTMLButtonElement>(lastRender.container, 'button', 'Front Layer'))
     expect(lastRender.container.querySelector('[data-testid="inspector-tab-document"]')?.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('hides and restores the inspector dock without resetting the active tab', () => {
+    lastRender = renderForTest(createHarnessElement())
+
+    click(lastRender.container.querySelector('[data-testid="browser-node-piece:piece-1"]'))
+    expect(lastRender.container.querySelector('[data-testid="inspector-tab-piece"]')?.getAttribute('aria-selected')).toBe('true')
+
+    click(lastRender.container.querySelector('[data-testid="workbench-inspector-hide"]'))
+    expect(lastRender.container.querySelector('.workbench-inspector-dock')).toBeNull()
+    expect(lastRender.container.querySelector('[data-testid="workbench-inspector-show"]')).not.toBeNull()
+    expect(lastRender.container.querySelector('[data-testid="inspector-splitter"]')).toBeNull()
+
+    click(lastRender.container.querySelector('[data-testid="workbench-inspector-show"]'))
+    expect(lastRender.container.querySelector('.workbench-inspector-dock')).not.toBeNull()
+    expect(lastRender.container.querySelector('[data-testid="inspector-tab-piece"]')?.getAttribute('aria-selected')).toBe('true')
   })
 })

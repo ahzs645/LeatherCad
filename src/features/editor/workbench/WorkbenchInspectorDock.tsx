@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { WorkbenchInspectorTab } from './workbench-types'
+import { WorkbenchIcon } from './workbench-icons'
 
 type WorkbenchInspectorDockProps = {
   activeTab: WorkbenchInspectorTab
@@ -9,6 +10,7 @@ type WorkbenchInspectorDockProps = {
   previewContent: ReactNode
   documentContent: ReactNode
   onRequestPreview3D?: () => void
+  onToggleInspector: () => void
 }
 
 const TABS: Array<{ id: WorkbenchInspectorTab; label: string }> = [
@@ -26,6 +28,7 @@ export function WorkbenchInspectorDock({
   previewContent,
   documentContent,
   onRequestPreview3D,
+  onToggleInspector,
 }: WorkbenchInspectorDockProps) {
   const contentByTab: Record<WorkbenchInspectorTab, ReactNode> = {
     inspect: inspectContent,
@@ -56,6 +59,16 @@ export function WorkbenchInspectorDock({
             {tab.label}
           </button>
         ))}
+        <button
+          type="button"
+          className="workbench-inspector-collapse"
+          data-testid="workbench-inspector-hide"
+          aria-label="Hide inspector dock"
+          title="Hide inspector dock"
+          onClick={onToggleInspector}
+        >
+          <WorkbenchIcon name="clear" />
+        </button>
       </div>
       <div className="workbench-inspector-content">
         {contentByTab[activeTab]}

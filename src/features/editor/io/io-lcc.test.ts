@@ -75,6 +75,7 @@ describe('importLccDocument', () => {
     expect(result.doc.layers[0].name).toBe('Cut/Holes')
     expect(result.doc.layers[1].name).toBe('Fold/Crease')
     expect(result.summary.shapeCount).toBe(1)
+    expect(result.summary.foldCount).toBe(0)
     expect(result.warnings).toHaveLength(0)
   })
 
@@ -251,6 +252,8 @@ describe('importLccDocument', () => {
     expect(hole1).toBeDefined()
     expect(hole0!.point).toEqual({ x: 2, y: 0 })
     expect(hole1!.point).toEqual({ x: 5, y: 0 })
+    expect(hole0!.chainId).toBeDefined()
+    expect(hole1!.chainId).toBe(hole0!.chainId)
     expect(hole0!.holeType).toBe('round')
   })
 
@@ -405,6 +408,16 @@ describe('importLccDocument', () => {
     const lineType = result.doc.lineTypes.find((lt) => lt.id === shape.lineTypeId)
     expect(lineType).toBeDefined()
     expect(lineType!.style).toBe('dashed')
+    expect(result.doc.foldLines).toHaveLength(1)
+    expect(result.summary.foldCount).toBe(1)
+    expect(result.doc.foldLines[0]).toMatchObject({
+      name: 'Crease 1',
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 10 },
+      angleDeg: 90,
+      maxAngleDeg: 180,
+      thicknessMm: 1.5,
+    })
   })
 
   it('converts LINE with non-zero bz1/bz2 to bezier shape', () => {

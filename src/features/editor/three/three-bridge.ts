@@ -15,6 +15,8 @@ import type {
 import { ThreeAvatarManager } from './avatar-manager'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { ThreeFoldManager } from './fold-manager'
+import { rebuildFinalProductModel } from './final-product-model-builder'
+import type { FinalProductSolveResult } from './final-product-types'
 import {
   buildModelLayout,
   rebuildAssembledModel,
@@ -43,6 +45,8 @@ export class ThreeBridge {
   private foldGuideGroup = new Group()
   private assembledGroup = new Group()
   private avatarGroup = new Group()
+  private finalProductGroup = new Group()
+  private finalProductSolveResult: FinalProductSolveResult | null = null
   private preservedMaterials: Set<Material>
   private materialManager = new ThreeMaterialManager()
   private outlinePolygons: OutlinePolygon[] = []
@@ -102,6 +106,7 @@ export class ThreeBridge {
     this.modelRoot.add(this.foldGuideGroup)
     this.modelRoot.add(this.assembledGroup)
     this.modelRoot.add(this.avatarGroup)
+    this.modelRoot.add(this.finalProductGroup)
     this.modelRoot.position.set(0, -0.08, 0.1)
     this.modelRoot.rotation.x = -0.7
     this.scene.add(this.modelRoot)
@@ -131,6 +136,8 @@ export class ThreeBridge {
     clearGroup(this.foldGuideGroup, this.preservedMaterials)
     clearGroup(this.assembledGroup, this.preservedMaterials)
     clearGroup(this.avatarGroup, this.preservedMaterials)
+    clearGroup(this.finalProductGroup, this.preservedMaterials)
+    this.finalProductSolveResult = null
   }
 
   private rebuildModel() {
@@ -143,6 +150,47 @@ export class ThreeBridge {
 
     this.pieceMeshes = pieceMeshes
     this.transform = transform
+
+    if (this.threePreviewSettings.mode === 'final') {
+      this.finalProductSolveResult = rebuildFinalProductModel({
+        layers: this.layers,
+        lineTypes: this.lineTypes,
+        shapes: this.shapes,
+        foldLines: this.foldLines,
+        stitchHoles: this.stitchHoles,
+        outlinePolygons: this.outlinePolygons,
+        patternPieces: this.patternPieces,
+        piecePlacements3d: this.piecePlacements3d,
+        seamConnections: this.seamConnections,
+        previewSettings: this.threePreviewSettings,
+        pieceMeshes: this.pieceMeshes,
+        transform: this.transform,
+        documentBounds,
+        threadColor: this.threadColor,
+        texturedShapeIdSet: this.texturedShapeIdSet,
+        hasActiveTexture: this.materialManager.currentAlbedo !== null,
+        materials: {
+          leftMaterial: this.materialManager.leftMaterial,
+          rightMaterial: this.materialManager.rightMaterial,
+          leftTextureMaterial: this.materialManager.leftTextureMaterial,
+          rightTextureMaterial: this.materialManager.rightTextureMaterial,
+          assembledFrontMaterial: this.materialManager.assembledFrontMaterial,
+          assembledBackMaterial: this.materialManager.assembledBackMaterial,
+          assembledSideMaterial: this.materialManager.assembledSideMaterial,
+        },
+        preservedMaterials: this.preservedMaterials,
+        fitControlsToModel: () => this.fitControlsToModel(),
+        finalProductGroup: this.finalProductGroup,
+        staticSideGroup: this.staticSideGroup,
+        foldingSideGroup: this.foldingSideGroup,
+        foldGuideGroup: this.foldGuideGroup,
+        assembledGroup: this.assembledGroup,
+        avatarGroup: this.avatarGroup,
+      })
+      return
+    }
+
+    this.finalProductSolveResult = null
 
     if (this.threePreviewSettings.mode === 'assembled' || this.threePreviewSettings.mode === 'avatar') {
       rebuildAssembledModel({
@@ -174,6 +222,7 @@ export class ThreeBridge {
         preservedMaterials: this.preservedMaterials,
         fitControlsToModel: () => this.fitControlsToModel(),
         assembledGroup: this.assembledGroup,
+        finalProductGroup: this.finalProductGroup,
         staticSideGroup: this.staticSideGroup,
         foldingSideGroup: this.foldingSideGroup,
         foldGuideGroup: this.foldGuideGroup,
@@ -216,6 +265,7 @@ export class ThreeBridge {
       foldGuideGroup: this.foldGuideGroup,
       assembledGroup: this.assembledGroup,
       avatarGroup: this.avatarGroup,
+      finalProductGroup: this.finalProductGroup,
       foldingPivot: this.foldingPivot,
       modelRoot: this.modelRoot,
       foldManager: this.foldManager,
@@ -423,6 +473,10 @@ export class ThreeBridge {
 
   getLeatherTextureRotationDeg(): number {
     return (this.materialManager.textureRotationRad * 180) / Math.PI
+  }
+
+  getFinalProductSolveResult() {
+    return this.finalProductSolveResult
   }
 
   enableShadows(enabled: boolean) {

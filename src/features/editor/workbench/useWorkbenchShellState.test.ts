@@ -15,6 +15,7 @@ describe('clampDockLayoutState', () => {
           inspectorWidth: 420,
           peekWidth: 420,
           activeInspectorTab: 'inspect',
+          inspectorOpen: true,
         },
         1200,
         true,
@@ -24,6 +25,29 @@ describe('clampDockLayoutState', () => {
       inspectorWidth: 300,
       peekWidth: 300,
       activeInspectorTab: 'inspect',
+      inspectorOpen: true,
+    })
+  })
+
+  it('does not reserve inspector width when the inspector is collapsed', () => {
+    expect(
+      clampDockLayoutState(
+        {
+          browserWidth: 360,
+          inspectorWidth: 420,
+          peekWidth: 420,
+          activeInspectorTab: 'inspect',
+          inspectorOpen: false,
+        },
+        1200,
+        true,
+      ),
+    ).toEqual({
+      browserWidth: 318,
+      inspectorWidth: 420,
+      peekWidth: 300,
+      activeInspectorTab: 'inspect',
+      inspectorOpen: false,
     })
   })
 })
@@ -122,6 +146,7 @@ describe('useWorkbenchShellState', () => {
 
     const stored = readStoredLayout()
     expect(stored.activeInspectorTab).toBe('piece')
+    expect(stored.inspectorOpen).toBe(true)
     expect(stored.browserWidth).toBe(260)
     expect(stored.inspectorWidth).toBe(340)
     expect(stored.peekWidth).toBe(360)
@@ -154,5 +179,34 @@ describe('useWorkbenchShellState', () => {
 
     const stored = readStoredLayout()
     expect(stored.activeInspectorTab).toBe('document')
+    expect(stored.inspectorOpen).toBe(true)
+  })
+
+  it('persists inspector open and closed state', () => {
+    function Harness() {
+      const shell = useWorkbenchShellState({
+        enabled: true,
+        secondaryPreviewMode: '3d-peek',
+      })
+
+      return createElement(
+        'div',
+        null,
+        createElement('main', { ref: shell.shellRef }),
+        createElement(
+          'button',
+          {
+            type: 'button',
+            onClick: shell.toggleInspector,
+          },
+          'Toggle Inspector',
+        ),
+      )
+    }
+
+    lastRender = renderForTest(createElement(Harness))
+    click(lastRender.container.querySelector('button'))
+
+    expect(readStoredLayout().inspectorOpen).toBe(false)
   })
 })

@@ -31,12 +31,14 @@ export function rebuildFoldModel({
   foldingSideGroup,
   foldGuideGroup,
   assembledGroup,
+  finalProductGroup,
   avatarGroup,
   foldingPivot,
   modelRoot,
   foldManager,
 }: RebuildFoldModelParams) {
   clearGroup(assembledGroup, preservedMaterials)
+  clearGroup(finalProductGroup, preservedMaterials)
   clearGroup(avatarGroup, preservedMaterials)
   clearGroup(staticSideGroup, preservedMaterials)
   clearGroup(foldingSideGroup, preservedMaterials)
@@ -84,6 +86,23 @@ export function rebuildFoldModel({
     shapes,
     lineTypes,
   )
+  const physicalRegionShapesByAnchorId = new Map<string, typeof shapes>()
+  for (const layerSlice of layerSlices) {
+    const physicalAnchorId = layerPhysicalAnchorId.get(layerSlice.layerId) ?? layerSlice.layerId
+    const edgeShapes = layerSlice.shapes.filter((shape) => {
+      if (shape.type === 'text') {
+        return false
+      }
+      const role = lineTypeById.get(shape.lineTypeId)?.role
+      return !role || role === 'cut' || role === 'fold'
+    })
+    if (edgeShapes.length === 0) {
+      continue
+    }
+    const anchoredShapes = physicalRegionShapesByAnchorId.get(physicalAnchorId) ?? []
+    anchoredShapes.push(...edgeShapes)
+    physicalRegionShapesByAnchorId.set(physicalAnchorId, anchoredShapes)
+  }
 
   let maxYOffset = 0
   for (const [index, layerSlice] of layerSlices.entries()) {
@@ -94,6 +113,7 @@ export function rebuildFoldModel({
 
     renderPhysicalPanelsForLayer({
       layerSlice,
+      physicalRegionShapes: physicalRegionShapesByAnchorId.get(layerSlice.layerId),
       lineTypeById,
       outlinePolygons,
       transform,

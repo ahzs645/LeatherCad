@@ -118,7 +118,7 @@ export function useFileActions(params: UseFileActionsParams) {
         const warningNote = result.warnings.length > 0 ? ` (${result.warnings.length} warning(s))` : ''
         applyLoadedDocument(
           documentName ? { ...result.doc, documentName } : result.doc,
-          `Loaded LCC (${result.summary.shapeCount} shapes, ${result.summary.stitchHoleCount} holes, ${result.summary.layerCount} layers)${warningNote}`,
+          `Loaded LCC (${result.summary.shapeCount} shapes, ${result.summary.foldCount} folds, ${result.summary.stitchHoleCount} holes, ${result.summary.layerCount} layers)${warningNote}`,
         )
         return
       }

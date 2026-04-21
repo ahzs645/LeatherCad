@@ -10,6 +10,7 @@ import type {
 } from './workbench-types'
 import { DocumentBrowserDock } from './DocumentBrowserDock'
 import { WorkbenchHeader } from './WorkbenchHeader'
+import { WorkbenchIcon } from './workbench-icons'
 import { WorkbenchInspectorDock } from './WorkbenchInspectorDock'
 import { WorkbenchRibbon } from './WorkbenchRibbon'
 import { WorkbenchStatusbar } from './WorkbenchStatusbar'
@@ -25,6 +26,8 @@ export type EditorWorkbenchProps = {
   showPeek: boolean
   browserWidth: number
   inspectorWidth: number
+  inspectorOpen: boolean
+  inspectorRestoreWidth: number
   peekWidth: number
   splitterWidth: number
   toolRailWidth: number
@@ -59,6 +62,7 @@ export type EditorWorkbenchProps = {
   onStartBrowserResize: PointerEventHandler<HTMLDivElement>
   onStartPeekResize: PointerEventHandler<HTMLDivElement>
   onStartInspectorResize: PointerEventHandler<HTMLDivElement>
+  onToggleInspector: () => void
   toolLabel: string
   selectionText: string
   zoomPercent: number
@@ -76,6 +80,8 @@ export function EditorWorkbench({
   showPeek,
   browserWidth,
   inspectorWidth,
+  inspectorOpen,
+  inspectorRestoreWidth,
   peekWidth,
   splitterWidth,
   toolRailWidth,
@@ -110,6 +116,7 @@ export function EditorWorkbench({
   onStartBrowserResize,
   onStartPeekResize,
   onStartInspectorResize,
+  onToggleInspector,
   toolLabel,
   selectionText,
   zoomPercent,
@@ -121,6 +128,12 @@ export function EditorWorkbench({
   const showThreeInMain = workspaceMode === '3d'
   const showThreeInPeek = showPeek && secondaryPreviewMode === '3d-peek'
   const showTwoDInPeek = showPeek && secondaryPreviewMode === '2d-peek'
+  const inspectorColumns = inspectorOpen
+    ? `${splitterWidth}px ${inspectorWidth}px`
+    : `${inspectorRestoreWidth}px`
+  const gridTemplateColumns = showPeek
+    ? `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${splitterWidth}px ${peekWidth}px ${inspectorColumns}`
+    : `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${inspectorColumns}`
 
   return (
     <div className="workbench-shell">
@@ -145,12 +158,10 @@ export function EditorWorkbench({
 
       <main
         ref={shellRef}
-        className={`workbench-main ${showPeek ? 'with-peek' : 'without-peek'}`}
+        className={`workbench-main ${showPeek ? 'with-peek' : 'without-peek'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
         data-testid="workbench-main"
         style={{
-          gridTemplateColumns: showPeek
-            ? `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${splitterWidth}px ${peekWidth}px ${splitterWidth}px ${inspectorWidth}px`
-            : `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${splitterWidth}px ${inspectorWidth}px`,
+          gridTemplateColumns,
         }}
       >
         <DocumentBrowserDock
@@ -193,30 +204,48 @@ export function EditorWorkbench({
           </>
         )}
 
-        <div
-          className="workbench-splitter inspector-splitter"
-          data-testid="inspector-splitter"
-          role="separator"
-          aria-orientation="vertical"
-          onPointerDown={onStartInspectorResize}
-        />
+        {inspectorOpen ? (
+          <>
+            <div
+              className="workbench-splitter inspector-splitter"
+              data-testid="inspector-splitter"
+              role="separator"
+              aria-orientation="vertical"
+              onPointerDown={onStartInspectorResize}
+            />
 
-        <WorkbenchInspectorDock
-          activeTab={activeInspectorTab}
-          onSetActiveTab={onSetActiveInspectorTab}
-          inspectContent={inspectContent}
-          pieceContent={pieceContent}
-          previewContent={previewContent}
-          documentContent={documentContent}
-          onRequestPreview3D={
-            workspaceMode === '2d'
-              ? () => {
-                  onSetActiveInspectorTab('preview3d')
-                  onSetWorkspaceMode('3d')
-                }
-              : undefined
-          }
-        />
+            <WorkbenchInspectorDock
+              activeTab={activeInspectorTab}
+              onSetActiveTab={onSetActiveInspectorTab}
+              inspectContent={inspectContent}
+              pieceContent={pieceContent}
+              previewContent={previewContent}
+              documentContent={documentContent}
+              onToggleInspector={onToggleInspector}
+              onRequestPreview3D={
+                workspaceMode === '2d'
+                  ? () => {
+                      onSetActiveInspectorTab('preview3d')
+                      onSetWorkspaceMode('3d')
+                    }
+                  : undefined
+              }
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            className="workbench-inspector-restore"
+            data-testid="workbench-inspector-show"
+            aria-label="Show inspector dock"
+            aria-expanded={false}
+            title="Show inspector dock"
+            onClick={onToggleInspector}
+          >
+            <WorkbenchIcon name="inspect" />
+            <span>Inspector</span>
+          </button>
+        )}
       </main>
 
       {precisionDrawer}

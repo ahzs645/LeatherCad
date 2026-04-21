@@ -270,6 +270,7 @@ export function rebuildAssembledModel({
   preservedMaterials,
   fitControlsToModel,
   assembledGroup,
+  finalProductGroup,
   staticSideGroup,
   foldingSideGroup,
   foldGuideGroup,
@@ -277,6 +278,7 @@ export function rebuildAssembledModel({
   rebuildAvatarModel,
 }: RebuildAssembledModelParams) {
   clearGroup(assembledGroup, preservedMaterials)
+  clearGroup(finalProductGroup, preservedMaterials)
   clearGroup(avatarGroup, preservedMaterials)
   clearGroup(staticSideGroup, preservedMaterials)
   clearGroup(foldingSideGroup, preservedMaterials)

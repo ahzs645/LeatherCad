@@ -15,14 +15,18 @@ export function rebuildStitchSequences(
   if (chainStarts.length === 0) {
     stitchHoles.forEach((h, i) => {
       h.sequence = i
+      h.chainId = `lcc-stitch-chain-${i + 1}`
     })
     return
   }
 
   let globalSeq = 0
+  let chainIndex = 0
   const visited = new Set<string>()
 
   for (const startLccId of chainStarts) {
+    const chainId = `lcc-stitch-chain-${chainIndex + 1}`
+    let chainSeq = 0
     let current: string | undefined = startLccId
     while (current && !visited.has(current)) {
       visited.add(current)
@@ -31,9 +35,14 @@ export function rebuildStitchSequences(
         const hole = holeById.get(ourId)
         if (hole) {
           hole.sequence = globalSeq++
+          hole.chainId = chainId
+          chainSeq++
         }
       }
       current = nextMap.get(current)
+    }
+    if (chainSeq > 0) {
+      chainIndex++
     }
   }
 
@@ -44,6 +53,8 @@ export function rebuildStitchSequences(
       const hole = holeById.get(ourId)
       if (hole) {
         hole.sequence = globalSeq++
+        hole.chainId = `lcc-stitch-chain-${chainIndex + 1}`
+        chainIndex++
       }
     }
   }

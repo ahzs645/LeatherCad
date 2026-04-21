@@ -110,7 +110,6 @@ export function WorkbenchHeader({
     <header className="workbench-header">
       <div className="workbench-header-leading">
         <div className="workbench-brand">
-          <div className="workbench-brand-mark">LC</div>
           <div className="workbench-brand-copy">
             <strong>LeatherCad</strong>
             <span>Compact Workbench</span>

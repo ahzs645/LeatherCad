@@ -126,8 +126,10 @@ export function useEditorScreenWorkbenchModels({
     handleBrowserResizeStart,
     handlePeekResizeStart,
     handleInspectorResizeStart,
+    toggleInspector,
     splitterWidth,
     toolRailWidth,
+    inspectorRestoreWidth,
   } = workbenchShellState
   const { fileInputRef, svgInputRef } = screenRefs
   const {
@@ -459,6 +461,8 @@ export function useEditorScreenWorkbenchModels({
     showPeek,
     browserWidth: effectiveLayout.browserWidth,
     inspectorWidth: effectiveLayout.inspectorWidth,
+    inspectorOpen: effectiveLayout.inspectorOpen,
+    inspectorRestoreWidth,
     peekWidth: effectiveLayout.peekWidth,
     splitterWidth,
     toolRailWidth,
@@ -474,6 +478,7 @@ export function useEditorScreenWorkbenchModels({
     onStartBrowserResize: handleBrowserResizeStart,
     onStartPeekResize: handlePeekResizeStart,
     onStartInspectorResize: handleInspectorResizeStart,
+    onToggleInspector: toggleInspector,
     zoomScale: viewport.scale,
     displayUnit,
     activeLayer,
