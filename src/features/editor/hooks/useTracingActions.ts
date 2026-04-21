@@ -1,71 +1,14 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { uid } from '../cad/cad-geometry'
 import type { TracingOverlay } from '../cad/cad-types'
-
-if (GlobalWorkerOptions.workerSrc !== pdfWorkerUrl) {
-  GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-}
+import { fileToTracingDataUrl, readTracingImageNaturalSize } from '../ops/tracing-asset-ops'
+import { renderPdfPageToTracingImage } from '../ops/tracing-pdf-render'
 
 type UseTracingActionsParams = {
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
   setActiveTracingOverlayId: Dispatch<SetStateAction<string | null>>
   setShowTracingModal: Dispatch<SetStateAction<boolean>>
   setStatus: Dispatch<SetStateAction<string>>
-}
-
-type PdfRenderResult = {
-  renderUrl: string
-  pageCount: number
-  pageNumber: number
-  width: number
-  height: number
-}
-
-function clampPdfPage(requested: number, pageCount: number) {
-  return Math.max(1, Math.min(pageCount, Math.round(requested)))
-}
-
-async function renderPdfPage(source: string | Uint8Array, requestedPage: number): Promise<PdfRenderResult> {
-  const loadingTask = typeof source === 'string' ? getDocument(source) : getDocument({ data: source })
-  const document = await loadingTask.promise
-
-  try {
-    const pageCount = Math.max(1, document.numPages)
-    const pageNumber = clampPdfPage(requestedPage, pageCount)
-    const page = await document.getPage(pageNumber)
-    const viewport = page.getViewport({ scale: 2 })
-    const canvas = window.document.createElement('canvas')
-    const context = canvas.getContext('2d')
-    if (!context) {
-      throw new Error('Unable to render PDF page')
-    }
-
-    canvas.width = Math.max(1, Math.round(viewport.width))
-    canvas.height = Math.max(1, Math.round(viewport.height))
-    await page.render({ canvasContext: context, viewport, canvas }).promise
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((value) => {
-        if (!value) {
-          reject(new Error('Could not encode rendered PDF page'))
-          return
-        }
-        resolve(value)
-      }, 'image/png')
-    })
-
-    return {
-      renderUrl: URL.createObjectURL(blob),
-      pageCount,
-      pageNumber,
-      width: viewport.width,
-      height: viewport.height,
-    }
-  } finally {
-    await document.destroy()
-  }
 }
 
 export function useTracingActions(params: UseTracingActionsParams) {
@@ -101,17 +44,18 @@ export function useTracingActions(params: UseTracingActionsParams) {
 
     try {
       setStatus('Rendering PDF page...')
-      const rendered = await renderPdfPage(overlay.pdfSourceUrl, requestedPage)
+      const rendered = await renderPdfPageToTracingImage(overlay.pdfSourceUrl, requestedPage)
       setTracingOverlays((previous) =>
         previous.map((entry) =>
           entry.id === overlay.id
             ? {
                 ...entry,
-                sourceUrl: rendered.renderUrl,
+                sourceUrl: rendered.renderDataUrl,
                 width: rendered.width,
                 height: rendered.height,
                 pdfPageNumber: rendered.pageNumber,
                 pdfPageCount: rendered.pageCount,
+                isObjectUrl: false,
               }
             : entry,
         ),
@@ -139,7 +83,14 @@ export function useTracingActions(params: UseTracingActionsParams) {
 
     const overlayId = uid()
     if (isImage) {
-      const sourceUrl = URL.createObjectURL(file)
+      let sourceUrl = ''
+      try {
+        sourceUrl = await fileToTracingDataUrl(file)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error'
+        setStatus(`Tracing image import failed: ${message}`)
+        return
+      }
       const nextOverlay: TracingOverlay = {
         id: overlayId,
         name: file.name,
@@ -154,21 +105,11 @@ export function useTracingActions(params: UseTracingActionsParams) {
         offsetY: 0,
         width: 800,
         height: 800,
-        isObjectUrl: true,
+        isObjectUrl: false,
       }
 
       try {
-        const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-          const image = new Image()
-          image.onload = () => {
-            resolve({
-              width: image.naturalWidth || 800,
-              height: image.naturalHeight || 800,
-            })
-          }
-          image.onerror = () => reject(new Error('Could not read image'))
-          image.src = sourceUrl
-        })
+        const size = await readTracingImageNaturalSize(sourceUrl)
         nextOverlay.width = size.width
         nextOverlay.height = size.height
       } catch {
@@ -184,25 +125,13 @@ export function useTracingActions(params: UseTracingActionsParams) {
 
     try {
       setStatus('Loading PDF tracing...')
-      const pdfSourceUrl = URL.createObjectURL(file)
-      const pdfBytes = new Uint8Array(await file.arrayBuffer())
-      const firstPage = await renderPdfPage(pdfBytes, 1)
-      let importPage = firstPage.pageNumber
-      if (firstPage.pageCount > 1) {
-        const input = Number(
-          window.prompt(`PDF has ${firstPage.pageCount} pages. Import which page?`, String(firstPage.pageNumber)),
-        )
-        if (Number.isFinite(input)) {
-          importPage = clampPdfPage(input, firstPage.pageCount)
-        }
-      }
-
-      const rendered = importPage === firstPage.pageNumber ? firstPage : await renderPdfPage(pdfBytes, importPage)
+      const pdfSourceUrl = await fileToTracingDataUrl(file)
+      const rendered = await renderPdfPageToTracingImage(pdfSourceUrl, 1)
       const nextOverlay: TracingOverlay = {
         id: overlayId,
         name: file.name,
         kind: 'pdf',
-        sourceUrl: rendered.renderUrl,
+        sourceUrl: rendered.renderDataUrl,
         pdfSourceUrl,
         pdfPageNumber: rendered.pageNumber,
         pdfPageCount: rendered.pageCount,
@@ -215,7 +144,7 @@ export function useTracingActions(params: UseTracingActionsParams) {
         offsetY: 0,
         width: rendered.width,
         height: rendered.height,
-        isObjectUrl: true,
+        isObjectUrl: false,
       }
 
       setTracingOverlays((previous) => [nextOverlay, ...previous])

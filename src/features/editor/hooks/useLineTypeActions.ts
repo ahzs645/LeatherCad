@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { LineType, Shape } from '../cad/cad-types'
+import { resolveLineTypeStrokeWidthMm } from '../cad/line-types'
 import { applyLineTypeToShapeIds } from '../ops/line-type-ops'
 import { normalizeHexColor } from '../editor-utils'
 
@@ -115,6 +116,41 @@ export function useLineTypeActions(params: UseLineTypeActionsParams) {
     )
   }
 
+  const handleUpdateActiveLineTypeStrokeWidthMm = (strokeWidthMm: number) => {
+    if (!activeLineType) {
+      return
+    }
+    const normalizedStrokeWidthMm = resolveLineTypeStrokeWidthMm({ strokeWidthMm })
+    setLineTypes((previous) =>
+      previous.map((lineType) =>
+        lineType.id === activeLineType.id
+          ? {
+              ...lineType,
+              strokeWidthMm: normalizedStrokeWidthMm,
+            }
+          : lineType,
+      ),
+    )
+    setStatus(`Line type thickness set to ${normalizedStrokeWidthMm} mm`)
+  }
+
+  const handleUpdateActiveLineTypeIgnoreInPrint = (ignoreInPrint: boolean) => {
+    if (!activeLineType) {
+      return
+    }
+    setLineTypes((previous) =>
+      previous.map((lineType) =>
+        lineType.id === activeLineType.id
+          ? {
+              ...lineType,
+              ignoreInPrint,
+            }
+          : lineType,
+      ),
+    )
+    setStatus(ignoreInPrint ? `${activeLineType.name} will be hidden in print` : `${activeLineType.name} will print`)
+  }
+
   const handleSelectShapesByActiveLineType = () => {
     if (!activeLineType) {
       return
@@ -183,6 +219,8 @@ export function useLineTypeActions(params: UseLineTypeActionsParams) {
     handleUpdateActiveLineTypeRole,
     handleUpdateActiveLineTypeStyle,
     handleUpdateActiveLineTypeColor,
+    handleUpdateActiveLineTypeStrokeWidthMm,
+    handleUpdateActiveLineTypeIgnoreInPrint,
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,

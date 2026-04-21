@@ -15,8 +15,10 @@ type LineTypePaletteProps = {
   onShowAllTypes: () => void
   onToggleLineTypeVisibility: (lineTypeId: string) => void
   onUpdateActiveLineTypeColor: (color: string) => void
+  onUpdateActiveLineTypeIgnoreInPrint: (ignoreInPrint: boolean) => void
   onUpdateActiveLineTypeRole: (role: LineTypeRole) => void
   onUpdateActiveLineTypeStyle: (style: LineTypeStyle) => void
+  onUpdateActiveLineTypeStrokeWidthMm: (strokeWidthMm: number) => void
   onSelectAllOnVisibleLineTypes: () => void
   onUnselectActiveLineType: () => void
   onUnselectOtherLineTypes: () => void
@@ -37,8 +39,10 @@ export function LineTypePalette({
   onShowAllTypes,
   onToggleLineTypeVisibility,
   onUpdateActiveLineTypeColor,
+  onUpdateActiveLineTypeIgnoreInPrint,
   onUpdateActiveLineTypeRole,
   onUpdateActiveLineTypeStyle,
+  onUpdateActiveLineTypeStrokeWidthMm,
   onSelectAllOnVisibleLineTypes,
   onUnselectActiveLineType,
   onUnselectOtherLineTypes,
@@ -90,8 +94,10 @@ export function LineTypePalette({
           onShowAllTypes={onShowAllTypes}
           onToggleLineTypeVisibility={onToggleLineTypeVisibility}
           onUpdateActiveLineTypeColor={onUpdateActiveLineTypeColor}
+          onUpdateActiveLineTypeIgnoreInPrint={onUpdateActiveLineTypeIgnoreInPrint}
           onUpdateActiveLineTypeRole={onUpdateActiveLineTypeRole}
           onUpdateActiveLineTypeStyle={onUpdateActiveLineTypeStyle}
+          onUpdateActiveLineTypeStrokeWidthMm={onUpdateActiveLineTypeStrokeWidthMm}
         />
       </div>
     </div>

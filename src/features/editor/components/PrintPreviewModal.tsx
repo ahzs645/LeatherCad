@@ -28,6 +28,10 @@ type PrintPreviewModalProps = {
   onSetPrintInColor: (enabled: boolean) => void
   printStitchAsDots: boolean
   onSetPrintStitchAsDots: (enabled: boolean) => void
+  printLineThicknessScalePercent: number
+  onSetPrintLineThicknessScalePercent: (scalePercent: number) => void
+  printShowIgnoredLineTypes: boolean
+  onSetPrintShowIgnoredLineTypes: (enabled: boolean) => void
   printPlan: PrintPlan | null
   showPrintAreas: boolean
   onTogglePrintAreas: () => void
@@ -62,6 +66,10 @@ export function PrintPreviewModal({
   onSetPrintInColor,
   printStitchAsDots,
   onSetPrintStitchAsDots,
+  printLineThicknessScalePercent,
+  onSetPrintLineThicknessScalePercent,
+  printShowIgnoredLineTypes,
+  onSetPrintShowIgnoredLineTypes,
   printPlan,
   showPrintAreas,
   onTogglePrintAreas,
@@ -140,6 +148,17 @@ export function PrintPreviewModal({
               onChange={(event) => onSetPrintTileX(clamp(Number(event.target.value) || 1, 1, 25))}
             />
           </label>
+          <div className="field-row">
+            <span>Pages X</span>
+            <div className="line-type-modal-actions">
+              <button type="button" onClick={() => onSetPrintTileX(clamp(printTileX - 1, 1, 25))} disabled={printTileX <= 1}>
+                Remove
+              </button>
+              <button type="button" onClick={() => onSetPrintTileX(clamp(printTileX + 1, 1, 25))}>
+                Add
+              </button>
+            </div>
+          </div>
           <label className="field-row">
             <span>Tile Y</span>
             <input
@@ -150,6 +169,17 @@ export function PrintPreviewModal({
               onChange={(event) => onSetPrintTileY(clamp(Number(event.target.value) || 1, 1, 25))}
             />
           </label>
+          <div className="field-row">
+            <span>Pages Y</span>
+            <div className="line-type-modal-actions">
+              <button type="button" onClick={() => onSetPrintTileY(clamp(printTileY - 1, 1, 25))} disabled={printTileY <= 1}>
+                Remove
+              </button>
+              <button type="button" onClick={() => onSetPrintTileY(clamp(printTileY + 1, 1, 25))}>
+                Add
+              </button>
+            </div>
+          </div>
           <label className="field-row">
             <span>Overlap (mm)</span>
             <input
@@ -191,6 +221,27 @@ export function PrintPreviewModal({
             <input type="checkbox" checked={printStitchAsDots} onChange={(event) => onSetPrintStitchAsDots(event.target.checked)} />
             <span>Render stitch holes as dots</span>
           </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={printShowIgnoredLineTypes}
+              onChange={(event) => onSetPrintShowIgnoredLineTypes(event.target.checked)}
+            />
+            <span>Show non-print line types</span>
+          </label>
+          <label className="field-row">
+            <span>Line thickness (%)</span>
+            <input
+              type="number"
+              min={5}
+              max={400}
+              step={5}
+              value={printLineThicknessScalePercent}
+              onChange={(event) =>
+                onSetPrintLineThicknessScalePercent(clamp(Number(event.target.value) || 100, 5, 400))
+              }
+            />
+          </label>
         </div>
 
         {printPlan ? (
@@ -204,6 +255,9 @@ export function PrintPreviewModal({
             <div>Pages: {printPlan.tiles.length}</div>
             <div>
               Color: {printInColor ? 'On' : 'Off'} | Ruler: {printRulerInside ? 'Inside' : 'Outside'}
+            </div>
+            <div>
+              Line thickness: {printLineThicknessScalePercent}% | Non-print lines: {printShowIgnoredLineTypes ? 'Shown' : 'Hidden'}
             </div>
           </div>
         ) : (

@@ -11,6 +11,7 @@ type PdfExportOptions = {
   lineWidthPt?: number
   lineTypeColors?: Record<string, string>
   lineTypeStyles?: Record<string, LineTypeStyle>
+  lineTypeStrokeWidthsMm?: Record<string, number>
   forceSolidLineStyle?: boolean
   stitchHoles?: StitchHole[]
   stitchHoleRenderMode?: StitchHoleRenderMode
@@ -21,6 +22,7 @@ type StrokeSegment = {
   points: Array<{ x: number; y: number }>
   colorHex: string
   style: LineTypeStyle
+  lineWidthPt: number
   fill?: boolean
 }
 
@@ -64,6 +66,22 @@ function dashPattern(style: LineTypeStyle) {
   return '[] 0 d'
 }
 
+function resolveShapeLineWidthPt(
+  shape: Shape,
+  lineTypeStrokeWidthsMm: Record<string, number>,
+  fallbackLineWidthPt: number,
+) {
+  const shapeStrokeWidthMm =
+    'strokeWidthOverride' in shape && typeof shape.strokeWidthOverride === 'number'
+      ? shape.strokeWidthOverride
+      : undefined
+  const lineTypeStrokeWidthMm = shapeStrokeWidthMm ?? lineTypeStrokeWidthsMm[shape.lineTypeId]
+  if (typeof lineTypeStrokeWidthMm !== 'number' || !Number.isFinite(lineTypeStrokeWidthMm)) {
+    return fallbackLineWidthPt
+  }
+  return clampMin(lineTypeStrokeWidthMm * MM_TO_PT, 0.1)
+}
+
 function approximateCirclePoints(center: { x: number; y: number }, radius: number, steps = 24) {
   return Array.from({ length: steps }, (_, index) => {
     const angle = (index / steps) * Math.PI * 2
@@ -86,7 +104,7 @@ function buildSegments(
   options: Required<
     Pick<
       PdfExportOptions,
-      'lineTypeColors' | 'lineTypeStyles' | 'forceSolidLineStyle' | 'stitchHoles' | 'stitchHoleRenderMode' | 'stitchDotRadiusMm'
+      'lineTypeColors' | 'lineTypeStyles' | 'lineTypeStrokeWidthsMm' | 'forceSolidLineStyle' | 'stitchHoles' | 'stitchHoleRenderMode' | 'stitchDotRadiusMm' | 'lineWidthPt'
     >
   >,
 ) {
@@ -104,6 +122,7 @@ function buildSegments(
       points: sampled,
       colorHex: normalizeHex(options.lineTypeColors[shape.lineTypeId]),
       style,
+      lineWidthPt: resolveShapeLineWidthPt(shape, options.lineTypeStrokeWidthsMm, options.lineWidthPt),
     })
   }
 
@@ -122,6 +141,7 @@ function buildSegments(
         points: buildFilledPath(approximateCirclePoints(primitive.center, primitive.radiusMm)),
         colorHex,
         style: 'solid',
+        lineWidthPt: options.lineWidthPt,
         fill: true,
       })
       continue
@@ -131,6 +151,7 @@ function buildSegments(
         points: [primitive.start, primitive.end],
         colorHex,
         style: 'solid',
+        lineWidthPt: clampMin(primitive.strokeWidthMm * MM_TO_PT, 0.1),
       })
       continue
     }
@@ -138,6 +159,7 @@ function buildSegments(
       points: buildFilledPath(primitive.points),
       colorHex,
       style: 'solid',
+      lineWidthPt: clampMin((stitchHole.widthMm ?? 0.9) * MM_TO_PT, 0.1),
     })
   }
 
@@ -195,6 +217,7 @@ function makePdf(stream: string, pageWidthPt: number, pageHeightPt: number) {
 export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = {}) {
   const lineTypeColors = options.lineTypeColors ?? {}
   const lineTypeStyles = options.lineTypeStyles ?? {}
+  const lineTypeStrokeWidthsMm = options.lineTypeStrokeWidthsMm ?? {}
   const forceSolidLineStyle = options.forceSolidLineStyle ?? false
   const stitchHoles = options.stitchHoles ?? []
   const stitchHoleRenderMode = options.stitchHoleRenderMode ?? 'native'
@@ -205,10 +228,12 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
   const segments = buildSegments(shapes, {
     lineTypeColors,
     lineTypeStyles,
+    lineTypeStrokeWidthsMm,
     forceSolidLineStyle,
     stitchHoles,
     stitchHoleRenderMode,
     stitchDotRadiusMm,
+    lineWidthPt,
   })
 
   const bounds = buildBounds(segments)
@@ -236,8 +261,15 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
   let activeColor = ''
   let activeFillColor = ''
   let activeDash = ''
+  let activeLineWidth = `${toFixedPdf(lineWidthPt)} w`
 
   for (const segment of segments) {
+    const lineWidth = `${toFixedPdf(segment.lineWidthPt)} w`
+    if (lineWidth !== activeLineWidth) {
+      commands.push(lineWidth)
+      activeLineWidth = lineWidth
+    }
+
     const dash = dashPattern(segment.style)
     if (dash !== activeDash) {
       commands.push(dash)

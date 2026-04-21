@@ -45,6 +45,8 @@ const initialEditorDocumentState: EditorDocumentState = {
   avatars: [],
   threeTextureSource: null,
   threeTextureShapeIds: [],
+  leatherImageFills: [],
+  activeLeatherImageFillId: null,
   showCanvasRuler: true,
   showDimensions: false,
 }
@@ -117,6 +119,10 @@ function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyActio
       dispatch({ type: 'threeTextureSource', value }),
     setThreeTextureShapeIds: (value: React.SetStateAction<EditorDocumentState['threeTextureShapeIds']>) =>
       dispatch({ type: 'threeTextureShapeIds', value }),
+    setLeatherImageFills: (value: React.SetStateAction<EditorDocumentState['leatherImageFills']>) =>
+      dispatch({ type: 'leatherImageFills', value }),
+    setActiveLeatherImageFillId: (value: React.SetStateAction<EditorDocumentState['activeLeatherImageFillId']>) =>
+      dispatch({ type: 'activeLeatherImageFillId', value }),
     setShowCanvasRuler: (value: React.SetStateAction<EditorDocumentState['showCanvasRuler']>) =>
       dispatch({ type: 'showCanvasRuler', value }),
     setShowDimensions: (value: React.SetStateAction<EditorDocumentState['showDimensions']>) =>

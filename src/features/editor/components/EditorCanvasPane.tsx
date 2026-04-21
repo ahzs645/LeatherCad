@@ -6,6 +6,7 @@ import type {
   FoldLine,
   HardwareMarker,
   Layer,
+  LeatherImageFill,
   LineType,
   Point,
   Shape,
@@ -27,6 +28,7 @@ import { LayerLegendPanel } from './LayerLegendPanel'
 import { CanvasAnnotationLayer } from './canvas/CanvasAnnotationLayer'
 import { CanvasHardwareLayer } from './canvas/CanvasHardwareLayer'
 import { CanvasInteractionOverlay } from './canvas/CanvasInteractionOverlay'
+import { CanvasLeatherImageFillLayer } from './canvas/CanvasLeatherImageFillLayer'
 import { CanvasShapeLayer } from './canvas/CanvasShapeLayer'
 import { CanvasStitchLayer } from './canvas/CanvasStitchLayer'
 import { CanvasViewportChrome } from './canvas/CanvasViewportChrome'
@@ -73,6 +75,7 @@ export type EditorCanvasPaneProps = {
   onFitView: () => void
   onResetView: () => void
   tracingOverlays: TracingOverlay[]
+  leatherImageFills: LeatherImageFill[]
   backdrops: import('../cad/cad-types').Backdrop[]
   activeBackdropId: string | null
   onBackdropLeftTop?: (backdropId: string, nextX: number, nextY: number) => void
@@ -151,6 +154,7 @@ export function EditorCanvasPane({
   onFitView,
   onResetView,
   tracingOverlays,
+  leatherImageFills,
   backdrops,
   activeBackdropId,
   onBackdropLeftTop,
@@ -433,6 +437,12 @@ export function EditorCanvasPane({
             showDimensions={showDimensions}
             dimensionLines={dimensionLines}
             displayUnit={displayUnit}
+          />
+
+          <CanvasLeatherImageFillLayer
+            leatherImageFills={leatherImageFills}
+            renderableVisibleShapes={renderableVisibleShapes}
+            lineTypesById={lineTypesById}
           />
 
           <CanvasShapeLayer

@@ -3,7 +3,7 @@ import { countShapesByLineType } from '../ops/line-type-ops'
 import { countStitchHolesByShape } from '../ops/stitch-hole-ops'
 import { buildPrintPlan } from '../preview/print-preview'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
-import { lineTypeStrokeDasharray } from '../cad/line-types'
+import { lineTypeStrokeDasharray, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 import type {
   EditorSnapshot,
   ResolvedThemeMode,
@@ -51,6 +51,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     printTileX,
     printTileY,
     printScalePercent,
+    printShowIgnoredLineTypes,
     exportRoleFilters,
   } = useEditorPanelSelector((state) => ({
     printSelectedOnly: state.printSelectedOnly,
@@ -60,6 +61,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     printTileX: state.printTileX,
     printTileY: state.printTileY,
     printScalePercent: state.printScalePercent,
+    printShowIgnoredLineTypes: state.printShowIgnoredLineTypes,
     exportRoleFilters: state.exportRoleFilters,
   }))
   const {
@@ -104,6 +106,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     avatars,
     threeTextureSource,
     threeTextureShapeIds,
+    leatherImageFills,
+    activeLeatherImageFillId,
     showCanvasRuler,
     showDimensions,
     activeTracingOverlayId,
@@ -136,6 +140,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     avatars: state.avatars,
     threeTextureSource: state.threeTextureSource,
     threeTextureShapeIds: state.threeTextureShapeIds,
+    leatherImageFills: state.leatherImageFills,
+    activeLeatherImageFillId: state.activeLeatherImageFillId,
     showCanvasRuler: state.showCanvasRuler,
     showDimensions: state.showDimensions,
     activeTracingOverlayId: state.activeTracingOverlayId,
@@ -394,11 +400,14 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   )
 
   const printableShapes = useMemo(() => {
+    const printEligibleShapes = assemblyShapes.filter(
+      (shape) => printShowIgnoredLineTypes || !shouldIgnoreLineTypeInPrint(lineTypesById[shape.lineTypeId]),
+    )
     if (!printSelectedOnly) {
-      return assemblyShapes
+      return printEligibleShapes
     }
-    return assemblyShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-  }, [printSelectedOnly, assemblyShapes, selectedShapeIdSet])
+    return printEligibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+  }, [printSelectedOnly, assemblyShapes, selectedShapeIdSet, lineTypesById, printShowIgnoredLineTypes])
 
   const printPlan = useMemo(
     () =>
@@ -533,6 +542,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       avatars: deepClone(avatars),
       threeTextureSource: deepClone(threeTextureSource),
       threeTextureShapeIds: deepClone(threeTextureShapeIds),
+      leatherImageFills: deepClone(leatherImageFills),
+      activeLeatherImageFillId,
       showCanvasRuler,
       showDimensions,
       layerColorOverrides: deepClone(layerColorOverrides),
@@ -570,6 +581,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       avatars,
       threeTextureSource,
       threeTextureShapeIds,
+      leatherImageFills,
+      activeLeatherImageFillId,
       showCanvasRuler,
       showDimensions,
       layerColorOverrides,

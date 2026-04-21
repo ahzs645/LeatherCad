@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import type { DocFile, FoldLine, LineType, PatternPiece } from '../../cad/cad-types'
+import { shouldIgnoreLineTypeInPrint } from '../../cad/line-types'
 import { buildAnnotationExportShapes } from '../../ops/annotation-export-shapes'
 import { openPrintTilesWindow } from '../../preview/print-output'
 import { buildPrintPlan } from '../../preview/print-preview'
@@ -47,6 +48,8 @@ export function usePrintPreviewState({
     printScalePercent,
     printInColor,
     printStitchAsDots,
+    printLineThicknessScalePercent,
+    printShowIgnoredLineTypes,
     printRulerInside,
     printCalibrationXPercent,
     printCalibrationYPercent,
@@ -60,6 +63,8 @@ export function usePrintPreviewState({
     printScalePercent: state.printScalePercent,
     printInColor: state.printInColor,
     printStitchAsDots: state.printStitchAsDots,
+    printLineThicknessScalePercent: state.printLineThicknessScalePercent,
+    printShowIgnoredLineTypes: state.printShowIgnoredLineTypes,
     printRulerInside: state.printRulerInside,
     printCalibrationXPercent: state.printCalibrationXPercent,
     printCalibrationYPercent: state.printCalibrationYPercent,
@@ -99,8 +104,11 @@ export function usePrintPreviewState({
   )
 
   const printOutputShapes = useMemo(
-    () => [...printableShapes, ...printableAnnotationShapes],
-    [printableShapes, printableAnnotationShapes],
+    () =>
+      [...printableShapes, ...printableAnnotationShapes].filter(
+        (shape) => printShowIgnoredLineTypes || !shouldIgnoreLineTypeInPrint(lineTypesById[shape.lineTypeId]),
+      ),
+    [printableShapes, printableAnnotationShapes, lineTypesById, printShowIgnoredLineTypes],
   )
 
   const printOutputPlan = useMemo(
@@ -119,9 +127,11 @@ export function usePrintPreviewState({
   const printableLineTypesById = useMemo(
     () =>
       Object.fromEntries(
-        Object.entries(lineTypesById).filter((entry): entry is [string, LineType] => entry[1] !== undefined),
+        Object.entries(lineTypesById)
+          .filter((entry): entry is [string, LineType] => entry[1] !== undefined)
+          .filter(([, lineType]) => printShowIgnoredLineTypes || !shouldIgnoreLineTypeInPrint(lineType)),
       ),
-    [lineTypesById],
+    [lineTypesById, printShowIgnoredLineTypes],
   )
 
   const handleOpenPrintTiles = useCallback(() => {
@@ -137,6 +147,8 @@ export function usePrintPreviewState({
       printPlan: printOutputPlan,
       printInColor,
       printStitchAsDots,
+      lineThicknessScalePercent: printLineThicknessScalePercent,
+      showIgnoredLineTypes: printShowIgnoredLineTypes,
       printRulerInside,
       calibrationXPercent: printCalibrationXPercent,
       calibrationYPercent: printCalibrationYPercent,
@@ -154,9 +166,11 @@ export function usePrintPreviewState({
     printCalibrationXPercent,
     printCalibrationYPercent,
     printInColor,
+    printLineThicknessScalePercent,
     printOutputPlan,
     printOutputShapes,
     printRulerInside,
+    printShowIgnoredLineTypes,
     printStitchAsDots,
     setStatus,
   ])

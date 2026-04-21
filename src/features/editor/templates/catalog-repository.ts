@@ -43,6 +43,9 @@ export type CatalogRepositoryShop = {
   isBundled?: boolean
 }
 
+export type CatalogRepositorySortKey = 'name' | 'imported'
+export type CatalogRepositoryMoveDirection = 'up' | 'down'
+
 function cloneCatalogRepositoryShop(shop: CatalogRepositoryShop): CatalogRepositoryShop {
   if (typeof structuredClone === 'function') {
     return structuredClone(shop)
@@ -274,6 +277,28 @@ export function mergeCatalogShopImport(
   const byId = new Map(current.map((shop) => [shop.id, cloneCatalogRepositoryShop(shop)]))
   byId.set(importedShop.id, cloneCatalogRepositoryShop(importedShop))
   return Array.from(byId.values()).sort((left, right) => (left.importedAt > right.importedAt ? -1 : 1))
+}
+
+export function moveCatalogRepositoryShop(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  direction: CatalogRepositoryMoveDirection,
+) {
+  const index = shops.findIndex((shop) => shop.id === shopId)
+  const nextIndex = direction === 'up' ? index - 1 : index + 1
+  if (index < 0 || nextIndex < 0 || nextIndex >= shops.length) {
+    return shops
+  }
+  const next = [...shops]
+  const [shop] = next.splice(index, 1)
+  next.splice(nextIndex, 0, shop)
+  return next
+}
+
+export function sortCatalogRepository(shops: CatalogRepositoryShop[], sortKey: CatalogRepositorySortKey) {
+  return [...shops].sort((left, right) =>
+    sortKey === 'name' ? left.name.localeCompare(right.name) : right.importedAt.localeCompare(left.importedAt),
+  )
 }
 
 export function loadCatalogRepository(): CatalogRepositoryShop[] {

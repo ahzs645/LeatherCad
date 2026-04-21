@@ -1,7 +1,9 @@
 import { round } from '../../cad/cad-geometry'
 import { formatDisplayDistance, type DisplayUnit } from '../../ops/unit-ops'
 import type { Bounds } from './canvas-geometry'
-import { boundsIntersect, pointInBounds } from './canvas-geometry'
+import { boundsIntersect, pointInBounds, resolveAdaptiveTextFontSize } from './canvas-geometry'
+
+type DimensionLine = import('../../cad/cad-types').DimensionLine
 
 type CanvasAnnotationLayerProps = {
   seamGuides: import('../../editor-types').SeamGuide[]
@@ -15,8 +17,57 @@ type CanvasAnnotationLayerProps = {
   renderableConstraintSuggestions: import('../../ops/auto-constraint-ops').ConstraintSuggestion[]
   dimensionEntries: Array<{ id: string; x: number; y: number; text: string }>
   showDimensions: boolean
-  dimensionLines: import('../../cad/cad-types').DimensionLine[]
+  dimensionLines: DimensionLine[]
   displayUnit: DisplayUnit
+}
+
+const DEFAULT_DIMENSION_LABEL_FONT_SIZE_MM = 3.5
+
+function pointAlong(from: { x: number; y: number }, to: { x: number; y: number }, distance: number) {
+  const dx = to.x - from.x
+  const dy = to.y - from.y
+  const length = Math.hypot(dx, dy)
+  if (length < 1e-6) {
+    return { ...from }
+  }
+
+  const ratio = Math.max(0, Math.min(1, distance / length))
+  return {
+    x: from.x + dx * ratio,
+    y: from.y + dy * ratio,
+  }
+}
+
+function dimensionLineBounds(dim: DimensionLine): Bounds {
+  const dx = dim.end.x - dim.start.x
+  const dy = dim.end.y - dim.start.y
+  const len = Math.hypot(dx, dy)
+  if (len < 0.01) {
+    return {
+      minX: dim.start.x,
+      minY: dim.start.y,
+      maxX: dim.start.x,
+      maxY: dim.start.y,
+    }
+  }
+
+  const nx = (-dy / len) * dim.offsetMm
+  const ny = (dx / len) * dim.offsetMm
+  const points = [
+    dim.start,
+    dim.end,
+    { x: dim.start.x + nx, y: dim.start.y + ny },
+    { x: dim.end.x + nx, y: dim.end.y + ny },
+    ...(dim.labelPoint ? [dim.labelPoint] : []),
+  ]
+  const xs = points.map((point) => point.x)
+  const ys = points.map((point) => point.y)
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys),
+  }
 }
 
 export function CanvasAnnotationLayer({
@@ -34,6 +85,10 @@ export function CanvasAnnotationLayer({
   dimensionLines,
   displayUnit,
 }: CanvasAnnotationLayerProps) {
+  const dimensionLabelStyle = (fontSizeMm = DEFAULT_DIMENSION_LABEL_FONT_SIZE_MM) => ({
+    fontSize: `${resolveAdaptiveTextFontSize(fontSizeMm, viewportScale)}px`,
+  })
+
   return (
     <>
       <g className="canvas-guide-layer">
@@ -139,19 +194,14 @@ export function CanvasAnnotationLayer({
       ))}
 
       {dimensionEntries.map((entry) => (
-        <text key={`dim-${entry.id}`} x={entry.x} y={entry.y} className="dimension-label">
+        <text key={`dim-${entry.id}`} x={entry.x} y={entry.y} className="dimension-label" style={dimensionLabelStyle()}>
           {entry.text}
         </text>
       ))}
 
       {showDimensions &&
         dimensionLines
-          .filter((dim) => boundsIntersect({
-            minX: Math.min(dim.start.x, dim.end.x),
-            minY: Math.min(dim.start.y, dim.end.y),
-            maxX: Math.max(dim.start.x, dim.end.x),
-            maxY: Math.max(dim.start.y, dim.end.y),
-          }, viewBounds, detailPadding))
+          .filter((dim) => boundsIntersect(dimensionLineBounds(dim), viewBounds, detailPadding))
           .map((dim) => {
             const dx = dim.end.x - dim.start.x
             const dy = dim.end.y - dim.start.y
@@ -164,16 +214,57 @@ export function CanvasAnnotationLayer({
             const mx = (s.x + e.x) / 2
             const my = (s.y + e.y) / 2
             const dimText = dim.text ?? formatDisplayDistance(len, displayUnit, displayUnit === 'in' ? 3 : 1)
+            const dimensionTextSizeMm = dim.fontSizeMm ?? DEFAULT_DIMENSION_LABEL_FONT_SIZE_MM
+            const measureLen = Math.hypot(e.x - s.x, e.y - s.y)
+            const labelGapMm = Math.min(
+              Math.max(0, measureLen - 2),
+              Math.max(dimensionTextSizeMm * 2.4, dimText.length * dimensionTextSizeMm * 0.62 + dimensionTextSizeMm * 1.2),
+            )
+            const halfGapMm = labelGapMm / 2
+            const canGapMeasureLine = measureLen > labelGapMm + 2
+            const firstMeasureEnd = canGapMeasureLine ? pointAlong(s, e, measureLen / 2 - halfGapMm) : null
+            const secondMeasureStart = canGapMeasureLine ? pointAlong(s, e, measureLen / 2 + halfGapMm) : null
+            const hasAuthoredLabelPlacement = Boolean(dim.labelPoint)
+            const labelPoint = dim.labelPoint ?? { x: mx, y: my }
+            const labelRotationDeg = dim.labelRotationDeg ?? 0
+            const centerLabel = !hasAuthoredLabelPlacement || dim.labelPlacement === 'center'
             return (
               <g key={`dimline-${dim.id}`} className="dimension-line-group">
                 <line x1={dim.start.x} y1={dim.start.y} x2={s.x} y2={s.y} className="dimension-extension-line" />
                 <line x1={dim.end.x} y1={dim.end.y} x2={e.x} y2={e.y} className="dimension-extension-line" />
-                <line
-                  x1={s.x} y1={s.y} x2={e.x} y2={e.y}
-                  className="dimension-measure-line"
-                  style={{ markerStart: 'url(#arrow-start)', markerEnd: 'url(#arrow-end)' }}
-                />
-                <text x={mx} y={my} textAnchor="middle" dominantBaseline="middle" className="dimension-label">
+                {canGapMeasureLine && firstMeasureEnd && secondMeasureStart ? (
+                  <>
+                    <line
+                      x1={s.x} y1={s.y} x2={firstMeasureEnd.x} y2={firstMeasureEnd.y}
+                      className="dimension-measure-line"
+                      style={{ markerStart: 'url(#arrow-start)' }}
+                    />
+                    <line
+                      x1={secondMeasureStart.x} y1={secondMeasureStart.y} x2={e.x} y2={e.y}
+                      className="dimension-measure-line"
+                      style={{ markerEnd: 'url(#arrow-end)' }}
+                    />
+                  </>
+                ) : (
+                  <line
+                    x1={s.x} y1={s.y} x2={e.x} y2={e.y}
+                    className="dimension-measure-line"
+                    style={{ markerStart: 'url(#arrow-start)', markerEnd: 'url(#arrow-end)' }}
+                  />
+                )}
+                <text
+                  x={labelPoint.x}
+                  y={labelPoint.y}
+                  textAnchor={centerLabel ? 'middle' : undefined}
+                  dominantBaseline={centerLabel ? 'middle' : undefined}
+                  className="dimension-label"
+                  style={dimensionLabelStyle(dimensionTextSizeMm)}
+                  transform={
+                    hasAuthoredLabelPlacement && labelRotationDeg
+                      ? `rotate(${round(labelRotationDeg)} ${round(labelPoint.x)} ${round(labelPoint.y)})`
+                      : undefined
+                  }
+                >
                   {dimText}
                 </text>
               </g>

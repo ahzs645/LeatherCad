@@ -37,6 +37,8 @@ const initialEditorPanelState: EditorPanelState = {
   printRulerInside: false,
   printInColor: true,
   printStitchAsDots: false,
+  printLineThicknessScalePercent: 100,
+  printShowIgnoredLineTypes: false,
   showPrintAreas: false,
   showPrintPreviewModal: false,
   seamAllowanceInputMm: DEFAULT_SEAM_ALLOWANCE_MM,
@@ -108,6 +110,12 @@ function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<E
       dispatch({ type: 'printInColor', value }),
     setPrintStitchAsDots: (value: React.SetStateAction<EditorPanelState['printStitchAsDots']>) =>
       dispatch({ type: 'printStitchAsDots', value }),
+    setPrintLineThicknessScalePercent: (
+      value: React.SetStateAction<EditorPanelState['printLineThicknessScalePercent']>,
+    ) => dispatch({ type: 'printLineThicknessScalePercent', value }),
+    setPrintShowIgnoredLineTypes: (
+      value: React.SetStateAction<EditorPanelState['printShowIgnoredLineTypes']>,
+    ) => dispatch({ type: 'printShowIgnoredLineTypes', value }),
     setShowPrintAreas: (value: React.SetStateAction<EditorPanelState['showPrintAreas']>) =>
       dispatch({ type: 'showPrintAreas', value }),
     setShowPrintPreviewModal: (value: React.SetStateAction<EditorPanelState['showPrintPreviewModal']>) =>

@@ -85,6 +85,8 @@ export type LccFile = {
 }
 
 export type RawDimensionSegment = {
+  sourceId?: string
+  sourceGroupId?: string
   start: Point
   end: Point
   hasArrowStart: boolean
@@ -94,9 +96,15 @@ export type RawDimensionSegment = {
 }
 
 export type RawDimensionText = {
+  sourceId?: string
+  sourceGroupId?: string
   text: string
+  anchor: Point
   center: Point
   layerId: string
+  fontSizeMm?: number
+  rotationDeg?: number
+  placement?: 'baseline' | 'center'
 }
 
 export type LccColorMap = Record<string, string>

@@ -27,6 +27,8 @@ export function TracingModal({
   if (!open) {
     return null
   }
+  const pdfPageCount = activeTracingOverlay?.kind === 'pdf' ? (activeTracingOverlay.pdfPageCount ?? 1) : 1
+  const pdfPageNumber = activeTracingOverlay?.kind === 'pdf' ? (activeTracingOverlay.pdfPageNumber ?? 1) : 1
 
   return (
     <div
@@ -189,18 +191,37 @@ export function TracingModal({
                 Calibrate…
               </button>
             </details>
-            {activeTracingOverlay.kind === 'pdf' && (activeTracingOverlay.pdfPageCount ?? 1) > 1 && (
-              <label className="field-row">
+            {activeTracingOverlay.kind === 'pdf' && pdfPageCount > 1 && (
+              <div className="field-row">
                 <span>PDF Page</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={activeTracingOverlay.pdfPageCount}
-                  step={1}
-                  value={activeTracingOverlay.pdfPageNumber ?? 1}
-                  onChange={(event) => onSetPdfTracingPage(activeTracingOverlay, Number(event.target.value))}
-                />
-              </label>
+                <div className="line-type-modal-actions">
+                  <button
+                    type="button"
+                    onClick={() => onSetPdfTracingPage(activeTracingOverlay, pdfPageNumber - 1)}
+                    disabled={pdfPageNumber <= 1}
+                  >
+                    Previous
+                  </button>
+                  <select
+                    className="action-select"
+                    value={pdfPageNumber}
+                    onChange={(event) => onSetPdfTracingPage(activeTracingOverlay, Number(event.target.value))}
+                  >
+                    {Array.from({ length: pdfPageCount }, (_, index) => index + 1).map((pageNumber) => (
+                      <option key={pageNumber} value={pageNumber}>
+                        Page {pageNumber}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => onSetPdfTracingPage(activeTracingOverlay, pdfPageNumber + 1)}
+                    disabled={pdfPageNumber >= pdfPageCount}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
             )}
             <div className="line-type-edit-grid">
               <label className="field-row">

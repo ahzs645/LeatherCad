@@ -6,6 +6,7 @@ import type {
   DocFile,
   FoldLine,
   HardwareMarker,
+  LeatherImageFill,
   LegacySeamAllowance,
   LineType,
   PatternPiece,
@@ -37,6 +38,7 @@ import {
   parseFoldLine,
   parseHardwareMarker,
   parseLayer,
+  parseLeatherImageFill,
   parseLegacySeamAllowance,
   parsePatternPiece,
   parsePieceGrainline,
@@ -87,6 +89,8 @@ type ImportedJsonCandidate = {
   avatars?: unknown[]
   threeTextureSource?: unknown
   threeTextureShapeIds?: unknown[]
+  leatherImageFills?: unknown[]
+  activeLeatherImageFillId?: unknown
   showCanvasRuler?: unknown
   showDimensions?: unknown
   dimensionLines?: unknown[]
@@ -452,6 +456,20 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         .map((backdrop) => parseBackdrop(backdrop))
         .filter((backdrop): backdrop is Backdrop => backdrop !== null)
     : []
+  const nextLeatherImageFills = Array.isArray(parsed.leatherImageFills)
+    ? parsed.leatherImageFills
+        .map(parseLeatherImageFill)
+        .filter((fill): fill is LeatherImageFill => fill !== null)
+        .map((fill) => ({
+          ...fill,
+          assignedShapeIds: fill.assignedShapeIds.filter((shapeId) => nextShapeIdSet.has(shapeId)),
+        }))
+    : []
+  const nextActiveLeatherImageFillId =
+    typeof parsed.activeLeatherImageFillId === 'string' &&
+    nextLeatherImageFills.some((fill) => fill.id === parsed.activeLeatherImageFillId)
+      ? parsed.activeLeatherImageFillId
+      : nextLeatherImageFills[0]?.id ?? null
 
   const nextDimensionLines = Array.isArray(parsed.dimensionLines)
     ? parsed.dimensionLines
@@ -504,6 +522,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       avatars,
       threeTextureSource,
       threeTextureShapeIds,
+      leatherImageFills: nextLeatherImageFills,
+      activeLeatherImageFillId: nextActiveLeatherImageFillId,
       showCanvasRuler,
       showDimensions,
       dimensionLines: nextDimensionLines,

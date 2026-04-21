@@ -1,5 +1,5 @@
 import { arcPath, getBounds, round } from '../cad/cad-geometry'
-import { lineTypeStrokeDasharray } from '../cad/line-types'
+import { lineTypeStrokeDasharray, resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
 import { downloadFile } from '../editor-utils'
 import { buildAnnotationExportShapes } from '../ops/annotation-export-shapes'
@@ -90,6 +90,9 @@ export function useExportActions(params: UseExportActionsParams) {
       }
     }
     const lineType = lineTypesById[shape.lineTypeId]
+    if (shouldIgnoreLineTypeInPrint(lineType)) {
+      return false
+    }
     const isVisible = lineType?.visible ?? true
     if (exportOnlyVisibleLineTypes && !isVisible) {
       return false
@@ -138,6 +141,7 @@ export function useExportActions(params: UseExportActionsParams) {
       (shape) =>
         visibleLayerIdSet.has(shape.layerId) &&
         exportRoleFilters[lineTypesById[shape.lineTypeId]?.role ?? 'mark'] &&
+        !shouldIgnoreLineTypeInPrint(lineTypesById[shape.lineTypeId]) &&
         (!exportOnlyVisibleLineTypes || (lineTypesById[shape.lineTypeId]?.visible ?? true)),
     )
 
@@ -223,6 +227,11 @@ export function useExportActions(params: UseExportActionsParams) {
   const shapeToExportSvg = (shape: Shape) => {
     const lineType = lineTypesById[shape.lineTypeId]
     const stroke = lineType?.color ?? '#0f172a'
+    const shapeStrokeWidth =
+      'strokeWidthOverride' in shape && typeof shape.strokeWidthOverride === 'number'
+        ? shape.strokeWidthOverride
+        : undefined
+    const strokeWidth = round(shapeStrokeWidth ?? resolveLineTypeStrokeWidthMm(lineType))
     const strokeDasharray = exportForceSolidStrokes ? undefined : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
     const dashAttribute = strokeDasharray ? ` stroke-dasharray="${strokeDasharray}"` : ''
     const arrowParts: string[] = []
@@ -231,15 +240,15 @@ export function useExportActions(params: UseExportActionsParams) {
     const arrowAttribute = arrowParts.length > 0 ? ' ' + arrowParts.join(' ') : ''
 
     if (shape.type === 'line') {
-      return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute}${arrowAttribute} />`
+      return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttribute}${arrowAttribute} />`
     }
 
     if (shape.type === 'arc') {
-      return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute}${arrowAttribute} />`
+      return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttribute}${arrowAttribute} />`
     }
 
     if (shape.type === 'bezier') {
-      return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="2" fill="none"${dashAttribute}${arrowAttribute} />`
+      return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttribute}${arrowAttribute} />`
     }
 
     const textShape = normalizeTextShape(shape)
@@ -364,6 +373,9 @@ export function useExportActions(params: UseExportActionsParams) {
           stitchDotRadiusMm: exportStitchDotRadiusMm,
           forceSolidLineStyle: exportForceSolidStrokes,
           lineTypeStyles: lineTypeStylesById,
+          lineTypeStrokeWidthsMm: Object.fromEntries(
+            lineTypes.map((lineType) => [lineType.id, resolveLineTypeStrokeWidthMm(lineType)]),
+          ),
           lineTypeColors: Object.fromEntries(lineTypes.map((lineType) => [lineType.id, lineType.color])),
         })
 
@@ -388,6 +400,9 @@ export function useExportActions(params: UseExportActionsParams) {
         }
       }
       const lineType = lineTypesById[shape.lineTypeId]
+      if (shouldIgnoreLineTypeInPrint(lineType)) {
+        return false
+      }
       const role = lineType?.role ?? 'cut'
       return laserRoleSet.has(role)
     })

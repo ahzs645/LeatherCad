@@ -11,6 +11,7 @@ import type {
   FoldLine,
   HardwareMarker,
   Layer,
+  LeatherImageFill,
   LineType,
   PatternPiece,
   PiecePlacement3D,
@@ -70,6 +71,8 @@ type UseEditorStateActionsParams = {
   setAvatars: Dispatch<SetStateAction<AvatarSpec[]>>
   setThreeTextureSource: Dispatch<SetStateAction<TextureSource | null>>
   setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
+  setLeatherImageFills: Dispatch<SetStateAction<LeatherImageFill[]>>
+  setActiveLeatherImageFillId: Dispatch<SetStateAction<string | null>>
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
   setShowDimensions: Dispatch<SetStateAction<boolean>>
   setLayerColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
@@ -120,6 +123,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setLayerColorOverrides,
@@ -164,6 +169,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setAvatars(snapshot.avatars)
     setThreeTextureSource(snapshot.threeTextureSource)
     setThreeTextureShapeIds(snapshot.threeTextureShapeIds)
+    setLeatherImageFills(snapshot.leatherImageFills)
+    setActiveLeatherImageFillId(snapshot.activeLeatherImageFillId)
     setShowCanvasRuler(snapshot.showCanvasRuler)
     setShowDimensions(snapshot.showDimensions)
     setLayerColorOverrides(snapshot.layerColorOverrides)
@@ -204,6 +211,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setLayerColorOverrides,
@@ -297,6 +306,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setAvatars([])
     setThreeTextureSource(null)
     setThreeTextureShapeIds([])
+    setLeatherImageFills([])
+    setActiveLeatherImageFillId(null)
     setShowCanvasRuler(true)
     setShowDimensions(false)
     setSelectedShapeIds([])
@@ -340,6 +351,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setSelectedShapeIds,

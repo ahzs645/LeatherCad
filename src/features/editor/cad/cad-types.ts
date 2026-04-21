@@ -33,6 +33,8 @@ export type LineType = {
   style: LineTypeStyle
   color: string
   visible: boolean
+  strokeWidthMm?: number
+  ignoreInPrint?: boolean
 }
 
 export type BoxStitchSource = {
@@ -475,12 +477,41 @@ export type TextureSource = {
   roughnessUrl?: string
 }
 
+export type LeatherImageCrop = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type LeatherImageFill = {
+  id: string
+  name: string
+  imageDataUrl: string
+  bitmapWidth: number
+  bitmapHeight: number
+  x: number
+  y: number
+  widthMm: number
+  heightMm: number
+  rotationDeg: number
+  crop: LeatherImageCrop
+  assignedShapeIds: string[]
+  visible: boolean
+  opacity: number
+  dpi?: number
+}
+
 export type DimensionLine = {
   id: string
   start: Point
   end: Point
   offsetMm: number
   text?: string
+  fontSizeMm?: number
+  labelPoint?: Point
+  labelRotationDeg?: number
+  labelPlacement?: 'baseline' | 'center'
   layerId: string
   lineTypeId: string
 }
@@ -528,6 +559,8 @@ export type DocFile = {
   avatars?: AvatarSpec[]
   threeTextureSource?: TextureSource | null
   threeTextureShapeIds?: string[]
+  leatherImageFills?: LeatherImageFill[]
+  activeLeatherImageFillId?: string | null
   showCanvasRuler?: boolean
   showDimensions?: boolean
   dimensionLines?: DimensionLine[]

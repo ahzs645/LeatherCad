@@ -20,6 +20,9 @@ export type TemplateRepositoryEntry = {
   doc: DocFile
 }
 
+export type TemplateRepositorySortKey = 'name' | 'updated'
+export type TemplateRepositoryMoveDirection = 'up' | 'down'
+
 function cloneDoc(doc: DocFile): DocFile {
   if (typeof structuredClone === 'function') {
     return structuredClone(doc)
@@ -100,6 +103,28 @@ export function createTemplateFromDoc(name: string, doc: DocFile): TemplateRepos
 
 export function serializeTemplateRepository(entries: TemplateRepositoryEntry[]) {
   return JSON.stringify(entries, null, 2)
+}
+
+export function moveTemplateRepositoryEntry(
+  entries: TemplateRepositoryEntry[],
+  entryId: string,
+  direction: TemplateRepositoryMoveDirection,
+) {
+  const index = entries.findIndex((entry) => entry.id === entryId)
+  const nextIndex = direction === 'up' ? index - 1 : index + 1
+  if (index < 0 || nextIndex < 0 || nextIndex >= entries.length) {
+    return entries
+  }
+  const next = [...entries]
+  const [entry] = next.splice(index, 1)
+  next.splice(nextIndex, 0, entry)
+  return next
+}
+
+export function sortTemplateRepository(entries: TemplateRepositoryEntry[], sortKey: TemplateRepositorySortKey) {
+  return [...entries].sort((left, right) =>
+    sortKey === 'name' ? left.name.localeCompare(right.name) : right.updatedAt.localeCompare(left.updatedAt),
+  )
 }
 
 export function parseTemplateRepositoryImport(raw: string): TemplateRepositoryEntry[] {

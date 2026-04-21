@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { TemplateRepositoryEntry } from '../templates/template-repository'
-import { getCatalogItemCount, type CatalogRepositoryItem, type CatalogRepositoryShop } from '../templates/catalog-repository'
+import type {
+  TemplateRepositoryEntry,
+  TemplateRepositoryMoveDirection,
+  TemplateRepositorySortKey,
+} from '../templates/template-repository'
+import {
+  getCatalogItemCount,
+  type CatalogRepositoryItem,
+  type CatalogRepositoryMoveDirection,
+  type CatalogRepositoryShop,
+  type CatalogRepositorySortKey,
+} from '../templates/catalog-repository'
 import { decodeCatalogZipBmpToObjectUrl } from '../templates/catalog-image-preview'
 import { PRESET_META } from '../data/sample-doc-meta'
 
 type TemplateRepositoryTab = 'templates' | 'catalog' | 'presets'
+type CatalogItemSort = 'group' | 'name' | 'category' | 'image'
 
 type TemplateRepositoryModalProps = {
   open: boolean
@@ -26,11 +37,17 @@ type TemplateRepositoryModalProps = {
   onLoadAsDocument: () => void
   onInsertIntoDocument: () => void
   onDeleteTemplate: (entryId: string) => void
+  onMoveTemplate: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
+  onSortTemplates: (sortKey: TemplateRepositorySortKey) => void
   onDeleteCatalogShop: (shopId: string) => void
+  onMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
+  onSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
 }
 
 type CatalogPreviewEntry = {
   key: string
+  groupIndex: number
+  itemIndex: number
   groupName: string
   item: CatalogRepositoryItem
 }
@@ -70,12 +87,20 @@ export function TemplateRepositoryModal({
   onLoadAsDocument,
   onInsertIntoDocument,
   onDeleteTemplate,
+  onMoveTemplate,
+  onSortTemplates,
   onDeleteCatalogShop,
+  onMoveCatalogShop,
+  onSortCatalogShops,
 }: TemplateRepositoryModalProps) {
   const [activeTab, setActiveTab] = useState<TemplateRepositoryTab>('templates')
   const [selectedCatalogItemKey, setSelectedCatalogItemKey] = useState<string | null>(null)
   const [catalogPreviewImageUrlsByKey, setCatalogPreviewImageUrlsByKey] = useState<Record<string, string>>({})
   const [catalogPreviewImageErrorsByKey, setCatalogPreviewImageErrorsByKey] = useState<Record<string, string>>({})
+  const [catalogPreviewImageSizesByKey, setCatalogPreviewImageSizesByKey] = useState<
+    Record<string, { width: number; height: number }>
+  >({})
+  const [catalogItemSort, setCatalogItemSort] = useState<CatalogItemSort>('group')
   const catalogPreviewImageObjectUrlsRef = useRef<Set<string>>(new Set())
   const catalogPreviewImagePendingRef = useRef<Set<string>>(new Set())
   const selectedCatalogShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
@@ -90,14 +115,31 @@ export function TemplateRepositoryModal({
     if (!selectedCatalogShop) {
       return []
     }
-    return selectedCatalogShop.groups.flatMap((group) =>
+    const entries = selectedCatalogShop.groups.flatMap((group, groupIndex) =>
       group.items.map((item, itemIndex) => ({
         key: `${group.id}:${item.id}:${itemIndex}`,
+        groupIndex,
+        itemIndex,
         groupName: group.name,
         item,
       })),
     )
-  }, [selectedCatalogShop])
+    return entries.sort((left, right) => {
+      if (catalogItemSort === 'name') {
+        return left.item.name.localeCompare(right.item.name)
+      }
+      if (catalogItemSort === 'category') {
+        return (
+          (left.item.category || '').localeCompare(right.item.category || '') ||
+          left.item.name.localeCompare(right.item.name)
+        )
+      }
+      if (catalogItemSort === 'image') {
+        return Number(right.item.hasImage) - Number(left.item.hasImage) || left.item.name.localeCompare(right.item.name)
+      }
+      return left.groupIndex - right.groupIndex || left.itemIndex - right.itemIndex
+    })
+  }, [selectedCatalogShop, catalogItemSort])
   const resolvedSelectedCatalogItemKey =
     selectedCatalogItemKey && catalogPreviewItems.some((entry) => entry.key === selectedCatalogItemKey)
       ? selectedCatalogItemKey
@@ -228,6 +270,12 @@ export function TemplateRepositoryModal({
                 Export Repository
               </button>
               <button onClick={onImportRepository}>Import Repository</button>
+              <button onClick={() => onSortTemplates('name')} disabled={templateRepository.length < 2}>
+                Sort A-Z
+              </button>
+              <button onClick={() => onSortTemplates('updated')} disabled={templateRepository.length < 2}>
+                Sort Newest
+              </button>
             </div>
 
             <div className="template-list">
@@ -252,6 +300,26 @@ export function TemplateRepositoryModal({
             </div>
 
             <div className="line-type-modal-actions">
+              <button
+                onClick={() => {
+                  if (selectedTemplateEntry) {
+                    onMoveTemplate(selectedTemplateEntry.id, 'up')
+                  }
+                }}
+                disabled={!selectedTemplateEntry}
+              >
+                Move Up
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedTemplateEntry) {
+                    onMoveTemplate(selectedTemplateEntry.id, 'down')
+                  }
+                }}
+                disabled={!selectedTemplateEntry}
+              >
+                Move Down
+              </button>
               <button onClick={onLoadAsDocument} disabled={!selectedTemplateEntry}>
                 Load as Document
               </button>
@@ -274,6 +342,32 @@ export function TemplateRepositoryModal({
           <>
             <div className="line-type-modal-actions">
               <button onClick={onImportCatalog}>Import Catalog</button>
+              <button onClick={() => onSortCatalogShops('name')} disabled={catalogRepository.length < 2}>
+                Sort A-Z
+              </button>
+              <button onClick={() => onSortCatalogShops('imported')} disabled={catalogRepository.length < 2}>
+                Sort Newest
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedCatalogShop) {
+                    onMoveCatalogShop(selectedCatalogShop.id, 'up')
+                  }
+                }}
+                disabled={!selectedCatalogShop || selectedCatalogShop.isBundled}
+              >
+                Move Up
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedCatalogShop) {
+                    onMoveCatalogShop(selectedCatalogShop.id, 'down')
+                  }
+                }}
+                disabled={!selectedCatalogShop || selectedCatalogShop.isBundled}
+              >
+                Move Down
+              </button>
               <button
                 onClick={() => {
                   if (selectedCatalogShop) {
@@ -328,6 +422,21 @@ export function TemplateRepositoryModal({
                         {selectedCatalogShopGroupCount} groups, {selectedCatalogShopItemCount} items
                       </span>
                     </h3>
+                    <div className="line-type-modal-actions">
+                      <label className="field-row">
+                        <span>Item sort</span>
+                        <select
+                          className="action-select"
+                          value={catalogItemSort}
+                          onChange={(event) => setCatalogItemSort(event.target.value as CatalogItemSort)}
+                        >
+                          <option value="group">Group order</option>
+                          <option value="name">Name</option>
+                          <option value="category">Category</option>
+                          <option value="image">Images first</option>
+                        </select>
+                      </label>
+                    </div>
                     <div className="catalog-preview-layout">
                       <div className="catalog-preview-item-list" role="listbox" aria-label="Catalog items">
                         {catalogPreviewItems.map((entry) => {
@@ -361,6 +470,16 @@ export function TemplateRepositoryModal({
                                     className="catalog-preview-image"
                                     src={selectedCatalogPreviewImageUrl}
                                     alt={`${selectedCatalogPreviewItem.item.name} thumbnail`}
+                                    onLoad={(event) => {
+                                      const image = event.currentTarget
+                                      setCatalogPreviewImageSizesByKey((previous) => ({
+                                        ...previous,
+                                        [selectedCatalogPreviewItem.key]: {
+                                          width: image.naturalWidth,
+                                          height: image.naturalHeight,
+                                        },
+                                      }))
+                                    }}
                                   />
                                 ) : selectedCatalogPreviewItem.item.zipBmpBase64 ? (
                                   <p className="hint">
@@ -390,6 +509,18 @@ export function TemplateRepositoryModal({
                                     : 'Included'
                                   : 'No image'}
                               </dd>
+                              <dt>Preview</dt>
+                              <dd>
+                                {catalogPreviewImageSizesByKey[selectedCatalogPreviewItem.key]
+                                  ? `${catalogPreviewImageSizesByKey[selectedCatalogPreviewItem.key].width} x ${
+                                      catalogPreviewImageSizesByKey[selectedCatalogPreviewItem.key].height
+                                    } px`
+                                  : selectedCatalogPreviewItem.item.hasImage
+                                    ? 'Pending'
+                                    : 'N/A'}
+                              </dd>
+                              <dt>Source</dt>
+                              <dd>{selectedCatalogShop.sourceFileName || 'Unknown'}</dd>
                               <dt>GUID</dt>
                               <dd>{selectedCatalogPreviewItem.item.guid || 'N/A'}</dd>
                             </dl>

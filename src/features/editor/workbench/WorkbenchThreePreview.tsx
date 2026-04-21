@@ -11,6 +11,7 @@ import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { LEATHER_COLORS, LEATHER_PRESETS, PRESET_IDS } from '../three/material-presets'
 import type { WorkbenchThreePreviewController } from './useWorkbenchThreePreviewController'
 import { AvatarFormFields } from './WorkbenchThreeAvatarForm'
+import { WorkbenchFinalFoldDrawer, WorkbenchFinalFoldModeTab } from './WorkbenchFinalFoldDrawer'
 
 function defaultPiecePlacement(pieceId: string): PiecePlacement3D {
   return {
@@ -42,9 +43,11 @@ export function WorkbenchThreePreviewViewport({
     threePreviewSettings,
     visiblePatternPieces,
   } = controller
+  const showFinalFoldDrawer = !compact && interactive && threePreviewSettings.mode === 'final'
+  const showFinalFoldModeTab = !compact && interactive && threePreviewSettings.mode === 'fold' && foldLines.length > 0
 
   return (
-    <div className={`workbench-three-viewport ${compact ? 'compact' : ''} ${interactive ? '' : 'read-only'}`}>
+    <div className={`workbench-three-viewport ${compact ? 'compact' : ''} ${interactive ? '' : 'read-only'} ${showFinalFoldDrawer ? 'with-final-fold-drawer' : ''}`}>
       <div className="workbench-three-viewport-header">
         <div>
           <strong>3D Preview</strong>
@@ -68,6 +71,8 @@ export function WorkbenchThreePreviewViewport({
           {invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.
         </p>
       )}
+      {showFinalFoldDrawer && <WorkbenchFinalFoldDrawer controller={controller} />}
+      {showFinalFoldModeTab && <WorkbenchFinalFoldModeTab controller={controller} />}
     </div>
   )
 }
@@ -286,7 +291,12 @@ export function WorkbenchThreePreviewInspector({
 
       <div className="control-block">
         <h3>Bend Controls</h3>
-        {threePreviewSettings.mode !== 'fold' && threePreviewSettings.mode !== 'final' ? (
+        {threePreviewSettings.mode === 'final' ? (
+          <>
+            <p className="hint">Use the Final Folds drawer at the bottom of the full 3D viewport for crease angles and directions.</p>
+            <p className="hint">{`${foldLines.length} crease${foldLines.length === 1 ? '' : 's'} available.`}</p>
+          </>
+        ) : threePreviewSettings.mode !== 'fold' ? (
           <p className="hint">Fold controls are active in Fold and Final Product modes.</p>
         ) : foldLines.length === 0 ? (
           <p className="hint">Use the Fold tool in 2D canvas to assign bend lines.</p>

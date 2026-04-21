@@ -53,6 +53,8 @@ function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
     avatars: [],
     threeTextureSource: null,
     threeTextureShapeIds: [],
+    leatherImageFills: [],
+    activeLeatherImageFillId: null,
     showCanvasRuler: true,
     showDimensions: true,
     layerColorOverrides: {},

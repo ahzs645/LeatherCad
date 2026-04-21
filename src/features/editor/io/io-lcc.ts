@@ -34,7 +34,7 @@ import {
   resolveLccDash,
   styleToLccDash,
 } from './lcc/lcc-color-style'
-import { rebuildImportedDimensions } from './lcc/lcc-dimensions'
+import { parseLccPathCenter, rebuildImportedDimensions } from './lcc/lcc-dimensions'
 import { ellipseArcToShapes, ellipseToArcShapes } from './lcc/lcc-ellipse'
 import { rebuildStitchSequences } from './lcc/lcc-stitch'
 import {
@@ -170,6 +170,8 @@ export function importLccDocument(raw: string): LccImportResult {
         if (isDimension) {
           skippedDimensionShapes++
           rawDimensionSegments.push({
+            sourceId: lccShape.id,
+            sourceGroupId: lccShape.gid,
             start: pt(lccShape.sp),
             end: pt(lccShape.ep),
             hasArrowStart: lccShape.arst === '-1',
@@ -316,11 +318,19 @@ export function importLccDocument(raw: string): LccImportResult {
         // Dimension label text (e.g. "28mm") is reconstructed as part of the
         // logical dimension overlay instead of being imported as editable text.
         if (lccShape.dim === '-1') {
+          const visualCenter = parseLccPathCenter(lccShape.path)
+          const anchor = visualCenter ?? pt(lccShape.sp)
           skippedDimensionShapes++
           rawDimensionTexts.push({
+            sourceId: lccShape.id,
+            sourceGroupId: lccShape.gid,
             text,
-            center: pt(lccShape.sp),
+            anchor,
+            center: anchor,
             layerId,
+            fontSizeMm: parseLccFloat(lccShape.fs) || undefined,
+            rotationDeg: parseLccFloat(lccShape.rt) || undefined,
+            placement: visualCenter ? 'center' : 'baseline',
           })
           break
         }

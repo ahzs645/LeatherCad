@@ -1,7 +1,8 @@
-import type { Dispatch, SetStateAction } from 'react'
+import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
 import type {
   HardwareMarker,
   Layer,
+  LeatherImageFill,
   LineType,
   LineTypeRole,
   LineTypeStyle,
@@ -234,8 +235,18 @@ type BuildDocumentInspectorPropsInput = {
   handleShowAllLineTypes: () => void
   setLineTypes: Dispatch<SetStateAction<LineType[]>>
   handleUpdateActiveLineTypeColor: (color: string) => void
+  handleUpdateActiveLineTypeIgnoreInPrint: (ignoreInPrint: boolean) => void
   handleUpdateActiveLineTypeRole: (role: LineTypeRole) => void
   handleUpdateActiveLineTypeStyle: (style: LineTypeStyle) => void
+  handleUpdateActiveLineTypeStrokeWidthMm: (strokeWidthMm: number) => void
+  leatherImageFills: LeatherImageFill[]
+  activeLeatherImageFill: LeatherImageFill | null
+  setActiveLeatherImageFillId: (fillId: string | null) => void
+  handleImportLeatherImageFill: (event: ChangeEvent<HTMLInputElement>) => void
+  handleUpdateLeatherImageFill: (fillId: string, patch: Partial<LeatherImageFill>) => void
+  handleDeleteActiveLeatherImageFill: () => void
+  handleAssignSelectedToActiveLeatherImageFill: () => void
+  handleClearSelectedFromActiveLeatherImageFill: () => void
   layers: Layer[]
   layerColorsById: Record<string, string>
   layerColorOverrides: Record<string, string>
@@ -279,8 +290,18 @@ export function buildDocumentInspectorProps({
   handleShowAllLineTypes,
   setLineTypes,
   handleUpdateActiveLineTypeColor,
+  handleUpdateActiveLineTypeIgnoreInPrint,
   handleUpdateActiveLineTypeRole,
   handleUpdateActiveLineTypeStyle,
+  handleUpdateActiveLineTypeStrokeWidthMm,
+  leatherImageFills,
+  activeLeatherImageFill,
+  setActiveLeatherImageFillId,
+  handleImportLeatherImageFill,
+  handleUpdateLeatherImageFill,
+  handleDeleteActiveLeatherImageFill,
+  handleAssignSelectedToActiveLeatherImageFill,
+  handleClearSelectedFromActiveLeatherImageFill,
   layers,
   layerColorsById,
   layerColorOverrides,
@@ -329,8 +350,18 @@ export function buildDocumentInspectorProps({
         ),
       ),
     onUpdateActiveLineTypeColor: handleUpdateActiveLineTypeColor,
+    onUpdateActiveLineTypeIgnoreInPrint: handleUpdateActiveLineTypeIgnoreInPrint,
     onUpdateActiveLineTypeRole: handleUpdateActiveLineTypeRole,
     onUpdateActiveLineTypeStyle: handleUpdateActiveLineTypeStyle,
+    onUpdateActiveLineTypeStrokeWidthMm: handleUpdateActiveLineTypeStrokeWidthMm,
+    leatherImageFills,
+    activeLeatherImageFill,
+    onSetActiveLeatherImageFillId: setActiveLeatherImageFillId,
+    onImportLeatherImageFill: handleImportLeatherImageFill,
+    onUpdateLeatherImageFill: handleUpdateLeatherImageFill,
+    onDeleteActiveLeatherImageFill: handleDeleteActiveLeatherImageFill,
+    onAssignSelectedToActiveLeatherImageFill: handleAssignSelectedToActiveLeatherImageFill,
+    onClearSelectedFromActiveLeatherImageFill: handleClearSelectedFromActiveLeatherImageFill,
     layers,
     layerColorsById,
     layerColorOverrides,

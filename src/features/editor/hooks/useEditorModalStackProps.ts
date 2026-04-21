@@ -1,16 +1,10 @@
 import { useMemo, type ComponentProps, type Dispatch, type RefObject, type SetStateAction } from 'react'
-import type {
-  HardwareMarker,
-  Layer,
-  Shape,
-  SketchGroup,
-  TracingOverlay,
-} from '../cad/cad-types'
+import type { HardwareMarker, Layer, Shape, SketchGroup, TracingOverlay } from '../cad/cad-types'
 import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-constants'
 import { normalizeHexColor } from '../editor-utils'
 import { EditorModalStack } from '../components/EditorModalStack'
-import type { TemplateRepositoryEntry } from '../templates/template-repository'
-import type { CatalogRepositoryShop } from '../templates/catalog-repository'
+import type { TemplateRepositoryEntry, TemplateRepositoryMoveDirection, TemplateRepositorySortKey } from '../templates/template-repository'
+import type { CatalogRepositoryMoveDirection, CatalogRepositoryShop, CatalogRepositorySortKey } from '../templates/catalog-repository'
 import type { PrintPlan } from '../preview/print-preview'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
@@ -26,6 +20,8 @@ export type UseEditorModalStackPropsParams = {
   handleUpdateActiveLineTypeRole: (role: import('../cad/cad-types').LineTypeRole) => void
   handleUpdateActiveLineTypeStyle: (style: import('../cad/cad-types').LineTypeStyle) => void
   handleUpdateActiveLineTypeColor: (color: string) => void
+  handleUpdateActiveLineTypeStrokeWidthMm: (strokeWidthMm: number) => void
+  handleUpdateActiveLineTypeIgnoreInPrint: (ignoreInPrint: boolean) => void
   handleSelectShapesByActiveLineType: () => void
   handleAssignSelectedToActiveLineType: () => void
   handleClearShapeSelection: () => void
@@ -60,7 +56,11 @@ export type UseEditorModalStackPropsParams = {
   handleLoadTemplateAsDocument: () => void
   handleInsertTemplateIntoDocument: () => void
   handleDeleteTemplateFromRepository: (entryId: string) => void
+  handleMoveTemplateEntry: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
+  handleSortTemplates: (sortKey: TemplateRepositorySortKey) => void
   handleDeleteCatalogShop: (shopId: string) => void
+  handleMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
+  handleSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
   handleAlignSelectionToGrid: () => void
   activeLayer: Layer | null
@@ -127,6 +127,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleUpdateActiveLineTypeRole,
     handleUpdateActiveLineTypeStyle,
     handleUpdateActiveLineTypeColor,
+    handleUpdateActiveLineTypeStrokeWidthMm,
+    handleUpdateActiveLineTypeIgnoreInPrint,
     handleSelectShapesByActiveLineType,
     handleAssignSelectedToActiveLineType,
     handleClearShapeSelection,
@@ -161,7 +163,11 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleDeleteTemplateFromRepository,
+    handleMoveTemplateEntry,
+    handleSortTemplates,
     handleDeleteCatalogShop,
+    handleMoveCatalogShop,
+    handleSortCatalogShops,
     handleAlignSelection,
     handleAlignSelectionToGrid,
     activeLayer,
@@ -272,6 +278,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     printRulerInside,
     printInColor,
     printStitchAsDots,
+    printLineThicknessScalePercent,
+    printShowIgnoredLineTypes,
     showPrintAreas,
   } = useEditorPanelSelector((state) => ({
     showLineTypePalette: state.showLineTypePalette,
@@ -311,6 +319,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     printRulerInside: state.printRulerInside,
     printInColor: state.printInColor,
     printStitchAsDots: state.printStitchAsDots,
+    printLineThicknessScalePercent: state.printLineThicknessScalePercent,
+    printShowIgnoredLineTypes: state.printShowIgnoredLineTypes,
     showPrintAreas: state.showPrintAreas,
   }))
   const {
@@ -351,6 +361,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setPrintRulerInside,
     setPrintInColor,
     setPrintStitchAsDots,
+    setPrintLineThicknessScalePercent,
+    setPrintShowIgnoredLineTypes,
     setShowPrintAreas,
   } = useEditorPanelActions()
   const {
@@ -444,6 +456,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onUpdateActiveLineTypeRole: handleUpdateActiveLineTypeRole,
       onUpdateActiveLineTypeStyle: handleUpdateActiveLineTypeStyle,
       onUpdateActiveLineTypeColor: handleUpdateActiveLineTypeColor,
+      onUpdateActiveLineTypeStrokeWidthMm: handleUpdateActiveLineTypeStrokeWidthMm,
+      onUpdateActiveLineTypeIgnoreInPrint: handleUpdateActiveLineTypeIgnoreInPrint,
       onSelectShapesByActiveType: handleSelectShapesByActiveLineType,
       onAssignSelectedToActiveType: handleAssignSelectedToActiveLineType,
       onClearSelection: handleClearShapeSelection,
@@ -530,7 +544,11 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onLoadAsDocument: handleLoadTemplateAsDocument,
       onInsertIntoDocument: handleInsertTemplateIntoDocument,
       onDeleteTemplate: handleDeleteTemplateFromRepository,
+      onMoveTemplate: handleMoveTemplateEntry,
+      onSortTemplates: handleSortTemplates,
       onDeleteCatalogShop: handleDeleteCatalogShop,
+      onMoveCatalogShop: handleMoveCatalogShop,
+      onSortCatalogShops: handleSortCatalogShops,
     },
     patternToolsModalProps: {
       open: showPatternToolsModal,
@@ -664,6 +682,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onSetPrintInColor: setPrintInColor,
       printStitchAsDots,
       onSetPrintStitchAsDots: setPrintStitchAsDots,
+      printLineThicknessScalePercent,
+      onSetPrintLineThicknessScalePercent: setPrintLineThicknessScalePercent,
+      printShowIgnoredLineTypes,
+      onSetPrintShowIgnoredLineTypes: setPrintShowIgnoredLineTypes,
       printPlan,
       showPrintAreas,
       onTogglePrintAreas: () => setShowPrintAreas((previous) => !previous),

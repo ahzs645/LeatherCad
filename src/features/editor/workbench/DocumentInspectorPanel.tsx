@@ -1,8 +1,10 @@
-import type { Layer, LineTypeRole, LineTypeStyle, SnapSettings } from '../cad/cad-types'
+import type { ChangeEvent } from 'react'
+import type { Layer, LeatherImageFill, LineTypeRole, LineTypeStyle, SnapSettings } from '../cad/cad-types'
 import type { DisplayUnit } from '../ops/unit-ops'
 import type { SketchWorkspaceMode, ThemeMode } from '../editor-types'
 import { GRID_SPACING_OPTIONS } from '../editor-constants'
 import { LayerColorSettingsSection } from '../components/LayerColorSettingsSection'
+import { LeatherImageFillSection } from '../components/LeatherImageFillSection'
 import { LineTypeManagerSection } from '../components/LineTypeManagerSection'
 
 export type DocumentInspectorPanelProps = {
@@ -36,8 +38,18 @@ export type DocumentInspectorPanelProps = {
   onShowAllTypes: () => void
   onToggleLineTypeVisibility: (lineTypeId: string) => void
   onUpdateActiveLineTypeColor: (color: string) => void
+  onUpdateActiveLineTypeIgnoreInPrint: (ignoreInPrint: boolean) => void
   onUpdateActiveLineTypeRole: (role: LineTypeRole) => void
   onUpdateActiveLineTypeStyle: (style: LineTypeStyle) => void
+  onUpdateActiveLineTypeStrokeWidthMm: (strokeWidthMm: number) => void
+  leatherImageFills: LeatherImageFill[]
+  activeLeatherImageFill: LeatherImageFill | null
+  onSetActiveLeatherImageFillId: (fillId: string | null) => void
+  onImportLeatherImageFill: (event: ChangeEvent<HTMLInputElement>) => void
+  onUpdateLeatherImageFill: (fillId: string, patch: Partial<LeatherImageFill>) => void
+  onDeleteActiveLeatherImageFill: () => void
+  onAssignSelectedToActiveLeatherImageFill: () => void
+  onClearSelectedFromActiveLeatherImageFill: () => void
   layers: Layer[]
   layerColorsById: Record<string, string>
   layerColorOverrides: Record<string, string>
@@ -81,8 +93,18 @@ export function DocumentInspectorPanel({
   onShowAllTypes,
   onToggleLineTypeVisibility,
   onUpdateActiveLineTypeColor,
+  onUpdateActiveLineTypeIgnoreInPrint,
   onUpdateActiveLineTypeRole,
   onUpdateActiveLineTypeStyle,
+  onUpdateActiveLineTypeStrokeWidthMm,
+  leatherImageFills,
+  activeLeatherImageFill,
+  onSetActiveLeatherImageFillId,
+  onImportLeatherImageFill,
+  onUpdateLeatherImageFill,
+  onDeleteActiveLeatherImageFill,
+  onAssignSelectedToActiveLeatherImageFill,
+  onClearSelectedFromActiveLeatherImageFill,
   layers,
   layerColorsById,
   layerColorOverrides,
@@ -206,8 +228,25 @@ export function DocumentInspectorPanel({
           onShowAllTypes={onShowAllTypes}
           onToggleLineTypeVisibility={onToggleLineTypeVisibility}
           onUpdateActiveLineTypeColor={onUpdateActiveLineTypeColor}
+          onUpdateActiveLineTypeIgnoreInPrint={onUpdateActiveLineTypeIgnoreInPrint}
           onUpdateActiveLineTypeRole={onUpdateActiveLineTypeRole}
           onUpdateActiveLineTypeStyle={onUpdateActiveLineTypeStyle}
+          onUpdateActiveLineTypeStrokeWidthMm={onUpdateActiveLineTypeStrokeWidthMm}
+        />
+      </div>
+
+      <div className="control-block">
+        <h3>Leather Images</h3>
+        <LeatherImageFillSection
+          leatherImageFills={leatherImageFills}
+          activeLeatherImageFill={activeLeatherImageFill}
+          selectedShapeCount={selectedShapeCount}
+          onSetActiveLeatherImageFillId={onSetActiveLeatherImageFillId}
+          onImportLeatherImageFill={onImportLeatherImageFill}
+          onUpdateLeatherImageFill={onUpdateLeatherImageFill}
+          onDeleteActiveLeatherImageFill={onDeleteActiveLeatherImageFill}
+          onAssignSelectedToActiveLeatherImageFill={onAssignSelectedToActiveLeatherImageFill}
+          onClearSelectedFromActiveLeatherImageFill={onClearSelectedFromActiveLeatherImageFill}
         />
       </div>
 

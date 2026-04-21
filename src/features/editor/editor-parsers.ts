@@ -43,6 +43,7 @@ export {
   sanitizeThreePreviewSettings,
 } from './editor-preview-parsers'
 export { parseBackdrop, parseTracingOverlay } from './editor-overlay-parsers'
+export { parseLeatherImageFill } from './editor-leather-image-parsers'
 
 export function parseFoldLine(value: unknown): FoldLine | null {
   if (typeof value !== 'object' || value === null) {
@@ -608,6 +609,10 @@ export function parseDimensionLine(value: unknown): DimensionLine | null {
     end?: unknown
     offsetMm?: unknown
     text?: unknown
+    fontSizeMm?: unknown
+    labelPoint?: unknown
+    labelRotationDeg?: unknown
+    labelPlacement?: unknown
     layerId?: unknown
     lineTypeId?: unknown
   }
@@ -631,6 +636,19 @@ export function parseDimensionLine(value: unknown): DimensionLine | null {
         ? candidate.offsetMm
         : 5,
     text: typeof candidate.text === 'string' ? candidate.text : undefined,
+    fontSizeMm:
+      typeof candidate.fontSizeMm === 'number' && Number.isFinite(candidate.fontSizeMm)
+        ? Math.max(1, Math.min(120, candidate.fontSizeMm))
+        : undefined,
+    labelPoint: isPointLike(candidate.labelPoint) ? candidate.labelPoint : undefined,
+    labelRotationDeg:
+      typeof candidate.labelRotationDeg === 'number' && Number.isFinite(candidate.labelRotationDeg)
+        ? candidate.labelRotationDeg
+        : undefined,
+    labelPlacement:
+      candidate.labelPlacement === 'baseline' || candidate.labelPlacement === 'center'
+        ? candidate.labelPlacement
+        : undefined,
     layerId: candidate.layerId,
     lineTypeId: candidate.lineTypeId,
   }

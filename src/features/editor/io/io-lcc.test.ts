@@ -735,9 +735,129 @@ describe('importLccDocument', () => {
     expect(result.doc.objects).toHaveLength(0)
     expect(result.doc.dimensionLines).toHaveLength(1)
     expect(result.doc.dimensionLines?.[0]?.text).toBe('28mm')
+    expect(result.doc.dimensionLines?.[0]?.fontSizeMm).toBe(2)
+    expect(result.doc.dimensionLines?.[0]?.labelPoint).toEqual({ x: -9.0646915435791, y: 8.87255859375 })
+    expect(result.doc.dimensionLines?.[0]?.labelRotationDeg).toBe(270)
+    expect(result.doc.dimensionLines?.[0]?.labelPlacement).toBe('baseline')
     expect(result.doc.dimensionLines?.[0]?.start).toEqual({ x: -0.5, y: -5 })
     expect(result.doc.dimensionLines?.[0]?.end).toEqual({ x: -0.5, y: 23 })
-    expect(result.doc.dimensionLines?.[0]?.offsetMm).toBeCloseTo(-5.7810001373291)
+    expect(result.doc.dimensionLines?.[0]?.offsetMm).toBeCloseTo(5.7810001373291)
+  })
+
+  it('uses native LCC dimension group ids before proximity matching labels', () => {
+    const baseDimensionShape = {
+      ct: [0, 0],
+      w: '0.0',
+      h: '0.0',
+      color: 'Orange',
+      dash: 'Solid',
+      opc: '0.5',
+      path: '',
+      rt: '0.0',
+      st: '',
+      inv: '0',
+      bz1: [0, 0],
+      bz2: [0, 0],
+      thk: '1.5',
+      la: '0.0',
+      lb: '0.0',
+      iv: '0',
+      ih: '0',
+      sta: '0.0',
+      swa: '0.0',
+      ff: 'Yu Gothic UI',
+      txst: '1.0',
+      txrd: '0.0',
+      nm: '',
+      dim: '-1',
+      layer: '4',
+      plidx: '0',
+    }
+    const textShape = (
+      id: string,
+      text: string,
+      sp: [number, number],
+      ct: [number, number] = sp,
+      rt = '0.0',
+      path = '',
+    ) => ({
+      ...baseDimensionShape,
+      id,
+      type: 'TEXT',
+      sp,
+      ct,
+      ep: [0, 0],
+      path,
+      tx: text,
+      fs: '2.0',
+      rt,
+      gid: '0',
+      arst: '0',
+      ared: '0',
+    })
+    const lineShape = (
+      id: string,
+      gid: string,
+      sp: [number, number],
+      ep: [number, number],
+      arst = '0',
+      ared = '0',
+    ) => ({
+      ...baseDimensionShape,
+      id,
+      type: 'LINE',
+      sp,
+      ep,
+      ct: [(sp[0] + ep[0]) / 2, (sp[1] + ep[1]) / 2],
+      tx: '',
+      fs: '10.0',
+      gid,
+      arst,
+      ared,
+    })
+
+    const lcc = JSON.stringify({
+      meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
+      layers: [{ id: 4, chk: '-1', nam: 'Dimensions', indp: '0' }],
+      shapes: [
+        // The 2mm label sits inside the larger dimension's bounds, so pure
+        // geometric proximity would incorrectly attach it to the 28mm group.
+        textShape('100', '28mm', [-9.0646915435791, 8.87255859375]),
+        lineShape('102', '101', [-6.2810001373291, 12.3008003234863], [-6.2810001373291, 23], '0', '-1'),
+        lineShape('103', '101', [-6.2810001373291, 5.69920015335083], [-6.2810001373291, -5], '0', '-1'),
+        lineShape('104', '101', [-0.5, 23], [-6.2810001373291, 23]),
+        lineShape('105', '101', [-0.5, -5], [-6.2810001373291, -5]),
+        textShape(
+          '106',
+          '2mm',
+          [-5.31345701217651, -4.1162109375],
+          [0.599628925323486, -3.04878902435303],
+          '270.0',
+          'M-3.8,-6.1 L-2.4,-6.1 L-2.4,-1.9 L-3.8,-1.9 Z',
+        ),
+        lineShape('108', '107', [-1.64499998092651, -3], [-1.64499998092651, -5], '-1', '-1'),
+        lineShape('109', '107', [1.5, -3], [-1.64499998092651, -3]),
+        lineShape('110', '107', [1.5, -5], [-1.64499998092651, -5]),
+      ],
+      backdrops: [],
+      printareas: [],
+    })
+
+    const result = importLccDocument(lcc)
+    expect(result.doc.dimensionLines).toHaveLength(2)
+    const dimensionsByText = new Map(result.doc.dimensionLines?.map((dimension) => [dimension.text, dimension]))
+    expect(dimensionsByText.get('28mm')).toMatchObject({
+      start: { x: -0.5, y: -5 },
+      end: { x: -0.5, y: 23 },
+    })
+    expect(dimensionsByText.get('2mm')).toMatchObject({
+      start: { x: 1.5, y: -5 },
+      end: { x: 1.5, y: -3 },
+      offsetMm: 3.14499998092651,
+      labelPoint: { x: -3.0999999999999996, y: -4 },
+      labelRotationDeg: 270,
+      labelPlacement: 'center',
+    })
   })
 
   it('imports print areas from LCC printareas', () => {

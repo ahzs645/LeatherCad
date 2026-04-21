@@ -79,5 +79,9 @@ export function parseTracingOverlay(value: unknown): TracingOverlay | null {
     width: typeof candidate.width === 'number' && candidate.width > 0 ? candidate.width : 800,
     height: typeof candidate.height === 'number' && candidate.height > 0 ? candidate.height : 800,
     isObjectUrl: typeof candidate.isObjectUrl === 'boolean' ? candidate.isObjectUrl : false,
+    dpi:
+      typeof candidate.dpi === 'number' && Number.isFinite(candidate.dpi) && candidate.dpi > 0
+        ? candidate.dpi
+        : undefined,
   }
 }

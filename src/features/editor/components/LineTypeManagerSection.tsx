@@ -1,4 +1,5 @@
 import type { LineType, LineTypeRole, LineTypeStyle } from '../cad/cad-types'
+import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 
 type LineTypeManagerSectionProps = {
   activeLineType: LineType | null
@@ -13,8 +14,10 @@ type LineTypeManagerSectionProps = {
   onShowAllTypes: () => void
   onToggleLineTypeVisibility: (lineTypeId: string) => void
   onUpdateActiveLineTypeColor: (color: string) => void
+  onUpdateActiveLineTypeIgnoreInPrint: (ignoreInPrint: boolean) => void
   onUpdateActiveLineTypeRole: (role: LineTypeRole) => void
   onUpdateActiveLineTypeStyle: (style: LineTypeStyle) => void
+  onUpdateActiveLineTypeStrokeWidthMm: (strokeWidthMm: number) => void
 }
 
 const ROLE_OPTIONS: Array<{ value: LineTypeRole; label: string }> = [
@@ -45,8 +48,10 @@ export function LineTypeManagerSection({
   onShowAllTypes,
   onToggleLineTypeVisibility,
   onUpdateActiveLineTypeColor,
+  onUpdateActiveLineTypeIgnoreInPrint,
   onUpdateActiveLineTypeRole,
   onUpdateActiveLineTypeStyle,
+  onUpdateActiveLineTypeStrokeWidthMm,
 }: LineTypeManagerSectionProps) {
   return (
     <>
@@ -70,6 +75,7 @@ export function LineTypeManagerSection({
             <span className="line-type-chip-label">{lineType.name}</span>
             <span className="line-type-chip-meta">{`${shapeCountsByLineType[lineType.id] ?? 0}`}</span>
             <span className="line-type-chip-meta">{lineType.visible ? 'visible' : 'hidden'}</span>
+            {shouldIgnoreLineTypeInPrint(lineType) && <span className="line-type-chip-meta">no print</span>}
           </button>
         ))}
       </div>
@@ -127,6 +133,28 @@ export function LineTypeManagerSection({
               style={{ width: 96 }}
               aria-label="Line type color (hex)"
             />
+          </label>
+
+          <label className="field-row">
+            <span>Thickness</span>
+            <input
+              type="number"
+              min={0.1}
+              max={20}
+              step={0.1}
+              value={resolveLineTypeStrokeWidthMm(activeLineType)}
+              onChange={(event) => onUpdateActiveLineTypeStrokeWidthMm(Number(event.target.value))}
+              aria-label="Line type thickness in millimeters"
+            />
+          </label>
+
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={shouldIgnoreLineTypeInPrint(activeLineType)}
+              onChange={(event) => onUpdateActiveLineTypeIgnoreInPrint(event.target.checked)}
+            />
+            <span>Ignore in print</span>
           </label>
         </div>
       )}

@@ -1,5 +1,5 @@
 import type { PointerEvent } from 'react'
-import { lineTypeStrokeDasharray } from '../../cad/line-types'
+import { lineTypeStrokeDasharray, resolveLineTypeStrokeWidthMm } from '../../cad/line-types'
 import type {
   FoldLine,
   LineType,
@@ -84,6 +84,7 @@ export function CanvasShapeLayer({
             buildTextGlyphPlacements,
             normalizeTextShape,
             textBaselineAngleDeg,
+            strokeWidthMm: resolveLineTypeStrokeWidthMm(lineType),
             viewportScale,
           })
         })}
@@ -111,6 +112,7 @@ export function CanvasShapeLayer({
             buildTextGlyphPlacements,
             normalizeTextShape,
             textBaselineAngleDeg,
+            strokeWidthMm: resolveLineTypeStrokeWidthMm(lineType),
             viewportScale,
           })
         })}

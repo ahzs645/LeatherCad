@@ -1,5 +1,6 @@
 import { sampleShapePoints, uid } from '../cad/cad-geometry'
-import type { Shape } from '../cad/cad-types'
+import type { Shape, TextShape } from '../cad/cad-types'
+import { collectSvgElementTransform, transformSvgShape } from './svg/svg-transform'
 
 type SvgImportOptions = {
   layerId: string
@@ -30,6 +31,9 @@ function unitToMm(unit: string) {
   if (unit === 'm') {
     return 1000
   }
+  if (unit === 'px') {
+    return Number.NaN
+  }
   return 1
 }
 
@@ -47,10 +51,18 @@ function parseLength(value: string | null, fallback = 0, documentScaleMm = 1) {
     return fallback
   }
   const unit = match[2].toLowerCase()
-  if (!unit || unit === '%') {
+  if (!unit || unit === '%' || unit === 'px') {
     return parsed * documentScaleMm
   }
-  return parsed * unitToMm(unit)
+  const unitScale = unitToMm(unit)
+  return Number.isFinite(unitScale) ? parsed * unitScale : fallback
+}
+
+function parseFirstLength(value: string | null, fallback = 0, documentScaleMm = 1) {
+  if (!value) {
+    return fallback
+  }
+  return parseLength(value.trim().split(/[\s,]+/)[0] ?? '', fallback, documentScaleMm)
 }
 
 function parsePointList(value: string | null, documentScaleMm = 1) {
@@ -150,6 +162,62 @@ function ellipseToLines(
   return polylineToLines(points, true, layerId, lineTypeId)
 }
 
+function parseStyleAttribute(value: string | null) {
+  const styles: Record<string, string> = {}
+  if (!value) {
+    return styles
+  }
+
+  value.split(';').forEach((entry) => {
+    const separator = entry.indexOf(':')
+    if (separator < 0) {
+      return
+    }
+    const key = entry.slice(0, separator).trim().toLowerCase()
+    const styleValue = entry.slice(separator + 1).trim()
+    if (key.length > 0 && styleValue.length > 0) {
+      styles[key] = styleValue
+    }
+  })
+  return styles
+}
+
+function unquoteFontFamily(value: string) {
+  return value
+    .split(',')
+    .map((entry) => entry.trim().replace(/^['"]|['"]$/g, ''))
+    .find((entry) => entry.length > 0) ?? 'sans-serif'
+}
+
+function textToShape(textElement: SVGTextElement, layerId: string, lineTypeId: string, documentScaleMm: number): TextShape | null {
+  const text = textElement.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+  if (text.length === 0) {
+    return null
+  }
+
+  const styles = parseStyleAttribute(textElement.getAttribute('style'))
+  const x = parseFirstLength(textElement.getAttribute('x'), 0, documentScaleMm)
+  const y = parseFirstLength(textElement.getAttribute('y'), 0, documentScaleMm)
+  const fontSizeMm = parseLength(textElement.getAttribute('font-size') ?? styles['font-size'] ?? null, 12, documentScaleMm)
+  const fontFamily = unquoteFontFamily(textElement.getAttribute('font-family') ?? styles['font-family'] ?? 'sans-serif')
+  const widthMm = Math.max(fontSizeMm * 0.8, text.length * fontSizeMm * 0.62)
+
+  return {
+    id: uid(),
+    type: 'text',
+    layerId,
+    lineTypeId,
+    start: { x, y },
+    end: { x: x + widthMm, y },
+    text,
+    fontFamily,
+    fontSizeMm,
+    transform: 'none',
+    radiusMm: 40,
+    sweepDeg: 140,
+  }
+}
+
 function pathToLines(pathElement: SVGPathElement, layerId: string, lineTypeId: string) {
   const length = pathElement.getTotalLength()
   if (!Number.isFinite(length) || length <= 0) {
@@ -207,9 +275,17 @@ function scaleShapePoints(shape: Shape, scaleMm: number): Shape {
 }
 
 function resolveDocumentUnitScaleMm(svgElement: SVGSVGElement) {
-  const viewBox = svgElement.viewBox.baseVal
+  const viewBoxAttr = svgElement.getAttribute('viewBox')
   const widthAttr = svgElement.getAttribute('width')
   const heightAttr = svgElement.getAttribute('height')
+  const viewBoxParts = viewBoxAttr
+    ?.trim()
+    .split(/[\s,]+/)
+    .map((entry) => Number.parseFloat(entry))
+  const viewBox =
+    viewBoxParts && viewBoxParts.length >= 4 && viewBoxParts.every((entry) => Number.isFinite(entry))
+      ? { width: viewBoxParts[2], height: viewBoxParts[3] }
+      : svgElement.viewBox?.baseVal
 
   const widthMm = parseLength(widthAttr, Number.NaN, 1)
   const heightMm = parseLength(heightAttr, Number.NaN, 1)
@@ -227,6 +303,19 @@ function resolveDocumentUnitScaleMm(svgElement: SVGSVGElement) {
   }
 
   return 1
+}
+
+function transformElementShapes(
+  element: Element,
+  shapes: Shape[],
+  root: SVGSVGElement | null,
+  documentScaleMm: number,
+) {
+  if (shapes.length === 0) {
+    return []
+  }
+  const matrix = collectSvgElementTransform(element, root, documentScaleMm)
+  return shapes.map((shape) => transformSvgShape(shape, matrix))
 }
 
 function shapesToApproximateArcs(shapes: Shape[]) {
@@ -266,24 +355,29 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
     const y1 = parseLength(lineElement.getAttribute('y1'), 0, documentScaleMm)
     const x2 = parseLength(lineElement.getAttribute('x2'), 0, documentScaleMm)
     const y2 = parseLength(lineElement.getAttribute('y2'), 0, documentScaleMm)
-    shapes.push(lineShape(layerId, lineTypeId, { x: x1, y: y1 }, { x: x2, y: y2 }))
+    shapes.push(...transformElementShapes(
+      lineElement,
+      [lineShape(layerId, lineTypeId, { x: x1, y: y1 }, { x: x2, y: y2 })],
+      svgRoot,
+      documentScaleMm,
+    ))
   })
 
   const polylineElements = parsed.querySelectorAll('polyline')
   polylineElements.forEach((polylineElement) => {
     const points = parsePointList(polylineElement.getAttribute('points'), documentScaleMm)
-    shapes.push(...polylineToLines(points, false, layerId, lineTypeId))
+    shapes.push(...transformElementShapes(polylineElement, polylineToLines(points, false, layerId, lineTypeId), svgRoot, documentScaleMm))
   })
 
   const polygonElements = parsed.querySelectorAll('polygon')
   polygonElements.forEach((polygonElement) => {
     const points = parsePointList(polygonElement.getAttribute('points'), documentScaleMm)
-    shapes.push(...polylineToLines(points, true, layerId, lineTypeId))
+    shapes.push(...transformElementShapes(polygonElement, polylineToLines(points, true, layerId, lineTypeId), svgRoot, documentScaleMm))
   })
 
   const rectElements = parsed.querySelectorAll('rect')
   rectElements.forEach((rectElement) => {
-    shapes.push(...rectToLines(rectElement, layerId, lineTypeId, documentScaleMm))
+    shapes.push(...transformElementShapes(rectElement, rectToLines(rectElement, layerId, lineTypeId, documentScaleMm), svgRoot, documentScaleMm))
   })
 
   const circleElements = parsed.querySelectorAll('circle')
@@ -291,7 +385,12 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
     const centerX = parseLength(circleElement.getAttribute('cx'), 0, documentScaleMm)
     const centerY = parseLength(circleElement.getAttribute('cy'), 0, documentScaleMm)
     const radius = parseLength(circleElement.getAttribute('r'), 0, documentScaleMm)
-    shapes.push(...ellipseToLines(centerX, centerY, radius, radius, layerId, lineTypeId))
+    shapes.push(...transformElementShapes(
+      circleElement,
+      ellipseToLines(centerX, centerY, radius, radius, layerId, lineTypeId),
+      svgRoot,
+      documentScaleMm,
+    ))
   })
 
   const ellipseElements = parsed.querySelectorAll('ellipse')
@@ -300,7 +399,12 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
     const centerY = parseLength(ellipseElement.getAttribute('cy'), 0, documentScaleMm)
     const radiusX = parseLength(ellipseElement.getAttribute('rx'), 0, documentScaleMm)
     const radiusY = parseLength(ellipseElement.getAttribute('ry'), 0, documentScaleMm)
-    shapes.push(...ellipseToLines(centerX, centerY, radiusX, radiusY, layerId, lineTypeId))
+    shapes.push(...transformElementShapes(
+      ellipseElement,
+      ellipseToLines(centerX, centerY, radiusX, radiusY, layerId, lineTypeId),
+      svgRoot,
+      documentScaleMm,
+    ))
   })
 
   const pathElements = parsed.querySelectorAll('path')
@@ -318,16 +422,19 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
       const pathShapes = pathToLines(tempPath, layerId, lineTypeId).map((shape) =>
         scaleShapePoints(shape, documentScaleMm),
       )
-      shapes.push(...pathShapes)
+      shapes.push(...transformElementShapes(pathElement, pathShapes, svgRoot, documentScaleMm))
     } catch {
       warnings.push('Skipped an unsupported path element')
     }
   })
 
-  const transformedElements = parsed.querySelectorAll('[transform]')
-  if (transformedElements.length > 0) {
-    warnings.push('Transform attributes were detected and were not fully applied in this baseline import')
-  }
+  const textElements = parsed.querySelectorAll('text')
+  textElements.forEach((textElement) => {
+    const textShape = textToShape(textElement, layerId, lineTypeId, documentScaleMm)
+    if (textShape) {
+      shapes.push(...transformElementShapes(textElement, [textShape], svgRoot, documentScaleMm))
+    }
+  })
 
   return {
     shapes: shapesToApproximateArcs(shapes),

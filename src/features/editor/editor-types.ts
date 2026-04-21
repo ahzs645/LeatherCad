@@ -3,6 +3,7 @@ import type {
   FoldLine,
   HardwareMarker,
   Layer,
+  LeatherImageFill,
   LineType,
   LineTypeRole,
   PatternPiece,
@@ -139,6 +140,8 @@ export type EditorSnapshot = {
   avatars: AvatarSpec[]
   threeTextureSource: TextureSource | null
   threeTextureShapeIds: string[]
+  leatherImageFills: LeatherImageFill[]
+  activeLeatherImageFillId: string | null
   showCanvasRuler: boolean
   showDimensions: boolean
   layerColorOverrides: Record<string, string>

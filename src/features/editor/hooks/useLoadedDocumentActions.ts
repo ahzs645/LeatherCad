@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { Dispatch, SetStateAction } from 'react'
+import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { uid } from '../cad/cad-geometry'
 import { normalizeLineTypes, resolveActiveLineTypeId } from '../cad/line-types'
 import type {
@@ -27,6 +27,7 @@ import type {
   ThreePreviewSettings,
   Tool,
   TracingOverlay,
+  Viewport,
 } from '../cad/cad-types'
 import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { parseSnapSettings } from '../editor-parsers'
@@ -36,6 +37,7 @@ import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from '../ops/pattern-piece-ops'
 import { isExtractedBoxStitchSourceValue } from '../ops/box-stitch-source'
+import { fitViewportToShapes, type ViewportFitSize } from '../ops/viewport-fit'
 
 type UseLoadedDocumentActionsParams = {
   clearDraft: () => void
@@ -71,6 +73,8 @@ type UseLoadedDocumentActionsParams = {
   setAvatars: Dispatch<SetStateAction<AvatarSpec[]>>
   setThreeTextureSource: Dispatch<SetStateAction<TextureSource | null>>
   setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
+  setLeatherImageFills: Dispatch<SetStateAction<NonNullable<DocFile['leatherImageFills']>>>
+  setActiveLeatherImageFillId: Dispatch<SetStateAction<string | null>>
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
   setShowDimensions: Dispatch<SetStateAction<boolean>>
   setDimensionLines: Dispatch<SetStateAction<DimensionLine[]>>
@@ -79,9 +83,27 @@ type UseLoadedDocumentActionsParams = {
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
   setLayerColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
+  setViewport: Dispatch<SetStateAction<Viewport>>
+  svgRef: RefObject<SVGSVGElement | null>
   setTool: Dispatch<SetStateAction<Tool>>
   setShowPrintAreas: Dispatch<SetStateAction<boolean>>
   setStatus: Dispatch<SetStateAction<string>>
+}
+
+function getLoadedDocumentFitSize(svgRef: RefObject<SVGSVGElement | null>): ViewportFitSize {
+  const rect = svgRef.current?.getBoundingClientRect()
+  if (rect && rect.width > 0 && rect.height > 0) {
+    return { width: rect.width, height: rect.height }
+  }
+
+  if (typeof window !== 'undefined') {
+    return {
+      width: Math.max(320, window.innerWidth - 420),
+      height: Math.max(240, window.innerHeight - 180),
+    }
+  }
+
+  return { width: 960, height: 640 }
 }
 
 export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams) {
@@ -119,6 +141,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setDimensionLines,
@@ -127,6 +151,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
     setLayerColorOverrides,
+    setViewport,
+    svgRef,
     setTool,
     setShowPrintAreas,
     setStatus,
@@ -248,6 +274,15 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     const normalizedThreeTextureShapeIds = Array.isArray(doc.threeTextureShapeIds)
       ? doc.threeTextureShapeIds.filter((shapeId): shapeId is string => typeof shapeId === 'string' && shapeIdSet.has(shapeId))
       : []
+    const normalizedLeatherImageFills = (doc.leatherImageFills ?? []).map((fill) => ({
+      ...fill,
+      assignedShapeIds: fill.assignedShapeIds.filter((shapeId) => shapeIdSet.has(shapeId)),
+    }))
+    const normalizedActiveLeatherImageFillId =
+      doc.activeLeatherImageFillId &&
+      normalizedLeatherImageFills.some((fill) => fill.id === doc.activeLeatherImageFillId)
+        ? doc.activeLeatherImageFillId
+        : normalizedLeatherImageFills[0]?.id ?? null
     const normalizedShowCanvasRuler = typeof doc.showCanvasRuler === 'boolean' ? doc.showCanvasRuler : true
     const normalizedShowDimensions = typeof doc.showDimensions === 'boolean' ? doc.showDimensions : false
     const nextLineTypes = normalizeLineTypes(doc.lineTypes ?? [])
@@ -284,6 +319,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setAvatars(normalizedAvatars)
     setThreeTextureSource(normalizedThreeTextureSource)
     setThreeTextureShapeIds(normalizedThreeTextureShapeIds)
+    setLeatherImageFills(normalizedLeatherImageFills)
+    setActiveLeatherImageFillId(normalizedActiveLeatherImageFillId)
     setShowCanvasRuler(normalizedShowCanvasRuler)
     setShowDimensions(normalizedShowDimensions)
     setDimensionLines(doc.dimensionLines ?? [])
@@ -292,6 +329,11 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSelectedStitchHoleId(null)
     setSelectedHardwareMarkerId(null)
     setLayerColorOverrides({})
+    setViewport(
+      normalizedShapes.length > 0
+        ? fitViewportToShapes(normalizedShapes, getLoadedDocumentFitSize(svgRef))
+        : { x: 560, y: 360, scale: 1 },
+    )
     setTool('pan')
     setShowPrintAreas(false)
     clearDraft()
@@ -330,6 +372,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setDimensionLines,
@@ -338,6 +382,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
     setLayerColorOverrides,
+    setViewport,
+    svgRef,
     setTool,
     setShowPrintAreas,
     setStatus,

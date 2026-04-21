@@ -5,6 +5,7 @@ import type {
   FoldLine,
   HardwareMarker,
   Layer,
+  LeatherImageFill,
   LineType,
   PatternPiece,
   PiecePlacement3D,
@@ -77,6 +78,8 @@ export type EditorDocumentState = {
   avatars: AvatarSpec[]
   threeTextureSource: TextureSource | null
   threeTextureShapeIds: string[]
+  leatherImageFills: LeatherImageFill[]
+  activeLeatherImageFillId: string | null
   showCanvasRuler: boolean
   showDimensions: boolean
 }
@@ -185,6 +188,8 @@ export type EditorPanelState = {
   printRulerInside: boolean
   printInColor: boolean
   printStitchAsDots: boolean
+  printLineThicknessScalePercent: number
+  printShowIgnoredLineTypes: boolean
   showPrintAreas: boolean
   showPrintPreviewModal: boolean
   seamAllowanceInputMm: number

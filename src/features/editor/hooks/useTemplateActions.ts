@@ -11,15 +11,23 @@ import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import {
   createTemplateFromDoc,
   insertTemplateDocIntoCurrent,
+  moveTemplateRepositoryEntry,
   parseTemplateRepositoryImport,
   serializeTemplateRepository,
+  sortTemplateRepository,
+  type TemplateRepositoryMoveDirection,
   type TemplateRepositoryEntry,
+  type TemplateRepositorySortKey,
 } from '../templates/template-repository'
 import {
   getCatalogItemCount,
   mergeCatalogShopImport,
+  moveCatalogRepositoryShop,
   parseCatalogShopImport,
+  sortCatalogRepository,
+  type CatalogRepositoryMoveDirection,
   type CatalogRepositoryShop,
+  type CatalogRepositorySortKey,
 } from '../templates/catalog-repository'
 import { downloadFile } from '../editor-utils'
 
@@ -117,6 +125,16 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
       setSelectedTemplateEntryId(null)
     }
     setStatus('Template deleted')
+  }
+
+  const handleMoveTemplateEntry = (entryId: string, direction: TemplateRepositoryMoveDirection) => {
+    setTemplateRepository((previous) => moveTemplateRepositoryEntry(previous, entryId, direction))
+    setStatus('Template order updated')
+  }
+
+  const handleSortTemplates = (sortKey: TemplateRepositorySortKey) => {
+    setTemplateRepository((previous) => sortTemplateRepository(previous, sortKey))
+    setStatus(sortKey === 'name' ? 'Templates sorted by name' : 'Templates sorted by update time')
   }
 
   const handleLoadTemplateAsDocument = () => {
@@ -247,14 +265,28 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     setStatus('Catalog removed')
   }
 
+  const handleMoveCatalogShop = (shopId: string, direction: CatalogRepositoryMoveDirection) => {
+    setCatalogRepository((previous) => moveCatalogRepositoryShop(previous, shopId, direction))
+    setStatus('Catalog order updated')
+  }
+
+  const handleSortCatalogShops = (sortKey: CatalogRepositorySortKey) => {
+    setCatalogRepository((previous) => sortCatalogRepository(previous, sortKey))
+    setStatus(sortKey === 'name' ? 'Catalogs sorted by name' : 'Catalogs sorted by import time')
+  }
+
   return {
     handleSaveTemplateToRepository,
     handleDeleteTemplateFromRepository,
+    handleMoveTemplateEntry,
+    handleSortTemplates,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
     handleImportCatalogFile,
     handleDeleteCatalogShop,
+    handleMoveCatalogShop,
+    handleSortCatalogShops,
   }
 }

@@ -200,6 +200,7 @@
 }
 
 .workbench-three-viewport {
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: grid;
@@ -234,6 +235,126 @@
 
 .workbench-three-warning {
   padding: 0 12px 12px;
+}
+
+.workbench-final-fold-drawer {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.workbench-final-fold-drawer > * {
+  pointer-events: auto;
+}
+
+.workbench-final-fold-tab {
+  min-height: 30px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--surface-panel);
+  color: var(--text-muted-strong);
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.workbench-final-fold-drawer.collapsed {
+  bottom: 0;
+}
+
+.workbench-final-fold-drawer.collapsed .workbench-final-fold-tab {
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 8px 8px 0 0;
+}
+
+.workbench-final-fold-panel {
+  width: min(100%, 980px);
+  max-height: min(44vh, 360px);
+  display: grid;
+  gap: 8px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(14px);
+}
+
+.workbench-final-fold-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-muted-strong);
+  font-size: 12px;
+}
+
+.workbench-final-fold-summary span {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.workbench-final-fold-actions {
+  justify-content: flex-start;
+}
+
+.workbench-final-fold-table {
+  display: grid;
+  gap: 6px;
+}
+
+.workbench-final-fold-row {
+  display: grid;
+  grid-template-columns: minmax(82px, 1fr) minmax(150px, 2fr) 64px 118px;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+.workbench-final-fold-row:first-child {
+  border-top: 0;
+}
+
+.workbench-final-fold-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted-strong);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbench-final-fold-row output {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.workbench-final-fold-row select {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .workbench-final-fold-row {
+    grid-template-columns: minmax(68px, 1fr) minmax(120px, 2fr) 58px;
+  }
+
+  .workbench-final-fold-row select {
+    grid-column: 1 / -1;
+  }
 }
 
 .precision-drawer {

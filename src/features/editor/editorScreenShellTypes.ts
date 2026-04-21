@@ -20,6 +20,7 @@ import type { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
 import type { useHistoryActions } from './hooks/useHistoryActions'
 import type { useLayerActions } from './hooks/useLayerActions'
 import type { useLayerColorActions } from './hooks/useLayerColorActions'
+import type { useLeatherImageFillActions } from './hooks/useLeatherImageFillActions'
 import type { useLineTypeActions } from './hooks/useLineTypeActions'
 import type { useMobileActions } from './hooks/useMobileActions'
 import type { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
@@ -47,6 +48,7 @@ export type EditorScreenShellActions = {
   transformActions: ReturnType<typeof useTransformActions>
   layerActions: ReturnType<typeof useLayerActions>
   lineTypeActions: ReturnType<typeof useLineTypeActions>
+  leatherImageFillActions: ReturnType<typeof useLeatherImageFillActions>
   layerColorActions: ReturnType<typeof useLayerColorActions>
   constraintActions: ReturnType<typeof useConstraintActions>
   sketchGroupActions: ReturnType<typeof useSketchGroupActions>

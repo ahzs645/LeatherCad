@@ -1,4 +1,5 @@
 import { arcPath, round } from '../cad/cad-geometry'
+import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 import type { FoldLine, LineType, Shape } from '../cad/cad-types'
 import type { PrintPlan } from './print-preview'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
@@ -10,6 +11,8 @@ type PrintTileOutputOptions = {
   printPlan: PrintPlan
   printInColor: boolean
   printStitchAsDots: boolean
+  lineThicknessScalePercent: number
+  showIgnoredLineTypes: boolean
   printRulerInside: boolean
   calibrationXPercent: number
   calibrationYPercent: number
@@ -52,6 +55,19 @@ function resolveDash(shape: Shape, lineTypesById: Record<string, LineType>, prin
   return ''
 }
 
+function shouldPrintShape(shape: Shape, lineTypesById: Record<string, LineType>, showIgnoredLineTypes: boolean) {
+  return showIgnoredLineTypes || !shouldIgnoreLineTypeInPrint(lineTypesById[shape.lineTypeId])
+}
+
+function resolveStrokeWidth(shape: Shape, lineTypesById: Record<string, LineType>, lineThicknessScalePercent: number) {
+  const shapeStrokeWidth =
+    'strokeWidthOverride' in shape && typeof shape.strokeWidthOverride === 'number'
+      ? shape.strokeWidthOverride
+      : undefined
+  const baseStrokeWidth = shapeStrokeWidth ?? resolveLineTypeStrokeWidthMm(lineTypesById[shape.lineTypeId])
+  return baseStrokeWidth * Math.max(0.05, lineThicknessScalePercent / 100)
+}
+
 function arrowAttrs(shape: Shape) {
   const parts: string[] = []
   if ('arrowStart' in shape && shape.arrowStart) parts.push('marker-start="url(#arrow-start)"')
@@ -59,22 +75,30 @@ function arrowAttrs(shape: Shape) {
   return parts.length > 0 ? ' ' + parts.join(' ') : ''
 }
 
-function shapeToSvgMarkup(shape: Shape, lineTypesById: Record<string, LineType>, options: { printInColor: boolean; printStitchAsDots: boolean }) {
+function shapeToSvgMarkup(
+  shape: Shape,
+  lineTypesById: Record<string, LineType>,
+  options: { printInColor: boolean; printStitchAsDots: boolean; lineThicknessScalePercent: number; showIgnoredLineTypes: boolean },
+) {
+  const lineType = lineTypesById[shape.lineTypeId]
   const stroke = resolveStroke(shape, lineTypesById, options.printInColor)
   const dash = resolveDash(shape, lineTypesById, options.printStitchAsDots)
   const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
   const arrows = arrowAttrs(shape)
+  const strokeWidth = round(resolveStrokeWidth(shape, lineTypesById, options.lineThicknessScalePercent))
+  const ignoredAttr =
+    options.showIgnoredLineTypes && shouldIgnoreLineTypeInPrint(lineType) ? ' opacity="0.35" data-non-print="true"' : ''
 
   if (shape.type === 'line') {
-    return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr}${arrows} />`
+    return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttr}${arrows}${ignoredAttr} />`
   }
 
   if (shape.type === 'arc') {
-    return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr}${arrows} />`
+    return `<path d="${arcPath(shape.start, shape.mid, shape.end)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttr}${arrows}${ignoredAttr} />`
   }
 
   if (shape.type === 'bezier') {
-    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="0.8" fill="none"${dashAttr}${arrows} />`
+    return `<path d="M ${round(shape.start.x)} ${round(shape.start.y)} Q ${round(shape.control.x)} ${round(shape.control.y)} ${round(shape.end.x)} ${round(shape.end.y)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttr}${arrows}${ignoredAttr} />`
   }
 
   const textShape = normalizeTextShape(shape)
@@ -83,12 +107,12 @@ function shapeToSvgMarkup(shape: Shape, lineTypesById: Record<string, LineType>,
   const fontSize = Math.max(4, round(textShape.fontSizeMm))
   if (textShape.transform === 'none') {
     const angle = round(textBaselineAngleDeg(textShape))
-    return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${angle} ${round(textShape.start.x)} ${round(textShape.start.y)})">${textValue}</text>`
+    return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${angle} ${round(textShape.start.x)} ${round(textShape.start.y)})"${ignoredAttr}>${textValue}</text>`
   }
   return buildTextGlyphPlacements(textShape)
     .map(
       (glyph) =>
-        `<text x="${round(glyph.x)}" y="${round(glyph.y)}" text-anchor="middle" dominant-baseline="middle" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})">${escapeXml(glyph.char)}</text>`,
+        `<text x="${round(glyph.x)}" y="${round(glyph.y)}" text-anchor="middle" dominant-baseline="middle" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})"${ignoredAttr}>${escapeXml(glyph.char)}</text>`,
     )
     .join('')
 }
@@ -120,10 +144,13 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
   const shiftX = tile.minX * (1 - scaleX)
   const shiftY = tile.minY * (1 - scaleY)
   const shapeMarkup = options.shapes
+    .filter((shape) => shouldPrintShape(shape, options.lineTypesById, options.showIgnoredLineTypes))
     .map((shape) =>
       shapeToSvgMarkup(shape, options.lineTypesById, {
         printInColor: options.printInColor,
         printStitchAsDots: options.printStitchAsDots,
+        lineThicknessScalePercent: options.lineThicknessScalePercent,
+        showIgnoredLineTypes: options.showIgnoredLineTypes,
       }),
     )
     .join('\n')
@@ -142,7 +169,7 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
 </svg>`
 }
 
-function buildPrintableHtml(options: PrintTileOutputOptions) {
+export function buildPrintableHtml(options: PrintTileOutputOptions) {
   const pages = options.printPlan.tiles
     .map(
       (tile) => `
@@ -241,4 +268,3 @@ export function openPrintTilesWindow(options: PrintTileOutputOptions) {
   popup.document.close()
   return true
 }
-

@@ -27,6 +27,7 @@ import { useBackdropActions } from './hooks/useBackdropActions'
 import { useMobileActions } from './hooks/useMobileActions'
 import { useResponsiveLayout } from './hooks/useResponsiveLayout'
 import { useEditorAutomationEffects } from './hooks/useEditorAutomationEffects'
+import { useLeatherImageFillActions } from './hooks/useLeatherImageFillActions'
 import { useLineTypeActions } from './hooks/useLineTypeActions'
 import { useLayerColorActions } from './hooks/useLayerColorActions'
 import { useEditorConsistencyEffects } from './hooks/useEditorConsistencyEffects'
@@ -116,6 +117,8 @@ export function useEditorScreenController() {
     avatars, setAvatars,
     threeTextureSource, setThreeTextureSource,
     threeTextureShapeIds, setThreeTextureShapeIds,
+    leatherImageFills, setLeatherImageFills,
+    activeLeatherImageFillId, setActiveLeatherImageFillId,
     showCanvasRuler, setShowCanvasRuler,
     showDimensions, setShowDimensions,
   } = documentState
@@ -340,6 +343,8 @@ export function useEditorScreenController() {
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setLayerColorOverrides,
@@ -392,6 +397,8 @@ export function useEditorScreenController() {
     setAvatars,
     setThreeTextureSource,
     setThreeTextureShapeIds,
+    setLeatherImageFills,
+    setActiveLeatherImageFillId,
     setShowCanvasRuler,
     setShowDimensions,
     setDimensionLines,
@@ -400,6 +407,8 @@ export function useEditorScreenController() {
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
     setLayerColorOverrides,
+    setViewport,
+    svgRef,
     setTool,
     setShowPrintAreas,
     setStatus,
@@ -514,6 +523,8 @@ export function useEditorScreenController() {
     avatars,
     threeTextureSource,
     threeTextureShapeIds,
+    leatherImageFills,
+    activeLeatherImageFillId,
     showCanvasRuler,
     showDimensions,
     dimensionLines,
@@ -641,6 +652,10 @@ export function useEditorScreenController() {
     setHardwareMarkers,
     setLayerColorOverrides,
     tracingOverlays,
+    leatherImageFills,
+    setLeatherImageFills,
+    activeLeatherImageFillId,
+    setActiveLeatherImageFillId,
     setThreeTextureShapeIds,
     setActiveTracingOverlayId,
     tracingObjectUrlsRef,
@@ -763,11 +778,7 @@ export function useEditorScreenController() {
     setMobileViewMode,
     setShowMobileMenu,
   })
-  const {
-    handleSaveJson,
-    handleSaveLcc,
-    handleLoadPreset,
-  } = fileActions
+  const { handleSaveJson, handleSaveLcc, handleLoadPreset } = fileActions
 
   useAutoSave({
     enabled: autoSaveEnabled,
@@ -814,6 +825,11 @@ export function useEditorScreenController() {
     setShapes,
     setSelectedShapeIds,
     setStatus,
+  })
+
+  const leatherImageFillActions = useLeatherImageFillActions({
+    leatherImageFills, activeLeatherImageFill: leatherImageFills.find((fill) => fill.id === activeLeatherImageFillId) ?? null,
+    shapes, lineTypes, selectedShapeIdSet, setLeatherImageFills, setActiveLeatherImageFillId, setStatus,
   })
 
   const layerColorActions = useLayerColorActions({
@@ -1054,25 +1070,9 @@ export function useEditorScreenController() {
     lineTypesById,
   })
   const screenActions: EditorScreenShellActions = {
-    editorStateActions,
-    documentCommands,
-    exportActions,
-    fileActions,
-    historyActions,
-    selectionActions,
-    transformActions,
-    layerActions,
-    lineTypeActions,
-    layerColorActions,
-    constraintActions,
-    sketchGroupActions,
-    patternPieceCommands,
-    hardwareMarkerActions,
-    stitchActions,
-    geometryActions,
-    creationController,
-    mobileActions,
-    themeActions,
+    editorStateActions, documentCommands, exportActions, fileActions, historyActions, selectionActions, transformActions,
+    layerActions, lineTypeActions, leatherImageFillActions, layerColorActions, constraintActions, sketchGroupActions,
+    patternPieceCommands, hardwareMarkerActions, stitchActions, geometryActions, creationController, mobileActions, themeActions,
   }
 
   const {

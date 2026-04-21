@@ -39,6 +39,8 @@ type UseEditorDocumentCommandsParams = {
   avatars: DocFile['avatars']
   threeTextureSource: DocFile['threeTextureSource']
   threeTextureShapeIds: string[]
+  leatherImageFills: DocFile['leatherImageFills']
+  activeLeatherImageFillId: string | null
   showCanvasRuler: boolean
   showDimensions: boolean
   dimensionLines: DocFile['dimensionLines']
@@ -93,6 +95,8 @@ export function useEditorDocumentCommands({
   avatars,
   threeTextureSource,
   threeTextureShapeIds,
+  leatherImageFills,
+  activeLeatherImageFillId,
   showCanvasRuler,
   showDimensions,
   dimensionLines,
@@ -153,6 +157,11 @@ export function useEditorDocumentCommands({
       avatars,
       threeTextureSource,
       threeTextureShapeIds: threeTextureShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
+      leatherImageFills: (leatherImageFills ?? []).map((fill) => ({
+        ...fill,
+        assignedShapeIds: fill.assignedShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
+      })),
+      activeLeatherImageFillId,
       showCanvasRuler,
       showDimensions,
       dimensionLines,
@@ -169,6 +178,7 @@ export function useEditorDocumentCommands({
       foldLines,
       hardwareMarkers,
       layers,
+      leatherImageFills,
       lineTypes,
       patternPieces,
       pieceGrainlines,
@@ -192,6 +202,7 @@ export function useEditorDocumentCommands({
       threePreviewSettings,
       threeTextureShapeIds,
       threeTextureSource,
+      activeLeatherImageFillId,
       tracingOverlays,
       backdrops,
     ],

@@ -211,14 +211,18 @@ type RenderTextShapeOptions = {
 // 1000%. We cap the effective screen size at TEXT_MAX_SCREEN_PX by
 // shrinking the world-space fontSize proportionally at high zoom.
 const TEXT_MAX_SCREEN_PX = 14
-const TEXT_MIN_WORLD_PX = 2.5
+const TEXT_MIN_WORLD_MM = 0.01
+
+export function resolveAdaptiveTextFontSize(fontSizeMm: number, viewportScale = 1, maxScreenPx = TEXT_MAX_SCREEN_PX) {
+  const safeScale = Number.isFinite(viewportScale) && viewportScale > 0 ? viewportScale : 1
+  const safeFontSizeMm = Number.isFinite(fontSizeMm) && fontSizeMm > 0 ? fontSizeMm : 2
+  return round(Math.max(TEXT_MIN_WORLD_MM, Math.min(safeFontSizeMm, maxScreenPx / safeScale)))
+}
 
 export function renderTextShape(shape: TextShape, options: RenderTextShapeOptions) {
   const normalized = options.normalizeTextShape(shape)
   const scale = options.viewportScale && options.viewportScale > 0 ? options.viewportScale : 1
-  const cap = TEXT_MAX_SCREEN_PX / scale
-  const worldFontSize = Math.max(TEXT_MIN_WORLD_PX, Math.min(normalized.fontSizeMm, cap))
-  const fontSize = round(worldFontSize)
+  const fontSize = resolveAdaptiveTextFontSize(normalized.fontSizeMm, scale)
 
   if (normalized.transform === 'none') {
     const baselineAngle = options.textBaselineAngleDeg(normalized)

@@ -1,7 +1,8 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import { clamp, getBounds } from '../../cad/cad-geometry'
+import { clamp } from '../../cad/cad-geometry'
 import type { Shape, Viewport } from '../../cad/cad-types'
 import { MAX_ZOOM, MIN_ZOOM } from '../../editor-constants'
+import { fitViewportToShapes } from '../../ops/viewport-fit'
 
 type UseCanvasViewportControlsParams = {
   svgRef: RefObject<SVGSVGElement | null>
@@ -56,19 +57,7 @@ export function useCanvasViewportControls({
     }
 
     const rect = svg.getBoundingClientRect()
-    const bounds = getBounds(displayShapes)
-    const margin = 40
-    const fitScale = clamp(
-      Math.min((rect.width - margin * 2) / bounds.width, (rect.height - margin * 2) / bounds.height),
-      MIN_ZOOM,
-      MAX_ZOOM,
-    )
-
-    setViewport({
-      scale: fitScale,
-      x: rect.width / 2 - (bounds.minX + bounds.width / 2) * fitScale,
-      y: rect.height / 2 - (bounds.minY + bounds.height / 2) * fitScale,
-    })
+    setViewport(fitViewportToShapes(displayShapes, rect))
     setStatus('View fit to current sketch view')
   }
 

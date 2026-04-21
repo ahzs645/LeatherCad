@@ -17,6 +17,7 @@ type RenderShapeOptions = {
   buildTextGlyphPlacements: (shape: TextShape) => Array<{ x: number; y: number; rotationDeg: number; char: string }>
   normalizeTextShape: (shape: TextShape) => TextShape
   textBaselineAngleDeg: (shape: TextShape) => number
+  strokeWidthMm?: number
   viewportScale?: number
 }
 
@@ -42,6 +43,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
     'strokeWidthOverride' in shape && typeof shape.strokeWidthOverride === 'number'
       ? shape.strokeWidthOverride
       : undefined
+  const strokeWidth = strokeWidthOverride ?? options.strokeWidthMm
 
   if (shape.type === 'line') {
     return (
@@ -56,7 +58,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
           stroke: options.color,
           strokeDasharray: options.strokeDasharray,
           strokeOpacity: options.opacity,
-          strokeWidth: strokeWidthOverride,
+          strokeWidth,
           ...arrowMarkerStyle(shape),
         }}
         onPointerDown={options.interactive ? (event) => options.onShapePointerDown(event, shape.id) : undefined}
@@ -74,7 +76,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
           stroke: options.color,
           strokeDasharray: options.strokeDasharray,
           strokeOpacity: options.opacity,
-          strokeWidth: strokeWidthOverride,
+          strokeWidth,
           fill: paintedFill,
           ...arrowMarkerStyle(shape),
         }}
@@ -94,7 +96,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
         stroke: options.color,
         strokeDasharray: options.strokeDasharray,
         strokeOpacity: options.opacity,
-        strokeWidth: strokeWidthOverride,
+        strokeWidth,
         fill: paintedFill,
         ...arrowMarkerStyle(shape),
       }}

@@ -204,6 +204,19 @@
   gap: 8px;
 }
 
+.button-like-file-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: var(--surface-input);
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 13px;
+}
+
 .template-repository-tabs {
   display: flex;
   flex-wrap: wrap;

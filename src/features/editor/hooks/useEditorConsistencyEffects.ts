@@ -4,6 +4,7 @@ import { createDefaultLineTypes } from '../cad/line-types'
 import type {
   HardwareMarker,
   Layer,
+  LeatherImageFill,
   PatternPiece,
   ParametricConstraint,
   PiecePlacement3D,
@@ -60,6 +61,10 @@ type UseEditorConsistencyEffectsParams = {
   setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
   setLayerColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
   tracingOverlays: TracingOverlay[]
+  leatherImageFills: LeatherImageFill[]
+  setLeatherImageFills: Dispatch<SetStateAction<LeatherImageFill[]>>
+  activeLeatherImageFillId: string | null
+  setActiveLeatherImageFillId: Dispatch<SetStateAction<string | null>>
   setThreeTextureShapeIds: Dispatch<SetStateAction<string[]>>
   setActiveTracingOverlayId: Dispatch<SetStateAction<string | null>>
   tracingObjectUrlsRef: MutableRefObject<Set<string>>
@@ -100,6 +105,10 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     setHardwareMarkers,
     setLayerColorOverrides,
     tracingOverlays,
+    leatherImageFills,
+    setLeatherImageFills,
+    activeLeatherImageFillId,
+    setActiveLeatherImageFillId,
     setThreeTextureShapeIds,
     setActiveTracingOverlayId,
     tracingObjectUrlsRef,
@@ -316,6 +325,33 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
       return next.length === previous.length ? previous : next
     })
   }, [shapes, setThreeTextureShapeIds])
+
+  useEffect(() => {
+    setLeatherImageFills((previous) => {
+      if (previous.length === 0) {
+        return previous
+      }
+      const shapeIdSet = new Set(shapes.map((shape) => shape.id))
+      const next = previous.map((fill) => ({
+        ...fill,
+        assignedShapeIds: fill.assignedShapeIds.filter((shapeId) => shapeIdSet.has(shapeId)),
+      }))
+      const unchanged = next.every(
+        (fill, index) => fill.assignedShapeIds.length === previous[index].assignedShapeIds.length,
+      )
+      return unchanged ? previous : next
+    })
+  }, [shapes, setLeatherImageFills])
+
+  useEffect(() => {
+    setActiveLeatherImageFillId((previous) => {
+      const current = previous ?? activeLeatherImageFillId
+      if (current && leatherImageFills.some((fill) => fill.id === current)) {
+        return current
+      }
+      return leatherImageFills[0]?.id ?? null
+    })
+  }, [leatherImageFills, activeLeatherImageFillId, setActiveLeatherImageFillId])
 
   useEffect(() => {
     setSelectedStitchHoleId((previous) => {
