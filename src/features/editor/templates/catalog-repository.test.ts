@@ -4,6 +4,9 @@ import {
   parseCatalogShopImport,
   serializeCatalogShop,
   sortCatalogRepository,
+  updateCatalogGroup,
+  updateCatalogItem,
+  updateCatalogShop,
   type CatalogRepositoryShop,
 } from './catalog-repository'
 
@@ -121,5 +124,101 @@ describe('catalog export', () => {
     const imported = parseCatalogShopImport(serialized, 'tool-shop.ctlg')
     expect(imported.name).toBe('Tool Shop')
     expect(imported.groups[0].items[0].name).toBe('Scratch Awl')
+  })
+
+  it('round-trips browser image calibration metadata', () => {
+    const original: CatalogRepositoryShop = {
+      ...shop('shop-1', 'Tool Shop', '2026-01-02T00:00:00.000Z'),
+      groups: [
+        {
+          id: 'group-1',
+          guid: 'group-1',
+          name: 'Patterns',
+          url: '',
+          memo: '',
+          items: [
+            {
+              id: 'item-1',
+              guid: 'item-1',
+              name: 'Wallet',
+              category: 'Pattern',
+              unitPrice: '5',
+              unitStr: 'each',
+              url: '',
+              memo: '',
+              hasImage: true,
+              imageDpi: 300,
+              imageDataUrl: 'data:image/png;base64,AAAA',
+              imageScalePercent: 125,
+              imageRulerLengthMm: 50,
+              imageRotationDeg: 90,
+              imageCropMode: 'square',
+            },
+          ],
+        },
+      ],
+    }
+
+    const imported = parseCatalogShopImport(serializeCatalogShop(original), 'tool-shop.ctlg')
+    const item = imported.groups[0].items[0]
+    expect(item.imageDataUrl).toBe('data:image/png;base64,AAAA')
+    expect(item.imageScalePercent).toBe(125)
+    expect(item.imageRulerLengthMm).toBe(50)
+    expect(item.imageRotationDeg).toBe(90)
+    expect(item.imageCropMode).toBe('square')
+  })
+})
+
+describe('catalog editing', () => {
+  it('updates shop, group, and item metadata without touching bundled catalogs', () => {
+    const editable: CatalogRepositoryShop = {
+      ...shop('shop-1', 'Tool Shop', '2026-01-02T00:00:00.000Z'),
+      groups: [
+        {
+          id: 'group-1',
+          guid: 'group-1',
+          name: 'Old Group',
+          url: '',
+          memo: '',
+          items: [
+            {
+              id: 'item-1',
+              guid: 'item-1',
+              name: 'Old Item',
+              category: '',
+              unitPrice: '',
+              unitStr: '',
+              url: '',
+              memo: '',
+              hasImage: false,
+              imageDpi: null,
+            },
+          ],
+        },
+      ],
+    }
+    const bundled = { ...shop('builtin-shop', 'Bundled', '2026-01-01T00:00:00.000Z'), isBundled: true }
+
+    const renamed = updateCatalogShop([editable, bundled], 'shop-1', { name: 'New Shop' })
+    const grouped = updateCatalogGroup(renamed, 'shop-1', 'group-1', { name: 'New Group' })
+    const itemed = updateCatalogItem(grouped, 'shop-1', 'group-1', 'item-1', {
+      name: 'New Item',
+      category: 'Pattern',
+      imageDataUrl: 'data:image/png;base64,AAAA',
+      imageScalePercent: 150,
+      imageCropMode: 'max',
+    })
+    const untouched = updateCatalogShop(itemed, 'builtin-shop', { name: 'Changed' })
+
+    expect(untouched[0].name).toBe('New Shop')
+    expect(untouched[0].groups[0].name).toBe('New Group')
+    expect(untouched[0].groups[0].items[0]).toMatchObject({
+      name: 'New Item',
+      category: 'Pattern',
+      hasImage: true,
+      imageScalePercent: 150,
+      imageCropMode: 'max',
+    })
+    expect(untouched[1].name).toBe('Bundled')
   })
 })

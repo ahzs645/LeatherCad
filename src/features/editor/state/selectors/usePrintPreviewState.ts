@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import type { DocFile, FoldLine, LineType, PatternPiece } from '../../cad/cad-types'
+import type { DocFile, FoldLine, LineType, PatternPiece, StitchHole } from '../../cad/cad-types'
 import { shouldIgnoreLineTypeInPrint } from '../../cad/line-types'
 import { buildAnnotationExportShapes } from '../../ops/annotation-export-shapes'
 import { openPrintTilesWindow } from '../../preview/print-output'
@@ -19,6 +19,7 @@ type UsePrintPreviewStateParams = {
   pieceNotchLines: Array<{ id: string; pieceId: string; start: import('../../cad/cad-types').Point; end: import('../../cad/cad-types').Point; showOnSeam: boolean }>
   piecePlacementGuides: import('../../editor-types').PiecePlacementGuide[]
   printableShapes: DocFile['objects']
+  stitchHoles: StitchHole[]
   foldLines: FoldLine[]
   lineTypesById: Record<string, LineType | undefined>
 }
@@ -35,6 +36,7 @@ export function usePrintPreviewState({
   pieceNotchLines,
   piecePlacementGuides,
   printableShapes,
+  stitchHoles,
   foldLines,
   lineTypesById,
 }: UsePrintPreviewStateParams) {
@@ -142,6 +144,7 @@ export function usePrintPreviewState({
 
     const opened = openPrintTilesWindow({
       shapes: printOutputShapes,
+      stitchHoles: stitchHoles.filter((stitchHole) => printOutputShapes.some((shape) => shape.id === stitchHole.shapeId)),
       foldLines,
       lineTypesById: printableLineTypesById,
       printPlan: printOutputPlan,
@@ -172,6 +175,7 @@ export function usePrintPreviewState({
     printRulerInside,
     printShowIgnoredLineTypes,
     printStitchAsDots,
+    stitchHoles,
     setStatus,
   ])
 

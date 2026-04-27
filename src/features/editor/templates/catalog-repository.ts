@@ -16,6 +16,11 @@ export type CatalogRepositoryItem = {
   hasImage: boolean
   imageDpi: number | null
   zipBmpBase64?: string
+  imageDataUrl?: string
+  imageScalePercent?: number
+  imageRulerLengthMm?: number | null
+  imageRotationDeg?: number
+  imageCropMode?: 'original' | 'square' | 'max'
 }
 
 export type CatalogRepositoryGroup = {
@@ -87,6 +92,10 @@ function parseCatalogItem(candidate: unknown, parentId: string, index: number): 
   const value = candidate as Record<string, unknown>
   const guid = asString(value.GUID).trim()
   const zipBmpBase64 = typeof value.zipbmp === 'string' ? value.zipbmp.trim() : ''
+  const imageDataUrl = asString(value.ImageDataUrl).trim()
+  const imageCalibration = typeof value.ImageCalibration === 'object' && value.ImageCalibration !== null
+    ? value.ImageCalibration as Record<string, unknown>
+    : {}
   return {
     id: guid || buildFallbackId(`${parentId}-item`, index),
     name: asString(value.Name).trim() || `Item ${index + 1}`,
@@ -96,9 +105,17 @@ function parseCatalogItem(candidate: unknown, parentId: string, index: number): 
     unitStr: asString(value.UnitStr).trim(),
     url: asString(value.URL).trim(),
     memo: asString(value.Memo).trim().slice(0, 600),
-    hasImage: zipBmpBase64.length > 0,
+    hasImage: zipBmpBase64.length > 0 || imageDataUrl.length > 0,
     imageDpi: parseOptionalNumber(value.dpi),
     zipBmpBase64: zipBmpBase64 || undefined,
+    imageDataUrl: imageDataUrl || undefined,
+    imageScalePercent: parseOptionalNumber(imageCalibration.scalePercent) ?? undefined,
+    imageRulerLengthMm: parseOptionalNumber(imageCalibration.rulerLengthMm),
+    imageRotationDeg: parseOptionalNumber(imageCalibration.rotationDeg) ?? undefined,
+    imageCropMode:
+      imageCalibration.cropMode === 'square' || imageCalibration.cropMode === 'max'
+        ? imageCalibration.cropMode
+        : 'original',
   }
 }
 
@@ -297,6 +314,13 @@ export function serializeCatalogShop(shop: CatalogRepositoryShop): string {
           Memo: item.memo,
           dpi: item.imageDpi,
           ...(item.zipBmpBase64 ? { zipbmp: item.zipBmpBase64 } : {}),
+          ...(item.imageDataUrl ? { ImageDataUrl: item.imageDataUrl } : {}),
+          ImageCalibration: {
+            scalePercent: item.imageScalePercent ?? 100,
+            rulerLengthMm: item.imageRulerLengthMm ?? null,
+            rotationDeg: item.imageRotationDeg ?? 0,
+            cropMode: item.imageCropMode ?? 'original',
+          },
         })),
       })),
     },
@@ -401,4 +425,130 @@ export function getCatalogItemCount(shop: CatalogRepositoryShop): number {
     return shop.itemCount
   }
   return shop.groups.reduce((count, group) => count + group.items.length, 0)
+}
+
+export type CatalogShopPatch = Partial<Pick<CatalogRepositoryShop, 'name' | 'url' | 'memo' | 'shopVersion'>>
+export type CatalogGroupPatch = Partial<Pick<CatalogRepositoryGroup, 'name' | 'url' | 'memo'>>
+export type CatalogItemPatch = Partial<
+  Pick<
+    CatalogRepositoryItem,
+    | 'name'
+    | 'category'
+    | 'unitPrice'
+    | 'unitStr'
+    | 'url'
+    | 'memo'
+    | 'imageDpi'
+    | 'imageDataUrl'
+    | 'imageScalePercent'
+    | 'imageRulerLengthMm'
+    | 'imageRotationDeg'
+    | 'imageCropMode'
+  >
+>
+
+export function updateCatalogShop(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  patch: CatalogShopPatch,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    return {
+      ...shop,
+      ...patch,
+      name: patch.name?.trim() || shop.name,
+      url: patch.url ?? shop.url,
+      memo: patch.memo ?? shop.memo,
+      shopVersion: typeof patch.shopVersion === 'number' && Number.isFinite(patch.shopVersion)
+        ? patch.shopVersion
+        : shop.shopVersion,
+    }
+  })
+}
+
+export function updateCatalogGroup(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+  patch: CatalogGroupPatch,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    return {
+      ...shop,
+      groups: shop.groups.map((group) =>
+        group.id === groupId
+          ? {
+              ...group,
+              ...patch,
+              name: patch.name?.trim() || group.name,
+              url: patch.url ?? group.url,
+              memo: patch.memo ?? group.memo,
+            }
+          : group,
+      ),
+    }
+  })
+}
+
+export function updateCatalogItem(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+  itemId: string,
+  patch: CatalogItemPatch,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    return {
+      ...shop,
+      groups: shop.groups.map((group) => {
+        if (group.id !== groupId) {
+          return group
+        }
+        return {
+          ...group,
+          items: group.items.map((item) => {
+            if (item.id !== itemId) {
+              return item
+            }
+            const imageDataUrl = patch.imageDataUrl ?? item.imageDataUrl
+            return {
+              ...item,
+              ...patch,
+              name: patch.name?.trim() || item.name,
+              category: patch.category ?? item.category,
+              unitPrice: patch.unitPrice ?? item.unitPrice,
+              unitStr: patch.unitStr ?? item.unitStr,
+              url: patch.url ?? item.url,
+              memo: patch.memo ?? item.memo,
+              imageDpi: patch.imageDpi === undefined ? item.imageDpi : patch.imageDpi,
+              imageDataUrl,
+              hasImage: item.hasImage || Boolean(imageDataUrl),
+              imageScalePercent:
+                typeof patch.imageScalePercent === 'number' && Number.isFinite(patch.imageScalePercent)
+                  ? Math.max(1, Math.min(1000, patch.imageScalePercent))
+                  : item.imageScalePercent,
+              imageRulerLengthMm:
+                patch.imageRulerLengthMm === undefined
+                  ? item.imageRulerLengthMm
+                  : patch.imageRulerLengthMm,
+              imageRotationDeg:
+                typeof patch.imageRotationDeg === 'number' && Number.isFinite(patch.imageRotationDeg)
+                  ? patch.imageRotationDeg
+                  : item.imageRotationDeg,
+              imageCropMode: patch.imageCropMode ?? item.imageCropMode,
+            }
+          }),
+        }
+      }),
+    }
+  })
 }

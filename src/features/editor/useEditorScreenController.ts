@@ -1,20 +1,10 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
-import {
-  STITCH_LINE_TYPE_ID,
-} from './cad/line-types'
+import { useEffect, useMemo, useState } from 'react'
+import { STITCH_LINE_TYPE_ID } from './cad/line-types'
 import type { EditorScreenShellActions } from './editorScreenShellTypes'
-import {
-  saveCatalogRepository,
-} from './templates/catalog-repository'
+import { saveCatalogRepository } from './templates/catalog-repository'
 
 import { detectOutlines, type OutlineChain } from './ops/outline-detection'
-import type {
-  ResolvedThemeMode,
-} from './editor-types'
+import type { ResolvedThemeMode } from './editor-types'
 import { useEditorDerivedState } from './hooks/useEditorDerivedState'
 import { useExportActions } from './hooks/useExportActions'
 import { useLayerActions } from './hooks/useLayerActions'
@@ -53,10 +43,7 @@ import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
 import { type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
 import { loadStitchSimulatorSettings } from './ops/stitch-simulator-settings'
-import {
-  loadBoxStitchHelperSettings,
-  type BoxStitchHelperSettings,
-} from './ops/box-stitch-settings'
+import { loadBoxStitchHelperSettings, type BoxStitchHelperSettings } from './ops/box-stitch-settings'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
 import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
@@ -1077,6 +1064,7 @@ export function useEditorScreenController() {
     pieceNotchLines,
     piecePlacementGuides,
     printableShapes,
+    stitchHoles,
     foldLines,
     lineTypesById,
   })

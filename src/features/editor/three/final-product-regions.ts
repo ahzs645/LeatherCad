@@ -4,6 +4,7 @@ import type { OutlinePolygon } from './three-bridge-types'
 
 export type FinalProductRegion = {
   layerId: string
+  stackLevel?: number
   polygon: Point[]
 }
 
@@ -21,16 +22,25 @@ export function buildFinalProductRegions({
   const lineTypeById = new Map(lineTypes.map((lineType) => [lineType.id, lineType]))
   const regions: FinalProductRegion[] = []
   const layerIds = new Set(layers.map((layer) => layer.id))
+  const layerStackLevelById = new Map(
+    layers.map((layer, index) => [
+      layer.id,
+      typeof layer.stackLevel === 'number' && Number.isFinite(layer.stackLevel)
+        ? Math.max(0, Math.round(layer.stackLevel))
+        : index,
+    ]),
+  )
   const orderedLayerIds = [
     ...layers.map((layer) => layer.id),
     ...Array.from(new Set(shapes.map((shape) => shape.layerId))).filter((layerId) => !layerIds.has(layerId)),
   ]
 
-  for (const layerId of orderedLayerIds) {
+  for (const [fallbackStackLevel, layerId] of orderedLayerIds.entries()) {
     const layerShapes = shapes.filter((shape) => shape.layerId === layerId)
     if (layerShapes.length === 0) {
       continue
     }
+    const stackLevel = layerStackLevelById.get(layerId) ?? fallbackStackLevel
     const layerOutlines = outlinePolygons.filter((outline) => outline.layerId === layerId)
     const physicalRegions = buildPhysicalLayerRegions({
       layerId,
@@ -39,7 +49,7 @@ export function buildFinalProductRegions({
       closedCutOutlines: layerOutlines,
     })
     for (const region of physicalRegions) {
-      regions.push({ layerId, polygon: region.outer })
+      regions.push({ layerId, stackLevel, polygon: region.outer })
     }
   }
 
@@ -49,6 +59,7 @@ export function buildFinalProductRegions({
 
   return outlinePolygons.map((outline) => ({
     layerId: outline.layerId,
+    stackLevel: layerStackLevelById.get(outline.layerId),
     polygon: outline.polygon,
   }))
 }

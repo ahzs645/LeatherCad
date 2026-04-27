@@ -10,7 +10,7 @@ const OVERLAP_EPSILON = 1e-4
 
 export type FinalProductPanelGraphInput = {
   foldLines: FoldLine[]
-  regions?: Array<{ layerId: string; polygon: Point[] }>
+  regions?: Array<{ layerId: string; stackLevel?: number; polygon: Point[] }>
   outlinePolygons?: OutlinePolygon[]
   documentBounds: Bounds2
 }
@@ -66,13 +66,14 @@ function centroid(points: Point[]) {
 }
 
 function baseRegions(
-  regions: Array<{ layerId: string; polygon: Point[] }> | undefined,
+  regions: Array<{ layerId: string; stackLevel?: number; polygon: Point[] }> | undefined,
   outlinePolygons: OutlinePolygon[] | undefined,
   documentBounds: Bounds2,
 ) {
   const physicalRegions = (regions ?? [])
     .map((region, index) => ({
       layerId: region.layerId,
+      stackLevel: region.stackLevel,
       polygon: normalizePolygon(region.polygon),
       id: `physical-region-${index + 1}`,
     }))
@@ -85,6 +86,7 @@ function baseRegions(
   const outlines = (outlinePolygons ?? [])
     .map((outline, index) => ({
       layerId: outline.layerId,
+      stackLevel: undefined as number | undefined,
       polygon: normalizePolygon(outline.polygon),
       id: `region-${index + 1}`,
     }))
@@ -97,6 +99,7 @@ function baseRegions(
   return [{
     id: 'document-region',
     layerId: '__document__',
+    stackLevel: 0,
     polygon: [
       { x: documentBounds.minX, y: documentBounds.minY },
       { x: documentBounds.maxX, y: documentBounds.minY },
@@ -215,6 +218,7 @@ export function buildFinalProductPanelGraph({
   let panels: FoldPanel[] = baseRegions(regions, outlinePolygons, documentBounds).map((region, index) => ({
     id: `panel-${index + 1}`,
     layerId: region.layerId,
+    stackLevel: region.stackLevel,
     polygon: region.polygon,
     areaMm2: polygonArea(region.polygon),
   }))
@@ -250,6 +254,9 @@ export function buildFinalProductPanelGraph({
     let hingeCount = 0
     for (const positive of positivePanels) {
       for (const negative of negativePanels) {
+        if (positive.panel.layerId !== negative.panel.layerId) {
+          continue
+        }
         if (rangesOverlap(positive.range, negative.range) <= OVERLAP_EPSILON) {
           continue
         }

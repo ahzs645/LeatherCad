@@ -275,6 +275,9 @@ export function useEditorScreenOverlay({
     handleSortTemplates,
     handleMoveCatalogShop,
     handleSortCatalogShops,
+    handleUpdateCatalogShop,
+    handleUpdateCatalogGroup,
+    handleUpdateCatalogItem,
   } = templateActions
   const {
     handleLoadAiBuilderDocument,
@@ -356,6 +359,9 @@ export function useEditorScreenOverlay({
       handleExportCatalogShop,
       handleMoveCatalogShop,
       handleSortCatalogShops,
+      handleUpdateCatalogShop,
+      handleUpdateCatalogGroup,
+      handleUpdateCatalogItem,
       handleAlignSelection,
       handleAlignSelectionToGrid,
       activeLayer,

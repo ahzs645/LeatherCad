@@ -6,13 +6,17 @@ import type {
 } from '../templates/template-repository'
 import {
   getCatalogItemCount,
+  type CatalogGroupPatch,
+  type CatalogItemPatch,
   type CatalogRepositoryItem,
   type CatalogRepositoryMoveDirection,
   type CatalogRepositoryShop,
   type CatalogRepositorySortKey,
+  type CatalogShopPatch,
 } from '../templates/catalog-repository'
 import { decodeCatalogZipBmpToObjectUrl } from '../templates/catalog-image-preview'
 import { PRESET_META } from '../data/sample-doc-meta'
+import { CatalogEditorPanel } from './CatalogEditorPanel'
 
 type TemplateRepositoryTab = 'templates' | 'catalog' | 'presets'
 type CatalogItemSort = 'group' | 'name' | 'category' | 'image'
@@ -43,6 +47,9 @@ type TemplateRepositoryModalProps = {
   onDeleteCatalogShop: (shopId: string) => void
   onMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
   onSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
+  onUpdateCatalogShop: (shopId: string, patch: CatalogShopPatch) => void
+  onUpdateCatalogGroup: (shopId: string, groupId: string, patch: CatalogGroupPatch) => void
+  onUpdateCatalogItem: (shopId: string, groupId: string, itemId: string, patch: CatalogItemPatch) => void
 }
 
 type CatalogPreviewEntry = {
@@ -94,6 +101,9 @@ export function TemplateRepositoryModal({
   onDeleteCatalogShop,
   onMoveCatalogShop,
   onSortCatalogShops,
+  onUpdateCatalogShop,
+  onUpdateCatalogGroup,
+  onUpdateCatalogItem,
 }: TemplateRepositoryModalProps) {
   const [activeTab, setActiveTab] = useState<TemplateRepositoryTab>('templates')
   const [selectedCatalogItemKey, setSelectedCatalogItemKey] = useState<string | null>(null)
@@ -207,7 +217,9 @@ export function TemplateRepositoryModal({
   }, [catalogPreviewImageUrlsByKey, selectedCatalogPreviewImagePayload, selectedCatalogPreviewItem])
 
   const selectedCatalogPreviewImageUrl =
-    selectedCatalogPreviewItem === null ? null : catalogPreviewImageUrlsByKey[selectedCatalogPreviewItem.key] ?? null
+    selectedCatalogPreviewItem === null
+      ? null
+      : selectedCatalogPreviewItem.item.imageDataUrl ?? catalogPreviewImageUrlsByKey[selectedCatalogPreviewItem.key] ?? null
   const isCatalogPreviewImageLoading =
     selectedCatalogPreviewItem !== null &&
     Boolean(selectedCatalogPreviewItem.item.zipBmpBase64) &&
@@ -473,37 +485,26 @@ export function TemplateRepositoryModal({
                       <div className="catalog-preview-detail">
                         {selectedCatalogPreviewItem ? (
                           <>
-                            <h4>{selectedCatalogPreviewItem.item.name}</h4>
-                            <p className="catalog-preview-detail-subtitle">Group: {selectedCatalogPreviewItem.groupName}</p>
-                            {selectedCatalogPreviewItem.item.hasImage ? (
-                              <div className="catalog-preview-image-wrap">
-                                {selectedCatalogPreviewImageUrl ? (
-                                  <img
-                                    className="catalog-preview-image"
-                                    src={selectedCatalogPreviewImageUrl}
-                                    alt={`${selectedCatalogPreviewItem.item.name} thumbnail`}
-                                    onLoad={(event) => {
-                                      const image = event.currentTarget
-                                      setCatalogPreviewImageSizesByKey((previous) => ({
-                                        ...previous,
-                                        [selectedCatalogPreviewItem.key]: {
-                                          width: image.naturalWidth,
-                                          height: image.naturalHeight,
-                                        },
-                                      }))
-                                    }}
-                                  />
-                                ) : selectedCatalogPreviewItem.item.zipBmpBase64 ? (
-                                  <p className="hint">
-                                    {isCatalogPreviewImageLoading
-                                      ? 'Loading thumbnail…'
-                                      : catalogPreviewImageError || 'Thumbnail preview is unavailable for this item.'}
-                                  </p>
-                                ) : (
-                                  <p className="hint">Thumbnail payload is unavailable. Re-import the original `.ctlg` file to view it.</p>
-                                )}
-                              </div>
-                            ) : null}
+                            <CatalogEditorPanel
+                              shop={selectedCatalogShop}
+                              groupIndex={selectedCatalogPreviewItem.groupIndex}
+                              item={selectedCatalogPreviewItem.item}
+                              itemKey={selectedCatalogPreviewItem.key}
+                              groupName={selectedCatalogPreviewItem.groupName}
+                              imageUrl={selectedCatalogPreviewImageUrl}
+                              imageLoading={isCatalogPreviewImageLoading}
+                              imageError={catalogPreviewImageError}
+                              canEdit={!selectedCatalogShop.isBundled}
+                              onImageSize={(key, size) =>
+                                setCatalogPreviewImageSizesByKey((previous) => ({
+                                  ...previous,
+                                  [key]: size,
+                                }))
+                              }
+                              onUpdateShop={onUpdateCatalogShop}
+                              onUpdateGroup={onUpdateCatalogGroup}
+                              onUpdateItem={onUpdateCatalogItem}
+                            />
                             <dl className="catalog-preview-detail-grid">
                               <dt>Category</dt>
                               <dd>{selectedCatalogPreviewItem.item.category || 'Uncategorized'}</dd>

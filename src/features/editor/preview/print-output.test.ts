@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { LineType, Shape } from '../cad/cad-types'
+import type { LineType, Shape, StitchHole } from '../cad/cad-types'
 import { buildPrintPlan, resolvePrintCalibrationDpi } from './print-preview'
 import { buildPrintableHtml } from './print-output'
 
@@ -29,6 +29,20 @@ const shapes: Shape[] = [
   { id: 'guide-shape', type: 'line', layerId: 'layer', lineTypeId: 'guide', start: { x: 0, y: 5 }, end: { x: 20, y: 5 } },
 ]
 
+const stitchHoles: StitchHole[] = [
+  {
+    id: 'hole-1',
+    shapeId: 'cut-shape',
+    point: { x: 10, y: 0 },
+    angleDeg: 0,
+    holeType: 'slit',
+    sequence: 0,
+    widthMm: 0.8,
+    heightMm: 3,
+    renderShape: 'slit',
+  },
+]
+
 describe('buildPrintableHtml', () => {
   it('reports active DPI from print calibration', () => {
     expect(resolvePrintCalibrationDpi(100)).toBe(96)
@@ -39,6 +53,7 @@ describe('buildPrintableHtml', () => {
     const printPlan = buildPrintPlan(shapes, { paper: 'letter', marginMm: 8, overlapMm: 4, tileX: 1, tileY: 1, scalePercent: 100 })
     const html = buildPrintableHtml({
       shapes,
+      stitchHoles: [],
       foldLines: [],
       lineTypesById: { cut: cutLineType, guide: guideLineType },
       printPlan: printPlan!,
@@ -61,6 +76,7 @@ describe('buildPrintableHtml', () => {
     const printPlan = buildPrintPlan(shapes, { paper: 'letter', marginMm: 8, overlapMm: 4, tileX: 1, tileY: 1, scalePercent: 100 })
     const html = buildPrintableHtml({
       shapes,
+      stitchHoles: [],
       foldLines: [],
       lineTypesById: { cut: cutLineType, guide: guideLineType },
       printPlan: printPlan!,
@@ -75,5 +91,26 @@ describe('buildPrintableHtml', () => {
 
     expect(html).toContain('data-non-print="true"')
     expect(html).toContain('opacity="0.35"')
+  })
+
+  it('prints stitch-hole primitives instead of only dashed stitch paths', () => {
+    const printPlan = buildPrintPlan(shapes, { paper: 'letter', marginMm: 8, overlapMm: 4, tileX: 1, tileY: 1, scalePercent: 100 })
+    const html = buildPrintableHtml({
+      shapes,
+      stitchHoles,
+      foldLines: [],
+      lineTypesById: { cut: cutLineType, guide: guideLineType },
+      printPlan: printPlan!,
+      printInColor: true,
+      printStitchAsDots: true,
+      lineThicknessScalePercent: 100,
+      showIgnoredLineTypes: false,
+      printRulerInside: false,
+      calibrationXPercent: 100,
+      calibrationYPercent: 100,
+    })
+
+    expect(html).toContain('data-type="stitch-hole"')
+    expect(html).toContain('<circle')
   })
 })

@@ -26,9 +26,15 @@ import {
   parseCatalogShopImport,
   serializeCatalogShop,
   sortCatalogRepository,
+  updateCatalogGroup,
+  updateCatalogItem,
+  updateCatalogShop,
+  type CatalogGroupPatch,
+  type CatalogItemPatch,
   type CatalogRepositoryMoveDirection,
   type CatalogRepositoryShop,
   type CatalogRepositorySortKey,
+  type CatalogShopPatch,
 } from '../templates/catalog-repository'
 import { downloadFile } from '../editor-utils'
 
@@ -297,6 +303,21 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     setStatus(sortKey === 'name' ? 'Catalogs sorted by name' : 'Catalogs sorted by import time')
   }
 
+  const handleUpdateCatalogShop = (shopId: string, patch: CatalogShopPatch) => {
+    setCatalogRepository((previous) => updateCatalogShop(previous, shopId, patch))
+    setStatus('Catalog shop updated')
+  }
+
+  const handleUpdateCatalogGroup = (shopId: string, groupId: string, patch: CatalogGroupPatch) => {
+    setCatalogRepository((previous) => updateCatalogGroup(previous, shopId, groupId, patch))
+    setStatus('Catalog group updated')
+  }
+
+  const handleUpdateCatalogItem = (shopId: string, groupId: string, itemId: string, patch: CatalogItemPatch) => {
+    setCatalogRepository((previous) => updateCatalogItem(previous, shopId, groupId, itemId, patch))
+    setStatus('Catalog item updated')
+  }
+
   return {
     handleSaveTemplateToRepository,
     handleDeleteTemplateFromRepository,
@@ -311,5 +332,8 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleExportCatalogShop,
     handleMoveCatalogShop,
     handleSortCatalogShops,
+    handleUpdateCatalogShop,
+    handleUpdateCatalogGroup,
+    handleUpdateCatalogItem,
   }
 }

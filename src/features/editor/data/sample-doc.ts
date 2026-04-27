@@ -2,6 +2,7 @@ import type { DocFile, FoldLine, Layer, Shape } from '../cad/cad-types'
 import {
   CUT_LINE_TYPE_ID,
   DEFAULT_ACTIVE_LINE_TYPE_ID,
+  GUIDE_LINE_TYPE_ID,
   STITCH_LINE_TYPE_ID,
   createDefaultLineTypes,
 } from '../cad/line-types'
@@ -125,47 +126,71 @@ function buildDoc(
 }
 
 const walletShellLayer = makeLayer('wallet-shell', 'Outer Shell', 0)
-const walletLeftPocketLayer = makeLayer('wallet-left-pocket', 'Left Pocket', 1)
-const walletRightPocketLayer = makeLayer('wallet-right-pocket', 'Right Pocket', 1)
+const walletCapacityGuideLayer = makeLayer('wallet-capacity-guides', 'Bill and Card Clearance Guides', 0)
+const walletBillPocketLayer = makeLayer('wallet-bill-pocket', 'Bill Pocket Liner', 1)
+const walletLeftPocketLayer = makeLayer('wallet-left-pocket', 'Left Card Pocket Stack', 2)
+const walletRightPocketLayer = makeLayer('wallet-right-pocket', 'Right Card Pocket Stack', 2)
 
-const walletLayers: Layer[] = [walletShellLayer, walletLeftPocketLayer, walletRightPocketLayer]
+const walletLayers: Layer[] = [
+  walletShellLayer,
+  walletCapacityGuideLayer,
+  walletBillPocketLayer,
+  walletLeftPocketLayer,
+  walletRightPocketLayer,
+]
 
 const walletShapes: Shape[] = [
-  ...rectangle('shell-outline', walletShellLayer.id, -220, -140, 220, 140),
-  ...stitchBox('shell-stitch', walletShellLayer.id, -220, -140, 220, 140, 16),
-  line('shell-center-seam', walletShellLayer.id, 0, -140, 0, 140),
+  ...rectangle('shell-outline', walletShellLayer.id, -116, -48, 116, 48),
+  line('shell-left-stitch', walletShellLayer.id, -108, -38, -108, 38, STITCH_LINE_TYPE_ID),
+  line('shell-bottom-stitch', walletShellLayer.id, -108, 38, 108, 38, STITCH_LINE_TYPE_ID),
+  line('shell-right-stitch', walletShellLayer.id, 108, 38, 108, -38, STITCH_LINE_TYPE_ID),
+  line('shell-center-crease-mark', walletShellLayer.id, 0, -48, 0, 48, GUIDE_LINE_TYPE_ID),
 
-  ...rectangle('left-pocket-outline', walletLeftPocketLayer.id, -206, -106, -8, 120),
-  arc('left-pocket-mouth', walletLeftPocketLayer.id, -194, 86, -107, 40, -20, 86),
-  bezier('left-card-slot', walletLeftPocketLayer.id, -188, -50, -106, -88, -24, -50),
-  line('left-card-divider', walletLeftPocketLayer.id, -98, -48, -98, 84),
-  line('left-pocket-stitch-left', walletLeftPocketLayer.id, -194, -92, -194, 106, STITCH_LINE_TYPE_ID),
-  line('left-pocket-stitch-right', walletLeftPocketLayer.id, -20, -92, -20, 106, STITCH_LINE_TYPE_ID),
-  line('left-pocket-stitch-bottom', walletLeftPocketLayer.id, -194, 106, -20, 106, STITCH_LINE_TYPE_ID),
+  ...rectangle('bill-clearance-reference', walletCapacityGuideLayer.id, -78, -36, 78, 36, GUIDE_LINE_TYPE_ID),
+  ...rectangle('left-card-clearance-reference', walletCapacityGuideLayer.id, -101.8, -27, -16.2, 27, GUIDE_LINE_TYPE_ID),
+  ...rectangle('right-card-clearance-reference', walletCapacityGuideLayer.id, 16.2, -27, 101.8, 27, GUIDE_LINE_TYPE_ID),
 
-  ...rectangle('right-pocket-outline', walletRightPocketLayer.id, 8, -106, 206, 120),
-  arc('right-pocket-mouth', walletRightPocketLayer.id, 20, 86, 107, 40, 194, 86),
-  bezier('right-card-slot', walletRightPocketLayer.id, 24, -50, 106, -88, 188, -50),
-  line('right-card-divider', walletRightPocketLayer.id, 98, -48, 98, 84),
-  line('right-pocket-stitch-left', walletRightPocketLayer.id, 20, -92, 20, 106, STITCH_LINE_TYPE_ID),
-  line('right-pocket-stitch-right', walletRightPocketLayer.id, 194, -92, 194, 106, STITCH_LINE_TYPE_ID),
-  line('right-pocket-stitch-bottom', walletRightPocketLayer.id, 20, 106, 194, 106, STITCH_LINE_TYPE_ID),
+  ...rectangle('bill-liner-outline', walletBillPocketLayer.id, -110, -40, 110, 44),
+  line('bill-liner-left-stitch', walletBillPocketLayer.id, -102, -32, -102, 36, STITCH_LINE_TYPE_ID),
+  line('bill-liner-bottom-stitch', walletBillPocketLayer.id, -102, 36, 102, 36, STITCH_LINE_TYPE_ID),
+  line('bill-liner-right-stitch', walletBillPocketLayer.id, 102, 36, 102, -32, STITCH_LINE_TYPE_ID),
+  line('bill-liner-center-crease-mark', walletBillPocketLayer.id, 0, -40, 0, 44, GUIDE_LINE_TYPE_ID),
+
+  line('left-pocket-left', walletLeftPocketLayer.id, -108, -34, -108, 43),
+  line('left-pocket-bottom', walletLeftPocketLayer.id, -108, 43, -8, 43),
+  line('left-pocket-right', walletLeftPocketLayer.id, -8, 43, -8, -34),
+  arc('left-pocket-thumb-cutout', walletLeftPocketLayer.id, -8, -34, -58, -50, -108, -34),
+  bezier('left-card-slot-upper', walletLeftPocketLayer.id, -100, -12, -58, -24, -16, -12),
+  bezier('left-card-slot-lower', walletLeftPocketLayer.id, -100, 10, -58, -2, -16, 10),
+  line('left-pocket-stitch-left', walletLeftPocketLayer.id, -100, -24, -100, 35, STITCH_LINE_TYPE_ID),
+  line('left-pocket-stitch-right', walletLeftPocketLayer.id, -16, -24, -16, 35, STITCH_LINE_TYPE_ID),
+  line('left-pocket-stitch-bottom', walletLeftPocketLayer.id, -100, 35, -16, 35, STITCH_LINE_TYPE_ID),
+
+  line('right-pocket-left', walletRightPocketLayer.id, 8, -34, 8, 43),
+  line('right-pocket-bottom', walletRightPocketLayer.id, 8, 43, 108, 43),
+  line('right-pocket-right', walletRightPocketLayer.id, 108, 43, 108, -34),
+  arc('right-pocket-thumb-cutout', walletRightPocketLayer.id, 108, -34, 58, -50, 8, -34),
+  bezier('right-card-slot-upper', walletRightPocketLayer.id, 16, -12, 58, -24, 100, -12),
+  bezier('right-card-slot-lower', walletRightPocketLayer.id, 16, 10, 58, -2, 100, 10),
+  line('right-pocket-stitch-left', walletRightPocketLayer.id, 16, -24, 16, 35, STITCH_LINE_TYPE_ID),
+  line('right-pocket-stitch-right', walletRightPocketLayer.id, 100, -24, 100, 35, STITCH_LINE_TYPE_ID),
+  line('right-pocket-stitch-bottom', walletRightPocketLayer.id, 16, 35, 100, 35, STITCH_LINE_TYPE_ID),
 ]
 
 const walletFolds: FoldLine[] = [
   {
     id: 'wallet-center-fold',
     name: 'Wallet Center Fold',
-    start: { x: 0, y: -140 },
-    end: { x: 0, y: 140 },
-    angleDeg: 58,
+    start: { x: 0, y: -48 },
+    end: { x: 0, y: 48 },
+    angleDeg: 138,
     maxAngleDeg: 180,
     direction: 'mountain',
-    radiusMm: 1.4,
-    thicknessMm: 1.7,
+    radiusMm: 2.4,
+    thicknessMm: 1.8,
     neutralAxisRatio: 0.5,
-    stiffness: 0.35,
-    clearanceMm: 0.25,
+    stiffness: 0.38,
+    clearanceMm: 3.2,
   },
 ]
 

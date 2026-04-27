@@ -26,7 +26,7 @@ export type FinalProductSolveOptions = {
 export type FinalProductSolveInput = {
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
-  regions?: Array<{ layerId: string; polygon: { x: number; y: number }[] }>
+  regions?: Array<{ layerId: string; stackLevel?: number; polygon: { x: number; y: number }[] }>
   outlinePolygons?: OutlinePolygon[]
   documentBounds: Bounds2
   thicknessMm?: number
@@ -53,7 +53,7 @@ function makeRotationAroundAxis(start: Vector3, end: Vector3, angleRad: number) 
     .multiply(new Matrix4().makeTranslation(-start.x, -start.y, -start.z))
 }
 
-function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[]) {
+function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm: number) {
   if (panels.length === 0) {
     return [] as SolvedFoldPanel[]
   }
@@ -97,7 +97,7 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[]) {
   return panels.map((panel) => ({
     ...panel,
     transform: transforms.get(panel.id) ?? new Matrix4(),
-    offset: new Vector3(),
+    offset: new Vector3(0, (panel.stackLevel ?? 0) * stackStepMm, 0),
   }))
 }
 
@@ -241,9 +241,12 @@ function solveStitchOffsets({
   return { iterations, rmsStitchErrorMm }
 }
 
-function collisionDiagnostics(panels: SolvedFoldPanel[], thicknessMm: number) {
+function collisionDiagnostics(panels: SolvedFoldPanel[], hinges: FoldHinge[], thicknessMm: number) {
   const diagnostics: FinalProductDiagnostic[] = []
   let count = 0
+  const hingedPanelPairs = new Set(
+    hinges.map((hinge) => [hinge.fromPanelId, hinge.toPanelId].sort().join('|')),
+  )
 
   const bounds = panels.map((panel) => {
     const points = panel.polygon.map((point) => transformPoint(panel, point))
@@ -262,6 +265,12 @@ function collisionDiagnostics(panels: SolvedFoldPanel[], thicknessMm: number) {
     for (let rightIndex = leftIndex + 1; rightIndex < bounds.length; rightIndex += 1) {
       const left = bounds[leftIndex]
       const right = bounds[rightIndex]
+      if ((left.panel.stackLevel ?? 0) !== (right.panel.stackLevel ?? 0)) {
+        continue
+      }
+      if (hingedPanelPairs.has([left.panel.id, right.panel.id].sort().join('|'))) {
+        continue
+      }
       const planarOverlap =
         left.minX <= right.maxX &&
         left.maxX >= right.minX &&
@@ -335,7 +344,7 @@ export function solveFinalProduct({
     })
   }
 
-  const solvedPanels = buildSolvedPanels(panelGraph.panels, panelGraph.hinges)
+  const solvedPanels = buildSolvedPanels(panelGraph.panels, panelGraph.hinges, thicknessMm)
   const holePanelMap = assignHolesToPanels(panelGraph.panels, stitchHoles)
   const { iterations, rmsStitchErrorMm } = solveStitchOffsets({
     panels: solvedPanels,
@@ -346,7 +355,11 @@ export function solveFinalProduct({
   })
 
   const maxHingeErrorDeg = 0
-  const { count: collisionWarningCount, diagnostics: collisionWarnings } = collisionDiagnostics(solvedPanels, thicknessMm)
+  const { count: collisionWarningCount, diagnostics: collisionWarnings } = collisionDiagnostics(
+    solvedPanels,
+    panelGraph.hinges,
+    thicknessMm,
+  )
   diagnostics.push(...collisionWarnings)
 
   if (pairs.length > 0 && rmsStitchErrorMm > stitchToleranceMm) {

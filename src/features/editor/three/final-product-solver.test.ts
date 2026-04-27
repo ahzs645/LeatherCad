@@ -136,4 +136,29 @@ describe('final product solver', () => {
     expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'stitch-pair-ambiguous')).toBe(true)
     expect(result.unpairedChainCount).toBe(3)
   })
+
+  it('does not report intended stacked panels as collisions', () => {
+    const result = solveFinalProduct({
+      foldLines: [foldLine('center-fold', { x: 10, y: 0 }, { x: 10, y: 10 }, 90)],
+      stitchHoles: [],
+      regions: [
+        {
+          layerId: 'outer',
+          stackLevel: 0,
+          polygon: twoPanelOutline[0].polygon,
+        },
+        {
+          layerId: 'liner',
+          stackLevel: 1,
+          polygon: twoPanelOutline[0].polygon,
+        },
+      ],
+      documentBounds: { minX: 0, maxX: 20, minY: 0, maxY: 10 },
+      thicknessMm: 1.8,
+    })
+
+    expect(result.hinges).toHaveLength(2)
+    expect(result.collisionWarningCount).toBe(0)
+    expect(result.panels.some((panel) => panel.offset.y > 0)).toBe(true)
+  })
 })

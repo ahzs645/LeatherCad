@@ -36,7 +36,7 @@ Verified in current repo:
 | Select next hole and end stitch here | `actSelectNextStitchingHole`, `actEndsStitchHere`, `selectNextStitchingHoleMode` | Select next supported; "Ends stitch here" absent | `partial` | Need explicit chain-end editing, not just selection cycling. |
 | Simulator controls beyond thread color | `ShowStitchPattern`, `ShowEven/ShowOdd`, `ThreadThickness`, arrows release notes | Thread color only; 3D preview shows thread paths | `missing` | Need simulator state model, visibility toggles, thickness, and direction-arrow behavior. |
 | Export as dot vs slit/line based on tool geometry | `SVG.AsDots`, `SVG.DotRadius`, blade-width-zero string | Export actions do not output stitch-hole entities | `missing` | Need actual stitch-hole export model for SVG/DXF/PDF and geometry-dependent rendering mode. |
-| Print stitch holes as dots | `chkPrintStitchingHoleAsDot` | Supported in print preview | `implemented` | Baseline present, but current behavior is line-style based, not hole-primitive based. |
+| Print stitch holes as dots | `chkPrintStitchingHoleAsDot` | Supported in print preview | `implemented` | Print output now emits stitch-hole primitives and can force dot output for printing. |
 | Box stitch helper parameterization | `BoxStitch.Distance`, helper hint about stretch factor | Simple inset-rectangle helper | `partial` | Need pairing search distance, extraction workflow, and likely stretch-aware projection rules. |
 
 ## Implementation-Ready Tickets

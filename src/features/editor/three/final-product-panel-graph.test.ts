@@ -52,4 +52,24 @@ describe('final product panel graph', () => {
     expect(graph.panels).toHaveLength(4)
     expect(graph.hinges.length).toBeGreaterThanOrEqual(2)
   })
+
+  it('does not create cross-layer hinges when stacked panels share a fold line', () => {
+    const graph = buildFinalProductPanelGraph({
+      foldLines: [foldLine('fold-x', { x: 10, y: -5 }, { x: 10, y: 15 })],
+      regions: [
+        {
+          layerId: 'outer',
+          polygon: rectangleOutline[0].polygon,
+        },
+        {
+          layerId: 'liner',
+          polygon: rectangleOutline[0].polygon,
+        },
+      ],
+      documentBounds: { minX: 0, maxX: 20, minY: 0, maxY: 10 },
+    })
+
+    expect(graph.hinges).toHaveLength(2)
+    expect(graph.hinges.every((hinge) => hinge.fromPanelId !== hinge.toPanelId)).toBe(true)
+  })
 })

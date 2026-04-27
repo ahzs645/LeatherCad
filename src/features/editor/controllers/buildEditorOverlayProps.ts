@@ -1,20 +1,5 @@
-import type {
-  ChangeEvent,
-  ChangeEventHandler,
-  ComponentProps,
-  Dispatch,
-  RefObject,
-  SetStateAction,
-} from 'react'
-import type {
-  ArcShape,
-  LineShape,
-  PatternPiece,
-  PieceGrainline,
-  Shape,
-  StitchHole,
-  TextShape,
-} from '../cad/cad-types'
+import type { ChangeEvent, ChangeEventHandler, ComponentProps, Dispatch, RefObject, SetStateAction } from 'react'
+import type { ArcShape, LineShape, PatternPiece, PieceGrainline, Shape, StitchHole, TextShape } from '../cad/cad-types'
 import { EditorModalStack } from '../components/EditorModalStack'
 import type { EditorHiddenInputsProps } from '../components/EditorHiddenInputs'
 import type { LengthAdjustMode } from '../components/LengthAdjustModal'
@@ -26,15 +11,7 @@ import { saveAutoSaveEnabled } from '../ops/autosave'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import { saveEditorPreferences, getDefaultEditorPreferences } from '../ops/editor-prefs'
 import { addFontToList, removeFontFromList, saveFontList } from '../ops/font-list-ops'
-import {
-  getArcGeometry,
-  getLineAngleDeg,
-  getLineLengthMm,
-  scaleLineLengthByRatio,
-  setArcGeometry,
-  setLineAngle,
-  setLineLength,
-} from '../ops/geometry-editing-ops'
+import { getArcGeometry, getLineAngleDeg, getLineLengthMm, scaleLineLengthByRatio, setArcGeometry, setLineAngle, setLineLength } from '../ops/geometry-editing-ops'
 import type { OutlineChain } from '../ops/outline-detection'
 import { getTerminalStitchHoleIdForShape } from '../ops/stitch-hole-ops'
 import type { StitchSimulatorResult, StitchSimulatorSettings } from '../ops/stitch-simulator-ops'
@@ -42,17 +19,11 @@ import { saveStitchSimulatorSettings } from '../ops/stitch-simulator-settings'
 import { parseTranslationFile, saveTranslationMap } from '../ops/translation-ops'
 
 type ModalStackProps = ComponentProps<typeof EditorModalStack>
-type BoxStitchModalProps = NonNullable<ModalStackProps['boxStitchModalProps']>
-type BoxStitchHelperModalProps = NonNullable<ModalStackProps['boxStitchHelperModalProps']>
-type MandalaModalProps = NonNullable<ModalStackProps['mandalaModalProps']>
-type WizardModalProps = NonNullable<ModalStackProps['wizardModalProps']>
-type BackdropModalProps = NonNullable<ModalStackProps['backdropModalProps']>
-type LetterStampModalProps = NonNullable<ModalStackProps['letterStampModalProps']>
-type MoveCopyDistanceModalProps = NonNullable<ModalStackProps['moveCopyDistanceModalProps']>
-type SvgImportOptionsModalProps = NonNullable<ModalStackProps['svgImportOptionsModalProps']>
-type SpecifyScaleModalProps = NonNullable<ModalStackProps['specifyScaleModalProps']>
-type FontListModalProps = NonNullable<ModalStackProps['fontListModalProps']>
-type OptionsModalProps = NonNullable<ModalStackProps['optionsModalProps']>
+type BoxStitchModalProps = NonNullable<ModalStackProps['boxStitchModalProps']>; type BoxStitchHelperModalProps = NonNullable<ModalStackProps['boxStitchHelperModalProps']>
+type MandalaModalProps = NonNullable<ModalStackProps['mandalaModalProps']>; type WizardModalProps = NonNullable<ModalStackProps['wizardModalProps']>
+type BackdropModalProps = NonNullable<ModalStackProps['backdropModalProps']>; type LetterStampModalProps = NonNullable<ModalStackProps['letterStampModalProps']>
+type MoveCopyDistanceModalProps = NonNullable<ModalStackProps['moveCopyDistanceModalProps']>; type SvgImportOptionsModalProps = NonNullable<ModalStackProps['svgImportOptionsModalProps']>
+type SpecifyScaleModalProps = NonNullable<ModalStackProps['specifyScaleModalProps']>; type FontListModalProps = NonNullable<ModalStackProps['fontListModalProps']>; type OptionsModalProps = NonNullable<ModalStackProps['optionsModalProps']>
 
 export type EditorOverlayProps = {
   modalStackProps: ModalStackProps
@@ -116,16 +87,10 @@ export type BuildEditorOverlayPropsParams = {
   moveCopyDistanceMode: MoveCopyDistanceModalProps['mode']
   handleMoveSelectionByDistance: (dx?: number, dy?: number) => void
   handleCopySelectionByDistance: (dx?: number, dy?: number) => void
-  showSpecifyRotationModal: boolean
-  setShowSpecifyRotationModal: Dispatch<SetStateAction<boolean>>
-  handleSpecifyRotation: (angleDeg: number) => void
-  showSpecifyScaleModal: boolean
-  setShowSpecifyScaleModal: Dispatch<SetStateAction<boolean>>
-  specifyScaleModalAxis: SpecifyScaleModalProps['axis']
+  showSpecifyRotationModal: boolean; setShowSpecifyRotationModal: Dispatch<SetStateAction<boolean>>; handleSpecifyRotation: (angleDeg: number) => void
+  showSpecifyScaleModal: boolean; setShowSpecifyScaleModal: Dispatch<SetStateAction<boolean>>; specifyScaleModalAxis: SpecifyScaleModalProps['axis']
   handleSpecifyScale: (factorX: number, factorY: number) => void
-  showFontListModal: boolean
-  setShowFontListModal: Dispatch<SetStateAction<boolean>>
-  fontList: FontListModalProps['fonts']
+  showFontListModal: boolean; setShowFontListModal: Dispatch<SetStateAction<boolean>>; fontList: FontListModalProps['fonts']
   setFontList: Dispatch<SetStateAction<FontListModalProps['fonts']>>
   setTextFontFamily: Dispatch<SetStateAction<string>>
   showOptionsModal: boolean
@@ -147,18 +112,10 @@ export type BuildEditorOverlayPropsParams = {
   setLineToolConstraint: Dispatch<SetStateAction<OptionsModalProps['lineToolConstraint']>>
   gridBackgroundMode: OptionsModalProps['gridBackgroundMode']
   setGridBackgroundMode: Dispatch<SetStateAction<OptionsModalProps['gridBackgroundMode']>>
-  showLengthAdjustModal: boolean
-  setShowLengthAdjustModal: Dispatch<SetStateAction<boolean>>
-  shapes: Shape[]
-  selectedShapeIdSet: Set<string>
-  setShapes: Dispatch<SetStateAction<Shape[]>>
-  showProjectMemoModal: boolean
-  setShowProjectMemoModal: Dispatch<SetStateAction<boolean>>
-  projectMemo: string
-  setProjectMemo: Dispatch<SetStateAction<string>>
-  isMobileLayout: boolean
-  showPieceInspectorModal: boolean
-  setShowPieceInspectorModal: Dispatch<SetStateAction<boolean>>
+  showLengthAdjustModal: boolean; setShowLengthAdjustModal: Dispatch<SetStateAction<boolean>>
+  shapes: Shape[]; selectedShapeIdSet: Set<string>; setShapes: Dispatch<SetStateAction<Shape[]>>
+  showProjectMemoModal: boolean; setShowProjectMemoModal: Dispatch<SetStateAction<boolean>>; projectMemo: string; setProjectMemo: Dispatch<SetStateAction<string>>
+  isMobileLayout: boolean; showPieceInspectorModal: boolean; setShowPieceInspectorModal: Dispatch<SetStateAction<boolean>>
   pieceInspectorContentProps: PieceInspectorContentProps
   showNestingModal: boolean
   setShowNestingModal: Dispatch<SetStateAction<boolean>>

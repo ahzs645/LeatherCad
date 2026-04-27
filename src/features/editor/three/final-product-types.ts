@@ -43,6 +43,7 @@ export type StitchPair = {
 export type FoldPanel = {
   id: string
   layerId: string
+  stackLevel?: number
   polygon: Point[]
   areaMm2: number
 }

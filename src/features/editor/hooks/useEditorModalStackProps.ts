@@ -4,7 +4,7 @@ import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-c
 import { normalizeHexColor } from '../editor-utils'
 import { EditorModalStack } from '../components/EditorModalStack'
 import type { TemplateRepositoryEntry, TemplateRepositoryMoveDirection, TemplateRepositorySortKey } from '../templates/template-repository'
-import type { CatalogRepositoryMoveDirection, CatalogRepositoryShop, CatalogRepositorySortKey } from '../templates/catalog-repository'
+import type { CatalogGroupPatch, CatalogItemPatch, CatalogRepositoryMoveDirection, CatalogRepositoryShop, CatalogRepositorySortKey, CatalogShopPatch } from '../templates/catalog-repository'
 import type { PrintPlan } from '../preview/print-preview'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
 import { useEditorLayerActions, useEditorLayerSelector } from '../state/providers/EditorLayerStateProvider'
@@ -62,6 +62,9 @@ export type UseEditorModalStackPropsParams = {
   handleExportCatalogShop: (shopId: string) => void
   handleMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
   handleSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
+  handleUpdateCatalogShop: (shopId: string, patch: CatalogShopPatch) => void
+  handleUpdateCatalogGroup: (shopId: string, groupId: string, patch: CatalogGroupPatch) => void
+  handleUpdateCatalogItem: (shopId: string, groupId: string, itemId: string, patch: CatalogItemPatch) => void
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
   handleAlignSelectionToGrid: () => void
   activeLayer: Layer | null
@@ -71,12 +74,7 @@ export type UseEditorModalStackPropsParams = {
   handleRenameActiveSketchGroup: () => void
   handleToggleActiveSketchGroupVisibility: () => void
   handleToggleActiveSketchGroupLock: () => void
-  handleSetActiveSketchLink: (patch: {
-    baseGroupId?: string | null
-    linkMode?: SketchGroup['linkMode']
-    linkOffsetX?: number
-    linkOffsetY?: number
-  }) => void
+  handleSetActiveSketchLink: (patch: { baseGroupId?: string | null; linkMode?: SketchGroup['linkMode']; linkOffsetX?: number; linkOffsetY?: number }) => void
   handleClearActiveSketchLink: () => void
   handleClearActiveSketchGroup: () => void
   handleDeleteActiveSketchGroup: () => void
@@ -95,11 +93,7 @@ export type UseEditorModalStackPropsParams = {
   handleCreateOffsetGeometryFromSelection: () => void
   handleCreateBoxStitchFromSelection: () => void
   selectedEditableShape: Shape | null
-  handleUpdateSelectedShapePoint: (
-    pointKey: 'start' | 'mid' | 'control' | 'end',
-    axis: 'x' | 'y',
-    value: number,
-  ) => void
+  handleUpdateSelectedShapePoint: (pointKey: 'start' | 'mid' | 'control' | 'end', axis: 'x' | 'y', value: number) => void
   handleApplyTextDefaultsToSelection: () => void
   selectedHardwareMarker: HardwareMarker | null
   handleUpdateSelectedHardwareMarker: (patch: Partial<HardwareMarker>) => void
@@ -170,6 +164,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleExportCatalogShop,
     handleMoveCatalogShop,
     handleSortCatalogShops,
+    handleUpdateCatalogShop,
+    handleUpdateCatalogGroup,
+    handleUpdateCatalogItem,
     handleAlignSelection,
     handleAlignSelectionToGrid,
     activeLayer,
@@ -552,6 +549,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onDeleteCatalogShop: handleDeleteCatalogShop,
       onMoveCatalogShop: handleMoveCatalogShop,
       onSortCatalogShops: handleSortCatalogShops,
+      onUpdateCatalogShop: handleUpdateCatalogShop,
+      onUpdateCatalogGroup: handleUpdateCatalogGroup,
+      onUpdateCatalogItem: handleUpdateCatalogItem,
     },
     patternToolsModalProps: {
       open: showPatternToolsModal,

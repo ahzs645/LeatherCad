@@ -53,6 +53,7 @@ These items were added from the 2026-04-21 swarm review. Each item should be imp
   - Add catalog export matching the imported `.ctlg` structure where browser-safe.
   - Keep catalog parsing/serialization under `templates/catalog-repository.ts` or a sibling serializer module; keep template repository behavior separate.
   - Progress 2026-04-21: imported source catalogs can now be exported back to browser-safe `.ctlg` JSON via a serializer in `templates/catalog-repository.ts` and an `Export Catalog` action in the catalog tab. Remaining work is dedicated shop/group/item edit forms and richer item image import/calibration controls.
+  - Progress 2026-04-27: catalog tab now exposes shop/group/item edit forms for imported catalogs, browser image import, DPI/scale/ruler/rotation/crop calibration controls, and round-trips browser calibration metadata in `.ctlg` JSON.
 
 - [x] `GEO-01` Move/copy by distance dialog.
   - Replace prompt-only move/copy by distance with a dedicated reusable form.
@@ -95,6 +96,7 @@ These items were added from the 2026-04-21 swarm review. Each item should be imp
   - Keep PDF rasterization in tracing/PDF ops and avoid mixing PDF viewer state with generic tracing overlay state.
   - Track what PDFium desktop capabilities are not browser-feasible so parity decisions stay explicit.
   - Progress 2026-04-21: tracing overlays now show a dedicated preview panel with PDF page/count and DPI metadata, while page rasterization remains in tracing/PDF ops. Remaining work is documenting browser-infeasible PDFium parity items.
+  - Progress 2026-04-27: browser/native PDFium boundary documented in `docs/source-app/pdfium-browser-parity.md`; browser implementation stays on `pdfjs-dist` for tracing and the in-app PDF writer for CAD export.
 
 - [x] `PRN-01` Print preview desktop controls.
   - Add browser-appropriate page add/remove planning controls and active DPI display.

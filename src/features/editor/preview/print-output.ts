@@ -1,11 +1,13 @@
 import { arcPath, round } from '../cad/cad-geometry'
 import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
-import type { FoldLine, LineType, Shape } from '../cad/cad-types'
+import type { FoldLine, LineType, Shape, StitchHole } from '../cad/cad-types'
+import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
 import { resolvePrintCalibrationDpi, type PrintPlan } from './print-preview'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 
 type PrintTileOutputOptions = {
   shapes: Shape[]
+  stitchHoles: StitchHole[]
   foldLines: FoldLine[]
   lineTypesById: Record<string, LineType>
   printPlan: PrintPlan
@@ -117,6 +119,37 @@ function shapeToSvgMarkup(
     .join('')
 }
 
+function stitchHoleToSvgMarkup(
+  stitchHole: StitchHole,
+  shapesById: Record<string, Shape | undefined>,
+  lineTypesById: Record<string, LineType>,
+  options: { printInColor: boolean; printStitchAsDots: boolean; lineThicknessScalePercent: number },
+) {
+  const parentShape = shapesById[stitchHole.shapeId]
+  if (!parentShape || shouldIgnoreLineTypeInPrint(lineTypesById[parentShape.lineTypeId])) {
+    return ''
+  }
+
+  const lineType = lineTypesById[parentShape.lineTypeId]
+  const color = options.printInColor ? lineType?.color ?? '#111827' : '#111827'
+  const primitive = createStitchHolePrimitive(stitchHole, {
+    mode: options.printStitchAsDots ? 'dots' : 'native',
+    dotRadiusMm: 0.6,
+  })
+
+  if (primitive.kind === 'circle') {
+    return `<circle cx="${round(primitive.center.x)}" cy="${round(primitive.center.y)}" r="${round(primitive.radiusMm)}" fill="${color}" data-type="stitch-hole" />`
+  }
+
+  if (primitive.kind === 'segment') {
+    const strokeWidth = round(Math.max(0.2, primitive.strokeWidthMm * Math.max(0.05, options.lineThicknessScalePercent / 100)))
+    return `<line x1="${round(primitive.start.x)}" y1="${round(primitive.start.y)}" x2="${round(primitive.end.x)}" y2="${round(primitive.end.y)}" stroke="${color}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" data-type="stitch-hole" />`
+  }
+
+  const strokeWidth = round(Math.max(0.2, (stitchHole.widthMm ?? 0.9) * Math.max(0.05, options.lineThicknessScalePercent / 100)))
+  return `<polygon points="${primitive.points.map((point) => `${round(point.x)},${round(point.y)}`).join(' ')}" stroke="${color}" stroke-width="${strokeWidth}" fill="none" stroke-linejoin="round" data-type="stitch-hole" />`
+}
+
 function foldLineMarkup(foldLine: FoldLine, printInColor: boolean) {
   const color = printInColor ? '#dc2626' : '#6b7280'
   return `<line x1="${round(foldLine.start.x)}" y1="${round(foldLine.start.y)}" x2="${round(foldLine.end.x)}" y2="${round(foldLine.end.y)}" stroke="${color}" stroke-width="0.6" stroke-dasharray="6 3" fill="none" />`
@@ -154,6 +187,17 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
       }),
     )
     .join('\n')
+  const shapesById = Object.fromEntries(options.shapes.map((shape) => [shape.id, shape] as const))
+  const stitchHoleMarkup = options.stitchHoles
+    .map((stitchHole) =>
+      stitchHoleToSvgMarkup(stitchHole, shapesById, options.lineTypesById, {
+        printInColor: options.printInColor,
+        printStitchAsDots: options.printStitchAsDots,
+        lineThicknessScalePercent: options.lineThicknessScalePercent,
+      }),
+    )
+    .filter((markup) => markup.length > 0)
+    .join('\n')
   const foldMarkup = options.foldLines.map((foldLine) => foldLineMarkup(foldLine, options.printInColor)).join('\n')
   const ruler = options.printRulerInside ? rulerMarkup(tile) : ''
 
@@ -161,6 +205,7 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
   <rect x="${round(tile.minX)}" y="${round(tile.minY)}" width="${round(tile.width)}" height="${round(tile.height)}" fill="#ffffff" />
   <g transform="translate(${round(shiftX)} ${round(shiftY)}) scale(${round(scaleX)} ${round(scaleY)})">
     ${shapeMarkup}
+    ${stitchHoleMarkup}
     ${foldMarkup}
   </g>
   ${ruler}
