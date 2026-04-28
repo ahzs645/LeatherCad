@@ -10,6 +10,7 @@ import type {
   Shape,
 } from '../cad/cad-types'
 import { AVAILABLE_PIECE_LABEL_TOKENS } from '../ops/pattern-piece-ops'
+import { SeamConnectionEditor } from './SeamConnectionEditor'
 
 type PieceSeamConnectionEntry = {
   connection: SeamConnection
@@ -388,56 +389,17 @@ export function PieceInspectorContent({
           <p className="hint">Use the Seam tool to connect this piece edge to another piece edge.</p>
         ) : (
           <div className="pattern-toggle-grid">
-            {seamConnections.map(({ connection, counterpartPieceName }, index) => {
-              const localRef = connection.from.pieceId === piece.id ? connection.from : connection.to
-              const remoteRef = connection.from.pieceId === piece.id ? connection.to : connection.from
-              return (
-                <div key={connection.id} className="layer-toggle-item">
-                  <span>{`${index + 1}. Edge ${localRef.edgeIndex + 1} to ${counterpartPieceName} edge ${remoteRef.edgeIndex + 1}`}</span>
-                  <label className="layer-field">
-                    <span>Kind</span>
-                    <select
-                      value={connection.kind}
-                      onChange={(event) =>
-                        onUpdateSeamConnection(connection.id, {
-                          kind: event.target.value as SeamConnection['kind'],
-                        })
-                      }
-                    >
-                      <option value="sewn">Sewn</option>
-                      <option value="aligned">Aligned</option>
-                      <option value="hinge">Hinge</option>
-                    </select>
-                  </label>
-                  <label className="layer-field">
-                    <span>Stitch spacing (mm)</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.1}
-                      value={connection.stitchSpacingMm ?? ''}
-                      onChange={(event) => {
-                        const nextValue = event.target.value.trim()
-                        onUpdateSeamConnection(connection.id, {
-                          stitchSpacingMm: nextValue.length > 0 ? Math.max(0, parseNumber(nextValue, connection.stitchSpacingMm ?? 0)) : undefined,
-                        })
-                      }}
-                    />
-                  </label>
-                  <label className="layer-toggle-item">
-                    <input
-                      type="checkbox"
-                      checked={connection.reversed === true}
-                      onChange={(event) => onUpdateSeamConnection(connection.id, { reversed: event.target.checked })}
-                    />
-                    <span>Reverse edge direction</span>
-                  </label>
-                  <button type="button" onClick={() => onDeleteSeamConnection(connection.id)}>
-                    Delete
-                  </button>
-                </div>
-              )
-            })}
+            {seamConnections.map(({ connection, counterpartPieceName }, index) => (
+              <SeamConnectionEditor
+                key={connection.id}
+                piece={piece}
+                connection={connection}
+                counterpartPieceName={counterpartPieceName}
+                index={index}
+                onUpdateSeamConnection={onUpdateSeamConnection}
+                onDeleteSeamConnection={onDeleteSeamConnection}
+              />
+            ))}
           </div>
         )}
       </div>

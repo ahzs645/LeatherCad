@@ -20,6 +20,8 @@ type UseEditorDocumentCommandsParams = {
   stitchHoles: StitchHole[]
   constraints: DocFile['constraints']
   patternPieces: DocFile['patternPieces']
+  pieceInterfaces: DocFile['pieceInterfaces']
+  assemblyConnections: DocFile['assemblyConnections']
   pieceGrainlines: DocFile['pieceGrainlines']
   pieceLabels: DocFile['pieceLabels']
   piecePlacementLabels: DocFile['piecePlacementLabels']
@@ -76,6 +78,8 @@ export function useEditorDocumentCommands({
   stitchHoles,
   constraints,
   patternPieces,
+  pieceInterfaces,
+  assemblyConnections,
   pieceGrainlines,
   pieceLabels,
   piecePlacementLabels,
@@ -134,6 +138,8 @@ export function useEditorDocumentCommands({
       stitchHoles,
       constraints,
       patternPieces,
+      pieceInterfaces: (pieceInterfaces ?? []).filter((entry) => (patternPieces ?? []).some((piece) => piece.id === entry.pieceId)),
+      assemblyConnections: assemblyConnections ?? [],
       pieceGrainlines,
       pieceLabels,
       piecePlacementLabels,
@@ -181,6 +187,8 @@ export function useEditorDocumentCommands({
       leatherImageFills,
       lineTypes,
       patternPieces,
+      pieceInterfaces,
+      assemblyConnections,
       pieceGrainlines,
       pieceLabels,
       pieceNotches,

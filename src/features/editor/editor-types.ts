@@ -7,6 +7,8 @@ import type {
   LineType,
   LineTypeRole,
   PatternPiece,
+  PieceInterface,
+  AssemblyConnection,
   PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
@@ -125,6 +127,8 @@ export type EditorSnapshot = {
   stitchHoles: StitchHole[]
   constraints: ParametricConstraint[]
   patternPieces: PatternPiece[]
+  pieceInterfaces: PieceInterface[]
+  assemblyConnections: AssemblyConnection[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
   piecePlacementLabels: PiecePlacementLabel[]

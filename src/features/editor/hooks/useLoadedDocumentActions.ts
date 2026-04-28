@@ -10,7 +10,9 @@ import type {
   LegacySeamAllowance,
   Layer,
   LineType,
+  AssemblyConnection,
   PatternPiece,
+  PieceInterface,
   PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
@@ -31,7 +33,15 @@ import type {
 } from '../cad/cad-types'
 import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { parseSnapSettings } from '../editor-parsers'
-import { parseAvatarSpec, parsePiecePlacement3d, parseSeamConnection, parseThreePreviewSettings, sanitizeThreePreviewSettings } from '../editor-parsers'
+import {
+  parseAssemblyConnection,
+  parseAvatarSpec,
+  parsePieceInterface,
+  parsePiecePlacement3d,
+  parseSeamConnection,
+  parseThreePreviewSettings,
+  sanitizeThreePreviewSettings,
+} from '../editor-parsers'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
@@ -53,6 +63,8 @@ type UseLoadedDocumentActionsParams = {
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceInterfaces: Dispatch<SetStateAction<PieceInterface[]>>
+  setAssemblyConnections: Dispatch<SetStateAction<AssemblyConnection[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
   setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
@@ -121,6 +133,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setStitchHoles,
     setConstraints,
     setPatternPieces,
+    setPieceInterfaces,
+    setAssemblyConnections,
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
@@ -209,6 +223,18 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     })
     const normalizedPatternPieces = (doc.patternPieces ?? []).filter((piece) => shapeIdSet.has(piece.boundaryShapeId))
     const patternPieceIdSet = new Set(normalizedPatternPieces.map((piece) => piece.id))
+    const normalizedPieceInterfaces = (doc.pieceInterfaces ?? [])
+      .map(parsePieceInterface)
+      .filter((entry): entry is PieceInterface => entry !== null && patternPieceIdSet.has(entry.pieceId))
+    const pieceInterfaceIdSet = new Set(normalizedPieceInterfaces.map((entry) => entry.id))
+    const normalizedAssemblyConnections = (doc.assemblyConnections ?? [])
+      .map(parseAssemblyConnection)
+      .filter(
+        (entry): entry is AssemblyConnection =>
+          entry !== null &&
+          pieceInterfaceIdSet.has(entry.fromInterfaceId) &&
+          pieceInterfaceIdSet.has(entry.toInterfaceId),
+      )
     const rawSeamAllowances = doc.seamAllowances ?? []
     const legacySeamAllowances: LegacySeamAllowance[] = rawSeamAllowances.filter(
       (entry): entry is LegacySeamAllowance =>
@@ -299,6 +325,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setStitchHoles(normalizeStitchHoleSequences(doc.stitchHoles ?? []))
     setConstraints(normalizedConstraints)
     setPatternPieces(normalizedPatternPieces)
+    setPieceInterfaces(normalizedPieceInterfaces)
+    setAssemblyConnections(normalizedAssemblyConnections)
     setPieceGrainlines(normalizedPieceGrainlines)
     setPieceLabels(normalizedPieceLabels)
     setPiecePlacementLabels(normalizedPiecePlacementLabels)

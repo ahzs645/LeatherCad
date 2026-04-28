@@ -87,6 +87,7 @@ export function WorkbenchThreePreviewInspector({
   const {
     threePreviewSettings,
     finalProductSolveResult,
+    assemblyDiagnostics = [],
     onSetThreePreviewSettings,
     avatars,
     activeAvatarId,
@@ -247,6 +248,24 @@ export function WorkbenchThreePreviewInspector({
           )}
         </div>
       )}
+
+      <div className="control-block">
+        <h3>Assembly Diagnostics</h3>
+        {assemblyDiagnostics.length === 0 ? (
+          <p className="hint">No assembly issues detected.</p>
+        ) : (
+          <>
+            <p className="hint">
+              {`${assemblyDiagnostics.filter((entry) => entry.blocking).length} blocking | ${assemblyDiagnostics.length} total`}
+            </p>
+            {assemblyDiagnostics.slice(0, 8).map((diagnostic) => (
+              <div key={diagnostic.id} className="layer-toggle-item">
+                <span>{`${diagnostic.severity.toUpperCase()}: ${diagnostic.message}`}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
 
       <div className="control-block">
         <h3>3D Layer Visibility</h3>

@@ -19,12 +19,12 @@ import {
   Vector3,
 } from 'three'
 import type { PatternPiece, PiecePlacement3D, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import { scoreSeamStress } from '../assembly/stress-score'
 import { createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 import { clearGroup } from './bridge/scene-lifecycle'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
 import { addPanelOutline } from './outline-renderer'
 
-const EPSILON = 1e-6
 const DEFAULT_THICKNESS_WORLD = 0.005
 
 function explodedOffsetForIndex(index: number, total: number, previewSettings: ThreePreviewSettings, transform: ModelTransform) {
@@ -235,9 +235,21 @@ function seamColorForConnection(
   rightLength: number,
   midpointDistance: number,
   previewSettings: ThreePreviewSettings,
+  toleranceMm: number,
 ) {
-  const ratio = Math.abs(leftLength - rightLength) / Math.max(leftLength, rightLength, EPSILON)
-  const severity = MathUtils.clamp(ratio * 1.25 + midpointDistance * 0.9, 0, 1)
+  const lengthDelta = Math.abs(leftLength - rightLength)
+  const stress = scoreSeamStress({
+    seam: {
+      id: 'preview',
+      from: { pieceId: 'preview-left', edgeIndex: 0 },
+      to: { pieceId: 'preview-right', edgeIndex: 0 },
+      kind: 'sewn',
+    },
+    lengthDeltaMm: lengthDelta,
+    toleranceMm,
+  })
+  const distanceSeverity = MathUtils.clamp(midpointDistance * 0.9, 0, 1)
+  const severity = MathUtils.clamp(Math.max(stress.score, distanceSeverity), 0, 1)
   const safe = new Color('#22c55e')
   const warning = new Color('#ef4444')
   return safe.lerp(warning, previewSettings.showStressOverlay ? severity : 0.18)
@@ -336,6 +348,7 @@ export function rebuildAssembledModel({
         edgeLengthWorld(toPiece, connection.to.edgeIndex, transform),
         fromMid.distanceTo(toMid),
         previewSettings,
+        (connection.toleranceMm ?? 1) * transform.scale,
       )
       addSeamGuide(assembledGroup, fromMid, toMid, color, connection.kind !== 'aligned')
     }

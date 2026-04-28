@@ -38,6 +38,8 @@ export type GarmentInterchangeDocument = {
   }
   pieces: GarmentInterchangePiece[]
   seams: SeamConnection[]
+  pieceInterfaces: NonNullable<DocFile['pieceInterfaces']>
+  assemblyConnections: NonNullable<DocFile['assemblyConnections']>
 }
 
 function defaultPlacement(pieceId: string): PiecePlacement3D {
@@ -103,5 +105,7 @@ export function exportGarmentInterchangeDocument(doc: DocFile): GarmentInterchan
     },
     pieces,
     seams: (doc.seamConnections ?? []).map((connection) => ({ ...connection })),
+    pieceInterfaces: (doc.pieceInterfaces ?? []).map((entry) => ({ ...entry, spans: entry.spans.map((span) => ({ ...span })) })),
+    assemblyConnections: (doc.assemblyConnections ?? []).map((entry) => ({ ...entry })),
   }
 }

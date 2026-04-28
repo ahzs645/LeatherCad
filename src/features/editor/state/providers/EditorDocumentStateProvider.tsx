@@ -22,6 +22,8 @@ const initialEditorDocumentState: EditorDocumentState = {
   activeSketchGroupId: null,
   constraints: [],
   patternPieces: [],
+  pieceInterfaces: [],
+  assemblyConnections: [],
   pieceGrainlines: [],
   pieceLabels: [],
   piecePlacementLabels: [],
@@ -73,6 +75,10 @@ function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyActio
       dispatch({ type: 'constraints', value }),
     setPatternPieces: (value: React.SetStateAction<EditorDocumentState['patternPieces']>) =>
       dispatch({ type: 'patternPieces', value }),
+    setPieceInterfaces: (value: React.SetStateAction<EditorDocumentState['pieceInterfaces']>) =>
+      dispatch({ type: 'pieceInterfaces', value }),
+    setAssemblyConnections: (value: React.SetStateAction<EditorDocumentState['assemblyConnections']>) =>
+      dispatch({ type: 'assemblyConnections', value }),
     setPieceGrainlines: (value: React.SetStateAction<EditorDocumentState['pieceGrainlines']>) =>
       dispatch({ type: 'pieceGrainlines', value }),
     setPieceLabels: (value: React.SetStateAction<EditorDocumentState['pieceLabels']>) =>

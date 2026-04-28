@@ -1,4 +1,4 @@
-import type { FoldLine, PatternPiece, PieceEdgeRef, Point, SeamConnection } from '../cad/cad-types'
+import type { FoldLine, HardwareMarker, Layer, PatternPiece, PieceEdgeRef, Point, SeamConnection } from '../cad/cad-types'
 import type { PieceMeshData } from '../three/piece-mesh'
 
 export type AssemblyDiagnosticSeverity = 'fatal' | 'error' | 'warning' | 'info'
@@ -121,11 +121,12 @@ export function buildSeamAssemblyDiagnostics(params: {
     }
 
     const deltaMm = Math.abs(from.edge.lengthMm - to.edge.lengthMm)
-    if (deltaMm > lengthToleranceMm) {
+    const connectionToleranceMm = connection.toleranceMm ?? lengthToleranceMm
+    if (deltaMm > connectionToleranceMm) {
       diagnostics.push(diagnostic({
         id: `seam-length-mismatch-${connection.id}`,
         code: 'seam.length_mismatch',
-        severity: deltaMm > lengthToleranceMm * 4 ? 'error' : 'warning',
+        severity: deltaMm > connectionToleranceMm * 4 ? 'error' : 'warning',
         gate: 'assembly-preflight',
         message: `Seam lengths differ by ${deltaMm.toFixed(1)} mm between "${from.piece.name}" and "${to.piece.name}".`,
         entityRefs: [
@@ -137,13 +138,36 @@ export function buildSeamAssemblyDiagnostics(params: {
           fromLengthMm: from.edge.lengthMm,
           toLengthMm: to.edge.lengthMm,
           deltaMm,
-          toleranceMm: lengthToleranceMm,
+          toleranceMm: connectionToleranceMm,
         },
         locations: [
           { ...from.edge.midpoint, edgeIndex: connection.from.edgeIndex, t: 0.5 },
           { ...to.edge.midpoint, edgeIndex: connection.to.edgeIndex, t: 0.5 },
         ],
-        blocking: deltaMm > lengthToleranceMm * 4,
+        blocking: deltaMm > connectionToleranceMm * 4,
+      }))
+    }
+
+    const directEndpointError =
+      Math.hypot(from.edge.start.x - to.edge.start.x, from.edge.start.y - to.edge.start.y) +
+      Math.hypot(from.edge.end.x - to.edge.end.x, from.edge.end.y - to.edge.end.y)
+    const reversedEndpointError =
+      Math.hypot(from.edge.start.x - to.edge.end.x, from.edge.start.y - to.edge.end.y) +
+      Math.hypot(from.edge.end.x - to.edge.start.x, from.edge.end.y - to.edge.start.y)
+    if (connection.reversed !== true && reversedEndpointError + connectionToleranceMm < directEndpointError) {
+      diagnostics.push(diagnostic({
+        id: `seam-direction-crossed-${connection.id}`,
+        code: 'seam.direction_crossed',
+        severity: 'warning',
+        gate: 'assembly-preflight',
+        message: `Seam "${connection.id}" may be reversed; toggle reverse edge direction if the preview twists.`,
+        entityRefs: [{ kind: 'seam', id: connection.id }],
+        metrics: { directEndpointError, reversedEndpointError },
+        suggestedFixes: [{
+          action: 'reverse-seam',
+          label: 'Reverse one side of the seam',
+          confidence: 0.6,
+        }],
       }))
     }
 
@@ -193,6 +217,14 @@ function pointDistanceToSegment(point: Point, start: Point, end: Point) {
   }
   const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
   return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t))
+}
+
+function boundsOverlap(left: PieceMeshData['bounds'], right: PieceMeshData['bounds']) {
+  return left.minX <= right.maxX && left.maxX >= right.minX && left.minY <= right.maxY && left.maxY >= right.minY
+}
+
+function pointInBounds(point: Point, bounds: PieceMeshData['bounds']) {
+  return point.x >= bounds.minX && point.x <= bounds.maxX && point.y >= bounds.minY && point.y <= bounds.maxY
 }
 
 export function buildFoldAssemblyDiagnostics(params: {
@@ -262,9 +294,73 @@ export function buildAssemblyDiagnostics(params: {
   seamConnections: SeamConnection[]
   foldLines: FoldLine[]
   fallbackThicknessMm: number
+  layers?: Layer[]
+  hardwareMarkers?: HardwareMarker[]
 }) {
+  const stackDiagnostics: AssemblyDiagnostic[] = []
+  if (params.layers) {
+    const layerById = new Map(params.layers.map((layer) => [layer.id, layer]))
+    for (let leftIndex = 0; leftIndex < params.pieceMeshes.length; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < params.pieceMeshes.length; rightIndex += 1) {
+        const left = params.pieceMeshes[leftIndex]
+        const right = params.pieceMeshes[rightIndex]
+        const leftPiece = params.patternPieces.find((piece) => piece.id === left.pieceId)
+        const rightPiece = params.patternPieces.find((piece) => piece.id === right.pieceId)
+        if (!leftPiece || !rightPiece || !boundsOverlap(left.bounds, right.bounds)) {
+          continue
+        }
+        const leftStack = layerById.get(leftPiece.layerId)?.stackLevel
+        const rightStack = layerById.get(rightPiece.layerId)?.stackLevel
+        if (leftStack === rightStack || leftStack === undefined || rightStack === undefined) {
+          stackDiagnostics.push(diagnostic({
+            id: `layer-stack-missing-${left.pieceId}-${right.pieceId}`,
+            code: 'layer.stack_missing',
+            severity: 'warning',
+            gate: 'assembly-preflight',
+            message: `Layer order is ambiguous where "${left.name}" overlaps "${right.name}".`,
+            entityRefs: [
+              { kind: 'piece', id: left.pieceId, label: left.name },
+              { kind: 'piece', id: right.pieceId, label: right.name },
+            ],
+            metrics: {
+              leftStackLevel: leftStack ?? 'unset',
+              rightStackLevel: rightStack ?? 'unset',
+            },
+            suggestedFixes: [{
+              action: 'assign-layer-order',
+              label: 'Assign layer stack levels',
+              confidence: 0.65,
+            }],
+          }))
+        }
+      }
+    }
+  }
+
+  const hardwareDiagnostics: AssemblyDiagnostic[] = []
+  for (const marker of params.hardwareMarkers ?? []) {
+    if (!marker.throughLayerIds || marker.throughLayerIds.length === 0) {
+      continue
+    }
+    const actualPieces = params.pieceMeshes.filter((piece) => pointInBounds(marker.point, piece.bounds))
+    if (actualPieces.length !== marker.throughLayerIds.length) {
+      hardwareDiagnostics.push(diagnostic({
+        id: `hardware-layer-count-mismatch-${marker.id}`,
+        code: 'hardware.layer_count_mismatch',
+        severity: 'warning',
+        gate: 'assembly-preflight',
+        message: `"${marker.label}" passes through ${actualPieces.length} piece(s), expected ${marker.throughLayerIds.length}.`,
+        entityRefs: [{ kind: 'hardware', id: marker.id, label: marker.label }],
+        metrics: { actual: actualPieces.length, expected: marker.throughLayerIds.length },
+        locations: [marker.point],
+      }))
+    }
+  }
+
   return [
     ...buildSeamAssemblyDiagnostics(params),
     ...buildFoldAssemblyDiagnostics(params),
+    ...stackDiagnostics,
+    ...hardwareDiagnostics,
   ]
 }

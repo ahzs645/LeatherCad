@@ -286,6 +286,7 @@ export type SeamConnection = {
   toSpan?: PieceEdgeSpan
   sourceConnectionId?: string
   edgeLengthDeltaMm?: number
+  toleranceMm?: number
   stitchSpacingMm?: number
   reversed?: boolean
   kind: SeamConnectionKind

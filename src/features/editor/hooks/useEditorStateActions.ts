@@ -13,7 +13,9 @@ import type {
   Layer,
   LeatherImageFill,
   LineType,
+  AssemblyConnection,
   PatternPiece,
+  PieceInterface,
   PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
@@ -51,6 +53,8 @@ type UseEditorStateActionsParams = {
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceInterfaces: Dispatch<SetStateAction<PieceInterface[]>>
+  setAssemblyConnections: Dispatch<SetStateAction<AssemblyConnection[]>>
   setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
   setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
   setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
@@ -103,6 +107,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setStitchHoles,
     setConstraints,
     setPatternPieces,
+    setPieceInterfaces,
+    setAssemblyConnections,
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,
@@ -149,6 +155,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setStitchHoles(snapshot.stitchHoles)
     setConstraints(snapshot.constraints)
     setPatternPieces(snapshot.patternPieces)
+    setPieceInterfaces(snapshot.pieceInterfaces)
+    setAssemblyConnections(snapshot.assemblyConnections)
     setPieceGrainlines(snapshot.pieceGrainlines)
     setPieceLabels(snapshot.pieceLabels)
     setPiecePlacementLabels(snapshot.piecePlacementLabels)
@@ -286,6 +294,8 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setStitchHoles([])
     setConstraints([])
     setPatternPieces([])
+    setPieceInterfaces([])
+    setAssemblyConnections([])
     setPieceGrainlines([])
     setPieceLabels([])
     setPiecePlacementLabels([])

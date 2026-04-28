@@ -7,7 +7,9 @@ import type {
   Layer,
   LeatherImageFill,
   LineType,
+  AssemblyConnection,
   PatternPiece,
+  PieceInterface,
   PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
@@ -55,6 +57,8 @@ export type EditorDocumentState = {
   activeSketchGroupId: string | null
   constraints: ParametricConstraint[]
   patternPieces: PatternPiece[]
+  pieceInterfaces: PieceInterface[]
+  assemblyConnections: AssemblyConnection[]
   pieceGrainlines: PieceGrainline[]
   pieceLabels: PieceLabel[]
   piecePlacementLabels: PiecePlacementLabel[]

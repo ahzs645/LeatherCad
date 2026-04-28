@@ -1,10 +1,13 @@
 import { lazy, Suspense, type Dispatch, type SetStateAction } from 'react'
 import type {
   AvatarSpec,
+  AssemblyConnection,
   FoldLine,
+  HardwareMarker,
   Layer,
   LineType,
   PatternPiece,
+  PieceInterface,
   PiecePlacement3D,
   SeamConnection,
   Shape,
@@ -32,8 +35,11 @@ type EditorPreviewPaneProps = {
   stitchThreadColor: string
   onSetStitchThreadColor: (color: string) => void
   patternPieces: PatternPiece[]
+  pieceInterfaces: PieceInterface[]
+  assemblyConnections: AssemblyConnection[]
   piecePlacements3d: PiecePlacement3D[]
   seamConnections: SeamConnection[]
+  hardwareMarkers: HardwareMarker[]
   threePreviewSettings: ThreePreviewSettings
   avatars: AvatarSpec[]
   onSetPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
@@ -84,8 +90,11 @@ export function EditorPreviewPane({
   stitchThreadColor,
   onSetStitchThreadColor,
   patternPieces,
+  pieceInterfaces,
+  assemblyConnections,
   piecePlacements3d,
   seamConnections,
+  hardwareMarkers,
   threePreviewSettings,
   avatars,
   onSetPiecePlacements3d,
@@ -185,8 +194,11 @@ export function EditorPreviewPane({
             stitchThreadColor={stitchThreadColor}
             onSetStitchThreadColor={onSetStitchThreadColor}
             patternPieces={patternPieces}
+            pieceInterfaces={pieceInterfaces}
+            assemblyConnections={assemblyConnections}
             piecePlacements3d={piecePlacements3d}
             seamConnections={seamConnections}
+            hardwareMarkers={hardwareMarkers}
             threePreviewSettings={threePreviewSettings}
             avatars={avatars}
             onSetPiecePlacements3d={onSetPiecePlacements3d}

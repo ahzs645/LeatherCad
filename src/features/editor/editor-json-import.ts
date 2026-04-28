@@ -6,10 +6,12 @@ import type {
   DocFile,
   FoldLine,
   HardwareMarker,
+  AssemblyConnection,
   LeatherImageFill,
   LegacySeamAllowance,
   LineType,
   PatternPiece,
+  PieceInterface,
   PiecePlacement3D,
   ParametricConstraint,
   PieceGrainline,
@@ -34,6 +36,7 @@ import {
 } from './cad/line-types'
 import {
   parseConstraint,
+  parseAssemblyConnection,
   parseDimensionLine,
   parseFoldLine,
   parseHardwareMarker,
@@ -41,6 +44,7 @@ import {
   parseLeatherImageFill,
   parseLegacySeamAllowance,
   parsePatternPiece,
+  parsePieceInterface,
   parsePieceGrainline,
   parsePieceLabel,
   parsePiecePlacement3d,
@@ -69,6 +73,8 @@ type ImportedJsonCandidate = {
   constraints?: unknown[]
   seamAllowances?: unknown[]
   patternPieces?: unknown[]
+  pieceInterfaces?: unknown[]
+  assemblyConnections?: unknown[]
   pieceGrainlines?: unknown[]
   pieceLabels?: unknown[]
   piecePlacementLabels?: unknown[]
@@ -375,6 +381,22 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
     : []
 
   const nextPatternPieceIdSet = new Set(nextPatternPieces.map((piece) => piece.id))
+  const nextPieceInterfaces = Array.isArray(parsed.pieceInterfaces)
+    ? parsed.pieceInterfaces
+        .map(parsePieceInterface)
+        .filter((entry): entry is PieceInterface => entry !== null && nextPatternPieceIdSet.has(entry.pieceId))
+    : []
+  const nextPieceInterfaceIdSet = new Set(nextPieceInterfaces.map((entry) => entry.id))
+  const nextAssemblyConnections = Array.isArray(parsed.assemblyConnections)
+    ? parsed.assemblyConnections
+        .map(parseAssemblyConnection)
+        .filter(
+          (entry): entry is AssemblyConnection =>
+            entry !== null &&
+            nextPieceInterfaceIdSet.has(entry.fromInterfaceId) &&
+            nextPieceInterfaceIdSet.has(entry.toInterfaceId),
+        )
+    : []
   const nextPieceGrainlines = Array.isArray(parsed.pieceGrainlines)
     ? parsed.pieceGrainlines
         .map(parsePieceGrainline)
@@ -503,6 +525,8 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       stitchHoles: normalizedStitchHoles,
       constraints: nextConstraints,
       patternPieces: nextPatternPieces,
+      pieceInterfaces: nextPieceInterfaces,
+      assemblyConnections: nextAssemblyConnections,
       pieceGrainlines: nextPieceGrainlines,
       pieceLabels: nextPieceLabels,
       piecePlacementLabels: nextPiecePlacementLabels,

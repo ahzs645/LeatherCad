@@ -37,9 +37,14 @@ function makeHole(params: {
   sequence: number
   count: number
   reversed: boolean
+  t0?: number
+  t1?: number
 }): StitchHole {
   const rawT = params.count <= 1 ? 0 : params.sequence / (params.count - 1)
-  const t = params.reversed ? 1 - rawT : rawT
+  const start = params.t0 ?? 0
+  const end = params.t1 ?? 1
+  const rangedT = start + (end - start) * rawT
+  const t = params.reversed ? 1 - rangedT : rangedT
   const point = interpolateEdge(params.edge, t)
   const direction = edgeDirection(params.edge, params.reversed)
   return {
@@ -124,6 +129,8 @@ export function compileExplicitSeams(params: {
         sequence: index,
         count,
         reversed: false,
+        t0: connection.fromSpan?.t0,
+        t1: connection.fromSpan?.t1,
       }),
     )
     const rightHoles = Array.from({ length: count }, (_, index) =>
@@ -135,6 +142,8 @@ export function compileExplicitSeams(params: {
         sequence: index,
         count,
         reversed: rightReversed,
+        t0: connection.toSpan?.t0,
+        t1: connection.toSpan?.t1,
       }),
     )
 

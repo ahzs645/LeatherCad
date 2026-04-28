@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateActio
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type {
   AvatarSpec,
+  AssemblyConnection,
   FoldLine,
+  HardwareMarker,
   Layer,
   LineType,
   PatternPiece,
+  PieceInterface,
   PiecePlacement3D,
   SeamConnection,
   Shape,
@@ -17,15 +20,9 @@ import { detectOutlines } from '../ops/outline-detection'
 import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct } from '../three/final-product-solver'
 import { LEATHER_PRESETS } from '../three/material-presets'
-import type {
-  OutlinePolygon,
-  ThreeBridge as ThreeBridgeClass,
-} from '../three/three-bridge'
-import type {
-  ThreeBridgeDocument,
-  ThreeBridgePresentationState,
-  ThreeMaterialState,
-} from '../three/three-bridge-types'
+import { useThreeAssemblyModel } from './useThreeAssemblyModel'
+import type { OutlinePolygon, ThreeBridge as ThreeBridgeClass } from '../three/three-bridge'
+import type { ThreeBridgeDocument, ThreeBridgePresentationState, ThreeMaterialState } from '../three/three-bridge-types'
 
 export type ThreePreviewControllerProps = {
   shapes: Shape[]
@@ -34,8 +31,11 @@ export type ThreePreviewControllerProps = {
   stitchThreadColor: string
   onSetStitchThreadColor: (color: string) => void
   patternPieces: PatternPiece[]
+  pieceInterfaces: PieceInterface[]
+  assemblyConnections: AssemblyConnection[]
   piecePlacements3d: PiecePlacement3D[]
   seamConnections: SeamConnection[]
+  hardwareMarkers: HardwareMarker[]
   threePreviewSettings: ThreePreviewSettings
   avatars: AvatarSpec[]
   onSetPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
@@ -146,8 +146,11 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     stitchHoles,
     stitchThreadColor,
     patternPieces,
+    pieceInterfaces,
+    assemblyConnections,
     piecePlacements3d,
     seamConnections,
+    hardwareMarkers,
     threePreviewSettings,
     avatars,
     onSetPiecePlacements3d,
@@ -245,6 +248,23 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     return result
   }, [shapesIn3dView, lineTypes])
 
+  const {
+    effectiveSeamConnections,
+    explicitSeams,
+    assemblyDiagnostics,
+  } = useThreeAssemblyModel({
+    patternPieces,
+    pieceInterfaces,
+    assemblyConnections,
+    seamConnections,
+    hardwareMarkers,
+    foldLines,
+    outlinePolygons,
+    shapesIn3dView,
+    layersFor3d,
+    threePreviewSettings,
+  })
+
   const finalProductSolveResult = useMemo(() => {
     if (threePreviewSettings.mode !== 'final') {
       return null
@@ -253,6 +273,16 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     return solveFinalProduct({
       foldLines,
       stitchHoles,
+      explicitStitchChains: explicitSeams.chains,
+      explicitStitchPairs: explicitSeams.pairs,
+      explicitDiagnostics: assemblyDiagnostics.map((diagnostic) => ({
+        id: diagnostic.id,
+        code: diagnostic.code,
+        severity: diagnostic.severity === 'fatal' ? 'error' : diagnostic.severity,
+        message: diagnostic.message,
+        foldLineIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'fold').map((entry) => entry.id),
+        chainIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'stitchHole').map((entry) => entry.id),
+      })),
       regions: buildFinalProductRegions({
         layers: layersFor3d,
         lineTypes,
@@ -265,6 +295,8 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     })
   }, [
     foldLines,
+    explicitSeams,
+    assemblyDiagnostics,
     layersFor3d,
     lineTypes,
     outlinePolygons,
@@ -313,7 +345,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       outlinePolygons,
       patternPieces,
       piecePlacements3d,
-      seamConnections,
+      seamConnections: effectiveSeamConnections,
       avatars,
     }),
     [
@@ -325,7 +357,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       outlinePolygons,
       patternPieces,
       piecePlacements3d,
-      seamConnections,
+      effectiveSeamConnections,
       avatars,
     ],
   )
@@ -619,6 +651,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
 
   return {
     ...props,
+    seamConnections: effectiveSeamConnections,
     containerRef,
     canvasRef,
     bridgeRef,
@@ -636,6 +669,8 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     visiblePatternPieces,
     invalidPatternPieces,
     finalProductSolveResult,
+    assemblyDiagnostics,
+    effectiveSeamConnections,
     activeAvatarId,
     avatarFormResetKey,
     selectedClosedShapeIds,

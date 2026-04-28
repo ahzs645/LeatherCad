@@ -1,4 +1,5 @@
 import { clamp, isPointLike, uid } from './cad/cad-geometry'
+import { parsePieceEdgeSpan } from './editor-assembly-parsers'
 import type {
   ConstraintAnchor,
   ConstraintAxis,
@@ -35,15 +36,10 @@ import {
 } from './editor-constants'
 import type { DimensionLine, PrintArea } from './cad/cad-types'
 
-export {
-  parseAvatarSpec,
-  parsePiecePlacement3d,
-  parseThreePreviewSettings,
-  sanitizePiecePlacement3d,
-  sanitizeThreePreviewSettings,
-} from './editor-preview-parsers'
+export { parseAvatarSpec, parsePiecePlacement3d, parseThreePreviewSettings, sanitizePiecePlacement3d, sanitizeThreePreviewSettings } from './editor-preview-parsers'
 export { parseBackdrop, parseTracingOverlay } from './editor-overlay-parsers'
 export { parseLeatherImageFill } from './editor-leather-image-parsers'
+export { parseAssemblyConnection, parsePieceEdgeSpan, parsePieceInterface } from './editor-assembly-parsers'
 
 export function parseFoldLine(value: unknown): FoldLine | null {
   if (typeof value !== 'object' || value === null) {
@@ -292,6 +288,17 @@ export function parseSeamConnection(value: unknown): SeamConnection | null {
       pieceId: candidate.to.pieceId,
       edgeIndex: Math.max(0, Math.round(candidate.to.edgeIndex)),
     },
+    fromSpan: parsePieceEdgeSpan(candidate.fromSpan) ?? undefined,
+    toSpan: parsePieceEdgeSpan(candidate.toSpan) ?? undefined,
+    sourceConnectionId: typeof candidate.sourceConnectionId === 'string' ? candidate.sourceConnectionId : undefined,
+    edgeLengthDeltaMm:
+      typeof candidate.edgeLengthDeltaMm === 'number' && Number.isFinite(candidate.edgeLengthDeltaMm)
+        ? candidate.edgeLengthDeltaMm
+        : undefined,
+    toleranceMm:
+      typeof candidate.toleranceMm === 'number' && Number.isFinite(candidate.toleranceMm)
+        ? Math.max(0, candidate.toleranceMm)
+        : undefined,
     stitchSpacingMm:
       typeof candidate.stitchSpacingMm === 'number' && Number.isFinite(candidate.stitchSpacingMm)
         ? Math.max(0.1, Math.abs(candidate.stitchSpacingMm))

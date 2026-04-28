@@ -154,8 +154,11 @@ type BuildWorkbenchThreeWorkspacePropsParams = {
   stitchThreadColor: WorkbenchThreeWorkspaceProps['stitchThreadColor']
   onSetStitchThreadColor: WorkbenchThreeWorkspaceProps['onSetStitchThreadColor']
   patternPieces: WorkbenchThreeWorkspaceProps['patternPieces']
+  pieceInterfaces: WorkbenchThreeWorkspaceProps['pieceInterfaces']
+  assemblyConnections: WorkbenchThreeWorkspaceProps['assemblyConnections']
   piecePlacements3d: WorkbenchThreeWorkspaceProps['piecePlacements3d']
   seamConnections: WorkbenchThreeWorkspaceProps['seamConnections']
+  hardwareMarkers: WorkbenchThreeWorkspaceProps['hardwareMarkers']
   threePreviewSettings: WorkbenchThreeWorkspaceProps['threePreviewSettings']
   avatars: WorkbenchThreeWorkspaceProps['avatars']
   onSetPiecePlacements3d: WorkbenchThreeWorkspaceProps['onSetPiecePlacements3d']
@@ -180,8 +183,11 @@ export function buildWorkbenchThreeWorkspaceProps({
   stitchThreadColor,
   onSetStitchThreadColor,
   patternPieces,
+  pieceInterfaces,
+  assemblyConnections,
   piecePlacements3d,
   seamConnections,
+  hardwareMarkers,
   threePreviewSettings,
   avatars,
   onSetPiecePlacements3d,
@@ -205,8 +211,11 @@ export function buildWorkbenchThreeWorkspaceProps({
     stitchThreadColor,
     onSetStitchThreadColor,
     patternPieces,
+    pieceInterfaces,
+    assemblyConnections,
     piecePlacements3d,
     seamConnections,
+    hardwareMarkers,
     threePreviewSettings,
     avatars,
     onSetPiecePlacements3d,
