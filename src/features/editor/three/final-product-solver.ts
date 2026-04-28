@@ -9,6 +9,7 @@ import type {
   FoldHinge,
   FoldPanel,
   SolvedFoldPanel,
+  StitchChain,
   StitchPair,
 } from './final-product-types'
 import type { OutlinePolygon } from './three-bridge-types'
@@ -26,6 +27,9 @@ export type FinalProductSolveOptions = {
 export type FinalProductSolveInput = {
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
+  explicitStitchChains?: StitchChain[]
+  explicitStitchPairs?: StitchPair[]
+  explicitDiagnostics?: FinalProductDiagnostic[]
   regions?: Array<{ layerId: string; stackLevel?: number; polygon: { x: number; y: number }[] }>
   outlinePolygons?: OutlinePolygon[]
   documentBounds: Bounds2
@@ -306,6 +310,9 @@ function assignHolesToPanels(panels: FoldPanel[], stitchHoles: StitchHole[]) {
 export function solveFinalProduct({
   foldLines,
   stitchHoles,
+  explicitStitchChains = [],
+  explicitStitchPairs = [],
+  explicitDiagnostics = [],
   regions,
   outlinePolygons,
   documentBounds,
@@ -316,6 +323,7 @@ export function solveFinalProduct({
   const stitchToleranceMm = options.stitchToleranceMm ?? DEFAULT_STITCH_TOLERANCE_MM
   const hingeToleranceDeg = options.hingeToleranceDeg ?? DEFAULT_HINGE_TOLERANCE_DEG
   const diagnostics: FinalProductDiagnostic[] = []
+  diagnostics.push(...explicitDiagnostics)
 
   const panelGraph = buildFinalProductPanelGraph({ foldLines, regions, outlinePolygons, documentBounds })
   diagnostics.push(...panelGraph.diagnostics)
@@ -325,6 +333,8 @@ export function solveFinalProduct({
 
   const { pairs, diagnostics: pairDiagnostics } = pairStitchChains(chains)
   diagnostics.push(...pairDiagnostics)
+  const allChains = [...explicitStitchChains, ...chains]
+  const allPairs = [...explicitStitchPairs, ...pairs]
 
   if (foldLines.length === 0) {
     diagnostics.push({
@@ -335,7 +345,7 @@ export function solveFinalProduct({
     })
   }
 
-  if (stitchHoles.length > 0 && pairs.length === 0) {
+  if (stitchHoles.length > 0 && allPairs.length === 0) {
     diagnostics.push({
       id: 'final-product-no-stitch-pairs',
       code: 'no-stitch-pairs',
@@ -345,10 +355,11 @@ export function solveFinalProduct({
   }
 
   const solvedPanels = buildSolvedPanels(panelGraph.panels, panelGraph.hinges, thicknessMm)
-  const holePanelMap = assignHolesToPanels(panelGraph.panels, stitchHoles)
+  const allHoles = allChains.flatMap((chain) => chain.holes)
+  const holePanelMap = assignHolesToPanels(panelGraph.panels, allHoles)
   const { iterations, rmsStitchErrorMm } = solveStitchOffsets({
     panels: solvedPanels,
-    pairs,
+    pairs: allPairs,
     holePanelMap,
     maxIterations,
     toleranceMm: stitchToleranceMm,
@@ -362,7 +373,7 @@ export function solveFinalProduct({
   )
   diagnostics.push(...collisionWarnings)
 
-  if (pairs.length > 0 && rmsStitchErrorMm > stitchToleranceMm) {
+  if (allPairs.length > 0 && rmsStitchErrorMm > stitchToleranceMm) {
     diagnostics.push({
       id: 'final-product-stitch-rms-high',
       code: 'stitch-rms-high',
@@ -371,11 +382,11 @@ export function solveFinalProduct({
     })
   }
 
-  const unpairedChainCount = Math.max(0, chains.length - pairs.length * 2)
+  const unpairedChainCount = Math.max(0, allChains.length - allPairs.length * 2)
   const hasBlockingDiagnostics = diagnostics.some((diagnostic) => diagnostic.severity === 'error')
   const converged =
     !hasBlockingDiagnostics &&
-    pairs.length > 0 &&
+    allPairs.length > 0 &&
     unpairedChainCount === 0 &&
     rmsStitchErrorMm <= stitchToleranceMm &&
     maxHingeErrorDeg <= hingeToleranceDeg
@@ -383,8 +394,8 @@ export function solveFinalProduct({
   return {
     panels: solvedPanels,
     hinges: panelGraph.hinges,
-    stitchChains: chains,
-    stitchPairs: pairs,
+    stitchChains: allChains,
+    stitchPairs: allPairs,
     diagnostics,
     iterations,
     converged,

@@ -150,10 +150,15 @@ export type FoldLine = {
   name: string
   start: Point
   end: Point
+  pieceId?: string
+  interfaceId?: string
   angleDeg: number
   maxAngleDeg: number
   direction?: FoldDirection
   radiusMm?: number
+  foldAllowanceMm?: number
+  bendRadiusMm?: number
+  lockedHinge?: boolean
   thicknessMm?: number
   neutralAxisRatio?: number
   stiffness?: number
@@ -180,6 +185,9 @@ export type StitchHole = {
   id: string
   shapeId: string
   chainId?: string
+  interfaceId?: string
+  connectionId?: string
+  pairedHoleId?: string
   point: Point
   angleDeg: number
   holeType: StitchHoleType
@@ -234,6 +242,25 @@ export type PieceEdgeRef = {
   edgeIndex: number
 }
 
+export type PieceEdgeSpan = PieceEdgeRef & {
+  t0: number
+  t1: number
+  reversed?: boolean
+}
+
+export type PieceInterfaceRole = 'seam' | 'fold' | 'hardware' | 'slot' | 'glue' | 'edge-finish'
+
+export type PieceInterface = {
+  id: string
+  pieceId: string
+  name: string
+  role: PieceInterfaceRole
+  spans: PieceEdgeSpan[]
+  side?: 'grain' | 'flesh' | 'either'
+  allowanceMm?: number
+  easeRatio?: number
+}
+
 export type PiecePlacement3D = {
   pieceId: string
   translationMm: {
@@ -255,9 +282,33 @@ export type SeamConnection = {
   id: string
   from: PieceEdgeRef
   to: PieceEdgeRef
+  fromSpan?: PieceEdgeSpan
+  toSpan?: PieceEdgeSpan
+  sourceConnectionId?: string
+  edgeLengthDeltaMm?: number
   stitchSpacingMm?: number
   reversed?: boolean
   kind: SeamConnectionKind
+}
+
+export type AssemblyConnectionKind =
+  | 'sewn'
+  | 'fold-hinge'
+  | 'glued'
+  | 'riveted'
+  | 'snap'
+  | 'buckle'
+  | 'aligned'
+
+export type AssemblyConnection = {
+  id: string
+  fromInterfaceId: string
+  toInterfaceId: string
+  kind: AssemblyConnectionKind
+  stitchSpacingMm?: number
+  hardwareMarkerIds?: string[]
+  layerOffsetMm?: number
+  toleranceMm?: number
 }
 
 export type ThreePreviewMode = 'fold' | 'assembled' | 'avatar' | 'final'
@@ -390,6 +441,10 @@ export type HardwareMarker = {
   point: Point
   kind: HardwareKind
   label: string
+  anchorInterfaceId?: string
+  mateMarkerId?: string
+  throughLayerIds?: string[]
+  installationSide?: 'grain' | 'flesh' | 'either'
   holeDiameterMm: number
   spacingMm: number
   notes?: string
@@ -543,6 +598,8 @@ export type DocFile = {
   stitchHoles?: StitchHole[]
   constraints?: ParametricConstraint[]
   patternPieces?: PatternPiece[]
+  pieceInterfaces?: PieceInterface[]
+  assemblyConnections?: AssemblyConnection[]
   pieceGrainlines?: PieceGrainline[]
   pieceLabels?: PieceLabel[]
   piecePlacementLabels?: PiecePlacementLabel[]

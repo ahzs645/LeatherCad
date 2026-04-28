@@ -13,10 +13,12 @@ import {
   Vector2,
 } from 'three'
 import type { StitchHole } from '../cad/cad-types'
+import { buildAssemblyDiagnostics, type AssemblyDiagnostic } from '../assembly/assembly-diagnostics'
+import { compileExplicitSeams } from '../assembly/seam-stitch-compiler'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { findPanelContainingPoint } from './final-product-panel-graph'
 import { solveFinalProduct, projectSolvedPointForPreview } from './final-product-solver'
-import type { FinalProductSolveResult, SolvedFoldPanel, StitchPair } from './final-product-types'
+import type { FinalProductDiagnostic, FinalProductSolveResult, SolvedFoldPanel, StitchPair } from './final-product-types'
 import { buildFinalProductRegions } from './final-product-regions'
 import type { CommonRebuildParams } from './model-builder-types'
 
@@ -204,6 +206,17 @@ function addHingeGuides(
   }
 }
 
+function finalDiagnosticFromAssemblyDiagnostic(diagnostic: AssemblyDiagnostic): FinalProductDiagnostic {
+  return {
+    id: diagnostic.id,
+    code: diagnostic.code,
+    severity: diagnostic.severity === 'fatal' ? 'error' : diagnostic.severity,
+    message: diagnostic.message,
+    chainIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'stitchHole').map((entry) => entry.id),
+    foldLineIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'fold').map((entry) => entry.id),
+  }
+}
+
 export function rebuildFinalProductModel({
   layers,
   lineTypes,
@@ -217,6 +230,9 @@ export function rebuildFinalProductModel({
   foldLines,
   stitchHoles,
   outlinePolygons,
+  patternPieces,
+  pieceMeshes,
+  seamConnections,
   documentBounds,
   previewSettings,
   transform,
@@ -235,6 +251,21 @@ export function rebuildFinalProductModel({
   const result = solveFinalProduct({
     foldLines,
     stitchHoles,
+    ...(() => {
+      const compiledSeams = compileExplicitSeams({ pieceMeshes, seamConnections })
+      const assemblyDiagnostics = buildAssemblyDiagnostics({
+        patternPieces,
+        pieceMeshes,
+        seamConnections,
+        foldLines,
+        fallbackThicknessMm: previewSettings.thicknessMm,
+      })
+      return {
+        explicitStitchChains: compiledSeams.chains,
+        explicitStitchPairs: compiledSeams.pairs,
+        explicitDiagnostics: [...compiledSeams.diagnostics, ...assemblyDiagnostics].map(finalDiagnosticFromAssemblyDiagnostic),
+      }
+    })(),
     regions: buildFinalProductRegions({ layers, lineTypes, shapes, outlinePolygons }),
     outlinePolygons,
     documentBounds,
