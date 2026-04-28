@@ -9,6 +9,10 @@ export const PRESET_META: PresetMeta[] = [
     label: 'Wallet',
   },
   {
+    id: 'compact-clasp-wallet',
+    label: 'Compact Clasp Wallet',
+  },
+  {
     id: 'card-sleeve',
     label: 'Card Sleeve',
   },

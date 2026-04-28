@@ -205,24 +205,42 @@ type RenderTextShapeOptions = {
   viewportScale?: number
 }
 
-// Clamp the on-screen glyph size so text doesn't balloon as the user zooms
-// in. The inner <g transform="scale(viewport.scale)"> would otherwise make a
-// 2mm font appear as 2 * scale screen pixels — readable at 100% but huge at
-// 1000%. We cap the effective screen size at TEXT_MAX_SCREEN_PX by
-// shrinking the world-space fontSize proportionally at high zoom.
+// Clamp the on-screen glyph size so text stays readable across the same zoom
+// range as grid labels. The inner <g transform="scale(viewport.scale)"> makes
+// world-space fonts shrink when zoomed out and balloon when zoomed in, so we
+// adapt the world-space font size to a stable screen-space range.
+const TEXT_MIN_SCREEN_PX = 11
 const TEXT_MAX_SCREEN_PX = 14
 const TEXT_MIN_WORLD_MM = 0.01
 
-export function resolveAdaptiveTextFontSize(fontSizeMm: number, viewportScale = 1, maxScreenPx = TEXT_MAX_SCREEN_PX) {
+export function resolveAdaptiveTextFontSize(
+  fontSizeMm: number,
+  viewportScale = 1,
+  minScreenPx = TEXT_MIN_SCREEN_PX,
+  maxScreenPx = TEXT_MAX_SCREEN_PX,
+) {
   const safeScale = Number.isFinite(viewportScale) && viewportScale > 0 ? viewportScale : 1
   const safeFontSizeMm = Number.isFinite(fontSizeMm) && fontSizeMm > 0 ? fontSizeMm : 2
-  return round(Math.max(TEXT_MIN_WORLD_MM, Math.min(safeFontSizeMm, maxScreenPx / safeScale)))
+  const minWorldFontSize = Math.max(0, minScreenPx) / safeScale
+  const maxWorldFontSize = Math.max(minWorldFontSize, maxScreenPx / safeScale)
+  return round(Math.max(TEXT_MIN_WORLD_MM, Math.min(Math.max(safeFontSizeMm, minWorldFontSize), maxWorldFontSize)))
 }
 
 export function renderTextShape(shape: TextShape, options: RenderTextShapeOptions) {
   const normalized = options.normalizeTextShape(shape)
   const scale = options.viewportScale && options.viewportScale > 0 ? options.viewportScale : 1
   const fontSize = resolveAdaptiveTextFontSize(normalized.fontSizeMm, scale)
+  const haloStrokeWidth = round(Math.max(0.8, 3 / scale))
+  const textStyle: React.CSSProperties = {
+    fill: options.color,
+    fontFamily: normalized.fontFamily,
+    fontSize: `${fontSize}px`,
+    opacity: options.opacity,
+    paintOrder: 'stroke',
+    stroke: '#f8fafc',
+    strokeLinejoin: 'round',
+    strokeWidth: `${haloStrokeWidth}px`,
+  }
 
   if (normalized.transform === 'none') {
     const baselineAngle = options.textBaselineAngleDeg(normalized)
@@ -233,10 +251,7 @@ export function renderTextShape(shape: TextShape, options: RenderTextShapeOption
         y={round(normalized.start.y)}
         className={options.className}
         style={{
-          fill: options.color,
-          fontFamily: normalized.fontFamily,
-          fontSize: `${fontSize}px`,
-          opacity: options.opacity,
+          ...textStyle,
           pointerEvents: options.interactive ? 'auto' : 'none',
         }}
         transform={`rotate(${round(baselineAngle)} ${round(normalized.start.x)} ${round(normalized.start.y)})`}
@@ -256,12 +271,7 @@ export function renderTextShape(shape: TextShape, options: RenderTextShapeOption
           x={round(glyph.x)}
           y={round(glyph.y)}
           className={options.className}
-          style={{
-            fill: options.color,
-            fontFamily: normalized.fontFamily,
-            fontSize: `${fontSize}px`,
-            opacity: options.opacity,
-          }}
+          style={textStyle}
           transform={`rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})`}
           textAnchor="middle"
           dominantBaseline="middle"

@@ -64,6 +64,7 @@ export type LineShape = {
   arrowStart?: BaseShape['arrowStart']
   arrowEnd?: BaseShape['arrowEnd']
   boxStitchSource?: BaseShape['boxStitchSource']
+  strokeWidthOverride?: BaseShape['strokeWidthOverride']
   start: Point
   end: Point
 }
@@ -77,6 +78,7 @@ export type ArcShape = {
   arrowStart?: BaseShape['arrowStart']
   arrowEnd?: BaseShape['arrowEnd']
   boxStitchSource?: BaseShape['boxStitchSource']
+  strokeWidthOverride?: BaseShape['strokeWidthOverride']
   start: Point
   mid: Point
   end: Point
@@ -91,6 +93,7 @@ export type BezierShape = {
   arrowStart?: BaseShape['arrowStart']
   arrowEnd?: BaseShape['arrowEnd']
   boxStitchSource?: BaseShape['boxStitchSource']
+  strokeWidthOverride?: BaseShape['strokeWidthOverride']
   start: Point
   control: Point
   end: Point

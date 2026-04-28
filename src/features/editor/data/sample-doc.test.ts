@@ -16,6 +16,12 @@ function walletDoc() {
   return preset!.doc
 }
 
+function compactClaspWalletDoc() {
+  const preset = PRESET_DOCS.find((entry) => entry.id === 'compact-clasp-wallet')
+  expect(preset).toBeDefined()
+  return preset!.doc
+}
+
 function boundsForPrefix(doc: DocFile, idPrefix: string) {
   const points = doc.objects
     .filter((shape) => shape.id.startsWith(idPrefix))
@@ -168,5 +174,67 @@ describe('wallet preset', () => {
     expect(hasMesh(staticSideGroup)).toBe(true)
     expect(hasMesh(foldingSideGroup)).toBe(true)
     expect(foldGuideGroup.children).toHaveLength(1)
+  })
+})
+
+describe('compact clasp wallet preset', () => {
+  it('loads a layered compact wallet pattern with money, middle card, outside card, and clasp layers', () => {
+    const doc = compactClaspWalletDoc()
+    const layerIds = doc.layers.map((layer) => layer.id)
+
+    expect(layerIds).toContain('compact-shell')
+    expect(layerIds).toContain('compact-money')
+    expect(layerIds).toContain('compact-middle-card')
+    expect(layerIds).toContain('compact-outside-card')
+    expect(layerIds).toContain('compact-clasp')
+    expect(layerIds).toContain('compact-guides')
+
+    expect(doc.objects.some((shape) => shape.id.startsWith('compact-clasp-wallet-money-'))).toBe(true)
+    expect(doc.objects.some((shape) => shape.id.startsWith('compact-clasp-wallet-middle-card-'))).toBe(true)
+    expect(doc.objects.some((shape) => shape.id.startsWith('compact-clasp-wallet-outside-card-'))).toBe(true)
+  })
+
+  it('includes aligned clasp snap hardware and wallet-sized card and cash guides', () => {
+    const doc = compactClaspWalletDoc()
+    const hardwareMarkers = doc.hardwareMarkers ?? []
+
+    expect(hardwareMarkers).toHaveLength(2)
+    expect(hardwareMarkers.map((marker) => marker.label)).toEqual(['Flap snap cap', 'Body snap socket'])
+    expect(hardwareMarkers.every((marker) => marker.kind === 'snap')).toBe(true)
+    expect(hardwareMarkers.every((marker) => !marker.notes || marker.notes.trim().length === 0)).toBe(true)
+    expect(hardwareMarkers[0].point.x).toBeCloseTo(hardwareMarkers[1].point.x)
+
+    const frontCardBounds = boundsForPrefix(doc, 'compact-clasp-wallet-card-clearance-front')
+    const middleCardBounds = boundsForPrefix(doc, 'compact-clasp-wallet-card-clearance-middle')
+    const cashBounds = boundsForPrefix(doc, 'compact-clasp-wallet-folded-cash-clearance')
+
+    expect(width(frontCardBounds)).toBeCloseTo(85.6)
+    expect(height(frontCardBounds)).toBeCloseTo(54)
+    expect(width(middleCardBounds)).toBeCloseTo(85.6)
+    expect(height(middleCardBounds)).toBeCloseTo(54)
+    expect(width(cashBounds)).toBeCloseTo(78)
+    expect(height(cashBounds)).toBeCloseTo(78)
+  })
+
+  it('has a rounded flap fold and front pocket flex crease for preview debugging', () => {
+    const doc = compactClaspWalletDoc()
+
+    expect(doc.foldLines.map((fold) => fold.name)).toEqual([
+      'Rounded Clasp Flap Fold',
+      'Front Pocket Flex Crease',
+    ])
+    expect(doc.foldLines[0].start.y).toBeCloseTo(-50)
+    expect(doc.foldLines[1].start.y).toBeCloseTo(52)
+  })
+
+  it('keeps labels outside the pocket stack and uses heavier preset strokes', () => {
+    const doc = compactClaspWalletDoc()
+    const textShapes = doc.objects.filter((shape) => shape.type === 'text')
+    const drawableShapes = doc.objects.filter((shape) => shape.type !== 'text')
+
+    expect(textShapes.length).toBeGreaterThan(0)
+    expect(textShapes.every((shape) => shape.type === 'text' && shape.start.x >= 58)).toBe(true)
+    expect(textShapes.every((shape) => shape.type === 'text' && shape.fontSizeMm >= 12)).toBe(true)
+    expect(drawableShapes.every((shape) => 'strokeWidthOverride' in shape)).toBe(true)
   })
 })

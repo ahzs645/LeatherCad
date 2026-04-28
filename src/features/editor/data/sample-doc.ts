@@ -1,4 +1,4 @@
-import type { DocFile, FoldLine, Layer, Shape } from '../cad/cad-types'
+import type { DocFile, FoldLine, HardwareMarker, Layer, Shape } from '../cad/cad-types'
 import {
   CUT_LINE_TYPE_ID,
   DEFAULT_ACTIVE_LINE_TYPE_ID,
@@ -78,6 +78,30 @@ function bezier(
   }
 }
 
+function text(
+  id: string,
+  layerId: string,
+  x: number,
+  y: number,
+  value: string,
+  fontSizeMm = 4,
+): Shape {
+  return {
+    id,
+    type: 'text',
+    layerId,
+    lineTypeId: GUIDE_LINE_TYPE_ID,
+    start: { x, y },
+    end: { x: x + Math.max(fontSizeMm, value.length * fontSizeMm * 0.62), y },
+    text: value,
+    fontFamily: 'Georgia, serif',
+    fontSizeMm,
+    transform: 'none',
+    radiusMm: 40,
+    sweepDeg: 140,
+  }
+}
+
 function rectangle(
   idPrefix: string,
   layerId: string,
@@ -99,12 +123,28 @@ function stitchBox(idPrefix: string, layerId: string, minX: number, minY: number
   return rectangle(idPrefix, layerId, minX + inset, minY + inset, maxX - inset, maxY - inset, STITCH_LINE_TYPE_ID)
 }
 
+function withPresetStrokeWidth(shape: Shape): Shape {
+  if (shape.type === 'text') {
+    return shape
+  }
+
+  const strokeWidthOverride =
+    shape.lineTypeId === STITCH_LINE_TYPE_ID
+      ? 1.8
+      : shape.lineTypeId === GUIDE_LINE_TYPE_ID
+        ? 1.35
+        : 2.2
+
+  return { ...shape, strokeWidthOverride } as Shape
+}
+
 function buildDoc(
   name: string,
   layers: Layer[],
   shapes: Shape[],
   foldLines: FoldLine[],
   activeLayerId = layers[0]?.id ?? 'layer-1',
+  hardwareMarkers: HardwareMarker[] = [],
 ): DocFile {
   return {
     version: 1,
@@ -121,6 +161,10 @@ function buildDoc(
       ...foldLine,
       id: `${name}-${foldLine.id}`,
       name: foldLine.name,
+    })),
+    hardwareMarkers: hardwareMarkers.map((marker) => ({
+      ...marker,
+      id: `${name}-${marker.id}`,
     })),
   }
 }
@@ -281,11 +325,147 @@ const triFoldFolds: FoldLine[] = [
   },
 ]
 
+const compactShellLayer = makeLayer('compact-shell', 'Outer Shell with Rounded Flap', 0)
+const compactMoneyLayer = makeLayer('compact-money', 'Back Money Holder', 1)
+const compactMiddleCardLayer = makeLayer('compact-middle-card', 'Middle Card Holder', 2)
+const compactOutsideCardLayer = makeLayer('compact-outside-card', 'Outside Card Holder', 3)
+const compactClaspLayer = makeLayer('compact-clasp', 'Clasp and Snap Hardware', 4)
+const compactGuideLayer = makeLayer('compact-guides', 'Card and Cash Clearance Guides', 0)
+
+const compactWalletLayers: Layer[] = [
+  compactShellLayer,
+  compactMoneyLayer,
+  compactMiddleCardLayer,
+  compactOutsideCardLayer,
+  compactClaspLayer,
+  compactGuideLayer,
+]
+
+const compactWalletShapes: Shape[] = [
+  line('shell-left-edge', compactShellLayer.id, -46, -52, -46, 86),
+  line('shell-bottom-edge', compactShellLayer.id, -46, 86, 46, 86),
+  line('shell-right-edge', compactShellLayer.id, 46, 86, 46, -52),
+  bezier('shell-flap-right-curve', compactShellLayer.id, 46, -52, 36, -82, 0, -86),
+  bezier('shell-flap-left-curve', compactShellLayer.id, 0, -86, -36, -82, -46, -52),
+  bezier('flap-lower-scallop-right', compactShellLayer.id, 44, -36, 30, -16, 0, -14, GUIDE_LINE_TYPE_ID),
+  bezier('flap-lower-scallop-left', compactShellLayer.id, 0, -14, -30, -16, -44, -36, GUIDE_LINE_TYPE_ID),
+  line('flap-fold-guide', compactShellLayer.id, -38, -50, 38, -50, GUIDE_LINE_TYPE_ID),
+  line('shell-left-stitch', compactShellLayer.id, -39, -47, -39, 78, STITCH_LINE_TYPE_ID),
+  line('shell-bottom-stitch', compactShellLayer.id, -39, 78, 39, 78, STITCH_LINE_TYPE_ID),
+  line('shell-right-stitch', compactShellLayer.id, 39, 78, 39, -47, STITCH_LINE_TYPE_ID),
+  bezier('flap-stitch-right', compactShellLayer.id, 37, -48, 29, -70, 0, -74, STITCH_LINE_TYPE_ID),
+  bezier('flap-stitch-left', compactShellLayer.id, 0, -74, -29, -70, -37, -48, STITCH_LINE_TYPE_ID),
+
+  line('money-left-edge', compactMoneyLayer.id, -41, -18, -41, 84),
+  line('money-bottom-edge', compactMoneyLayer.id, -41, 84, 41, 84),
+  line('money-right-edge', compactMoneyLayer.id, 41, 84, 41, -18),
+  bezier('money-mouth-scoop', compactMoneyLayer.id, -41, -18, 0, 2, 41, -18),
+  line('money-left-stitch', compactMoneyLayer.id, -36, -8, -36, 76, STITCH_LINE_TYPE_ID),
+  line('money-bottom-stitch', compactMoneyLayer.id, -36, 76, 36, 76, STITCH_LINE_TYPE_ID),
+  line('money-right-stitch', compactMoneyLayer.id, 36, 76, 36, -8, STITCH_LINE_TYPE_ID),
+  text('money-label', compactMoneyLayer.id, 58, -2, 'Back cash sleeve', 12),
+
+  line('middle-card-left-edge', compactMiddleCardLayer.id, -38, 4, -38, 52),
+  line('middle-card-bottom-edge', compactMiddleCardLayer.id, -38, 52, 38, 52),
+  line('middle-card-right-edge', compactMiddleCardLayer.id, 38, 52, 38, 4),
+  bezier('middle-card-thumb-scoop', compactMiddleCardLayer.id, -38, 4, 0, 24, 38, 4),
+  line('middle-card-left-stitch', compactMiddleCardLayer.id, -33, 12, -33, 47, STITCH_LINE_TYPE_ID),
+  line('middle-card-bottom-stitch', compactMiddleCardLayer.id, -33, 47, 33, 47, STITCH_LINE_TYPE_ID),
+  line('middle-card-right-stitch', compactMiddleCardLayer.id, 33, 47, 33, 12, STITCH_LINE_TYPE_ID),
+  text('middle-card-label', compactMiddleCardLayer.id, 58, 24, 'Middle card', 12),
+
+  line('outside-card-left-edge', compactOutsideCardLayer.id, -40, 36, -40, 84),
+  line('outside-card-bottom-edge', compactOutsideCardLayer.id, -40, 84, 40, 84),
+  line('outside-card-right-edge', compactOutsideCardLayer.id, 40, 84, 40, 36),
+  bezier('outside-card-mouth-scoop', compactOutsideCardLayer.id, -40, 36, 0, 54, 40, 36),
+  line('outside-card-left-stitch', compactOutsideCardLayer.id, -35, 44, -35, 78, STITCH_LINE_TYPE_ID),
+  line('outside-card-bottom-stitch', compactOutsideCardLayer.id, -35, 78, 35, 78, STITCH_LINE_TYPE_ID),
+  line('outside-card-right-stitch', compactOutsideCardLayer.id, 35, 78, 35, 44, STITCH_LINE_TYPE_ID),
+  text('outside-card-label', compactOutsideCardLayer.id, 58, 50, 'Outside card', 12),
+
+  bezier('clasp-visible-flap-edge-right', compactClaspLayer.id, 42, -37, 26, -21, 0, -20, GUIDE_LINE_TYPE_ID),
+  bezier('clasp-visible-flap-edge-left', compactClaspLayer.id, 0, -20, -26, -21, -42, -37, GUIDE_LINE_TYPE_ID),
+  line('snap-centerline', compactClaspLayer.id, 0, -70, 0, 42, GUIDE_LINE_TYPE_ID),
+  text('clasp-label', compactClaspLayer.id, 58, -62, 'Snap clasp', 12),
+
+  ...rectangle('card-clearance-front', compactGuideLayer.id, -42.8, 22, 42.8, 76, GUIDE_LINE_TYPE_ID),
+  ...rectangle('card-clearance-middle', compactGuideLayer.id, -42.8, -4, 42.8, 50, GUIDE_LINE_TYPE_ID),
+  ...rectangle('folded-cash-clearance', compactGuideLayer.id, -39, -28, 39, 50, GUIDE_LINE_TYPE_ID),
+].map(withPresetStrokeWidth)
+
+const compactWalletFolds: FoldLine[] = [
+  {
+    id: 'flap-fold',
+    name: 'Rounded Clasp Flap Fold',
+    start: { x: -38, y: -50 },
+    end: { x: 38, y: -50 },
+    angleDeg: 74,
+    maxAngleDeg: 180,
+    direction: 'mountain',
+    radiusMm: 2,
+    thicknessMm: 1.5,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.32,
+    clearanceMm: 1.5,
+  },
+  {
+    id: 'front-pocket-crease',
+    name: 'Front Pocket Flex Crease',
+    start: { x: -38, y: 52 },
+    end: { x: 38, y: 52 },
+    angleDeg: 18,
+    maxAngleDeg: 90,
+    direction: 'valley',
+    radiusMm: 1,
+    thicknessMm: 1.2,
+    neutralAxisRatio: 0.45,
+    stiffness: 0.2,
+    clearanceMm: 0.6,
+  },
+]
+
+const compactWalletHardware: HardwareMarker[] = [
+  {
+    id: 'flap-snap-cap',
+    layerId: compactClaspLayer.id,
+    point: { x: 0, y: -62 },
+    kind: 'snap',
+    label: 'Flap snap cap',
+    holeDiameterMm: 3.2,
+    spacingMm: 0,
+    notes: '',
+    visible: true,
+  },
+  {
+    id: 'body-snap-socket',
+    layerId: compactClaspLayer.id,
+    point: { x: 0, y: 28 },
+    kind: 'snap',
+    label: 'Body snap socket',
+    holeDiameterMm: 3.2,
+    spacingMm: 0,
+    notes: '',
+    visible: true,
+  },
+]
+
 export const PRESET_DOCS: PresetDefinition[] = [
   {
     id: 'wallet',
     label: 'Wallet',
     doc: buildDoc('wallet', walletLayers, walletShapes, walletFolds, walletShellLayer.id),
+  },
+  {
+    id: 'compact-clasp-wallet',
+    label: 'Compact Clasp Wallet',
+    doc: buildDoc(
+      'compact-clasp-wallet',
+      compactWalletLayers,
+      compactWalletShapes,
+      compactWalletFolds,
+      compactShellLayer.id,
+      compactWalletHardware,
+    ),
   },
   {
     id: 'card-sleeve',
