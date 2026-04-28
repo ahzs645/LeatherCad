@@ -15,10 +15,13 @@ function createPreviewSettings(overrides: Partial<ThreePreviewSettings> = {}): T
   return {
     mode: 'avatar',
     explodedFactor: 0.35,
+    finalFoldProgress: 1,
+    finalFoldCamera: 'orbit',
     thicknessMm: 1.8,
     showSeams: true,
     showEdgeLabels: false,
     showStressOverlay: true,
+    usePhysicsRelaxation: true,
     ...overrides,
   }
 }

@@ -20,6 +20,10 @@ export const PRESET_META: PresetMeta[] = [
     id: 'trifold',
     label: 'Tri-fold Layout',
   },
+  {
+    id: 'folding-box-net',
+    label: 'Open Box Tray Net',
+  },
 ]
 
 export const DEFAULT_PRESET_ID = PRESET_META[0].id

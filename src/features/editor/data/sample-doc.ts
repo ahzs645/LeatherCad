@@ -34,6 +34,51 @@ function line(id: string, layerId: string, x1: number, y1: number, x2: number, y
   }
 }
 
+function roundedRectangle(
+  id: string,
+  layerId: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  radius: number,
+  lineTypeId = CUT_LINE_TYPE_ID,
+): Shape[] {
+  const left = Math.min(x1, x2)
+  const right = Math.max(x1, x2)
+  const top = Math.min(y1, y2)
+  const bottom = Math.max(y1, y2)
+  const resolvedRadius = Math.max(0, Math.min(radius, (right - left) / 2, (bottom - top) / 2))
+  if (resolvedRadius <= 0) {
+    return rectangle(id, layerId, left, top, right, bottom, lineTypeId)
+  }
+
+  const cornerSteps = 6
+  const cornerPoints = [
+    ...Array.from({ length: cornerSteps + 1 }, (_, index) => {
+      const angle = -Math.PI / 2 + (index / cornerSteps) * (Math.PI / 2)
+      return { x: right - resolvedRadius + Math.cos(angle) * resolvedRadius, y: top + resolvedRadius + Math.sin(angle) * resolvedRadius }
+    }),
+    ...Array.from({ length: cornerSteps + 1 }, (_, index) => {
+      const angle = (index / cornerSteps) * (Math.PI / 2)
+      return { x: right - resolvedRadius + Math.cos(angle) * resolvedRadius, y: bottom - resolvedRadius + Math.sin(angle) * resolvedRadius }
+    }),
+    ...Array.from({ length: cornerSteps + 1 }, (_, index) => {
+      const angle = Math.PI / 2 + (index / cornerSteps) * (Math.PI / 2)
+      return { x: left + resolvedRadius + Math.cos(angle) * resolvedRadius, y: bottom - resolvedRadius + Math.sin(angle) * resolvedRadius }
+    }),
+    ...Array.from({ length: cornerSteps + 1 }, (_, index) => {
+      const angle = Math.PI + (index / cornerSteps) * (Math.PI / 2)
+      return { x: left + resolvedRadius + Math.cos(angle) * resolvedRadius, y: top + resolvedRadius + Math.sin(angle) * resolvedRadius }
+    }),
+  ]
+
+  return cornerPoints.map((point, index) => {
+    const next = cornerPoints[(index + 1) % cornerPoints.length]
+    return line(`${id}-${index + 1}`, layerId, point.x, point.y, next.x, next.y, lineTypeId)
+  })
+}
+
 function arc(
   id: string,
   layerId: string,
@@ -184,7 +229,7 @@ const walletLayers: Layer[] = [
 ]
 
 const walletShapes: Shape[] = [
-  ...rectangle('shell-outline', walletShellLayer.id, -116, -48, 116, 48),
+  ...roundedRectangle('shell-outline', walletShellLayer.id, -116, -48, 116, 48, 8),
   line('shell-left-stitch', walletShellLayer.id, -108, -38, -108, 38, STITCH_LINE_TYPE_ID),
   line('shell-bottom-stitch', walletShellLayer.id, -108, 38, 108, 38, STITCH_LINE_TYPE_ID),
   line('shell-right-stitch', walletShellLayer.id, 108, 38, 108, -38, STITCH_LINE_TYPE_ID),
@@ -194,7 +239,7 @@ const walletShapes: Shape[] = [
   ...rectangle('left-card-clearance-reference', walletCapacityGuideLayer.id, -101.8, -27, -16.2, 27, GUIDE_LINE_TYPE_ID),
   ...rectangle('right-card-clearance-reference', walletCapacityGuideLayer.id, 16.2, -27, 101.8, 27, GUIDE_LINE_TYPE_ID),
 
-  ...rectangle('bill-liner-outline', walletBillPocketLayer.id, -110, -40, 110, 44),
+  ...roundedRectangle('bill-liner-outline', walletBillPocketLayer.id, -110, -40, 110, 44, 6),
   line('bill-liner-left-stitch', walletBillPocketLayer.id, -102, -32, -102, 36, STITCH_LINE_TYPE_ID),
   line('bill-liner-bottom-stitch', walletBillPocketLayer.id, -102, 36, 102, 36, STITCH_LINE_TYPE_ID),
   line('bill-liner-right-stitch', walletBillPocketLayer.id, 102, 36, 102, -32, STITCH_LINE_TYPE_ID),
@@ -265,7 +310,7 @@ const cardSleeveFolds: FoldLine[] = [
     angleDeg: 16,
     maxAngleDeg: 120,
     direction: 'mountain',
-    radiusMm: 0.8,
+    radiusMm: 2.2,
     thicknessMm: 1.3,
     neutralAxisRatio: 0.45,
     stiffness: 0.22,
@@ -449,6 +494,83 @@ const compactWalletHardware: HardwareMarker[] = [
   },
 ]
 
+const foldingBoxLayer = makeLayer('folding-box-net', 'Rigid Box Net', 0)
+const foldingBoxGuideLayer = makeLayer('folding-box-guides', 'Fold Order Guides', 0)
+
+const foldingBoxShapes: Shape[] = [
+  ...rectangle('box-base-outline', foldingBoxLayer.id, -40, -25, 40, 25),
+  ...rectangle('box-back-wall-outline', foldingBoxLayer.id, -40, -65, 40, -25),
+  ...rectangle('box-front-wall-outline', foldingBoxLayer.id, -40, 25, 40, 65),
+  ...rectangle('box-left-wall-outline', foldingBoxLayer.id, -80, -25, -40, 25),
+  ...rectangle('box-right-wall-outline', foldingBoxLayer.id, 40, -25, 80, 25),
+
+  line('box-base-back-fold-guide', foldingBoxGuideLayer.id, -40, -25, 40, -25, GUIDE_LINE_TYPE_ID),
+  line('box-base-front-fold-guide', foldingBoxGuideLayer.id, -40, 25, 40, 25, GUIDE_LINE_TYPE_ID),
+  line('box-base-left-fold-guide', foldingBoxGuideLayer.id, -40, -25, -40, 25, GUIDE_LINE_TYPE_ID),
+  line('box-base-right-fold-guide', foldingBoxGuideLayer.id, 40, -25, 40, 25, GUIDE_LINE_TYPE_ID),
+  text('box-base-label', foldingBoxGuideLayer.id, -18, 2, 'base', 7),
+  text('box-wall-label', foldingBoxGuideLayer.id, -30, -42, 'open tray walls', 6),
+].map(withPresetStrokeWidth)
+
+const foldingBoxFolds: FoldLine[] = [
+  {
+    id: 'box-base-back-fold',
+    name: 'Back Wall Fold',
+    start: { x: -40, y: -25 },
+    end: { x: 40, y: -25 },
+    angleDeg: 90,
+    maxAngleDeg: 180,
+    direction: 'valley',
+    radiusMm: 2.2,
+    thicknessMm: 1.4,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.75,
+    clearanceMm: 0.5,
+  },
+  {
+    id: 'box-base-front-fold',
+    name: 'Front Wall Fold',
+    start: { x: -40, y: 25 },
+    end: { x: 40, y: 25 },
+    angleDeg: 90,
+    maxAngleDeg: 180,
+    direction: 'valley',
+    radiusMm: 2.2,
+    thicknessMm: 1.4,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.75,
+    clearanceMm: 0.5,
+  },
+  {
+    id: 'box-base-left-fold',
+    name: 'Left Wall Fold',
+    start: { x: -40, y: -25 },
+    end: { x: -40, y: 25 },
+    angleDeg: 90,
+    maxAngleDeg: 180,
+    direction: 'valley',
+    radiusMm: 2.2,
+    thicknessMm: 1.4,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.75,
+    clearanceMm: 0.5,
+  },
+  {
+    id: 'box-base-right-fold',
+    name: 'Right Wall Fold',
+    start: { x: 40, y: -25 },
+    end: { x: 40, y: 25 },
+    angleDeg: 90,
+    maxAngleDeg: 180,
+    direction: 'valley',
+    radiusMm: 2.2,
+    thicknessMm: 1.4,
+    neutralAxisRatio: 0.5,
+    stiffness: 0.75,
+    clearanceMm: 0.5,
+  },
+]
+
 export const PRESET_DOCS: PresetDefinition[] = [
   {
     id: 'wallet',
@@ -476,6 +598,17 @@ export const PRESET_DOCS: PresetDefinition[] = [
     id: 'trifold',
     label: 'Tri-fold Layout',
     doc: buildDoc('trifold', triFoldLayers, triFoldShapes, triFoldFolds, triCenterLayer.id),
+  },
+  {
+    id: 'folding-box-net',
+    label: 'Open Box Tray Net',
+    doc: buildDoc(
+      'folding-box-net',
+      [foldingBoxLayer, foldingBoxGuideLayer],
+      foldingBoxShapes,
+      foldingBoxFolds,
+      foldingBoxLayer.id,
+    ),
   },
 ]
 

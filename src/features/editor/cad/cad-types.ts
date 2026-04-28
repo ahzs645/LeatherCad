@@ -324,10 +324,13 @@ export type AvatarSpec = {
 export type ThreePreviewSettings = {
   mode: ThreePreviewMode
   explodedFactor: number
+  finalFoldProgress: number
+  finalFoldCamera: 'orbit' | 'pattern'
   thicknessMm: number
   showSeams: boolean
   showEdgeLabels: boolean
   showStressOverlay: boolean
+  usePhysicsRelaxation: boolean
   avatarId?: string
 }
 

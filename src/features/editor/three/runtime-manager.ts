@@ -23,6 +23,8 @@ type Bounds3 = {
   maxZ: number
 }
 
+export type CameraFitMode = 'orbit' | 'pattern'
+
 export class ThreeRuntimeManager {
   readonly renderer: WebGLRenderer
   readonly scene: Scene
@@ -89,7 +91,7 @@ export class ThreeRuntimeManager {
     } satisfies Bounds3
   }
 
-  fitControlsToModel(modelRoot: Group) {
+  fitControlsToModel(modelRoot: Group, mode: CameraFitMode = 'orbit') {
     modelRoot.updateMatrixWorld(true)
     const bounds = this.buildModelBounds3(modelRoot)
     if (!bounds) {
@@ -113,9 +115,85 @@ export class ThreeRuntimeManager {
     this.controls.target.copy(center)
     this.controls.minDistance = Math.max(0.3, radius * 0.4)
     this.controls.maxDistance = Math.max(5.5, radius * 8)
-    this.camera.position.set(center.x + radius * 0.95, center.y + radius * 1.15, center.z + radius * 1.3)
+    if (mode === 'pattern') {
+      const aspect = Math.max(this.camera.aspect, 0.1)
+      const verticalSpan = Math.max(size.z, 0.8)
+      const horizontalSpan = Math.max(size.x / aspect, 0.8)
+      const fitSpan = Math.max(verticalSpan, horizontalSpan)
+      const distance = Math.max(1.2, (fitSpan * 0.62) / Math.tan((this.camera.fov * Math.PI) / 360))
+      this.camera.up.set(0, 0, -1)
+      this.camera.position.set(center.x, center.y + distance, center.z + 0.0001)
+    } else {
+      this.camera.up.set(0, 1, 0)
+      this.camera.position.set(center.x + radius * 0.95, center.y + radius * 1.15, center.z + radius * 1.3)
+    }
     this.camera.lookAt(center)
     this.controls.update()
+  }
+
+  captureModelReviewCollage(modelRoot: Group) {
+    modelRoot.updateMatrixWorld(true)
+    const bounds = this.buildModelBounds3(modelRoot)
+    if (!bounds) {
+      return this.renderer.domElement.toDataURL('image/png')
+    }
+
+    const center = new Vector3(
+      (bounds.minX + bounds.maxX) / 2,
+      (bounds.minY + bounds.maxY) / 2,
+      (bounds.minZ + bounds.maxZ) / 2,
+    )
+    const size = new Vector3(
+      bounds.maxX - bounds.minX,
+      bounds.maxY - bounds.minY,
+      bounds.maxZ - bounds.minZ,
+    )
+    const radius = Math.max(size.length() * 0.5, 0.6)
+    const originalPosition = this.camera.position.clone()
+    const originalUp = this.camera.up.clone()
+    const originalTarget = this.controls.target.clone()
+    const sourceCanvas = this.renderer.domElement
+    const tileWidth = Math.max(sourceCanvas.width, 1)
+    const tileHeight = Math.max(sourceCanvas.height, 1)
+    const collage = document.createElement('canvas')
+    collage.width = tileWidth * 2
+    collage.height = tileHeight * 2
+    const context = collage.getContext('2d')
+    if (!context) {
+      return sourceCanvas.toDataURL('image/png')
+    }
+
+    const views = [
+      { label: 'ISO', position: new Vector3(center.x + radius * 1.2, center.y + radius * 1.1, center.z + radius * 1.35), up: new Vector3(0, 1, 0) },
+      { label: 'TOP', position: new Vector3(center.x, center.y + radius * 2.2, center.z + 0.0001), up: new Vector3(0, 0, -1) },
+      { label: 'FRONT', position: new Vector3(center.x, center.y + radius * 0.15, center.z + radius * 2.2), up: new Vector3(0, 1, 0) },
+      { label: 'SIDE', position: new Vector3(center.x + radius * 2.2, center.y + radius * 0.15, center.z), up: new Vector3(0, 1, 0) },
+    ]
+
+    for (const [index, view] of views.entries()) {
+      this.camera.up.copy(view.up)
+      this.camera.position.copy(view.position)
+      this.camera.lookAt(center)
+      this.controls.target.copy(center)
+      this.controls.update()
+      this.renderer.render(this.scene, this.camera)
+      const x = (index % 2) * tileWidth
+      const y = Math.floor(index / 2) * tileHeight
+      context.drawImage(sourceCanvas, x, y, tileWidth, tileHeight)
+      context.fillStyle = 'rgba(15, 23, 42, 0.74)'
+      context.fillRect(x + 16, y + 16, 88, 34)
+      context.fillStyle = '#f8fafc'
+      context.font = 'bold 20px sans-serif'
+      context.fillText(view.label, x + 28, y + 39)
+    }
+
+    this.camera.position.copy(originalPosition)
+    this.camera.up.copy(originalUp)
+    this.controls.target.copy(originalTarget)
+    this.camera.lookAt(originalTarget)
+    this.controls.update()
+    this.renderer.render(this.scene, this.camera)
+    return collage.toDataURL('image/png')
   }
 
   setTheme(themeMode: 'dark' | 'light') {

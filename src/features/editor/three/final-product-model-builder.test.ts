@@ -92,10 +92,13 @@ describe('final product model builder', () => {
       previewSettings: {
         mode: 'final',
         explodedFactor: 0,
+        finalFoldProgress: 1,
+        finalFoldCamera: 'orbit',
         thicknessMm: 2,
         showSeams: true,
         showEdgeLabels: false,
         showStressOverlay: true,
+        usePhysicsRelaxation: true,
       },
       pieceMeshes: [],
       transform: { scale: 0.02, centerX: 30, centerY: 30 },

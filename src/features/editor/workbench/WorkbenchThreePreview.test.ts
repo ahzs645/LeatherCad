@@ -27,10 +27,13 @@ function createPreviewHarness({
     const [threePreviewSettings, onSetThreePreviewSettings] = useState({
       mode: initialMode,
       explodedFactor: 0,
+      finalFoldProgress: 1,
+      finalFoldCamera: 'orbit',
       thicknessMm: 2,
       showSeams: false,
       showStressOverlay: false,
       showEdgeLabels: false,
+      usePhysicsRelaxation: true,
     })
     const [stitchThreadColor, onSetStitchThreadColor] = useState('#663300')
     const [hidden3dLayerIds, setHidden3dLayerIds] = useState<string[]>([])
@@ -117,6 +120,8 @@ describe('WorkbenchThreePreview', () => {
     expect(lastRender.container.textContent).toContain('Mode assembled')
     changeValue(lastRender.container.querySelector('select'), 'final')
     expect(lastRender.container.textContent).toContain('Mode final')
+    expect(lastRender.container.textContent).toContain('Fold Progress 100%')
+    expect(lastRender.container.textContent).toContain('Pattern View')
 
     const colorInputs = lastRender.container.querySelectorAll('input[type="color"]')
     changeValue(colorInputs[colorInputs.length - 1] as HTMLInputElement, '#112233')
@@ -127,14 +132,14 @@ describe('WorkbenchThreePreview', () => {
     lastRender = renderForTest(createPreviewHarness({ interactive: true, initialMode: 'final' }))
 
     expect(lastRender.container.textContent).toContain('Final Folds')
-    expect(lastRender.container.textContent).toContain('Crease 1')
-    expect(lastRender.container.textContent).toContain('Fold All 90')
+    expect(lastRender.container.textContent).not.toContain('Crease 1')
+    expect(lastRender.container.textContent).not.toContain('Fold All 90')
     expect(lastRender.container.textContent).toContain('Use the Final Folds drawer')
 
     click(lastRender.container.querySelector('.workbench-final-fold-tab'))
 
     expect(lastRender.container.textContent).toContain('Final Folds')
-    expect(lastRender.container.textContent).not.toContain('Fold All 90')
+    expect(lastRender.container.textContent).toContain('Fold All 90')
   })
 
   it('shows a bottom tab in Fold mode that switches to Final Product', () => {
@@ -148,7 +153,7 @@ describe('WorkbenchThreePreview', () => {
     click(tab)
 
     expect(lastRender.container.textContent).toContain('Mode final')
-    expect(lastRender.container.textContent).toContain('Fold All 180')
+    expect(lastRender.container.textContent).not.toContain('Fold All 180')
     expect(lastRender.container.textContent).toContain('Use the Final Folds drawer')
   })
 })

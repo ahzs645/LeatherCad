@@ -41,7 +41,7 @@ function pointToVector(point: { x: number; y: number }) {
   return new Vector3(point.x, 0, point.y)
 }
 
-function transformPoint(panel: SolvedFoldPanel, point: { x: number; y: number }) {
+export function solvePanelPoint(panel: SolvedFoldPanel, point: { x: number; y: number }) {
   return pointToVector(point).applyMatrix4(panel.transform).add(panel.offset)
 }
 
@@ -55,6 +55,88 @@ function makeRotationAroundAxis(start: Vector3, end: Vector3, angleRad: number) 
     .makeTranslation(start.x, start.y, start.z)
     .multiply(new Matrix4().makeRotationAxis(axis, angleRad))
     .multiply(new Matrix4().makeTranslation(-start.x, -start.y, -start.z))
+}
+
+function panelCentroid(panel: FoldPanel) {
+  if (panel.polygon.length === 0) return { x: 0, y: 0 }
+  return {
+    x: panel.polygon.reduce((sum, point) => sum + point.x, 0) / panel.polygon.length,
+    y: panel.polygon.reduce((sum, point) => sum + point.y, 0) / panel.polygon.length,
+  }
+}
+
+function pointInPolygon(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>) {
+  let inside = false
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const current = polygon[index]
+    const previous = polygon[previousIndex]
+    const intersects =
+      (current.y > point.y) !== (previous.y > point.y) &&
+      point.x < ((previous.x - current.x) * (point.y - current.y)) / ((previous.y - current.y) || 1e-9) + current.x
+    if (intersects) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
+function inheritDisconnectedStackTransforms(panels: FoldPanel[], transforms: Map<string, Matrix4>) {
+  const orderedPanels = [...panels].sort((left, right) => (left.stackLevel ?? 0) - (right.stackLevel ?? 0))
+
+  for (const panel of orderedPanels) {
+    if (transforms.has(panel.id)) {
+      continue
+    }
+
+    const center = panelCentroid(panel)
+    const stackLevel = panel.stackLevel ?? 0
+    const carrier = orderedPanels
+      .filter((candidate) => transforms.has(candidate.id) && candidate.id !== panel.id && (candidate.stackLevel ?? 0) <= stackLevel)
+      .sort((left, right) => {
+        const stackDelta = (right.stackLevel ?? 0) - (left.stackLevel ?? 0)
+        if (stackDelta !== 0) return stackDelta
+        return right.areaMm2 - left.areaMm2
+      })
+      .find((candidate) => pointInPolygon(center, candidate.polygon))
+
+    if (carrier) {
+      transforms.set(panel.id, transforms.get(carrier.id)!.clone())
+    }
+  }
+}
+
+function transformedPanelCentroid(panel: FoldPanel, transform: Matrix4) {
+  return pointToVector(panelCentroid(panel)).applyMatrix4(transform)
+}
+
+function stackOffsetSign(panel: FoldPanel, normal: Vector3, stackDistance: number, panels: FoldPanel[], transforms: Map<string, Matrix4>) {
+  const center = transformedPanelCentroid(panel, transforms.get(panel.id) ?? new Matrix4())
+  const flatCenter = panelCentroid(panel)
+  const oppositeBasePanels = panels.filter((candidate) => {
+    if ((candidate.stackLevel ?? 0) !== 0 || candidate.id === panel.id) {
+      return false
+    }
+    return !pointInPolygon(flatCenter, candidate.polygon)
+  })
+  if (oppositeBasePanels.length === 0) {
+    return 1
+  }
+
+  const positive = center.clone().addScaledVector(normal, stackDistance)
+  const negative = center.clone().addScaledVector(normal, -stackDistance)
+  const nearestDistance = (point: Vector3) => Math.min(
+    ...oppositeBasePanels.map((candidate) => point.distanceToSquared(transformedPanelCentroid(candidate, transforms.get(candidate.id) ?? new Matrix4()))),
+  )
+  return nearestDistance(negative) < nearestDistance(positive) ? -1 : 1
+}
+
+function stackOffsetForPanel(panel: FoldPanel, transform: Matrix4, panels: FoldPanel[], transforms: Map<string, Matrix4>, stackStepMm: number) {
+  const stackDistance = (panel.stackLevel ?? 0) * stackStepMm
+  if (stackDistance === 0) {
+    return new Vector3(0, 0, 0)
+  }
+  const normal = new Vector3(0, 1, 0).applyMatrix4(transform).sub(new Vector3(0, 0, 0).applyMatrix4(transform)).normalize()
+  return normal.multiplyScalar(stackDistance * stackOffsetSign(panel, normal, stackDistance, panels, transforms))
 }
 
 function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm: number) {
@@ -98,10 +180,12 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
     }
   }
 
+  inheritDisconnectedStackTransforms(panels, transforms)
+
   return panels.map((panel) => ({
     ...panel,
     transform: transforms.get(panel.id) ?? new Matrix4(),
-    offset: new Vector3(0, (panel.stackLevel ?? 0) * stackStepMm, 0),
+    offset: stackOffsetForPanel(panel, transforms.get(panel.id) ?? new Matrix4(), panels, transforms, stackStepMm),
   }))
 }
 
@@ -133,8 +217,8 @@ function stitchPairRmsForRightHoles(
     if (!leftPanel || !rightPanel) {
       continue
     }
-    const leftPoint = transformPoint(leftPanel, leftHole.point)
-    const rightPoint = transformPoint(rightPanel, rightHole.point)
+    const leftPoint = solvePanelPoint(leftPanel, leftHole.point)
+    const rightPoint = solvePanelPoint(rightPanel, rightHole.point)
     sum += leftPoint.distanceToSquared(rightPoint)
     count += 1
   }
@@ -199,8 +283,8 @@ function solveStitchOffsets({
       const pairDelta = new Vector3()
       let pairCount = 0
       for (let index = 0; index < pair.left.holes.length; index += 1) {
-        const leftPoint = transformPoint(leftPanel, pair.left.holes[index].point)
-        const rightPoint = transformPoint(rightPanel, rightHoles[index].point)
+        const leftPoint = solvePanelPoint(leftPanel, pair.left.holes[index].point)
+        const rightPoint = solvePanelPoint(rightPanel, rightHoles[index].point)
         const delta = leftPoint.sub(rightPoint)
         pairDelta.add(delta)
         sum += delta.lengthSq()
@@ -253,9 +337,13 @@ function collisionDiagnostics(panels: SolvedFoldPanel[], hinges: FoldHinge[], th
   )
 
   const bounds = panels.map((panel) => {
-    const points = panel.polygon.map((point) => transformPoint(panel, point))
+    const points = panel.polygon.map((point) => solvePanelPoint(panel, point))
+    const normal = points.length >= 3
+      ? points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0])).normalize()
+      : new Vector3(0, 1, 0)
     return {
       panel,
+      normal,
       minX: Math.min(...points.map((point) => point.x)),
       maxX: Math.max(...points.map((point) => point.x)),
       minY: Math.min(...points.map((point) => point.y)),
@@ -273,6 +361,10 @@ function collisionDiagnostics(panels: SolvedFoldPanel[], hinges: FoldHinge[], th
         continue
       }
       if (hingedPanelPairs.has([left.panel.id, right.panel.id].sort().join('|'))) {
+        continue
+      }
+      const nearlyParallel = Math.abs(left.normal.dot(right.normal)) >= 0.85
+      if (!nearlyParallel) {
         continue
       }
       const planarOverlap =
@@ -411,7 +503,7 @@ export function projectSolvedPointForPreview(
   point: { x: number; y: number },
   transform: { scale: number; centerX: number; centerY: number },
 ) {
-  const solved = transformPoint(panel, point)
+  const solved = solvePanelPoint(panel, point)
   return new Vector3(
     (solved.x - transform.centerX) * transform.scale,
     solved.y * transform.scale,

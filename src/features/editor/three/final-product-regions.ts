@@ -46,9 +46,18 @@ export function buildFinalProductRegions({
       layerId,
       shapes: layerShapes,
       lineTypeById,
-      closedCutOutlines: layerOutlines,
+      closedCutOutlines: [],
     })
-    for (const region of physicalRegions) {
+    const resolvedRegions = physicalRegions.length > 0
+      ? physicalRegions
+      : buildPhysicalLayerRegions({
+          layerId,
+          shapes: layerShapes,
+          lineTypeById,
+          closedCutOutlines: layerOutlines,
+        })
+
+    for (const region of resolvedRegions) {
       regions.push({ layerId, stackLevel, polygon: region.outer })
     }
   }

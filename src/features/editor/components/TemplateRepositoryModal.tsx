@@ -561,7 +561,12 @@ export function TemplateRepositoryModal({
             <h3 className="line-type-modal-subtitle">Workspace Presets</h3>
             <p className="hint">Load a starter layout into the current document.</p>
             <div className="line-type-modal-actions">
-              <select className="preset-select" value={selectedPresetId} onChange={(event) => onSelectPreset(event.target.value)}>
+              <select
+                aria-label="Workspace preset"
+                className="preset-select"
+                value={selectedPresetId}
+                onChange={(event) => onSelectPreset(event.target.value)}
+              >
                 {PRESET_META.map((preset) => (
                   <option key={preset.id} value={preset.id}>
                     {preset.label}

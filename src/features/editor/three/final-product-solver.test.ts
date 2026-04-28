@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FoldLine, StitchHole } from '../cad/cad-types'
-import { solveFinalProduct } from './final-product-solver'
+import { solveFinalProduct, solvePanelPoint } from './final-product-solver'
 
 function foldLine(id: string, start: { x: number; y: number }, end: { x: number; y: number }, angleDeg = 180): FoldLine {
   return {
@@ -159,6 +159,42 @@ describe('final product solver', () => {
 
     expect(result.hinges).toHaveLength(2)
     expect(result.collisionWarningCount).toBe(0)
-    expect(result.panels.some((panel) => panel.offset.y > 0)).toBe(true)
+    expect(result.panels.some((panel) => panel.offset.length() > 0)).toBe(true)
+  })
+
+  it('carries disconnected upper-stack panels with the folded lower panel they sit on', () => {
+    const result = solveFinalProduct({
+      foldLines: [foldLine('center-fold', { x: 10, y: 0 }, { x: 10, y: 10 }, 90)],
+      stitchHoles: [],
+      regions: [
+        {
+          layerId: 'outer',
+          stackLevel: 0,
+          polygon: twoPanelOutline[0].polygon,
+        },
+        {
+          layerId: 'pocket',
+          stackLevel: 1,
+          polygon: [
+            { x: 12, y: 2 },
+            { x: 18, y: 2 },
+            { x: 18, y: 8 },
+            { x: 12, y: 8 },
+          ],
+        },
+      ],
+      documentBounds: { minX: 0, maxX: 20, minY: 0, maxY: 10 },
+      thicknessMm: 1.8,
+    })
+
+    const point = { x: 15, y: 5 }
+    const pocket = result.panels.find((panel) => panel.layerId === 'pocket')
+    const carrier = result.panels.find((panel) => panel.layerId === 'outer' && panel.polygon.some((entry) => entry.x > 10))
+    expect(pocket).toBeTruthy()
+    expect(carrier).toBeTruthy()
+
+    const pocketPoint = solvePanelPoint(pocket!, point)
+    const carrierPoint = solvePanelPoint(carrier!, point)
+    expect(pocketPoint.distanceTo(carrierPoint)).toBeCloseTo(1.8, 6)
   })
 })

@@ -70,6 +70,8 @@ describe('parseImportedJsonDocument', () => {
       threePreviewSettings: {
         mode: 'avatar',
         explodedFactor: 1.2,
+        finalFoldProgress: 0.4,
+        finalFoldCamera: 'pattern',
         thicknessMm: 2.1,
         showSeams: true,
         showEdgeLabels: true,
@@ -99,6 +101,8 @@ describe('parseImportedJsonDocument', () => {
     expect(imported.doc.seamConnections?.[0].kind).toBe('aligned')
     expect(imported.doc.seamConnections?.[0].reversed).toBe(true)
     expect(imported.doc.threePreviewSettings?.mode).toBe('avatar')
+    expect(imported.doc.threePreviewSettings?.finalFoldProgress).toBe(0.4)
+    expect(imported.doc.threePreviewSettings?.finalFoldCamera).toBe('pattern')
     expect(imported.doc.threePreviewSettings?.avatarId).toBe('avatar-1')
     expect(imported.doc.avatars?.[0].sourceUrl).toBe('https://example.com/avatar.glb')
   })

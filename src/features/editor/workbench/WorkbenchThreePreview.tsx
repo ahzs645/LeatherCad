@@ -12,6 +12,7 @@ import { LEATHER_COLORS, LEATHER_PRESETS, PRESET_IDS } from '../three/material-p
 import type { WorkbenchThreePreviewController } from './useWorkbenchThreePreviewController'
 import { AvatarFormFields } from './WorkbenchThreeAvatarForm'
 import { WorkbenchFinalFoldDrawer, WorkbenchFinalFoldModeTab } from './WorkbenchFinalFoldDrawer'
+import { downloadFinalReviewCollage } from './final-review-collage'
 
 function defaultPiecePlacement(pieceId: string): PiecePlacement3D {
   return {
@@ -45,7 +46,6 @@ export function WorkbenchThreePreviewViewport({
   } = controller
   const showFinalFoldDrawer = !compact && interactive && threePreviewSettings.mode === 'final'
   const showFinalFoldModeTab = !compact && interactive && threePreviewSettings.mode === 'fold' && foldLines.length > 0
-
   return (
     <div className={`workbench-three-viewport ${compact ? 'compact' : ''} ${interactive ? '' : 'read-only'} ${showFinalFoldDrawer ? 'with-final-fold-drawer' : ''}`}>
       <div className="workbench-three-viewport-header">
@@ -86,6 +86,7 @@ export function WorkbenchThreePreviewInspector({
 }: WorkbenchThreePreviewInspectorProps) {
   const {
     threePreviewSettings,
+    bridgeRef,
     finalProductSolveResult,
     assemblyDiagnostics = [],
     onSetThreePreviewSettings,
@@ -122,7 +123,6 @@ export function WorkbenchThreePreviewInspector({
     resetMaterial,
     threeTextureShapeIds,
   } = controller
-
   return (
     <>
       <div className="control-block">
@@ -165,6 +165,56 @@ export function WorkbenchThreePreviewInspector({
             }
           />
         </label>
+        {threePreviewSettings.mode === 'final' && (
+          <div className="field-row">
+            <span>{`Fold Progress ${Math.round((threePreviewSettings.finalFoldProgress ?? 1) * 100)}%`}</span>
+            <div className="stacked-actions">
+              <input
+                aria-label="Final fold progress"
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={threePreviewSettings.finalFoldProgress ?? 1}
+                onChange={(event) =>
+                  onSetThreePreviewSettings((previous) => ({
+                    ...previous,
+                    finalFoldProgress: Number(event.target.value),
+                  }))
+                }
+              />
+              <div className="button-row">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSetThreePreviewSettings((previous) => ({
+                      ...previous,
+                      finalFoldProgress: 0,
+                      finalFoldCamera: 'pattern',
+                    }))
+                  }
+                >
+                  Pattern View
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSetThreePreviewSettings((previous) => ({
+                      ...previous,
+                      finalFoldProgress: 1,
+                      finalFoldCamera: 'orbit',
+                    }))
+                  }
+                >
+                  Folded
+                </button>
+              </div>
+              <button type="button" onClick={() => downloadFinalReviewCollage(bridgeRef.current)}>
+                Capture Review Collage
+              </button>
+            </div>
+          </div>
+        )}
         <label className="field-row">
           <span>Thickness (mm)</span>
           <input
@@ -206,6 +256,19 @@ export function WorkbenchThreePreviewInspector({
             }
           />
           <span>Show seam stress tint</span>
+        </label>
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={threePreviewSettings.usePhysicsRelaxation}
+            onChange={(event) =>
+              onSetThreePreviewSettings((previous) => ({
+                ...previous,
+                usePhysicsRelaxation: event.target.checked,
+              }))
+            }
+          />
+          <span>Relax seam welds</span>
         </label>
         <label className="layer-toggle-item">
           <input

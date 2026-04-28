@@ -34,6 +34,11 @@ import type {
 
 export type { OutlinePolygon, ThreeBridgeDocument, ThreeBridgePresentationState, ThreeMaterialState } from './three-bridge-types'
 
+export function isOnlyFinalFoldProgressChange(previous: ThreePreviewSettings, next: ThreePreviewSettings) {
+  return JSON.stringify({ ...previous, finalFoldProgress: next.finalFoldProgress }) === JSON.stringify(next) &&
+    previous.finalFoldProgress !== next.finalFoldProgress
+}
+
 export class ThreeBridge {
   private runtimeManager: ThreeRuntimeManager
   private avatarManager = new ThreeAvatarManager()
@@ -63,12 +68,16 @@ export class ThreeBridge {
   private threePreviewSettings: ThreePreviewSettings = {
     mode: 'fold',
     explodedFactor: 0.35,
+    finalFoldProgress: 1,
+    finalFoldCamera: 'orbit',
     thicknessMm: 1.8,
     showSeams: true,
     showEdgeLabels: false,
     showStressOverlay: true,
+    usePhysicsRelaxation: true,
   }
   private pieceMeshes: PieceMeshData[] = []
+  private fitAfterRebuild = true
   private transform: ModelTransform = {
     scale: 1,
     centerX: 0,
@@ -116,7 +125,17 @@ export class ThreeBridge {
   }
 
   private fitControlsToModel() {
-    this.runtimeManager.fitControlsToModel(this.modelRoot)
+    if (!this.fitAfterRebuild) {
+      return
+    }
+    this.runtimeManager.fitControlsToModel(
+      this.modelRoot,
+      this.threePreviewSettings.mode === 'final' ? this.threePreviewSettings.finalFoldCamera : 'orbit',
+    )
+  }
+
+  private syncModelRootPresentation() {
+    this.modelRoot.rotation.x = this.threePreviewSettings.mode === 'final' ? 0 : -0.7
   }
 
   private async rebuildAvatarModel() {
@@ -141,6 +160,7 @@ export class ThreeBridge {
   }
 
   private rebuildModel() {
+    this.syncModelRootPresentation()
     const { pieceMeshes, transform, documentBounds } = buildModelLayout({
       patternPieces: this.patternPieces,
       outlinePolygons: this.outlinePolygons,
@@ -331,8 +351,13 @@ export class ThreeBridge {
     }
 
     if (previewChanged) {
-      this.threePreviewSettings = { ...next.previewSettings }
-      this.rebuildModel()
+      this.fitAfterRebuild = !previous || !isOnlyFinalFoldProgressChange(previous.previewSettings, next.previewSettings)
+      try {
+        this.threePreviewSettings = { ...next.previewSettings }
+        this.rebuildModel()
+      } finally {
+        this.fitAfterRebuild = true
+      }
     }
 
     if (threadChanged) {
@@ -390,6 +415,7 @@ export class ThreeBridge {
     this.seamConnections = [...seamConnections]
     this.avatars = [...avatars]
     this.threePreviewSettings = threePreviewSettings ? { ...threePreviewSettings } : this.threePreviewSettings
+    this.fitAfterRebuild = true
     const shapeIdSet = new Set(this.shapes.map((shape) => shape.id))
     this.texturedShapeIdSet = new Set(Array.from(this.texturedShapeIdSet).filter((shapeId) => shapeIdSet.has(shapeId)))
     this.foldManager.syncFoldLine(this.foldLines[0] ?? null)
@@ -477,6 +503,10 @@ export class ThreeBridge {
 
   getFinalProductSolveResult() {
     return this.finalProductSolveResult
+  }
+
+  captureFinalProductReviewCollage() {
+    return this.runtimeManager.captureModelReviewCollage(this.modelRoot)
   }
 
   enableShadows(enabled: boolean) {

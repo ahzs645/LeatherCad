@@ -27,3 +27,10 @@ describe('resolveWorkbenchWorkspaceMode', () => {
     expect(resolveWorkbenchWorkspaceMode('/leathercad', '/leathercad/')).toBe('2d')
   })
 })
+
+describe('route sync guard', () => {
+  it('detects route/state mismatch before path writes should occur', () => {
+    expect(resolveWorkbenchWorkspaceMode('/workbench/3d', '/')).toBe('3d')
+    expect(resolveWorkbenchWorkspaceMode('/workbench/3d', '/')).not.toBe('2d')
+  })
+})

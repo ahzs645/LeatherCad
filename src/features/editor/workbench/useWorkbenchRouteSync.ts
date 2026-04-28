@@ -71,6 +71,10 @@ export function useWorkbenchRouteSync({
 
     const url = new URL(window.location.href)
     const nextPath = buildWorkbenchWorkspacePath(workspaceMode)
+    const routeMode = resolveWorkbenchWorkspaceMode(url.pathname)
+    if (routeMode !== workspaceMode) {
+      return
+    }
     if (normalizePath(url.pathname) !== normalizePath(nextPath)) {
       url.pathname = nextPath
       window.history.pushState(null, '', url.toString())

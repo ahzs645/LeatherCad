@@ -5,8 +5,9 @@ import { sampleShapePoints } from '../cad/cad-geometry'
 import type { DocFile } from '../cad/cad-types'
 import { buildModelLayout, rebuildFoldModel } from '../three/model-builder'
 import { buildFinalProductPanelGraph } from '../three/final-product-panel-graph'
+import { rebuildFinalProductModel } from '../three/final-product-model-builder'
 import { buildFinalProductRegions } from '../three/final-product-regions'
-import { solveFinalProduct } from '../three/final-product-solver'
+import { solveFinalProduct, solvePanelPoint } from '../three/final-product-solver'
 import { ThreeFoldManager } from '../three/fold-manager'
 import { PRESET_DOCS } from './sample-doc'
 
@@ -18,6 +19,12 @@ function walletDoc() {
 
 function compactClaspWalletDoc() {
   const preset = PRESET_DOCS.find((entry) => entry.id === 'compact-clasp-wallet')
+  expect(preset).toBeDefined()
+  return preset!.doc
+}
+
+function foldingBoxNetDoc() {
+  const preset = PRESET_DOCS.find((entry) => entry.id === 'folding-box-net')
   expect(preset).toBeDefined()
   return preset!.doc
 }
@@ -236,5 +243,125 @@ describe('compact clasp wallet preset', () => {
     expect(textShapes.every((shape) => shape.type === 'text' && shape.start.x >= 58)).toBe(true)
     expect(textShapes.every((shape) => shape.type === 'text' && shape.fontSizeMm >= 12)).toBe(true)
     expect(drawableShapes.every((shape) => 'strokeWidthOverride' in shape)).toBe(true)
+  })
+})
+
+describe('open box tray net preset', () => {
+  it('models a connected rigid-panel tray net with equal-height wall folds', () => {
+    const doc = foldingBoxNetDoc()
+
+    expect(doc.layers.map((layer) => layer.id)).toEqual(['folding-box-net', 'folding-box-guides'])
+    expect(doc.foldLines).toHaveLength(4)
+    expect(doc.foldLines.filter((fold) => fold.angleDeg === 90)).toHaveLength(4)
+    expect(doc.foldLines.filter((fold) => fold.angleDeg === 90).every((fold) => fold.direction === 'valley')).toBe(true)
+    expect(doc.objects.some((shape) => shape.id.startsWith('folding-box-net-box-base-outline'))).toBe(true)
+    expect(doc.objects.some((shape) => shape.id.startsWith('folding-box-net-box-back-flap-outline'))).toBe(false)
+    const backBounds = boundsForPrefix(doc, 'folding-box-net-box-back-wall-outline')
+    const leftBounds = boundsForPrefix(doc, 'folding-box-net-box-left-wall-outline')
+    expect(backBounds.maxY - backBounds.minY).toBeCloseTo(leftBounds.maxX - leftBounds.minX)
+  })
+
+  it('compiles the box net into hinged final-product panels without unresolved fold axes', () => {
+    const doc = foldingBoxNetDoc()
+    const regions = buildFinalProductRegions({
+      layers: doc.layers,
+      lineTypes: doc.lineTypes,
+      shapes: doc.objects,
+      outlinePolygons: [],
+    })
+    const graph = buildFinalProductPanelGraph({
+      foldLines: doc.foldLines,
+      regions,
+      documentBounds: boundsForPrefix(doc, 'folding-box-net-box-base-outline'),
+    })
+
+    expect(regions).toHaveLength(1)
+    expect(graph.panels.length).toBe(5)
+    expect(graph.hinges).toHaveLength(4)
+    expect(graph.diagnostics.filter((diagnostic) => diagnostic.code === 'fold-line-unresolved')).toHaveLength(0)
+  })
+
+  it('renders a folded final-product preview mesh for the connected box net', () => {
+    const doc = foldingBoxNetDoc()
+    const regions = buildFinalProductRegions({
+      layers: doc.layers,
+      lineTypes: doc.lineTypes,
+      shapes: doc.objects,
+      outlinePolygons: [],
+    })
+    const result = solveFinalProduct({
+      foldLines: doc.foldLines,
+      stitchHoles: doc.stitchHoles ?? [],
+      regions,
+      documentBounds: boundsForPrefix(doc, 'folding-box-net-box-base-outline'),
+      thicknessMm: 1.4,
+    })
+
+    expect(result.panels.length).toBe(5)
+    expect(result.hinges).toHaveLength(4)
+    expect(result.diagnostics.filter((diagnostic) => diagnostic.code === 'fold-line-unresolved')).toHaveLength(0)
+    const panelCentroid = (panel: (typeof result.panels)[number]) => ({
+      x: panel.polygon.reduce((sum, point) => sum + point.x, 0) / panel.polygon.length,
+      y: panel.polygon.reduce((sum, point) => sum + point.y, 0) / panel.polygon.length,
+    })
+    const solvedCentroidHeight = (panel: (typeof result.panels)[number]) => {
+      const points = panel.polygon.map((point) => solvePanelPoint(panel, point))
+      return points.reduce((sum, point) => sum + point.y, 0) / points.length
+    }
+    const backWall = result.panels.find((panel) => {
+      const center = panelCentroid(panel)
+      return center.y < -25 && center.y > -65 && Math.abs(center.x) < 36
+    })
+    const frontWall = result.panels.find((panel) => {
+      const center = panelCentroid(panel)
+      return center.y > 25 && center.y < 65 && Math.abs(center.x) < 36
+    })
+    expect(backWall).toBeDefined()
+    expect(frontWall).toBeDefined()
+    expect(solvedCentroidHeight(backWall!)).toBeGreaterThan(5)
+    expect(solvedCentroidHeight(frontWall!)).toBeGreaterThan(5)
+    expect(result.collisionWarningCount).toBe(0)
+  })
+
+  it('builds visible final-product mesh panels for browser folded-view smoke testing', () => {
+    const doc = foldingBoxNetDoc()
+    const { pieceMeshes, transform, documentBounds } = buildModelLayout({
+      patternPieces: doc.patternPieces ?? [],
+      outlinePolygons: [],
+      shapes: doc.objects,
+      foldLines: doc.foldLines,
+    })
+    const finalProductGroup = new Group()
+    const result = rebuildFinalProductModel({
+      layers: doc.layers,
+      lineTypes: doc.lineTypes,
+      shapes: doc.objects,
+      foldLines: doc.foldLines,
+      stitchHoles: doc.stitchHoles ?? [],
+      outlinePolygons: [],
+      patternPieces: doc.patternPieces ?? [],
+      piecePlacements3d: doc.piecePlacements3d ?? [],
+      seamConnections: doc.seamConnections ?? [],
+      previewSettings: { ...DEFAULT_THREE_PREVIEW_SETTINGS, mode: 'final' },
+      pieceMeshes,
+      transform,
+      documentBounds,
+      threadColor: '#f97316',
+      texturedShapeIdSet: new Set(),
+      hasActiveTexture: false,
+      materials: createMaterials(),
+      preservedMaterials: new Set(),
+      fitControlsToModel: () => undefined,
+      finalProductGroup,
+      staticSideGroup: new Group(),
+      foldingSideGroup: new Group(),
+      foldGuideGroup: new Group(),
+      assembledGroup: new Group(),
+      avatarGroup: new Group(),
+    })
+
+    expect(result.hinges).toHaveLength(4)
+    expect(result.diagnostics.filter((diagnostic) => diagnostic.code === 'fold-line-unresolved')).toHaveLength(0)
+    expect(hasMesh(finalProductGroup)).toBe(true)
   })
 })

@@ -29,10 +29,13 @@ export const DEFAULT_SNAP_SETTINGS: SnapSettings = {
 export const DEFAULT_THREE_PREVIEW_SETTINGS: ThreePreviewSettings = {
   mode: 'fold',
   explodedFactor: 0.35,
+  finalFoldProgress: 1,
+  finalFoldCamera: 'orbit',
   thicknessMm: 1.8,
   showSeams: true,
   showEdgeLabels: false,
   showStressOverlay: true,
+  usePhysicsRelaxation: true,
 }
 
 export const HARDWARE_PRESETS: Record<Exclude<HardwareKind, 'custom'>, { label: string; holeDiameterMm: number; spacingMm: number }> = {

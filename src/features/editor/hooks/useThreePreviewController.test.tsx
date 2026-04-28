@@ -52,10 +52,13 @@ afterEach(() => {
 const previewSettings: ThreePreviewSettings = {
   mode: 'fold',
   explodedFactor: 0.35,
+  finalFoldProgress: 1,
+  finalFoldCamera: 'orbit',
   thicknessMm: 1.8,
   showSeams: true,
   showEdgeLabels: false,
   showStressOverlay: true,
+  usePhysicsRelaxation: true,
 }
 
 const closedShape: Shape = {

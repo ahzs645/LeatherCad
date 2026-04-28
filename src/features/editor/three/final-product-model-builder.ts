@@ -1,5 +1,6 @@
 import {
   BufferGeometry,
+  Color,
   Float32BufferAttribute,
   Group,
   Line,
@@ -11,6 +12,7 @@ import {
   ShapeUtils,
   SphereGeometry,
   Vector2,
+  Vector3,
 } from 'three'
 import type { StitchHole } from '../cad/cad-types'
 import { buildAssemblyDiagnostics, type AssemblyDiagnostic } from '../assembly/assembly-diagnostics'
@@ -20,10 +22,14 @@ import { findPanelContainingPoint } from './final-product-panel-graph'
 import { solveFinalProduct, projectSolvedPointForPreview } from './final-product-solver'
 import type { FinalProductDiagnostic, FinalProductSolveResult, SolvedFoldPanel, StitchPair } from './final-product-types'
 import { buildFinalProductRegions } from './final-product-regions'
+import { relaxFinalProductSeamsWithXpbd, type XpbdFinalProductRelaxation } from './final-product-xpbd-relaxation'
+import { buildFoldTimelinePreview } from './fold-timeline'
 import type { CommonRebuildParams } from './model-builder-types'
 
 const STITCH_SPHERE_SEGMENTS = 8
 const STITCH_SPHERE_RADIUS = 0.006
+const MIN_PANEL_THICKNESS_SCENE = 0.001
+const FINAL_LAYER_TINTS = ['#6f4a2e', '#b7834f', '#7f6038', '#a5533e', '#5f6f43', '#8f5f3b']
 
 export type RebuildFinalProductModelParams = CommonRebuildParams & {
   finalProductGroup: Group
@@ -34,7 +40,32 @@ export type RebuildFinalProductModelParams = CommonRebuildParams & {
   avatarGroup: Group
 }
 
-function createPanelGeometry(panel: SolvedFoldPanel, transform: CommonRebuildParams['transform']) {
+function panelNormal(points: Vector3[]) {
+  if (points.length < 3) {
+    return new Vector3(0, 1, 0)
+  }
+
+  const origin = points[0]
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const normal = points[index].clone().sub(origin).cross(points[index + 1].clone().sub(origin))
+    if (normal.lengthSq() > 1e-10) {
+      return normal.normalize()
+    }
+  }
+  return new Vector3(0, 1, 0)
+}
+
+function pushVertex(
+  vertices: number[],
+  uvs: number[],
+  point: Vector3,
+  source: { x: number; y: number },
+) {
+  vertices.push(point.x, point.y, point.z)
+  uvs.push(source.x, source.y)
+}
+
+function createPanelGeometry(panel: SolvedFoldPanel, transform: CommonRebuildParams['transform'], thicknessMm: number) {
   if (panel.polygon.length < 3) {
     return null
   }
@@ -46,23 +77,34 @@ function createPanelGeometry(panel: SolvedFoldPanel, transform: CommonRebuildPar
   }
 
   const projected = panel.polygon.map((point) => projectSolvedPointForPreview(panel, point, transform))
+  const normal = panelNormal(projected)
+  const halfThickness = Math.max(MIN_PANEL_THICKNESS_SCENE, thicknessMm * transform.scale * 0.5)
+  const front = projected.map((point) => point.clone().addScaledVector(normal, halfThickness))
+  const back = projected.map((point) => point.clone().addScaledVector(normal, -halfThickness))
   const vertices: number[] = []
-  const normals: number[] = []
   const uvs: number[] = []
 
   for (const triangle of triangles) {
     for (const index of triangle) {
-      const point = projected[index]
-      const source = panel.polygon[index]
-      vertices.push(point.x, point.y, point.z)
-      normals.push(0, 1, 0)
-      uvs.push(source.x, source.y)
+      pushVertex(vertices, uvs, front[index], panel.polygon[index])
     }
+    for (const index of [...triangle].reverse()) {
+      pushVertex(vertices, uvs, back[index], panel.polygon[index])
+    }
+  }
+
+  for (let index = 0; index < projected.length; index += 1) {
+    const nextIndex = (index + 1) % projected.length
+    pushVertex(vertices, uvs, front[index], panel.polygon[index])
+    pushVertex(vertices, uvs, back[index], panel.polygon[index])
+    pushVertex(vertices, uvs, back[nextIndex], panel.polygon[nextIndex])
+    pushVertex(vertices, uvs, front[index], panel.polygon[index])
+    pushVertex(vertices, uvs, back[nextIndex], panel.polygon[nextIndex])
+    pushVertex(vertices, uvs, front[nextIndex], panel.polygon[nextIndex])
   }
 
   const geometry = new BufferGeometry()
   geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
-  geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3))
   geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2))
   geometry.computeVertexNormals()
   geometry.computeBoundingSphere()
@@ -74,13 +116,18 @@ function addPanelMeshes(
   result: FinalProductSolveResult,
   material: MeshStandardMaterial,
   transform: CommonRebuildParams['transform'],
+  thicknessMm: number,
+  layerColorById: Map<string, string>,
 ) {
   for (const panel of result.panels) {
-    const geometry = createPanelGeometry(panel, transform)
+    const geometry = createPanelGeometry(panel, transform, thicknessMm)
     if (!geometry) {
       continue
     }
-    const mesh = new Mesh(geometry, material)
+    const panelMaterial = material.clone()
+    panelMaterial.color = new Color(layerColorById.get(panel.layerId) ?? FINAL_LAYER_TINTS[(panel.stackLevel ?? 0) % FINAL_LAYER_TINTS.length])
+    panelMaterial.needsUpdate = true
+    const mesh = new Mesh(geometry, panelMaterial)
     mesh.name = `final-product-panel-${panel.id}`
     group.add(mesh)
   }
@@ -114,6 +161,7 @@ function addStitchHoles(
   result: FinalProductSolveResult,
   transform: CommonRebuildParams['transform'],
   threadColor: string,
+  relaxation: XpbdFinalProductRelaxation | null,
 ) {
   const material = new MeshBasicMaterial({ color: threadColor })
   const geometry = new SphereGeometry(STITCH_SPHERE_RADIUS, STITCH_SPHERE_SEGMENTS, STITCH_SPHERE_SEGMENTS)
@@ -123,7 +171,10 @@ function addStitchHoles(
       if (!panel) {
         continue
       }
-      const position = projectSolvedPointForPreview(panel, hole.point, transform)
+      const position = transformedHolePosition(result, hole, transform, relaxation)
+      if (!position) {
+        continue
+      }
       const sphere = new Mesh(geometry, material)
       sphere.position.copy(position)
       sphere.name = `final-product-stitch-${hole.id}`
@@ -149,7 +200,12 @@ function transformedHolePosition(
   result: FinalProductSolveResult,
   hole: StitchHole,
   transform: CommonRebuildParams['transform'],
+  relaxation: XpbdFinalProductRelaxation | null,
 ) {
+  const relaxed = relaxation?.holePositionsById.get(hole.id)
+  if (relaxed) {
+    return projectSolvedVectorForPreview(relaxed, transform)
+  }
   const panel = findPanelForHole(result, hole)
   if (!panel) {
     return null
@@ -157,18 +213,30 @@ function transformedHolePosition(
   return projectSolvedPointForPreview(panel, hole.point, transform)
 }
 
+function projectSolvedVectorForPreview(
+  solved: Vector3,
+  transform: CommonRebuildParams['transform'],
+) {
+  return new Vector3(
+    (solved.x - transform.centerX) * transform.scale,
+    solved.y * transform.scale,
+    -(solved.z - transform.centerY) * transform.scale,
+  )
+}
+
 function addSeamGuides(
   group: Group,
   result: FinalProductSolveResult,
   transform: CommonRebuildParams['transform'],
   showStressOverlay: boolean,
+  relaxation: XpbdFinalProductRelaxation | null,
 ) {
   for (const pair of result.stitchPairs) {
     const vertices: number[] = []
     const rightHoles = pair.reversed ? [...pair.right.holes].reverse() : pair.right.holes
     for (let index = 0; index < pair.left.holes.length; index += 1) {
-      const left = transformedHolePosition(result, pair.left.holes[index], transform)
-      const right = transformedHolePosition(result, rightHoles[index], transform)
+      const left = transformedHolePosition(result, pair.left.holes[index], transform, relaxation)
+      const right = transformedHolePosition(result, rightHoles[index], transform, relaxation)
       if (!left || !right) {
         continue
       }
@@ -248,8 +316,20 @@ export function rebuildFinalProductModel({
   clearGroup(avatarGroup, preservedMaterials)
   clearGroup(finalProductGroup, preservedMaterials)
 
-  const result = solveFinalProduct({
+  const foldTimelinePreview = buildFoldTimelinePreview({
     foldLines,
+    progress: previewSettings.finalFoldProgress,
+  })
+  const previewFoldLines = foldTimelinePreview.foldLines
+  const layerColorById = new Map(
+    layers.map((layer, index) => [
+      layer.id,
+      FINAL_LAYER_TINTS[(typeof layer.stackLevel === 'number' ? layer.stackLevel : index) % FINAL_LAYER_TINTS.length],
+    ]),
+  )
+
+  const result = solveFinalProduct({
+    foldLines: previewFoldLines,
     stitchHoles,
     ...(() => {
       const compiledSeams = compileExplicitSeams({ pieceMeshes, seamConnections })
@@ -257,13 +337,16 @@ export function rebuildFinalProductModel({
         patternPieces,
         pieceMeshes,
         seamConnections,
-        foldLines,
+        foldLines: previewFoldLines,
         fallbackThicknessMm: previewSettings.thicknessMm,
       })
       return {
         explicitStitchChains: compiledSeams.chains,
         explicitStitchPairs: compiledSeams.pairs,
-        explicitDiagnostics: [...compiledSeams.diagnostics, ...assemblyDiagnostics].map(finalDiagnosticFromAssemblyDiagnostic),
+        explicitDiagnostics: [
+          ...compiledSeams.diagnostics,
+          ...assemblyDiagnostics,
+        ].map(finalDiagnosticFromAssemblyDiagnostic).concat(foldTimelinePreview.diagnostics),
       }
     })(),
     regions: buildFinalProductRegions({ layers, lineTypes, shapes, outlinePolygons }),
@@ -271,11 +354,21 @@ export function rebuildFinalProductModel({
     documentBounds,
     thicknessMm: previewSettings.thicknessMm,
   })
+  const relaxation = previewSettings.usePhysicsRelaxation ? relaxFinalProductSeamsWithXpbd(result) : null
 
-  addPanelMeshes(finalProductGroup, result, materials.assembledFrontMaterial, transform)
-  addStitchHoles(finalProductGroup, result, transform, threadColor)
+  if (relaxation && relaxation.rmsAfterMm < relaxation.rmsBeforeMm) {
+    result.diagnostics.push({
+      id: 'final-product-xpbd-relaxation',
+      code: 'xpbd-seam-relaxation',
+      severity: 'info',
+      message: `XPBD seam relaxation reduced weld RMS from ${relaxation.rmsBeforeMm.toFixed(2)}mm to ${relaxation.rmsAfterMm.toFixed(2)}mm across ${relaxation.constraintCount} constraints.`,
+    })
+  }
+
+  addPanelMeshes(finalProductGroup, result, materials.assembledFrontMaterial, transform, previewSettings.thicknessMm, layerColorById)
+  addStitchHoles(finalProductGroup, result, transform, threadColor, relaxation)
   if (previewSettings.showSeams) {
-    addSeamGuides(finalProductGroup, result, transform, previewSettings.showStressOverlay)
+    addSeamGuides(finalProductGroup, result, transform, previewSettings.showStressOverlay, relaxation)
   }
   if (previewSettings.showStressOverlay) {
     addHingeGuides(finalProductGroup, result, transform)

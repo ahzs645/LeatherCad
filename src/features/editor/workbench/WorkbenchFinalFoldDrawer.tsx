@@ -30,7 +30,7 @@ export function WorkbenchFinalFoldModeTab({ controller }: WorkbenchFinalFoldDraw
 
 export function WorkbenchFinalFoldDrawer({ controller }: WorkbenchFinalFoldDrawerProps) {
   const { foldLines, finalProductSolveResult, onUpdateFoldLine } = controller
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   const setAllAngles = (angleDeg: number) => {
     foldLines.forEach((foldLine) => {
