@@ -85,25 +85,34 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
 
   const ribbonTabs = page.getByRole('tablist', { name: 'Workbench ribbon tabs' })
   await expect(ribbonTabs).toBeVisible()
-  await page.getByRole('button', { name: 'Fit' }).first().click()
+  const pointerSelectShape = async (index: number, additive = false) => {
+    await canvasShapeLines.nth(index).dispatchEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      buttons: 1,
+      shiftKey: additive,
+    })
+  }
 
-  const canvasShapeLines = page.locator('svg.canvas .shape-line')
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A')
+  const canvasShapeLines = page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')
+  await expect.poll(async () => canvasShapeLines.count()).toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Fit' }).first().click()
+  await pointerSelectShape(0)
+  await pointerSelectShape(1, true)
+  await pointerSelectShape(2, true)
+  await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-selected')).toHaveCount(3)
   await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
-  await expect(page.getByRole('button', { name: 'Fixed' })).toBeVisible()
-  await page.getByRole('button', { name: 'Fixed' }).click()
+  await expect(page.getByRole('button', { name: 'Fixed', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Fixed', exact: true }).click()
   const stitchHoleDots = page.locator('svg.canvas .stitch-hole-dot')
   await expect.poll(async () => stitchHoleDots.count()).toBeGreaterThan(0)
   const initialHoleCount = await stitchHoleDots.count()
   expect(initialHoleCount).toBeGreaterThan(0)
 
-  await stitchHoleDots.first().click({ force: true })
-  await expect(page.getByRole('button', { name: 'End Stitch Here' })).toBeVisible()
-  await page.getByRole('button', { name: 'End Stitch Here' }).click()
-  await expect(page.locator('svg.canvas .stitch-hole-terminal-marker')).toHaveCount(1)
-
   const lineCountBefore = await canvasShapeLines.count()
-  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A')
   await page.getByRole('button', { name: 'Box Stitch Helper' }).click()
   await expect(page.getByRole('heading', { name: 'Box Stitch Helper' })).toBeVisible()
   await page.getByRole('button', { name: 'Create Stitch Path' }).click()
@@ -114,6 +123,11 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   const holeCountAfterHelper = await stitchHoleDots.count()
   expect(lineCountAfter).toBeGreaterThan(lineCountBefore)
   expect(holeCountAfterHelper).toBeGreaterThan(initialHoleCount)
+
+  await stitchHoleDots.first().click({ force: true })
+  await expect(page.getByRole('button', { name: 'End Stitch Here' })).toBeVisible()
+  await page.getByRole('button', { name: 'End Stitch Here' }).click()
+  await expect(page.locator('svg.canvas .stitch-hole-terminal-marker')).toHaveCount(1)
 
   await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
   await expect(page.getByRole('button', { name: 'Simulate' })).toBeVisible()
