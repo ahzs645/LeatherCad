@@ -339,8 +339,11 @@ export function WorkbenchThreePreviewInspector({
         </div>
       )}
 
-      <div className="control-block">
-        <h3>Assembly Diagnostics</h3>
+      <details className="control-block inspector-disclosure">
+        <summary>
+          <h3>Assembly Diagnostics</h3>
+          <span>{assemblyDiagnostics.length === 0 ? 'OK' : `${assemblyDiagnostics.length}`}</span>
+        </summary>
         {assemblyDiagnostics.length === 0 ? (
           <p className="hint">No assembly issues detected.</p>
         ) : (
@@ -355,10 +358,13 @@ export function WorkbenchThreePreviewInspector({
             ))}
           </>
         )}
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>3D Layer Visibility</h3>
+      <details className="control-block inspector-disclosure">
+        <summary>
+          <h3>3D Layer Visibility</h3>
+          <span>{`${visibleLayerCountIn3d}/${layers.length}`}</span>
+        </summary>
         <p className="hint">{`Showing ${visibleLayerCountIn3d} of ${layers.length} layers in 3D.`}</p>
         {layers.length === 0 ? (
           <p className="hint">No layers available.</p>
@@ -396,10 +402,13 @@ export function WorkbenchThreePreviewInspector({
             </div>
           </>
         )}
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>Bend Controls</h3>
+      <details className="control-block inspector-disclosure" open={threePreviewSettings.mode === 'fold' && foldLines.length > 0}>
+        <summary>
+          <h3>Bend Controls</h3>
+          <span>{foldLines.length === 0 ? 'None' : `${foldLines.length}`}</span>
+        </summary>
         {threePreviewSettings.mode === 'final' ? (
           <>
             <p className="hint">Use the Final Folds drawer at the bottom of the full 3D viewport for crease angles and directions.</p>
@@ -497,10 +506,13 @@ export function WorkbenchThreePreviewInspector({
             </div>
           ))
         )}
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>Piece Placement</h3>
+      <details className="control-block inspector-disclosure" open={visiblePatternPieces.length > 0 && threePreviewSettings.mode === 'assembled'}>
+        <summary>
+          <h3>Piece Placement</h3>
+          <span>{visiblePatternPieces.length === 0 ? 'Locked' : `${visiblePatternPieces.length}`}</span>
+        </summary>
         {visiblePatternPieces.length === 0 ? (
           <p className="hint">Create pattern pieces in 2D to unlock assembled 3D placement.</p>
         ) : (
@@ -587,10 +599,13 @@ export function WorkbenchThreePreviewInspector({
             </div>
           </>
         )}
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>Avatar Assets</h3>
+      <details className="control-block inspector-disclosure" open={threePreviewSettings.mode === 'avatar'}>
+        <summary>
+          <h3>Avatar Assets</h3>
+          <span>{activeAvatarId ? 'Custom' : 'Built-in'}</span>
+        </summary>
         <label className="field-row">
           <span>Active avatar</span>
           <select
@@ -617,18 +632,24 @@ export function WorkbenchThreePreviewInspector({
           onSetAvatars={onSetAvatars}
           onSetThreePreviewSettings={onSetThreePreviewSettings}
         />
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>Stitch Simulator</h3>
+      <details className="control-block inspector-disclosure">
+        <summary>
+          <h3>Stitch Simulator</h3>
+          <span>{stitchThreadColor}</span>
+        </summary>
         <label className="field-row">
           <span>Thread Color</span>
           <input type="color" value={stitchThreadColor} onChange={(event) => onSetStitchThreadColor(event.target.value)} />
         </label>
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>Leather Material Preset</h3>
+      <details className="control-block inspector-disclosure" open>
+        <summary>
+          <h3>Leather Material</h3>
+          <span>Preset</span>
+        </summary>
         <div className="line-type-edit-grid">
           <label className="field-row">
             <span>Preset</span>
@@ -667,10 +688,13 @@ export function WorkbenchThreePreviewInspector({
             </span>
           </label>
         </div>
-      </div>
+      </details>
 
-      <div className="control-block">
-        <h3>Texture Source</h3>
+      <details className="control-block inspector-disclosure">
+        <summary>
+          <h3>Texture Source</h3>
+          <span>{`${threeTextureShapeIds.length} assigned`}</span>
+        </summary>
         <label className="field-row">
           <span>Texture source URL</span>
           <input
@@ -720,7 +744,7 @@ export function WorkbenchThreePreviewInspector({
         <p className="hint">{`Texture assignments: ${threeTextureShapeIds.length} shapes`}</p>
         <p className="hint">{`Closed selected shapes: ${selectedClosedShapeIds.length}`}</p>
         <p className="hint">{textureStatus}</p>
-      </div>
+      </details>
     </>
   )
 }
