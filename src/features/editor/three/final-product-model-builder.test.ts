@@ -118,6 +118,7 @@ describe('final product model builder', () => {
     })
 
     expect(finalProductGroup.children.length).toBeGreaterThan(0)
+    expect(finalProductGroup.children.some((child) => child.name.startsWith('final-product-hinge-spine-'))).toBe(false)
     expect(result.stitchPairs).toHaveLength(4)
   })
 })

@@ -1,22 +1,7 @@
-import type { FoldLine } from '../cad/cad-types'
+import type { FoldInstructionNode, FoldLine, FoldStepCommand } from '../cad/cad-types'
 import type { FinalProductDiagnostic } from './final-product-types'
 
-export type FoldStepCommand = {
-  foldLineId: string
-  targetAngleDeg?: number
-  duration?: number
-  previewOnly?: boolean
-  flex?: boolean
-  locked?: boolean
-}
-
-export type FoldInstructionNode = {
-  id: string
-  label?: string
-  commands?: FoldStepCommand[]
-  children?: FoldInstructionNode[]
-  default?: boolean
-}
+export type { FoldInstructionNode, FoldStepCommand } from '../cad/cad-types'
 
 export type CompiledFoldTimelineStep = {
   id: string

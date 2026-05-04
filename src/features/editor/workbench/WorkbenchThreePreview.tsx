@@ -12,28 +12,16 @@ import { LEATHER_COLORS, LEATHER_PRESETS, PRESET_IDS } from '../three/material-p
 import type { WorkbenchThreePreviewController } from './useWorkbenchThreePreviewController'
 import { AvatarFormFields } from './WorkbenchThreeAvatarForm'
 import { WorkbenchFinalFoldDrawer, WorkbenchFinalFoldModeTab } from './WorkbenchFinalFoldDrawer'
+import { WorkbenchFoldTimelinePanel } from './WorkbenchFoldTimelinePanel'
 import { downloadFinalReviewCollage } from './final-review-collage'
 
 function defaultPiecePlacement(pieceId: string): PiecePlacement3D {
-  return {
-    pieceId,
-    translationMm: { x: 0, y: 0, z: 0 },
-    rotationDeg: { x: 0, y: 0, z: 0 },
-    flipped: false,
-  }
+  return { pieceId, translationMm: { x: 0, y: 0, z: 0 }, rotationDeg: { x: 0, y: 0, z: 0 }, flipped: false }
 }
 
-type WorkbenchThreePreviewViewportProps = {
-  controller: WorkbenchThreePreviewController
-  compact?: boolean
-  interactive?: boolean
-}
+type WorkbenchThreePreviewViewportProps = { controller: WorkbenchThreePreviewController; compact?: boolean; interactive?: boolean }
 
-export function WorkbenchThreePreviewViewport({
-  controller,
-  compact = false,
-  interactive = true,
-}: WorkbenchThreePreviewViewportProps) {
+export function WorkbenchThreePreviewViewport({ controller, compact = false, interactive = true }: WorkbenchThreePreviewViewportProps) {
   const {
     canvasRef,
     containerRef,
@@ -287,6 +275,14 @@ export function WorkbenchThreePreviewInspector({
           <button onClick={() => onSetThreePreviewSettings(DEFAULT_THREE_PREVIEW_SETTINGS)}>Reset 3D Settings</button>
         </div>
       </div>
+
+      {threePreviewSettings.mode === 'final' && (
+        <WorkbenchFoldTimelinePanel
+          foldLines={foldLines}
+          threePreviewSettings={threePreviewSettings}
+          onSetThreePreviewSettings={onSetThreePreviewSettings}
+        />
+      )}
 
       {threePreviewSettings.mode === 'final' && (
         <div className="control-block">

@@ -80,18 +80,18 @@ function pointInPolygon(point: { x: number; y: number }, polygon: Array<{ x: num
   return inside
 }
 
-function inheritDisconnectedStackTransforms(panels: FoldPanel[], transforms: Map<string, Matrix4>) {
+function inheritStackTransforms(panels: FoldPanel[], transforms: Map<string, Matrix4>) {
   const orderedPanels = [...panels].sort((left, right) => (left.stackLevel ?? 0) - (right.stackLevel ?? 0))
 
   for (const panel of orderedPanels) {
-    if (transforms.has(panel.id)) {
+    const stackLevel = panel.stackLevel ?? 0
+    if (stackLevel <= 0) {
       continue
     }
 
     const center = panelCentroid(panel)
-    const stackLevel = panel.stackLevel ?? 0
     const carrier = orderedPanels
-      .filter((candidate) => transforms.has(candidate.id) && candidate.id !== panel.id && (candidate.stackLevel ?? 0) <= stackLevel)
+      .filter((candidate) => transforms.has(candidate.id) && candidate.id !== panel.id && (candidate.stackLevel ?? 0) < stackLevel)
       .sort((left, right) => {
         const stackDelta = (right.stackLevel ?? 0) - (left.stackLevel ?? 0)
         if (stackDelta !== 0) return stackDelta
@@ -180,7 +180,7 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
     }
   }
 
-  inheritDisconnectedStackTransforms(panels, transforms)
+  inheritStackTransforms(panels, transforms)
 
   return panels.map((panel) => ({
     ...panel,
@@ -358,6 +358,9 @@ function collisionDiagnostics(panels: SolvedFoldPanel[], hinges: FoldHinge[], th
       const left = bounds[leftIndex]
       const right = bounds[rightIndex]
       if ((left.panel.stackLevel ?? 0) !== (right.panel.stackLevel ?? 0)) {
+        continue
+      }
+      if ((left.panel.stackLevel ?? 0) > 0 && left.panel.layerId !== right.panel.layerId) {
         continue
       }
       if (hingedPanelPairs.has([left.panel.id, right.panel.id].sort().join('|'))) {

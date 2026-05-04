@@ -72,6 +72,13 @@ describe('parseImportedJsonDocument', () => {
         explodedFactor: 1.2,
         finalFoldProgress: 0.4,
         finalFoldCamera: 'pattern',
+        foldTimeline: [
+          {
+            id: 'review-fold',
+            label: 'Review fold',
+            commands: [{ foldLineId: 'fold-a', targetAngleDeg: 45, duration: 2 }],
+          },
+        ],
         thicknessMm: 2.1,
         showSeams: true,
         showEdgeLabels: true,
@@ -103,6 +110,7 @@ describe('parseImportedJsonDocument', () => {
     expect(imported.doc.threePreviewSettings?.mode).toBe('avatar')
     expect(imported.doc.threePreviewSettings?.finalFoldProgress).toBe(0.4)
     expect(imported.doc.threePreviewSettings?.finalFoldCamera).toBe('pattern')
+    expect(imported.doc.threePreviewSettings?.foldTimeline?.[0]?.commands?.[0]?.targetAngleDeg).toBe(45)
     expect(imported.doc.threePreviewSettings?.avatarId).toBe('avatar-1')
     expect(imported.doc.avatars?.[0].sourceUrl).toBe('https://example.com/avatar.glb')
   })

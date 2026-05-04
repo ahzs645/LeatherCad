@@ -1,5 +1,5 @@
 import { clamp } from './cad/cad-geometry'
-import type { AvatarSpec, PiecePlacement3D, ThreePreviewSettings } from './cad/cad-types'
+import type { AvatarSpec, FoldInstructionNode, FoldStepCommand, PiecePlacement3D, ThreePreviewSettings } from './cad/cad-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from './editor-constants'
 
 function parseThreePreviewMode(value: unknown) {
@@ -8,6 +8,85 @@ function parseThreePreviewMode(value: unknown) {
 
 function parseFinalFoldCamera(value: unknown) {
   return value === 'pattern' ? value : 'orbit'
+}
+
+function sanitizeOptionalNumber(value: unknown, min: number, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined
+  }
+  return clamp(value, min, max)
+}
+
+export function parseFoldStepCommand(value: unknown): FoldStepCommand | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<FoldStepCommand>
+  if (typeof candidate.foldLineId !== 'string' || candidate.foldLineId.trim().length === 0) {
+    return null
+  }
+
+  const command: FoldStepCommand = {
+    foldLineId: candidate.foldLineId.trim(),
+  }
+  const targetAngleDeg = sanitizeOptionalNumber(candidate.targetAngleDeg, -360, 360)
+  if (targetAngleDeg !== undefined) {
+    command.targetAngleDeg = targetAngleDeg
+  }
+  const duration = sanitizeOptionalNumber(candidate.duration, 0.1, 100)
+  if (duration !== undefined) {
+    command.duration = duration
+  }
+  if (candidate.previewOnly === true) {
+    command.previewOnly = true
+  }
+  if (candidate.flex === true) {
+    command.flex = true
+  }
+  if (candidate.locked === true) {
+    command.locked = true
+  }
+  return command
+}
+
+export function parseFoldInstructionNode(value: unknown, depth = 0): FoldInstructionNode | null {
+  if (depth > 4 || typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as Partial<FoldInstructionNode>
+  if (typeof candidate.id !== 'string' || candidate.id.trim().length === 0) {
+    return null
+  }
+
+  const commands = Array.isArray(candidate.commands)
+    ? candidate.commands.map(parseFoldStepCommand).filter((command): command is FoldStepCommand => command !== null)
+    : undefined
+  const children = Array.isArray(candidate.children)
+    ? candidate.children
+        .map((child) => parseFoldInstructionNode(child, depth + 1))
+        .filter((child): child is FoldInstructionNode => child !== null)
+    : undefined
+
+  return {
+    id: candidate.id.trim(),
+    label: typeof candidate.label === 'string' && candidate.label.trim().length > 0 ? candidate.label.trim().slice(0, 80) : undefined,
+    commands,
+    children,
+    default: candidate.default === true,
+  }
+}
+
+export function parseFoldTimeline(value: unknown): FoldInstructionNode[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+  const nodes = value
+    .map((node) => parseFoldInstructionNode(node))
+    .filter((node): node is FoldInstructionNode => node !== null)
+    .slice(0, 48)
+  return nodes.length > 0 ? nodes : undefined
 }
 
 export function sanitizePiecePlacement3d(value: PiecePlacement3D): PiecePlacement3D {
@@ -66,6 +145,7 @@ export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): Three
         ? clamp(value.finalFoldProgress, 0, 1)
         : DEFAULT_THREE_PREVIEW_SETTINGS.finalFoldProgress,
     finalFoldCamera: parseFinalFoldCamera(value.finalFoldCamera),
+    foldTimeline: parseFoldTimeline(value.foldTimeline),
     thicknessMm:
       typeof value.thicknessMm === 'number' && Number.isFinite(value.thicknessMm)
         ? clamp(Math.abs(value.thicknessMm), 0.2, 20)
@@ -91,6 +171,7 @@ export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings 
     finalFoldProgress:
       typeof candidate.finalFoldProgress === 'number' ? candidate.finalFoldProgress : DEFAULT_THREE_PREVIEW_SETTINGS.finalFoldProgress,
     finalFoldCamera: parseFinalFoldCamera(candidate.finalFoldCamera),
+    foldTimeline: parseFoldTimeline(candidate.foldTimeline),
     thicknessMm:
       typeof candidate.thicknessMm === 'number' ? candidate.thicknessMm : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
     showSeams: candidate.showSeams !== false,

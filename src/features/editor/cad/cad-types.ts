@@ -321,11 +321,29 @@ export type AvatarSpec = {
   scaleMm: number
 }
 
+export type FoldStepCommand = {
+  foldLineId: string
+  targetAngleDeg?: number
+  duration?: number
+  previewOnly?: boolean
+  flex?: boolean
+  locked?: boolean
+}
+
+export type FoldInstructionNode = {
+  id: string
+  label?: string
+  commands?: FoldStepCommand[]
+  children?: FoldInstructionNode[]
+  default?: boolean
+}
+
 export type ThreePreviewSettings = {
   mode: ThreePreviewMode
   explodedFactor: number
   finalFoldProgress: number
   finalFoldCamera: 'orbit' | 'pattern'
+  foldTimeline?: FoldInstructionNode[]
   thicknessMm: number
   showSeams: boolean
   showEdgeLabels: boolean

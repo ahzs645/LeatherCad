@@ -122,17 +122,36 @@ describe('WorkbenchThreePreview', () => {
     expect(lastRender.container.textContent).toContain('Mode final')
     expect(lastRender.container.textContent).toContain('Fold Progress 100%')
     expect(lastRender.container.textContent).toContain('Pattern View')
+    expect(lastRender.container.textContent).toContain('Fold Timeline')
+    expect(lastRender.container.textContent).toContain('Create From Folds')
 
     const colorInputs = lastRender.container.querySelectorAll('input[type="color"]')
     changeValue(colorInputs[colorInputs.length - 1] as HTMLInputElement, '#112233')
     expect((colorInputs[colorInputs.length - 1] as HTMLInputElement).value.toLowerCase()).toBe('#112233')
   })
 
+  it('creates and edits an authored fold timeline in Final Product mode', () => {
+    lastRender = renderForTest(createPreviewHarness({ initialMode: 'final' }))
+
+    expect(lastRender.container.textContent).toContain('Default sequence follows')
+    click(Array.from(lastRender.container.querySelectorAll('button')).find((button) => button.textContent === 'Create From Folds') ?? null)
+
+    expect(lastRender.container.textContent).toContain('Authored sequence: 1 step.')
+    expect(lastRender.container.textContent).toContain('Step 1')
+
+    const targetInput = Array.from(lastRender.container.querySelectorAll('input[type="number"]')).find((input) =>
+      input.closest('.fold-control-card')?.textContent?.includes('Target Angle'),
+    ) as HTMLInputElement | undefined
+    expect(targetInput?.value).toBe('90')
+    changeValue(targetInput ?? null, '45')
+    expect(targetInput?.value).toBe('45')
+  })
+
   it('shows final fold controls as a bottom drawer in full 3D mode', () => {
     lastRender = renderForTest(createPreviewHarness({ interactive: true, initialMode: 'final' }))
 
     expect(lastRender.container.textContent).toContain('Final Folds')
-    expect(lastRender.container.textContent).not.toContain('Crease 1')
+    expect(lastRender.container.textContent).toContain('Active step: Crease 1')
     expect(lastRender.container.textContent).not.toContain('Fold All 90')
     expect(lastRender.container.textContent).toContain('Use the Final Folds drawer')
 

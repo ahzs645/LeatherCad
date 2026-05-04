@@ -17,8 +17,11 @@ import type {
   ThreePreviewSettings,
 } from '../cad/cad-types'
 import { detectOutlines } from '../ops/outline-detection'
+import { buildFinalProductDocumentBounds } from '../three/final-product-document-bounds'
 import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct } from '../three/final-product-solver'
+import type { FinalProductDiagnostic } from '../three/final-product-types'
+import { buildFoldTimelinePreview } from '../three/fold-timeline'
 import { LEATHER_PRESETS } from '../three/material-presets'
 import { useThreeAssemblyModel } from './useThreeAssemblyModel'
 import type { OutlinePolygon, ThreeBridge as ThreeBridgeClass } from '../three/three-bridge'
@@ -64,50 +67,6 @@ const DEFAULT_MATERIAL_STATE: ThreeMaterialState = {
   presetId: null,
   leatherColor: null,
   shadowsEnabled: false,
-}
-
-function buildFinalProductDocumentBounds(
-  shapes: Shape[],
-  foldLines: FoldLine[],
-  outlinePolygons: OutlinePolygon[],
-) {
-  let minX = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-
-  const includePoint = (point: { x: number; y: number }) => {
-    minX = Math.min(minX, point.x)
-    maxX = Math.max(maxX, point.x)
-    minY = Math.min(minY, point.y)
-    maxY = Math.max(maxY, point.y)
-  }
-
-  for (const outline of outlinePolygons) {
-    outline.polygon.forEach(includePoint)
-  }
-  for (const shape of shapes) {
-    sampleShapePoints(shape, shape.type === 'line' ? 1 : 20).forEach(includePoint)
-  }
-  for (const foldLine of foldLines) {
-    includePoint(foldLine.start)
-    includePoint(foldLine.end)
-  }
-
-  if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
-    return { minX: -220, maxX: 220, minY: -140, maxY: 140 }
-  }
-
-  const width = Math.max(maxX - minX, 80)
-  const height = Math.max(maxY - minY, 80)
-  const centerX = (minX + maxX) / 2
-  const centerY = (minY + maxY) / 2
-  return {
-    minX: centerX - width / 2,
-    maxX: centerX + width / 2,
-    minY: centerY - height / 2,
-    maxY: centerY + height / 2,
-  }
 }
 
 function normalizeTextureSource(value: TextureSource): TextureSource {
@@ -270,19 +229,28 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       return null
     }
 
-    return solveFinalProduct({
+    const foldTimelinePreview = buildFoldTimelinePreview({
       foldLines,
+      instructions: threePreviewSettings.foldTimeline,
+      progress: threePreviewSettings.finalFoldProgress,
+    })
+
+    const assemblyFinalDiagnostics: FinalProductDiagnostic[] = assemblyDiagnostics.map((diagnostic) => ({
+      id: diagnostic.id,
+      code: diagnostic.code,
+      severity: diagnostic.severity === 'fatal' ? 'error' : diagnostic.severity,
+      message: diagnostic.message,
+      foldLineIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'fold').map((entry) => entry.id),
+      chainIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'stitchHole').map((entry) => entry.id),
+    }))
+    const explicitDiagnostics = [...assemblyFinalDiagnostics, ...foldTimelinePreview.diagnostics]
+
+    return solveFinalProduct({
+      foldLines: foldTimelinePreview.foldLines,
       stitchHoles,
       explicitStitchChains: explicitSeams.chains,
       explicitStitchPairs: explicitSeams.pairs,
-      explicitDiagnostics: assemblyDiagnostics.map((diagnostic) => ({
-        id: diagnostic.id,
-        code: diagnostic.code,
-        severity: diagnostic.severity === 'fatal' ? 'error' : diagnostic.severity,
-        message: diagnostic.message,
-        foldLineIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'fold').map((entry) => entry.id),
-        chainIds: diagnostic.entityRefs.filter((entry) => entry.kind === 'stitchHole').map((entry) => entry.id),
-      })),
+      explicitDiagnostics,
       regions: buildFinalProductRegions({
         layers: layersFor3d,
         lineTypes,
@@ -303,6 +271,8 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     shapesIn3dView,
     stitchHoles,
     threePreviewSettings.mode,
+    threePreviewSettings.finalFoldProgress,
+    threePreviewSettings.foldTimeline,
     threePreviewSettings.thicknessMm,
   ])
 

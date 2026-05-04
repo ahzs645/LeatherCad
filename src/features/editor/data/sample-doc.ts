@@ -1,4 +1,4 @@
-import type { DocFile, FoldLine, HardwareMarker, Layer, Shape } from '../cad/cad-types'
+import type { DocFile, FoldLine, HardwareMarker, Layer, Shape, ThreePreviewSettings } from '../cad/cad-types'
 import {
   CUT_LINE_TYPE_ID,
   DEFAULT_ACTIVE_LINE_TYPE_ID,
@@ -6,6 +6,7 @@ import {
   STITCH_LINE_TYPE_ID,
   createDefaultLineTypes,
 } from '../cad/line-types'
+import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 
 type PresetDefinition = {
   id: string
@@ -190,6 +191,7 @@ function buildDoc(
   foldLines: FoldLine[],
   activeLayerId = layers[0]?.id ?? 'layer-1',
   hardwareMarkers: HardwareMarker[] = [],
+  threePreviewSettings?: ThreePreviewSettings,
 ): DocFile {
   return {
     version: 1,
@@ -211,6 +213,7 @@ function buildDoc(
       ...marker,
       id: `${name}-${marker.id}`,
     })),
+    threePreviewSettings,
   }
 }
 
@@ -249,8 +252,8 @@ const walletShapes: Shape[] = [
   line('left-pocket-bottom', walletLeftPocketLayer.id, -108, 43, -8, 43),
   line('left-pocket-right', walletLeftPocketLayer.id, -8, 43, -8, -34),
   arc('left-pocket-thumb-cutout', walletLeftPocketLayer.id, -8, -34, -58, -50, -108, -34),
-  bezier('left-card-slot-upper', walletLeftPocketLayer.id, -100, -12, -58, -24, -16, -12),
-  bezier('left-card-slot-lower', walletLeftPocketLayer.id, -100, 10, -58, -2, -16, 10),
+  bezier('left-card-slot-upper', walletLeftPocketLayer.id, -100, -12, -58, -24, -16, -12, GUIDE_LINE_TYPE_ID),
+  bezier('left-card-slot-lower', walletLeftPocketLayer.id, -100, 10, -58, -2, -16, 10, GUIDE_LINE_TYPE_ID),
   line('left-pocket-stitch-left', walletLeftPocketLayer.id, -100, -24, -100, 35, STITCH_LINE_TYPE_ID),
   line('left-pocket-stitch-right', walletLeftPocketLayer.id, -16, -24, -16, 35, STITCH_LINE_TYPE_ID),
   line('left-pocket-stitch-bottom', walletLeftPocketLayer.id, -100, 35, -16, 35, STITCH_LINE_TYPE_ID),
@@ -259,8 +262,8 @@ const walletShapes: Shape[] = [
   line('right-pocket-bottom', walletRightPocketLayer.id, 8, 43, 108, 43),
   line('right-pocket-right', walletRightPocketLayer.id, 108, 43, 108, -34),
   arc('right-pocket-thumb-cutout', walletRightPocketLayer.id, 108, -34, 58, -50, 8, -34),
-  bezier('right-card-slot-upper', walletRightPocketLayer.id, 16, -12, 58, -24, 100, -12),
-  bezier('right-card-slot-lower', walletRightPocketLayer.id, 16, 10, 58, -2, 100, 10),
+  bezier('right-card-slot-upper', walletRightPocketLayer.id, 16, -12, 58, -24, 100, -12, GUIDE_LINE_TYPE_ID),
+  bezier('right-card-slot-lower', walletRightPocketLayer.id, 16, 10, 58, -2, 100, 10, GUIDE_LINE_TYPE_ID),
   line('right-pocket-stitch-left', walletRightPocketLayer.id, 16, -24, 16, 35, STITCH_LINE_TYPE_ID),
   line('right-pocket-stitch-right', walletRightPocketLayer.id, 100, -24, 100, 35, STITCH_LINE_TYPE_ID),
   line('right-pocket-stitch-bottom', walletRightPocketLayer.id, 16, 35, 100, 35, STITCH_LINE_TYPE_ID),
@@ -272,16 +275,23 @@ const walletFolds: FoldLine[] = [
     name: 'Wallet Center Fold',
     start: { x: 0, y: -48 },
     end: { x: 0, y: 48 },
-    angleDeg: 138,
+    angleDeg: 180,
     maxAngleDeg: 180,
-    direction: 'mountain',
-    radiusMm: 2.4,
-    thicknessMm: 1.8,
+    direction: 'valley',
+    radiusMm: 4,
+    thicknessMm: 1.1,
     neutralAxisRatio: 0.5,
     stiffness: 0.38,
     clearanceMm: 3.2,
   },
 ]
+
+const walletPreviewSettings: ThreePreviewSettings = {
+  ...DEFAULT_THREE_PREVIEW_SETTINGS,
+  mode: 'final',
+  explodedFactor: 0,
+  thicknessMm: 1.1,
+}
 
 const sleeveBackLayer = makeLayer('sleeve-back', 'Sleeve Back', 0)
 const sleeveFrontLayer = makeLayer('sleeve-front', 'Sleeve Front Pocket', 1)
@@ -575,7 +585,7 @@ export const PRESET_DOCS: PresetDefinition[] = [
   {
     id: 'wallet',
     label: 'Wallet',
-    doc: buildDoc('wallet', walletLayers, walletShapes, walletFolds, walletShellLayer.id),
+    doc: buildDoc('wallet', walletLayers, walletShapes, walletFolds, walletShellLayer.id, [], walletPreviewSettings),
   },
   {
     id: 'compact-clasp-wallet',

@@ -14,7 +14,7 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import type { StitchHole } from '../cad/cad-types'
+import type { FoldLine, StitchHole } from '../cad/cad-types'
 import { buildAssemblyDiagnostics, type AssemblyDiagnostic } from '../assembly/assembly-diagnostics'
 import { compileExplicitSeams } from '../assembly/seam-stitch-compiler'
 import { clearGroup } from './bridge/scene-lifecycle'
@@ -65,7 +65,37 @@ function pushVertex(
   uvs.push(source.x, source.y)
 }
 
-function createPanelGeometry(panel: SolvedFoldPanel, transform: CommonRebuildParams['transform'], thicknessMm: number) {
+function isPointOnSegment(point: { x: number; y: number }, start: { x: number; y: number }, end: { x: number; y: number }) {
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared <= 1e-8) {
+    return false
+  }
+
+  const cross = dx * (point.y - start.y) - dy * (point.x - start.x)
+  if (Math.abs(cross) > 1e-4) {
+    return false
+  }
+
+  const dot = (point.x - start.x) * dx + (point.y - start.y) * dy
+  return dot >= -1e-4 && dot <= lengthSquared + 1e-4
+}
+
+function isFoldEdge(edgeStart: { x: number; y: number }, edgeEnd: { x: number; y: number }, foldLines: FoldLine[]) {
+  return foldLines.some(
+    (foldLine) =>
+      isPointOnSegment(edgeStart, foldLine.start, foldLine.end) &&
+      isPointOnSegment(edgeEnd, foldLine.start, foldLine.end),
+  )
+}
+
+function createPanelGeometry(
+  panel: SolvedFoldPanel,
+  transform: CommonRebuildParams['transform'],
+  thicknessMm: number,
+  foldLines: FoldLine[],
+) {
   if (panel.polygon.length < 3) {
     return null
   }
@@ -95,6 +125,9 @@ function createPanelGeometry(panel: SolvedFoldPanel, transform: CommonRebuildPar
 
   for (let index = 0; index < projected.length; index += 1) {
     const nextIndex = (index + 1) % projected.length
+    if (isFoldEdge(panel.polygon[index], panel.polygon[nextIndex], foldLines)) {
+      continue
+    }
     pushVertex(vertices, uvs, front[index], panel.polygon[index])
     pushVertex(vertices, uvs, back[index], panel.polygon[index])
     pushVertex(vertices, uvs, back[nextIndex], panel.polygon[nextIndex])
@@ -120,7 +153,7 @@ function addPanelMeshes(
   layerColorById: Map<string, string>,
 ) {
   for (const panel of result.panels) {
-    const geometry = createPanelGeometry(panel, transform, thicknessMm)
+    const geometry = createPanelGeometry(panel, transform, thicknessMm, result.hinges.map((hinge) => hinge.foldLine))
     if (!geometry) {
       continue
     }
@@ -318,6 +351,7 @@ export function rebuildFinalProductModel({
 
   const foldTimelinePreview = buildFoldTimelinePreview({
     foldLines,
+    instructions: previewSettings.foldTimeline,
     progress: previewSettings.finalFoldProgress,
   })
   const previewFoldLines = foldTimelinePreview.foldLines
