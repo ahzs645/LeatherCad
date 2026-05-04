@@ -13,6 +13,13 @@ import type {
   AiBuilderCompileResult,
   AiBuilderValidationError,
 } from '../ai-builder/ai-builder-types'
+import {
+  getAiAgentStatus,
+  startAiAgentTurn,
+  type AiAgentEvent,
+  type AiAgentStatus,
+  type AiAgentTurnController,
+} from '../ai-builder/ai-agent-client'
 
 type AiBuilderModalProps = {
   open: boolean
@@ -32,6 +39,11 @@ type ValidationState =
       documentName: string
       compileResult: AiBuilderCompileResult
     }
+
+type AiBuilderValidationOptions = {
+  remember?: boolean
+  preview?: boolean
+}
 
 async function copyTextToClipboard(value: string) {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -71,6 +83,15 @@ export function AiBuilderModal({
   const [history, setHistory] = useState(EMPTY_AI_BUILDER_HISTORY)
   const [lastHistoryRawJson, setLastHistoryRawJson] = useState('')
   const [validationState, setValidationState] = useState<ValidationState | null>(null)
+  const [agentStatus, setAgentStatus] = useState<AiAgentStatus>({
+    available: false,
+    mode: 'checking',
+    model: null,
+    livePreview: false,
+  })
+  const [agentRunning, setAgentRunning] = useState(false)
+  const [agentLog, setAgentLog] = useState<string[]>([])
+  const agentControllerRef = useRef<AiAgentTurnController | null>(null)
   const promptPreview = useMemo(() => renderAiBuilderTurnPrompt({ history, request }), [history, request])
   const savedDocumentCount = history.turns.filter((turn) => turn.role === 'assistant').length
 
@@ -97,8 +118,156 @@ export function AiBuilderModal({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    let cancelled = false
+    setAgentStatus((current) => ({ ...current, mode: 'checking' }))
+    getAiAgentStatus().then((status) => {
+      if (!cancelled) {
+        setAgentStatus(status)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  useEffect(() => () => {
+    agentControllerRef.current?.stop()
+  }, [])
+
+  useEffect(() => {
+    if (!open) {
+      agentControllerRef.current?.stop()
+      agentControllerRef.current = null
+      setAgentRunning(false)
+    }
+  }, [open])
+
   if (!open) {
     return null
+  }
+
+  const appendAgentLog = (message: string) => {
+    setAgentLog((current) => [...current.slice(-7), message])
+  }
+
+  const validateAiBuilderJson = (nextRawJson: string, options: AiBuilderValidationOptions = {}) => {
+    if (nextRawJson.trim().length === 0) {
+      setValidationState({
+        kind: 'invalid',
+        errors: [{ path: '$', message: 'paste AI Builder JSON before validating' }],
+      })
+      onSetStatus('Paste AI Builder JSON before validating')
+      return false
+    }
+
+    const parseResult = parseAiBuilderDocument(nextRawJson)
+    if (!parseResult.ok) {
+      setValidationState({
+        kind: 'invalid',
+        errors: parseResult.errors,
+      })
+      onSetStatus(`AI Builder validation failed with ${parseResult.errors.length} error${parseResult.errors.length === 1 ? '' : 's'}`)
+      return false
+    }
+
+    const compileResult = compileAiBuilderDocument(parseResult.document)
+    const normalizedRawJson = nextRawJson.trim()
+    if (options.remember && normalizedRawJson !== lastHistoryRawJson) {
+      const historyRequest = request.trim() || AI_BUILDER_DEFAULT_REQUEST
+      setHistory((currentHistory) => appendAssistantTurn(appendUserTurn(currentHistory, historyRequest), normalizedRawJson))
+      setLastHistoryRawJson(normalizedRawJson)
+    }
+    setValidationState({
+      kind: 'valid',
+      documentName: parseResult.document.document_name,
+      compileResult,
+    })
+    if (options.preview) {
+      onLoadDocument(compileResult.doc, parseResult.document.document_name)
+      onSetStatus(
+        `Live AI preview loaded (${compileResult.summary.shapeCount} shapes, ${compileResult.summary.patternPieceCount} pieces, ${compileResult.summary.stitchHoleCount} stitch holes, ${compileResult.summary.preflightErrorCount} preflight errors)`,
+      )
+    } else {
+      onSetStatus(
+        `AI Builder JSON is valid (${compileResult.summary.shapeCount} shapes, ${compileResult.summary.patternPieceCount} pieces, ${compileResult.summary.stitchHoleCount} stitch holes, ${compileResult.summary.preflightErrorCount} preflight errors)`,
+      )
+    }
+    return true
+  }
+
+  const handleAgentEvent = (event: AiAgentEvent) => {
+    switch (event.type) {
+      case 'agent.status':
+        setAgentStatus({
+          available: event.available,
+          mode: event.mode,
+          model: event.model,
+          livePreview: event.livePreview,
+        })
+        break
+      case 'turn.started':
+        appendAgentLog(`Started ${event.mode}${event.model ? ` (${event.model})` : ''}`)
+        onSetStatus('Native AI agent started')
+        break
+      case 'agent.progress':
+        appendAgentLog(event.message)
+        break
+      case 'template.snapshot': {
+        setRawJson(event.rawJson)
+        const valid = validateAiBuilderJson(event.rawJson, {
+          remember: event.final,
+          preview: true,
+        })
+        appendAgentLog(`${valid ? 'Loaded' : 'Rejected'} snapshot ${event.stage}${event.final ? ' final' : ''}`)
+        break
+      }
+      case 'turn.completed':
+        setAgentRunning(false)
+        appendAgentLog('Completed')
+        onSetStatus('Native AI agent completed')
+        break
+      case 'turn.failed':
+        setAgentRunning(false)
+        appendAgentLog(`Failed: ${event.message}`)
+        onSetStatus(`Native AI agent failed: ${event.message}`)
+        break
+    }
+  }
+
+  const handleRunNativeAgent = () => {
+    if (agentRunning) {
+      return
+    }
+    const agentRequest = request.trim() || AI_BUILDER_DEFAULT_REQUEST
+    setAgentRunning(true)
+    setAgentLog([])
+    setValidationState(null)
+    appendAgentLog('Connecting to native agent')
+    agentControllerRef.current = startAiAgentTurn({
+      request: agentRequest,
+      currentJson: rawJson.trim().length > 0 ? rawJson.trim() : undefined,
+      onEvent: handleAgentEvent,
+      onError: (message) => {
+        setAgentRunning(false)
+        appendAgentLog(`Error: ${message}`)
+        onSetStatus(message)
+      },
+      onClose: () => {
+        setAgentRunning(false)
+      },
+    })
+  }
+
+  const handleStopNativeAgent = () => {
+    agentControllerRef.current?.stop()
+    agentControllerRef.current = null
+    setAgentRunning(false)
+    appendAgentLog('Stopped')
+    onSetStatus('Native AI agent stopped')
   }
 
   const handleCopyPrompt = async () => {
@@ -111,40 +280,7 @@ export function AiBuilderModal({
   }
 
   const handleValidate = () => {
-    if (rawJson.trim().length === 0) {
-      setValidationState({
-        kind: 'invalid',
-        errors: [{ path: '$', message: 'paste AI Builder JSON before validating' }],
-      })
-      onSetStatus('Paste AI Builder JSON before validating')
-      return
-    }
-
-    const parseResult = parseAiBuilderDocument(rawJson)
-    if (!parseResult.ok) {
-      setValidationState({
-        kind: 'invalid',
-        errors: parseResult.errors,
-      })
-      onSetStatus(`AI Builder validation failed with ${parseResult.errors.length} error${parseResult.errors.length === 1 ? '' : 's'}`)
-      return
-    }
-
-    const compileResult = compileAiBuilderDocument(parseResult.document)
-    const normalizedRawJson = rawJson.trim()
-    if (normalizedRawJson !== lastHistoryRawJson) {
-      const historyRequest = request.trim() || AI_BUILDER_DEFAULT_REQUEST
-      setHistory((currentHistory) => appendAssistantTurn(appendUserTurn(currentHistory, historyRequest), normalizedRawJson))
-      setLastHistoryRawJson(normalizedRawJson)
-    }
-    setValidationState({
-      kind: 'valid',
-      documentName: parseResult.document.document_name,
-      compileResult,
-    })
-    onSetStatus(
-      `AI Builder JSON is valid (${compileResult.summary.shapeCount} shapes, ${compileResult.summary.patternPieceCount} pieces, ${compileResult.summary.stitchHoleCount} stitch holes, ${compileResult.summary.preflightErrorCount} preflight errors)`,
-    )
+    validateAiBuilderJson(rawJson, { remember: true })
   }
 
   const handleResetHistory = () => {
@@ -193,6 +329,40 @@ export function AiBuilderModal({
         <p className="hint">
           Describe the pattern, copy the generated prompt into any AI service, then paste the returned JSON here for strict validation and import.
         </p>
+
+        <div className="control-block ai-builder-agent-panel">
+          <div className="ai-builder-agent-status">
+            <div>
+              <h3>Native Live Agent</h3>
+              <p className="hint">
+                {agentStatus.mode === 'checking'
+                  ? 'Checking local agent server...'
+                  : agentStatus.available
+                    ? `Connected: ${agentStatus.mode}${agentStatus.model ? ` (${agentStatus.model})` : ''}`
+                    : agentStatus.message ?? 'Start with npm run agent to enable live generation.'}
+              </p>
+            </div>
+            <div className="line-type-modal-actions">
+              <button
+                type="button"
+                onClick={handleRunNativeAgent}
+                disabled={agentRunning || !agentStatus.available}
+              >
+                Run Live
+              </button>
+              <button type="button" onClick={handleStopNativeAgent} disabled={!agentRunning}>
+                Stop
+              </button>
+            </div>
+          </div>
+          {agentLog.length > 0 && (
+            <ol className="ai-builder-agent-log" aria-label="Native agent progress">
+              {agentLog.map((entry, index) => (
+                <li key={`${entry}-${index}`}>{entry}</li>
+              ))}
+            </ol>
+          )}
+        </div>
 
         <div className="control-block">
           <h3>Request</h3>

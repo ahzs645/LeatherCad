@@ -2,14 +2,21 @@
   "name": "leathercad",
   "private": true,
   "version": "0.0.0",
+  "bin": {
+    "leathercad": "./scripts/leathercad-agent-server.mjs"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "agent": "npm run build && node scripts/leathercad-agent-server.mjs",
+    "agent:serve": "node scripts/leathercad-agent-server.mjs",
     "lint": "eslint .",
     "check:architecture": "node scripts/check-file-size.mjs",
+    "render:ai-builder-benchmarks": "node scripts/render-ai-builder-benchmarks.mjs",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:ai-builder-benchmarks": "vitest run src/features/editor/ai-builder/ai-builder-benchmark.test.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },

@@ -1,0 +1,288 @@
+{
+  "schema_version": 1,
+  "document_name": "vertical_card_sleeve",
+  "units": "mm",
+  "layers": [
+    {
+      "id": "cut",
+      "name": "Cut Lines"
+    },
+    {
+      "id": "stitching",
+      "name": "Stitching"
+    },
+    {
+      "id": "markings",
+      "name": "Markings"
+    }
+  ],
+  "entities": [
+    {
+      "id": "back_panel_outline",
+      "type": "rectangle",
+      "layer_id": "cut",
+      "x": 0,
+      "y": 0,
+      "width": 72,
+      "height": 105,
+      "line_role": "cut"
+    },
+    {
+      "id": "front_pocket_outline",
+      "type": "rectangle",
+      "layer_id": "cut",
+      "x": 96,
+      "y": 27,
+      "width": 72,
+      "height": 78,
+      "line_role": "cut"
+    },
+    {
+      "id": "back_left_stitch_path",
+      "type": "stitch_path",
+      "layer_id": "stitching",
+      "path_type": "line",
+      "start": {
+        "x": 4,
+        "y": 31
+      },
+      "end": {
+        "x": 4,
+        "y": 101
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "back_right_stitch_path",
+      "type": "stitch_path",
+      "layer_id": "stitching",
+      "path_type": "line",
+      "start": {
+        "x": 68,
+        "y": 31
+      },
+      "end": {
+        "x": 68,
+        "y": 101
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "back_bottom_stitch_path",
+      "type": "stitch_path",
+      "layer_id": "stitching",
+      "path_type": "line",
+      "start": {
+        "x": 68,
+        "y": 101
+      },
+      "end": {
+        "x": 4,
+        "y": 101
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "front_left_stitch_path",
+      "type": "stitch_path",
+      "layer_id": "stitching",
+      "path_type": "line",
+      "start": {
+        "x": 100,
+        "y": 31
+      },
+      "end": {
+        "x": 100,
+        "y": 101
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "front_right_stitch_path",
+      "type": "stitch_path",
+      "layer_id": "stitching",
+      "path_type": "line",
+      "start": {
+        "x": 164,
+        "y": 31
+      },
+      "end": {
+        "x": 164,
+        "y": 101
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "front_bottom_stitch_path",
+      "type": "stitch_path",
+      "layer_id": "stitching",
+      "path_type": "line",
+      "start": {
+        "x": 164,
+        "y": 101
+      },
+      "end": {
+        "x": 100,
+        "y": 101
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "back_panel_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": 19,
+        "y": 52
+      },
+      "value": "Back Panel",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "front_pocket_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": 113,
+        "y": 66
+      },
+      "value": "Front Pocket",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "back_panel_piece",
+      "type": "pattern_piece",
+      "layer_id": "cut",
+      "boundary_entity_id": "back_panel_outline",
+      "internal_entity_ids": [
+        "back_left_stitch_path",
+        "back_right_stitch_path",
+        "back_bottom_stitch_path",
+        "back_panel_label"
+      ],
+      "name": "Back Panel",
+      "quantity": 1,
+      "material_side": "grain"
+    },
+    {
+      "id": "front_pocket_piece",
+      "type": "pattern_piece",
+      "layer_id": "cut",
+      "boundary_entity_id": "front_pocket_outline",
+      "internal_entity_ids": [
+        "front_left_stitch_path",
+        "front_right_stitch_path",
+        "front_bottom_stitch_path",
+        "front_pocket_label"
+      ],
+      "name": "Front Pocket",
+      "quantity": 1,
+      "material_side": "grain"
+    },
+    {
+      "id": "back_panel_seam_allowance",
+      "type": "seam_allowance",
+      "piece_id": "back_panel_piece",
+      "default_offset_mm": 4
+    },
+    {
+      "id": "front_pocket_seam_allowance",
+      "type": "seam_allowance",
+      "piece_id": "front_pocket_piece",
+      "default_offset_mm": 4
+    },
+    {
+      "id": "left_side_seam_connection",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 3,
+        "t0": 0,
+        "t1": 0.742857143
+      },
+      "to": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 3
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.25
+    },
+    {
+      "id": "right_side_seam_connection",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 1,
+        "t0": 0.257142857,
+        "t1": 1
+      },
+      "to": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.25
+    },
+    {
+      "id": "bottom_seam_connection",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 2
+      },
+      "to": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 2
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.25
+    }
+  ]
+}

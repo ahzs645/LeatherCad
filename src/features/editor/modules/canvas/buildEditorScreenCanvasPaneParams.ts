@@ -2,6 +2,7 @@ import type { UseEditorScreenShellsParams } from '../../editorScreenShellTypes'
 import { buildCanvasPaneParams } from './buildCanvasPaneParams'
 
 export function buildEditorScreenCanvasPaneParams({
+  resolvedThemeMode,
   documentState,
   uiState,
   selectionState,
@@ -109,6 +110,7 @@ export function buildEditorScreenCanvasPaneParams({
     handleMarkSelectedStitchHoleAsEnd,
     handleClearSelectedStitchHoleEnd,
   } = creationController
+  const effectiveGridBackgroundMode = gridBackgroundMode === 'theme' ? resolvedThemeMode : gridBackgroundMode
 
   return buildCanvasPaneParams({
     svgRef,
@@ -116,7 +118,7 @@ export function buildEditorScreenCanvasPaneParams({
     onPointerMove: handlePointerMove,
     onPointerUp: handlePointerUp,
     showGrid,
-    gridBackgroundMode,
+    gridBackgroundMode: effectiveGridBackgroundMode,
     setTracingOverlays,
     setBackdrops,
     setActiveBackdropId,

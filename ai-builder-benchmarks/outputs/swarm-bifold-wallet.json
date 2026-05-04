@@ -1,0 +1,457 @@
+{
+  "schema_version": 1,
+  "document_name": "bifold_wallet",
+  "units": "mm",
+  "layers": [
+    {
+      "id": "shell",
+      "name": "Outer Shell"
+    },
+    {
+      "id": "left_pocket",
+      "name": "Left Pocket"
+    },
+    {
+      "id": "right_pocket",
+      "name": "Right Pocket"
+    },
+    {
+      "id": "markings",
+      "name": "Mark Lines"
+    }
+  ],
+  "entities": [
+    {
+      "id": "shell_outline",
+      "type": "rectangle",
+      "layer_id": "shell",
+      "x": -110,
+      "y": -45,
+      "width": 220,
+      "height": 90,
+      "line_role": "cut"
+    },
+    {
+      "id": "center_fold_mark",
+      "type": "line",
+      "layer_id": "markings",
+      "start": {
+        "x": 0,
+        "y": -45
+      },
+      "end": {
+        "x": 0,
+        "y": 45
+      },
+      "line_role": "fold"
+    },
+    {
+      "id": "wallet_center_fold",
+      "type": "fold",
+      "start": {
+        "x": 0,
+        "y": -45
+      },
+      "end": {
+        "x": 0,
+        "y": 45
+      },
+      "name": "Wallet Center Fold",
+      "direction": "mountain",
+      "angle_deg": 140,
+      "max_angle_deg": 180,
+      "radius_mm": 2.5,
+      "thickness_mm": 1.6,
+      "neutral_axis_ratio": 0.5,
+      "stiffness": 0.38,
+      "clearance_mm": 3
+    },
+    {
+      "id": "shell_left_perimeter_stitch",
+      "type": "stitch_path",
+      "layer_id": "shell",
+      "path_type": "line",
+      "start": {
+        "x": -104,
+        "y": -38
+      },
+      "end": {
+        "x": -104,
+        "y": 38
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "shell_bottom_perimeter_stitch",
+      "type": "stitch_path",
+      "layer_id": "shell",
+      "path_type": "line",
+      "start": {
+        "x": -104,
+        "y": 38
+      },
+      "end": {
+        "x": 104,
+        "y": 38
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "shell_right_perimeter_stitch",
+      "type": "stitch_path",
+      "layer_id": "shell",
+      "path_type": "line",
+      "start": {
+        "x": 104,
+        "y": 38
+      },
+      "end": {
+        "x": 104,
+        "y": -38
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "left_pocket_outline",
+      "type": "rectangle",
+      "layer_id": "left_pocket",
+      "x": -110,
+      "y": -32,
+      "width": 95,
+      "height": 64,
+      "line_role": "cut"
+    },
+    {
+      "id": "left_pocket_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "left_pocket",
+      "path_type": "line",
+      "start": {
+        "x": -104,
+        "y": -26
+      },
+      "end": {
+        "x": -104,
+        "y": 26
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "left_pocket_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "left_pocket",
+      "path_type": "line",
+      "start": {
+        "x": -21,
+        "y": -26
+      },
+      "end": {
+        "x": -21,
+        "y": 26
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "left_pocket_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "left_pocket",
+      "path_type": "line",
+      "start": {
+        "x": -104,
+        "y": 26
+      },
+      "end": {
+        "x": -21,
+        "y": 26
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "right_pocket_outline",
+      "type": "rectangle",
+      "layer_id": "right_pocket",
+      "x": 15,
+      "y": -32,
+      "width": 95,
+      "height": 64,
+      "line_role": "cut"
+    },
+    {
+      "id": "right_pocket_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "right_pocket",
+      "path_type": "line",
+      "start": {
+        "x": 21,
+        "y": -26
+      },
+      "end": {
+        "x": 21,
+        "y": 26
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "right_pocket_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "right_pocket",
+      "path_type": "line",
+      "start": {
+        "x": 104,
+        "y": -26
+      },
+      "end": {
+        "x": 104,
+        "y": 26
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "right_pocket_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "right_pocket",
+      "path_type": "line",
+      "start": {
+        "x": 21,
+        "y": 26
+      },
+      "end": {
+        "x": 104,
+        "y": 26
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "shell_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": -42,
+        "y": -54
+      },
+      "value": "Outer Shell 220x90",
+      "line_role": "mark",
+      "font_size_mm": 5
+    },
+    {
+      "id": "center_fold_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": 4,
+        "y": -4
+      },
+      "value": "Center Fold",
+      "line_role": "mark",
+      "font_size_mm": 4
+    },
+    {
+      "id": "left_pocket_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": -98,
+        "y": 42
+      },
+      "value": "Left Pocket 95x64",
+      "line_role": "mark",
+      "font_size_mm": 4
+    },
+    {
+      "id": "right_pocket_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": 24,
+        "y": 42
+      },
+      "value": "Right Pocket 95x64",
+      "line_role": "mark",
+      "font_size_mm": 4
+    },
+    {
+      "id": "shell_piece",
+      "type": "pattern_piece",
+      "layer_id": "shell",
+      "boundary_entity_id": "shell_outline",
+      "internal_entity_ids": [
+        "center_fold_mark",
+        "shell_left_perimeter_stitch",
+        "shell_bottom_perimeter_stitch",
+        "shell_right_perimeter_stitch",
+        "shell_label",
+        "center_fold_label"
+      ],
+      "name": "Outer Shell",
+      "quantity": 1,
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "horizontal"
+    },
+    {
+      "id": "left_pocket_piece",
+      "type": "pattern_piece",
+      "layer_id": "left_pocket",
+      "boundary_entity_id": "left_pocket_outline",
+      "internal_entity_ids": [
+        "left_pocket_left_stitch",
+        "left_pocket_right_stitch",
+        "left_pocket_bottom_stitch",
+        "left_pocket_label"
+      ],
+      "name": "Left Card Pocket",
+      "quantity": 1,
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "horizontal"
+    },
+    {
+      "id": "right_pocket_piece",
+      "type": "pattern_piece",
+      "layer_id": "right_pocket",
+      "boundary_entity_id": "right_pocket_outline",
+      "internal_entity_ids": [
+        "right_pocket_left_stitch",
+        "right_pocket_right_stitch",
+        "right_pocket_bottom_stitch",
+        "right_pocket_label"
+      ],
+      "name": "Right Card Pocket",
+      "quantity": 1,
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "horizontal"
+    },
+    {
+      "id": "shell_allowance",
+      "type": "seam_allowance",
+      "piece_id": "shell_piece",
+      "default_offset_mm": 3
+    },
+    {
+      "id": "left_pocket_allowance",
+      "type": "seam_allowance",
+      "piece_id": "left_pocket_piece",
+      "default_offset_mm": 3
+    },
+    {
+      "id": "right_pocket_allowance",
+      "type": "seam_allowance",
+      "piece_id": "right_pocket_piece",
+      "default_offset_mm": 3
+    },
+    {
+      "id": "left_pocket_left_to_shell_left",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "left_pocket_piece",
+        "edge_index": 3
+      },
+      "to": {
+        "piece_id": "shell_piece",
+        "edge_index": 3,
+        "t0": 0.144444,
+        "t1": 0.855556
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "left_pocket_bottom_to_shell_bottom",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "left_pocket_piece",
+        "edge_index": 2
+      },
+      "to": {
+        "piece_id": "shell_piece",
+        "edge_index": 2,
+        "t0": 0.568182,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "right_pocket_right_to_shell_right",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "right_pocket_piece",
+        "edge_index": 1
+      },
+      "to": {
+        "piece_id": "shell_piece",
+        "edge_index": 1,
+        "t0": 0.144444,
+        "t1": 0.855556
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "right_pocket_bottom_to_shell_bottom",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "right_pocket_piece",
+        "edge_index": 2
+      },
+      "to": {
+        "piece_id": "shell_piece",
+        "edge_index": 2,
+        "t0": 0,
+        "t1": 0.431818
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    }
+  ]
+}

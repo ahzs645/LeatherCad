@@ -153,6 +153,29 @@
   font-family: 'SFMono-Regular', 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
+.ai-builder-agent-panel {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface-input);
+}
+
+.ai-builder-agent-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ai-builder-agent-log {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .ai-builder-summary-grid {
   display: grid;
   gap: 8px;
@@ -336,4 +359,3 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-

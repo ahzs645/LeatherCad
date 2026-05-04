@@ -141,7 +141,7 @@ export type EditorUIState = {
   leatherSimEnabled: boolean
   translationMap: Record<string, string>
   showGrid: boolean
-  gridBackgroundMode: 'light' | 'dark'
+  gridBackgroundMode: 'theme' | 'light' | 'dark'
   showLengthAdjustModal: boolean
   showOptionsModal: boolean
   leatherSimTextureRotationDeg: number

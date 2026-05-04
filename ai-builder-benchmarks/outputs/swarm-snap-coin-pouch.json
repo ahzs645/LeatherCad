@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "document_name": "snap_coin_pouch",
+  "units": "mm",
+  "layers": [
+    {
+      "id": "body_layer",
+      "name": "Body"
+    },
+    {
+      "id": "stitch_layer",
+      "name": "Stitching"
+    },
+    {
+      "id": "mark_layer",
+      "name": "Mark Lines"
+    },
+    {
+      "id": "hardware_layer",
+      "name": "Hardware"
+    }
+  ],
+  "entities": [
+    {
+      "id": "body_outline",
+      "type": "rectangle",
+      "layer_id": "body_layer",
+      "x": -80,
+      "y": -70,
+      "width": 160,
+      "height": 140,
+      "line_role": "cut"
+    },
+    {
+      "id": "flap_body_fold_mark",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": {
+        "x": -72,
+        "y": 0
+      },
+      "end": {
+        "x": 72,
+        "y": 0
+      },
+      "line_role": "fold"
+    },
+    {
+      "id": "flap_body_fold",
+      "type": "fold",
+      "start": {
+        "x": -72,
+        "y": 0
+      },
+      "end": {
+        "x": 72,
+        "y": 0
+      },
+      "name": "Flap Body Fold",
+      "direction": "valley",
+      "angle_deg": 180,
+      "max_angle_deg": 180,
+      "radius_mm": 2.2,
+      "thickness_mm": 1.6,
+      "neutral_axis_ratio": 0.5,
+      "stiffness": 0.36,
+      "clearance_mm": 2
+    },
+    {
+      "id": "left_side_stitch",
+      "type": "stitch_path",
+      "layer_id": "stitch_layer",
+      "path_type": "line",
+      "start": {
+        "x": -70,
+        "y": -56
+      },
+      "end": {
+        "x": -70,
+        "y": 56
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "right_side_stitch",
+      "type": "stitch_path",
+      "layer_id": "stitch_layer",
+      "path_type": "line",
+      "start": {
+        "x": 70,
+        "y": -56
+      },
+      "end": {
+        "x": 70,
+        "y": 56
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": -35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "snap_cap_marker",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": {
+        "x": 0,
+        "y": -35
+      },
+      "kind": "snap",
+      "label": "Snap Cap",
+      "hole_diameter_mm": 4,
+      "installation_side": "grain",
+      "notes": "Flap snap half; aligns with snap_socket_marker across the fold.",
+      "visible": true
+    },
+    {
+      "id": "snap_socket_marker",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": {
+        "x": 0,
+        "y": 35
+      },
+      "kind": "snap",
+      "label": "Snap Socket",
+      "hole_diameter_mm": 4,
+      "installation_side": "flesh",
+      "notes": "Body snap half; same x coordinate and equal fold offset as snap_cap_marker.",
+      "visible": true
+    },
+    {
+      "id": "fold_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": {
+        "x": -62,
+        "y": -5
+      },
+      "value": "fold flap to body",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "flap_snap_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": {
+        "x": 8,
+        "y": -35
+      },
+      "value": "snap cap",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "body_snap_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": {
+        "x": 8,
+        "y": 35
+      },
+      "value": "snap socket",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "side_stitch_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": {
+        "x": -78,
+        "y": 62
+      },
+      "value": "side seam stitch lines",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "body_piece",
+      "type": "pattern_piece",
+      "layer_id": "body_layer",
+      "boundary_entity_id": "body_outline",
+      "internal_entity_ids": [
+        "flap_body_fold_mark",
+        "left_side_stitch",
+        "right_side_stitch",
+        "fold_text_label",
+        "flap_snap_text_label",
+        "body_snap_text_label",
+        "side_stitch_text_label"
+      ],
+      "name": "Snap Coin Pouch Body",
+      "quantity": 1,
+      "code": "scp_body",
+      "annotation": "Fold on center mark; install snap halves on marked centers.",
+      "material": "1.4 to 1.8 mm vegetable tanned leather",
+      "material_side": "grain",
+      "notes": "Single-piece unfolded template, 160 mm wide by 140 mm high.",
+      "orientation": "vertical",
+      "allow_flip": false,
+      "include_in_layout": true
+    },
+    {
+      "id": "body_seam_allowance",
+      "type": "seam_allowance",
+      "piece_id": "body_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "left_side_seam_connection",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "body_piece",
+        "edge_index": 3,
+        "t0": 0,
+        "t1": 0.5,
+        "reversed": true
+      },
+      "to": {
+        "piece_id": "body_piece",
+        "edge_index": 3,
+        "t0": 0.5,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5,
+      "reversed": true
+    },
+    {
+      "id": "right_side_seam_connection",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "body_piece",
+        "edge_index": 1,
+        "t0": 0,
+        "t1": 0.5
+      },
+      "to": {
+        "piece_id": "body_piece",
+        "edge_index": 1,
+        "t0": 0.5,
+        "t1": 1,
+        "reversed": true
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5,
+      "reversed": true
+    }
+  ]
+}

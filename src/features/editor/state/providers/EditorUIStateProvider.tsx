@@ -73,7 +73,7 @@ const initialEditorUIState: EditorUIState = {
   leatherSimEnabled: false,
   translationMap: loadTranslationMap(),
   showGrid: true,
-  gridBackgroundMode: 'light',
+  gridBackgroundMode: 'theme',
   showLengthAdjustModal: false,
   showOptionsModal: false,
   leatherSimTextureRotationDeg: loadEditorPreferences().leatherSimTextureRotationDeg,
