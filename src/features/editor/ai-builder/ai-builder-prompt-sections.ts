@@ -63,6 +63,7 @@ const BASE_CONSTRAINTS = [
   'Units must be "mm".',
   'Positive x moves right. Positive y moves down.',
   'If a requested feature is unsupported in v1, omit it instead of inventing extra keys or entity types.',
+  'Use stable entity ids because LeatherCad will expose compiled output as @leather[kind:id] refs for refinement prompts.',
 ]
 
 const REFINEMENT_CONSTRAINTS = [

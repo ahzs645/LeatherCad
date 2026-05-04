@@ -17,6 +17,7 @@ import type { OutlinePolygon } from './three-bridge-types'
 const DEFAULT_MAX_ITERATIONS = 160
 const DEFAULT_STITCH_TOLERANCE_MM = 0.25
 const DEFAULT_HINGE_TOLERANCE_DEG = 1
+const FOLD_CLEARANCE_START_DEG = 0.5
 
 export type FinalProductSolveOptions = {
   maxIterations?: number
@@ -105,38 +106,48 @@ function inheritStackTransforms(panels: FoldPanel[], transforms: Map<string, Mat
   }
 }
 
-function transformedPanelCentroid(panel: FoldPanel, transform: Matrix4) {
-  return pointToVector(panelCentroid(panel)).applyMatrix4(transform)
-}
+function inheritStackClearanceLevels(
+  panels: FoldPanel[],
+  transforms: Map<string, Matrix4>,
+  closedFoldClearanceLevelById: Map<string, number>,
+) {
+  const orderedPanels = [...panels].sort((left, right) => (left.stackLevel ?? 0) - (right.stackLevel ?? 0))
 
-function stackOffsetSign(panel: FoldPanel, normal: Vector3, stackDistance: number, panels: FoldPanel[], transforms: Map<string, Matrix4>) {
-  const center = transformedPanelCentroid(panel, transforms.get(panel.id) ?? new Matrix4())
-  const flatCenter = panelCentroid(panel)
-  const oppositeBasePanels = panels.filter((candidate) => {
-    if ((candidate.stackLevel ?? 0) !== 0 || candidate.id === panel.id) {
-      return false
+  for (const panel of orderedPanels) {
+    const stackLevel = panel.stackLevel ?? 0
+    if (stackLevel <= 0 || closedFoldClearanceLevelById.has(panel.id)) {
+      continue
     }
-    return !pointInPolygon(flatCenter, candidate.polygon)
-  })
-  if (oppositeBasePanels.length === 0) {
-    return 1
-  }
 
-  const positive = center.clone().addScaledVector(normal, stackDistance)
-  const negative = center.clone().addScaledVector(normal, -stackDistance)
-  const nearestDistance = (point: Vector3) => Math.min(
-    ...oppositeBasePanels.map((candidate) => point.distanceToSquared(transformedPanelCentroid(candidate, transforms.get(candidate.id) ?? new Matrix4()))),
-  )
-  return nearestDistance(negative) < nearestDistance(positive) ? -1 : 1
+    const center = panelCentroid(panel)
+    const carrier = orderedPanels
+      .filter((candidate) => transforms.has(candidate.id) && candidate.id !== panel.id && (candidate.stackLevel ?? 0) < stackLevel)
+      .sort((left, right) => {
+        const stackDelta = (right.stackLevel ?? 0) - (left.stackLevel ?? 0)
+        if (stackDelta !== 0) return stackDelta
+        return right.areaMm2 - left.areaMm2
+      })
+      .find((candidate) => pointInPolygon(center, candidate.polygon))
+
+    if (carrier) {
+      closedFoldClearanceLevelById.set(panel.id, closedFoldClearanceLevelById.get(carrier.id) ?? 0)
+    }
+  }
 }
 
-function stackOffsetForPanel(panel: FoldPanel, transform: Matrix4, panels: FoldPanel[], transforms: Map<string, Matrix4>, stackStepMm: number) {
+function stackOffsetForPanel(
+  panel: FoldPanel,
+  transform: Matrix4,
+  stackStepMm: number,
+  closedFoldClearanceLevel: number,
+) {
   const stackDistance = (panel.stackLevel ?? 0) * stackStepMm
-  if (stackDistance === 0) {
-    return new Vector3(0, 0, 0)
+  const offset = new Vector3(0, closedFoldClearanceLevel * stackStepMm, 0)
+  if (stackDistance > 0) {
+    const normal = new Vector3(0, 1, 0).applyMatrix4(transform).sub(new Vector3(0, 0, 0).applyMatrix4(transform)).normalize()
+    offset.add(normal.multiplyScalar(stackDistance))
   }
-  const normal = new Vector3(0, 1, 0).applyMatrix4(transform).sub(new Vector3(0, 0, 0).applyMatrix4(transform)).normalize()
-  return normal.multiplyScalar(stackDistance * stackOffsetSign(panel, normal, stackDistance, panels, transforms))
+  return offset
 }
 
 function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm: number) {
@@ -145,8 +156,18 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
   }
 
   const transforms = new Map<string, Matrix4>()
+  const closedFoldClearanceLevelById = new Map<string, number>()
   const root = [...panels].sort((left, right) => right.areaMm2 - left.areaMm2)[0]
   transforms.set(root.id, new Matrix4())
+  closedFoldClearanceLevelById.set(root.id, 0)
+  const foldClearanceLevelByLineId = new Map<string, number>()
+  for (const hinge of hinges) {
+    if (foldClearanceLevelByLineId.has(hinge.foldLine.id)) {
+      continue
+    }
+    const closureFactor = Math.abs(hinge.signedAngleDeg) <= FOLD_CLEARANCE_START_DEG ? 0 : 1
+    foldClearanceLevelByLineId.set(hinge.foldLine.id, (foldClearanceLevelByLineId.size + 1) * closureFactor)
+  }
 
   const adjacency = new Map<string, Array<{ hinge: FoldHinge; nextPanelId: string; direction: 1 | -1 }>>()
   for (const hinge of hinges) {
@@ -176,16 +197,25 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
       const angleRad = (entry.hinge.signedAngleDeg * entry.direction * Math.PI) / 180
       const rotation = makeRotationAroundAxis(axisStart, axisEnd, angleRad)
       transforms.set(entry.nextPanelId, rotation.multiply(currentTransform.clone()))
+      const closedFoldRank = foldClearanceLevelByLineId.get(entry.hinge.foldLine.id) ?? 0
+      const currentClearanceLevel = closedFoldClearanceLevelById.get(panelId) ?? 0
+      closedFoldClearanceLevelById.set(entry.nextPanelId, Math.max(currentClearanceLevel, closedFoldRank))
       queue.push(entry.nextPanelId)
     }
   }
 
   inheritStackTransforms(panels, transforms)
+  inheritStackClearanceLevels(panels, transforms, closedFoldClearanceLevelById)
 
   return panels.map((panel) => ({
     ...panel,
     transform: transforms.get(panel.id) ?? new Matrix4(),
-    offset: stackOffsetForPanel(panel, transforms.get(panel.id) ?? new Matrix4(), panels, transforms, stackStepMm),
+    offset: stackOffsetForPanel(
+      panel,
+      transforms.get(panel.id) ?? new Matrix4(),
+      stackStepMm,
+      closedFoldClearanceLevelById.get(panel.id) ?? 0,
+    ),
   }))
 }
 
@@ -329,54 +359,227 @@ function solveStitchOffsets({
   return { iterations, rmsStitchErrorMm }
 }
 
-function collisionDiagnostics(panels: SolvedFoldPanel[], hinges: FoldHinge[], thicknessMm: number) {
+type SolvedPanelCollisionData = {
+  panel: SolvedFoldPanel
+  points: Vector3[]
+  testPoints: Vector3[]
+  normal: Vector3
+  basisU: Vector3
+  basisV: Vector3
+  projectedPolygon: Array<{ x: number; y: number }>
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+  minZ: number
+  maxZ: number
+}
+
+function distancePointToSegment2d(point: { x: number; y: number }, start: { x: number; y: number }, end: { x: number; y: number }) {
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const lengthSquared = dx * dx + dy * dy
+  if (lengthSquared <= 1e-12) {
+    return Math.hypot(point.x - start.x, point.y - start.y)
+  }
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
+  return Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t))
+}
+
+function minDistanceToPolygonEdge(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>) {
+  if (polygon.length === 0) {
+    return 0
+  }
+  let minDistance = Number.POSITIVE_INFINITY
+  for (let index = 0; index < polygon.length; index += 1) {
+    minDistance = Math.min(minDistance, distancePointToSegment2d(point, polygon[index], polygon[(index + 1) % polygon.length]))
+  }
+  return minDistance
+}
+
+function panelNormal(points: Vector3[]) {
+  if (points.length < 3) {
+    return new Vector3(0, 1, 0)
+  }
+
+  const origin = points[0]
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const normal = points[index].clone().sub(origin).cross(points[index + 1].clone().sub(origin))
+    if (normal.lengthSq() > 1e-10) {
+      return normal.normalize()
+    }
+  }
+  return new Vector3(0, 1, 0)
+}
+
+function panelBasis(points: Vector3[], normal: Vector3) {
+  const origin = points[0] ?? new Vector3()
+  const basisU = points
+    .slice(1)
+    .map((point) => point.clone().sub(origin))
+    .find((edge) => edge.lengthSq() > 1e-10)
+    ?.normalize() ?? new Vector3(1, 0, 0)
+  const basisV = normal.clone().cross(basisU)
+  if (basisV.lengthSq() <= 1e-10) {
+    return { basisU: new Vector3(1, 0, 0), basisV: new Vector3(0, 0, 1) }
+  }
+  basisV.normalize()
+  return { basisU, basisV }
+}
+
+function projectPointToPanelBasis(point: Vector3, origin: Vector3, basisU: Vector3, basisV: Vector3) {
+  const local = point.clone().sub(origin)
+  return {
+    x: local.dot(basisU),
+    y: local.dot(basisV),
+  }
+}
+
+function pointInProjectedPolygon(point: { x: number; y: number }, polygon: Array<{ x: number; y: number }>, edgeMarginMm = 0) {
+  let inside = false
+  for (let index = 0, previousIndex = polygon.length - 1; index < polygon.length; previousIndex = index, index += 1) {
+    const current = polygon[index]
+    const previous = polygon[previousIndex]
+    const intersects =
+      (current.y > point.y) !== (previous.y > point.y) &&
+      point.x < ((previous.x - current.x) * (point.y - current.y)) / ((previous.y - current.y) || 1e-9) + current.x
+    if (intersects) {
+      inside = !inside
+    }
+  }
+  return inside && (edgeMarginMm <= 0 || minDistanceToPolygonEdge(point, polygon) > edgeMarginMm)
+}
+
+function buildPanelCollisionData(panel: SolvedFoldPanel): SolvedPanelCollisionData {
+  const points = panel.polygon.map((point) => solvePanelPoint(panel, point))
+  const center = panelCentroid(panel)
+  const centerPoint = solvePanelPoint(panel, center)
+  const normal = panelNormal(points)
+  const { basisU, basisV } = panelBasis(points, normal)
+  const origin = points[0] ?? new Vector3()
+  const projectedPolygon = points.map((point) => projectPointToPanelBasis(point, origin, basisU, basisV))
+  return {
+    panel,
+    points,
+    testPoints: [...points, centerPoint],
+    normal,
+    basisU,
+    basisV,
+    projectedPolygon,
+    minX: Math.min(...points.map((point) => point.x)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxY: Math.max(...points.map((point) => point.y)),
+    minZ: Math.min(...points.map((point) => point.z)),
+    maxZ: Math.max(...points.map((point) => point.z)),
+  }
+}
+
+function broadPhaseOverlaps(left: SolvedPanelCollisionData, right: SolvedPanelCollisionData, thicknessMm: number) {
+  const padding = thicknessMm
+  return (
+    left.minX - padding <= right.maxX &&
+    left.maxX + padding >= right.minX &&
+    left.minY - padding <= right.maxY &&
+    left.maxY + padding >= right.minY &&
+    left.minZ - padding <= right.maxZ &&
+    left.maxZ + padding >= right.minZ
+  )
+}
+
+function pointPenetratesPanel(point: Vector3, panel: SolvedPanelCollisionData, thicknessMm: number) {
+  const origin = panel.points[0]
+  if (!origin) {
+    return false
+  }
+
+  const signedDistance = point.clone().sub(origin).dot(panel.normal)
+  if (Math.abs(signedDistance) >= thicknessMm * 0.92) {
+    return false
+  }
+  const projected = point.clone().addScaledVector(panel.normal, -signedDistance)
+  return pointInProjectedPolygon(
+    projectPointToPanelBasis(projected, origin, panel.basisU, panel.basisV),
+    panel.projectedPolygon,
+    thicknessMm * 0.2,
+  )
+}
+
+function panelPairHasClearanceCollision(left: SolvedPanelCollisionData, right: SolvedPanelCollisionData, thicknessMm: number) {
+  if (!broadPhaseOverlaps(left, right, thicknessMm)) {
+    return false
+  }
+  return (
+    left.testPoints.some((point) => pointPenetratesPanel(point, right, thicknessMm)) ||
+    right.testPoints.some((point) => pointPenetratesPanel(point, left, thicknessMm))
+  )
+}
+
+function isIntendedStackPair(left: SolvedFoldPanel, right: SolvedFoldPanel) {
+  return (left.stackLevel ?? 0) !== (right.stackLevel ?? 0)
+}
+
+function panelComponentIds(panels: SolvedFoldPanel[], hinges: FoldHinge[]) {
+  const adjacency = new Map<string, string[]>()
+  for (const panel of panels) {
+    adjacency.set(panel.id, [])
+  }
+  for (const hinge of hinges) {
+    adjacency.get(hinge.fromPanelId)?.push(hinge.toPanelId)
+    adjacency.get(hinge.toPanelId)?.push(hinge.fromPanelId)
+  }
+
+  const componentByPanelId = new Map<string, number>()
+  let component = 0
+  for (const panel of panels) {
+    if (componentByPanelId.has(panel.id)) {
+      continue
+    }
+    component += 1
+    const queue = [panel.id]
+    componentByPanelId.set(panel.id, component)
+    while (queue.length > 0) {
+      const panelId = queue.shift()!
+      for (const nextPanelId of adjacency.get(panelId) ?? []) {
+        if (componentByPanelId.has(nextPanelId)) {
+          continue
+        }
+        componentByPanelId.set(nextPanelId, component)
+        queue.push(nextPanelId)
+      }
+    }
+  }
+  return componentByPanelId
+}
+
+export function collisionDiagnostics(panels: SolvedFoldPanel[], hinges: FoldHinge[], thicknessMm: number) {
   const diagnostics: FinalProductDiagnostic[] = []
   let count = 0
   const hingedPanelPairs = new Set(
     hinges.map((hinge) => [hinge.fromPanelId, hinge.toPanelId].sort().join('|')),
   )
+  const componentByPanelId = panelComponentIds(panels, hinges)
 
-  const bounds = panels.map((panel) => {
-    const points = panel.polygon.map((point) => solvePanelPoint(panel, point))
-    const normal = points.length >= 3
-      ? points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0])).normalize()
-      : new Vector3(0, 1, 0)
-    return {
-      panel,
-      normal,
-      minX: Math.min(...points.map((point) => point.x)),
-      maxX: Math.max(...points.map((point) => point.x)),
-      minY: Math.min(...points.map((point) => point.y)),
-      maxY: Math.max(...points.map((point) => point.y)),
-      minZ: Math.min(...points.map((point) => point.z)),
-      maxZ: Math.max(...points.map((point) => point.z)),
-    }
-  })
+  const bounds = panels.map(buildPanelCollisionData)
 
   for (let leftIndex = 0; leftIndex < bounds.length; leftIndex += 1) {
     for (let rightIndex = leftIndex + 1; rightIndex < bounds.length; rightIndex += 1) {
       const left = bounds[leftIndex]
       const right = bounds[rightIndex]
-      if ((left.panel.stackLevel ?? 0) !== (right.panel.stackLevel ?? 0)) {
-        continue
-      }
-      if ((left.panel.stackLevel ?? 0) > 0 && left.panel.layerId !== right.panel.layerId) {
-        continue
-      }
       if (hingedPanelPairs.has([left.panel.id, right.panel.id].sort().join('|'))) {
         continue
       }
-      const nearlyParallel = Math.abs(left.normal.dot(right.normal)) >= 0.85
-      if (!nearlyParallel) {
+      if (isIntendedStackPair(left.panel, right.panel)) {
         continue
       }
-      const planarOverlap =
-        left.minX <= right.maxX &&
-        left.maxX >= right.minX &&
-        left.minZ <= right.maxZ &&
-        left.maxZ >= right.minZ
-      const verticalOverlap = left.minY - thicknessMm <= right.maxY && left.maxY + thicknessMm >= right.minY
-      if (planarOverlap && verticalOverlap) {
+      if (
+        left.panel.layerId === right.panel.layerId &&
+        componentByPanelId.get(left.panel.id) === componentByPanelId.get(right.panel.id)
+      ) {
+        continue
+      }
+
+      if (panelPairHasClearanceCollision(left, right, thicknessMm)) {
         count += 1
       }
     }
@@ -497,6 +700,8 @@ export function solveFinalProduct({
     rmsStitchErrorMm,
     maxHingeErrorDeg,
     collisionWarningCount,
+    foldSweepCollisionCount: 0,
+    foldSweepSampleCount: 0,
     unpairedChainCount,
   }
 }

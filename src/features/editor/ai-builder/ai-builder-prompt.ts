@@ -49,6 +49,7 @@ export function renderAiBuilderPrompt(request: string) {
     '5. Units must be "mm".',
     '6. Positive x moves right. Positive y moves down.',
     '7. If a requested feature is unsupported in v1, omit it instead of inventing extra keys or entity types.',
+    '8. Use stable entity ids because LeatherCad exposes compiled output as @leather[kind:id] refs for refinement prompts.',
     '',
     `Unsupported v1 concepts to omit entirely: ${AI_BUILDER_UNSUPPORTED_FEATURES.join(', ')}.`,
     '',

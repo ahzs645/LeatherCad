@@ -73,5 +73,8 @@ export type FinalProductSolveResult = {
   rmsStitchErrorMm: number
   maxHingeErrorDeg: number
   collisionWarningCount: number
+  foldSweepCollisionCount: number
+  foldSweepWorstProgress?: number
+  foldSweepSampleCount: number
   unpairedChainCount: number
 }

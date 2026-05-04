@@ -7,7 +7,7 @@ function parseThreePreviewMode(value: unknown) {
 }
 
 function parseFinalFoldCamera(value: unknown) {
-  return value === 'pattern' ? value : 'orbit'
+  return value === 'pattern' || value === 'top' || value === 'front' || value === 'side' ? value : 'orbit'
 }
 
 function sanitizeOptionalNumber(value: unknown, min: number, max: number): number | undefined {

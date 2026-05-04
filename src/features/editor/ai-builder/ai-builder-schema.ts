@@ -1,5 +1,14 @@
-import type { FoldDirection, LineTypeRole, TextTransformMode } from '../cad/cad-types'
-import type { AiBuilderEntity } from './ai-builder-types'
+import type {
+  FoldDirection,
+  HardwareKind,
+  LineTypeRole,
+  PatternPieceOrientation,
+  SeamConnectionKind,
+  StitchHoleRenderShape,
+  StitchHoleType,
+  TextTransformMode,
+} from '../cad/cad-types'
+import type { AiBuilderEntity, AiBuilderMaterialSide } from './ai-builder-types'
 
 type AiBuilderSchemaField = {
   key: string
@@ -51,11 +60,48 @@ export const AI_BUILDER_ALLOWED_FOLD_DIRECTIONS: readonly FoldDirection[] = [
   'valley',
 ]
 
+export const AI_BUILDER_ALLOWED_STITCH_PATH_TYPES = ['line', 'arc', 'bezier'] as const
+
+export const AI_BUILDER_ALLOWED_STITCH_HOLE_TYPES: readonly StitchHoleType[] = [
+  'round',
+  'slit',
+]
+
+export const AI_BUILDER_ALLOWED_STITCH_RENDER_SHAPES: readonly StitchHoleRenderShape[] = [
+  'round',
+  'slit',
+  'diamond',
+  'french',
+  'flat',
+]
+
+export const AI_BUILDER_ALLOWED_MATERIAL_SIDES: readonly AiBuilderMaterialSide[] = [
+  'grain',
+  'flesh',
+  'either',
+]
+
+export const AI_BUILDER_ALLOWED_PATTERN_ORIENTATIONS: readonly PatternPieceOrientation[] = [
+  'any',
+  'horizontal',
+  'vertical',
+]
+
+export const AI_BUILDER_ALLOWED_SEAM_CONNECTION_KINDS: readonly SeamConnectionKind[] = [
+  'sewn',
+  'aligned',
+  'hinge',
+]
+
+export const AI_BUILDER_ALLOWED_HARDWARE_KINDS: readonly HardwareKind[] = [
+  'snap',
+  'rivet',
+  'buckle',
+  'custom',
+]
+
 export const AI_BUILDER_UNSUPPORTED_FEATURES = [
-  'stitch holes',
-  'hardware markers',
   'constraints',
-  'pattern pieces',
   'piece labels',
   '3D settings',
   'comments',
@@ -77,6 +123,11 @@ export const AI_BUILDER_ENTITY_TYPE_ORDER = [
   'rectangle',
   'text',
   'fold',
+  'stitch_path',
+  'pattern_piece',
+  'seam_allowance',
+  'seam_connection',
+  'hardware_marker',
 ] as const satisfies ReadonlyArray<AiBuilderEntity['type']>
 
 export const AI_BUILDER_TOP_LEVEL_FIELDS = [
@@ -263,6 +314,175 @@ export const AI_BUILDER_ENTITY_SCHEMAS: Record<AiBuilderEntity['type'], AiBuilde
       { key: 'clearance_mm', required: false, type: 'number', description: 'Optional clearance in millimeters.' },
     ],
   },
+  stitch_path: {
+    type: 'stitch_path',
+    description: 'Stitching path that compiles to a native stitch line plus generated stitch holes along that path.',
+    requiredKeys: ['id', 'type', 'layer_id', 'path_type', 'start', 'end', 'pitch_mm'],
+    optionalKeys: [
+      'mid',
+      'control',
+      'hole_type',
+      'render_shape',
+      'diameter_mm',
+      'width_mm',
+      'height_mm',
+      'tilt_deg',
+      'inverted',
+      'include_start_hole',
+      'force_fit_last_hole',
+    ],
+    fields: [
+      { key: 'id', required: true, type: 'snake_case string', description: 'Unique entity identifier.' },
+      { key: 'type', required: true, type: 'literal string', description: 'Must be "stitch_path".' },
+      { key: 'layer_id', required: true, type: 'snake_case string', description: 'Existing layer ID.' },
+      {
+        key: 'path_type',
+        required: true,
+        type: 'enum',
+        description: `Allowed: ${AI_BUILDER_ALLOWED_STITCH_PATH_TYPES.join(', ')}. Arc paths require "mid"; bezier paths require "control".`,
+      },
+      { key: 'start', required: true, type: 'Point', description: 'Path start point with x and y in millimeters.' },
+      { key: 'mid', required: false, type: 'Point', description: 'Required only when path_type is "arc".' },
+      { key: 'control', required: false, type: 'Point', description: 'Required only when path_type is "bezier".' },
+      { key: 'end', required: true, type: 'Point', description: 'Path end point with x and y in millimeters.' },
+      { key: 'pitch_mm', required: true, type: 'positive number', description: 'Target spacing between stitch holes in millimeters.' },
+      {
+        key: 'hole_type',
+        required: false,
+        type: 'enum',
+        description: `Optional native hole type. Allowed: ${AI_BUILDER_ALLOWED_STITCH_HOLE_TYPES.join(', ')}. Defaults to round.`,
+      },
+      {
+        key: 'render_shape',
+        required: false,
+        type: 'enum',
+        description: `Optional visual/cutter shape. Allowed: ${AI_BUILDER_ALLOWED_STITCH_RENDER_SHAPES.join(', ')}.`,
+      },
+      { key: 'diameter_mm', required: false, type: 'positive number', description: 'Round hole diameter in millimeters.' },
+      { key: 'width_mm', required: false, type: 'positive number', description: 'Slit or punch width in millimeters.' },
+      { key: 'height_mm', required: false, type: 'positive number', description: 'Slit or punch height in millimeters.' },
+      { key: 'tilt_deg', required: false, type: 'number', description: 'Hole tilt angle in degrees.' },
+      { key: 'inverted', required: false, type: 'boolean', description: 'Whether to invert angled stitch marks.' },
+      { key: 'include_start_hole', required: false, type: 'boolean', description: 'Defaults to true.' },
+      { key: 'force_fit_last_hole', required: false, type: 'boolean', description: 'Defaults to true so the path has a terminal hole.' },
+    ],
+  },
+  pattern_piece: {
+    type: 'pattern_piece',
+    description: 'Leather pattern piece metadata bound to an already generated closed boundary entity.',
+    requiredKeys: ['id', 'type', 'layer_id', 'boundary_entity_id', 'name'],
+    optionalKeys: [
+      'internal_entity_ids',
+      'quantity',
+      'code',
+      'annotation',
+      'material',
+      'material_side',
+      'notes',
+      'on_fold',
+      'mirror_pair',
+      'orientation',
+      'allow_flip',
+      'include_in_layout',
+      'color',
+      'fill',
+    ],
+    fields: [
+      { key: 'id', required: true, type: 'snake_case string', description: 'Unique entity identifier.' },
+      { key: 'type', required: true, type: 'literal string', description: 'Must be "pattern_piece".' },
+      { key: 'layer_id', required: true, type: 'snake_case string', description: 'Existing layer ID.' },
+      { key: 'boundary_entity_id', required: true, type: 'snake_case string', description: 'Entity ID for a closed cut boundary, usually a rectangle or closed chain starter.' },
+      { key: 'internal_entity_ids', required: false, type: 'string[]', description: 'Optional entity IDs for internal stitch, guide, mark, or cut features inside the piece.' },
+      { key: 'name', required: true, type: 'string', description: 'Human-readable piece name.' },
+      { key: 'quantity', required: false, type: 'positive integer', description: 'Defaults to 1.' },
+      { key: 'code', required: false, type: 'string', description: 'Optional piece code.' },
+      { key: 'annotation', required: false, type: 'string', description: 'Optional production annotation.' },
+      { key: 'material', required: false, type: 'string', description: 'Optional material name.' },
+      {
+        key: 'material_side',
+        required: false,
+        type: 'enum',
+        description: `Allowed: ${AI_BUILDER_ALLOWED_MATERIAL_SIDES.join(', ')}. Defaults to either.`,
+      },
+      { key: 'notes', required: false, type: 'string', description: 'Optional maker notes.' },
+      { key: 'on_fold', required: false, type: 'boolean', description: 'Whether the piece is cut on fold.' },
+      { key: 'mirror_pair', required: false, type: 'boolean', description: 'Whether the piece should be mirrored as a pair.' },
+      {
+        key: 'orientation',
+        required: false,
+        type: 'enum',
+        description: `Allowed: ${AI_BUILDER_ALLOWED_PATTERN_ORIENTATIONS.join(', ')}. Defaults to any.`,
+      },
+      { key: 'allow_flip', required: false, type: 'boolean', description: 'Defaults to true.' },
+      { key: 'include_in_layout', required: false, type: 'boolean', description: 'Defaults to true.' },
+      { key: 'color', required: false, type: 'string', description: 'Optional display color.' },
+      { key: 'fill', required: false, type: 'string', description: 'Optional fill color.' },
+    ],
+  },
+  seam_allowance: {
+    type: 'seam_allowance',
+    description: 'Seam allowance attached to a generated pattern piece.',
+    requiredKeys: ['id', 'type', 'piece_id', 'default_offset_mm'],
+    optionalKeys: ['enabled', 'edge_overrides'],
+    fields: [
+      { key: 'id', required: true, type: 'snake_case string', description: 'Unique entity identifier.' },
+      { key: 'type', required: true, type: 'literal string', description: 'Must be "seam_allowance".' },
+      { key: 'piece_id', required: true, type: 'snake_case string', description: 'ID of a pattern_piece entity.' },
+      { key: 'default_offset_mm', required: true, type: 'positive number', description: 'Default seam allowance offset in millimeters.' },
+      { key: 'enabled', required: false, type: 'boolean', description: 'Defaults to true.' },
+      { key: 'edge_overrides', required: false, type: 'array', description: 'Optional { edgeIndex, offsetMm } overrides using native LeatherCad field names.' },
+    ],
+  },
+  seam_connection: {
+    type: 'seam_connection',
+    description: 'Connection between two pattern piece edges for sewn, aligned, or hinge assembly intent.',
+    requiredKeys: ['id', 'type', 'from', 'to'],
+    optionalKeys: ['kind', 'stitch_spacing_mm', 'tolerance_mm', 'reversed'],
+    fields: [
+      { key: 'id', required: true, type: 'snake_case string', description: 'Unique entity identifier.' },
+      { key: 'type', required: true, type: 'literal string', description: 'Must be "seam_connection".' },
+      { key: 'from', required: true, type: 'EdgeRef', description: 'Object with piece_id, edge_index, optional t0/t1/reversed.' },
+      { key: 'to', required: true, type: 'EdgeRef', description: 'Object with piece_id, edge_index, optional t0/t1/reversed.' },
+      {
+        key: 'kind',
+        required: false,
+        type: 'enum',
+        description: `Allowed: ${AI_BUILDER_ALLOWED_SEAM_CONNECTION_KINDS.join(', ')}. Defaults to sewn.`,
+      },
+      { key: 'stitch_spacing_mm', required: false, type: 'positive number', description: 'Optional intended stitch spacing.' },
+      { key: 'tolerance_mm', required: false, type: 'positive number', description: 'Optional edge length mismatch tolerance.' },
+      { key: 'reversed', required: false, type: 'boolean', description: 'Whether the edge orientation is reversed.' },
+    ],
+  },
+  hardware_marker: {
+    type: 'hardware_marker',
+    description: 'Hardware placement marker such as a snap, rivet, buckle, or custom fitting.',
+    requiredKeys: ['id', 'type', 'layer_id', 'point'],
+    optionalKeys: ['kind', 'label', 'hole_diameter_mm', 'spacing_mm', 'installation_side', 'notes', 'visible'],
+    fields: [
+      { key: 'id', required: true, type: 'snake_case string', description: 'Unique entity identifier.' },
+      { key: 'type', required: true, type: 'literal string', description: 'Must be "hardware_marker".' },
+      { key: 'layer_id', required: true, type: 'snake_case string', description: 'Existing layer ID.' },
+      { key: 'point', required: true, type: 'Point', description: 'Hardware center point with x and y in millimeters.' },
+      {
+        key: 'kind',
+        required: false,
+        type: 'enum',
+        description: `Allowed: ${AI_BUILDER_ALLOWED_HARDWARE_KINDS.join(', ')}. Defaults to custom.`,
+      },
+      { key: 'label', required: false, type: 'string', description: 'Optional marker label.' },
+      { key: 'hole_diameter_mm', required: false, type: 'positive number', description: 'Defaults to 4.' },
+      { key: 'spacing_mm', required: false, type: 'positive number', description: 'Defaults to 0.' },
+      {
+        key: 'installation_side',
+        required: false,
+        type: 'enum',
+        description: `Allowed: ${AI_BUILDER_ALLOWED_MATERIAL_SIDES.join(', ')}. Defaults to either.`,
+      },
+      { key: 'notes', required: false, type: 'string', description: 'Optional hardware notes.' },
+      { key: 'visible', required: false, type: 'boolean', description: 'Defaults to true.' },
+    ],
+  },
 }
 
 export const AI_BUILDER_ENTITY_ALLOWED_KEYS: Record<AiBuilderEntity['type'], ReadonlySet<string>> = {
@@ -289,5 +509,25 @@ export const AI_BUILDER_ENTITY_ALLOWED_KEYS: Record<AiBuilderEntity['type'], Rea
   fold: new Set([
     ...AI_BUILDER_ENTITY_SCHEMAS.fold.requiredKeys,
     ...AI_BUILDER_ENTITY_SCHEMAS.fold.optionalKeys,
+  ]),
+  stitch_path: new Set([
+    ...AI_BUILDER_ENTITY_SCHEMAS.stitch_path.requiredKeys,
+    ...AI_BUILDER_ENTITY_SCHEMAS.stitch_path.optionalKeys,
+  ]),
+  pattern_piece: new Set([
+    ...AI_BUILDER_ENTITY_SCHEMAS.pattern_piece.requiredKeys,
+    ...AI_BUILDER_ENTITY_SCHEMAS.pattern_piece.optionalKeys,
+  ]),
+  seam_allowance: new Set([
+    ...AI_BUILDER_ENTITY_SCHEMAS.seam_allowance.requiredKeys,
+    ...AI_BUILDER_ENTITY_SCHEMAS.seam_allowance.optionalKeys,
+  ]),
+  seam_connection: new Set([
+    ...AI_BUILDER_ENTITY_SCHEMAS.seam_connection.requiredKeys,
+    ...AI_BUILDER_ENTITY_SCHEMAS.seam_connection.optionalKeys,
+  ]),
+  hardware_marker: new Set([
+    ...AI_BUILDER_ENTITY_SCHEMAS.hardware_marker.requiredKeys,
+    ...AI_BUILDER_ENTITY_SCHEMAS.hardware_marker.optionalKeys,
   ]),
 }

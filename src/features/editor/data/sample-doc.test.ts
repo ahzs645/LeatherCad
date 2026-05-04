@@ -5,6 +5,7 @@ import { sampleShapePoints } from '../cad/cad-geometry'
 import type { DocFile } from '../cad/cad-types'
 import { buildModelLayout, rebuildFoldModel } from '../three/model-builder'
 import { buildFinalProductPanelGraph } from '../three/final-product-panel-graph'
+import { analyzeFinalProductFoldSweep } from '../three/final-product-fold-sweep'
 import { rebuildFinalProductModel } from '../three/final-product-model-builder'
 import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct, solvePanelPoint } from '../three/final-product-solver'
@@ -19,6 +20,12 @@ function walletDoc() {
 
 function compactClaspWalletDoc() {
   const preset = PRESET_DOCS.find((entry) => entry.id === 'compact-clasp-wallet')
+  expect(preset).toBeDefined()
+  return preset!.doc
+}
+
+function trifoldWalletDoc() {
+  const preset = PRESET_DOCS.find((entry) => entry.id === 'trifold')
   expect(preset).toBeDefined()
   return preset!.doc
 }
@@ -243,6 +250,148 @@ describe('compact clasp wallet preset', () => {
     expect(textShapes.every((shape) => shape.type === 'text' && shape.start.x >= 58)).toBe(true)
     expect(textShapes.every((shape) => shape.type === 'text' && shape.fontSizeMm >= 12)).toBe(true)
     expect(drawableShapes.every((shape) => 'strokeWidthOverride' in shape)).toBe(true)
+  })
+})
+
+describe('trifold wallet prototype preset', () => {
+  it('models a three-panel trifold wallet with bill and card-holder geometry', () => {
+    const doc = trifoldWalletDoc()
+    const layerIds = doc.layers.map((layer) => layer.id)
+
+    expect(layerIds).toEqual([
+      'trifold-shell',
+      'trifold-clearance-guides',
+      'trifold-bill-pocket',
+      'trifold-inner-card-pocket',
+      'trifold-front-card-pocket',
+    ])
+    expect(doc.objects.some((shape) => shape.id.startsWith('trifold-bill-liner-outline'))).toBe(true)
+    expect(doc.objects.some((shape) => shape.id.startsWith('trifold-inner-card-slot-mouth'))).toBe(true)
+    expect(doc.objects.some((shape) => shape.id.startsWith('trifold-front-card-slot-mouth'))).toBe(true)
+
+    const shellBounds = boundsForPrefix(doc, 'trifold-shell-outline')
+    expect(width(shellBounds)).toBeCloseTo(252)
+    expect(height(shellBounds)).toBeCloseTo(100)
+
+    const unfoldedBillBounds = boundsForPrefix(doc, 'trifold-unfolded-bill-clearance')
+    const foldedBillBounds = boundsForPrefix(doc, 'trifold-folded-bill-clearance')
+    const innerCardBounds = boundsForPrefix(doc, 'trifold-inner-card-clearance')
+    const frontCardBounds = boundsForPrefix(doc, 'trifold-front-card-clearance')
+    expect(width(unfoldedBillBounds)).toBeCloseTo(156)
+    expect(height(unfoldedBillBounds)).toBeCloseTo(70)
+    expect(width(foldedBillBounds)).toBeCloseTo(74)
+    expect(height(foldedBillBounds)).toBeCloseTo(70)
+    expect(innerCardBounds.maxX).toBeLessThan(-42)
+    expect(frontCardBounds.minX).toBeGreaterThan(42)
+  })
+
+  it('authores sequential final-fold controls for the two trifold crease lines', () => {
+    const doc = trifoldWalletDoc()
+
+    expect(doc.foldLines.map((fold) => fold.name)).toEqual([
+      'Left Wing Over Center',
+      'Right Wing Over Stack',
+    ])
+    expect(doc.foldLines.map((fold) => fold.start.x)).toEqual([-42, 42])
+    expect(doc.threePreviewSettings?.mode).toBe('final')
+    expect(doc.threePreviewSettings?.foldTimeline?.map((step) => step.label)).toEqual([
+      'Fold right wing over center',
+      'Wrap left wing over stack',
+    ])
+    expect(doc.threePreviewSettings?.foldTimeline?.flatMap((step) => step.commands ?? []).map((command) => command.foldLineId)).toEqual([
+      'trifold-tri-fold-right',
+      'trifold-tri-fold-left',
+    ])
+  })
+
+  it('compiles the trifold wallet into hinged thick-panel final-product geometry', () => {
+    const doc = trifoldWalletDoc()
+    const regions = buildFinalProductRegions({
+      layers: doc.layers,
+      lineTypes: doc.lineTypes,
+      shapes: doc.objects,
+      outlinePolygons: [],
+    })
+    const graph = buildFinalProductPanelGraph({
+      foldLines: doc.foldLines,
+      regions,
+      documentBounds: boundsForPrefix(doc, 'trifold-shell-outline'),
+    })
+
+    expect(regions.filter((region) => region.layerId === 'trifold-shell')).toHaveLength(1)
+    expect(regions.filter((region) => region.layerId === 'trifold-bill-pocket')).toHaveLength(1)
+    expect(regions.filter((region) => region.layerId === 'trifold-inner-card-pocket').every((region) => regionBounds(region).maxX < -42)).toBe(true)
+    expect(regions.filter((region) => region.layerId === 'trifold-front-card-pocket').every((region) => regionBounds(region).minX > 42)).toBe(true)
+    expect(graph.hinges.length).toBeGreaterThanOrEqual(4)
+    expect(graph.diagnostics.filter((diagnostic) => diagnostic.code === 'fold-line-unresolved')).toHaveLength(0)
+
+    const { pieceMeshes, transform, documentBounds } = buildModelLayout({
+      patternPieces: doc.patternPieces ?? [],
+      outlinePolygons: [],
+      shapes: doc.objects,
+      foldLines: doc.foldLines,
+    })
+    const finalProductGroup = new Group()
+    const result = rebuildFinalProductModel({
+      layers: doc.layers,
+      lineTypes: doc.lineTypes,
+      shapes: doc.objects,
+      foldLines: doc.foldLines,
+      stitchHoles: doc.stitchHoles ?? [],
+      outlinePolygons: [],
+      patternPieces: doc.patternPieces ?? [],
+      piecePlacements3d: doc.piecePlacements3d ?? [],
+      seamConnections: doc.seamConnections ?? [],
+      previewSettings: doc.threePreviewSettings ?? { ...DEFAULT_THREE_PREVIEW_SETTINGS, mode: 'final' },
+      pieceMeshes,
+      transform,
+      documentBounds,
+      threadColor: '#f97316',
+      texturedShapeIdSet: new Set(),
+      hasActiveTexture: false,
+      materials: createMaterials(),
+      preservedMaterials: new Set(),
+      fitControlsToModel: () => undefined,
+      finalProductGroup,
+      staticSideGroup: new Group(),
+      foldingSideGroup: new Group(),
+      foldGuideGroup: new Group(),
+      assembledGroup: new Group(),
+      avatarGroup: new Group(),
+    })
+
+    expect(result.panels.length).toBeGreaterThanOrEqual(7)
+    expect(result.hinges.length).toBeGreaterThanOrEqual(4)
+    expect(hasMesh(finalProductGroup)).toBe(true)
+    expect(finalProductGroup.children.filter((child) => child.name.startsWith('final-product-panel-')).length).toBeGreaterThanOrEqual(7)
+    expect(finalProductGroup.children.some((child) => child.name.startsWith('final-product-edge-finish-'))).toBe(true)
+    expect(finalProductGroup.children.some((child) => child.name.startsWith('final-product-edge-roundover-'))).toBe(false)
+    expect(finalProductGroup.children.some((child) => child.name.startsWith('final-product-fold-area-'))).toBe(true)
+    expect(finalProductGroup.children.some((child) => child.name.startsWith('final-product-fold-band-'))).toBe(true)
+  })
+
+  it('passes a full fold-progress clearance sweep from flat to closed', () => {
+    const doc = trifoldWalletDoc()
+    const regions = buildFinalProductRegions({
+      layers: doc.layers,
+      lineTypes: doc.lineTypes,
+      shapes: doc.objects,
+      outlinePolygons: [],
+    })
+    const sweep = analyzeFinalProductFoldSweep({
+      foldLines: doc.foldLines,
+      instructions: doc.threePreviewSettings?.foldTimeline,
+      stitchHoles: doc.stitchHoles ?? [],
+      regions,
+      outlinePolygons: [],
+      documentBounds: boundsForPrefix(doc, 'trifold-shell-outline'),
+      thicknessMm: doc.threePreviewSettings?.thicknessMm ?? 1.4,
+      sampleCount: 21,
+    })
+
+    expect(sweep.sampleCount).toBe(21)
+    expect(sweep.collisionCount).toBe(0)
+    expect(sweep.diagnostics).toHaveLength(0)
   })
 })
 

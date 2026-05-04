@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Vector3 } from 'three'
 import type { FoldLine, StitchHole } from '../cad/cad-types'
 import { solveFinalProduct, solvePanelPoint } from './final-product-solver'
 
@@ -196,5 +197,53 @@ describe('final product solver', () => {
     const pocketPoint = solvePanelPoint(pocket!, point)
     const carrierPoint = solvePanelPoint(carrier!, point)
     expect(pocketPoint.distanceTo(carrierPoint)).toBeCloseTo(1.8, 6)
+    const carrierNormal = new Vector3(0, 1, 0)
+      .applyMatrix4(carrier!.transform)
+      .sub(new Vector3(0, 0, 0).applyMatrix4(carrier!.transform))
+      .normalize()
+    expect(pocketPoint.clone().sub(carrierPoint).dot(carrierNormal)).toBeGreaterThan(0)
+  })
+
+  it('adds material clearance between closed base panels that fold onto each other', () => {
+    const result = solveFinalProduct({
+      foldLines: [foldLine('center-fold', { x: 10, y: 0 }, { x: 10, y: 10 }, 180)],
+      stitchHoles: [],
+      outlinePolygons: twoPanelOutline,
+      documentBounds: { minX: 0, maxX: 20, minY: 0, maxY: 10 },
+      thicknessMm: 1.8,
+    })
+
+    const leftPanel = result.panels.find((panel) => panel.polygon.every((point) => point.x <= 10))
+    const rightPanel = result.panels.find((panel) => panel.polygon.every((point) => point.x >= 10))
+    expect(leftPanel).toBeTruthy()
+    expect(rightPanel).toBeTruthy()
+
+    const leftPoint = solvePanelPoint(leftPanel!, { x: 5, y: 5 })
+    const rightPoint = solvePanelPoint(rightPanel!, { x: 15, y: 5 })
+    expect(Math.abs(leftPoint.y - rightPoint.y)).toBeCloseTo(1.8, 6)
+  })
+
+  it('detects non-hinged panel clipping when panel volumes occupy the same space', () => {
+    const result = solveFinalProduct({
+      foldLines: [],
+      stitchHoles: [],
+      regions: [
+        {
+          layerId: 'left',
+          stackLevel: 0,
+          polygon: twoPanelOutline[0].polygon,
+        },
+        {
+          layerId: 'right',
+          stackLevel: 0,
+          polygon: twoPanelOutline[0].polygon,
+        },
+      ],
+      documentBounds: { minX: 0, maxX: 20, minY: 0, maxY: 10 },
+      thicknessMm: 1.8,
+    })
+
+    expect(result.collisionWarningCount).toBeGreaterThan(0)
+    expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'panel-clearance-warning')).toBe(true)
   })
 })

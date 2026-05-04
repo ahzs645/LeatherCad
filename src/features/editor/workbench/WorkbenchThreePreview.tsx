@@ -189,6 +189,18 @@ export function WorkbenchThreePreviewInspector({
                   onClick={() =>
                     onSetThreePreviewSettings((previous) => ({
                       ...previous,
+                      finalFoldProgress: 0.5,
+                      finalFoldCamera: 'orbit',
+                    }))
+                  }
+                >
+                  Half-Folded
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSetThreePreviewSettings((previous) => ({
+                      ...previous,
                       finalFoldProgress: 1,
                       finalFoldCamera: 'orbit',
                     }))
@@ -196,6 +208,22 @@ export function WorkbenchThreePreviewInspector({
                 >
                   Folded
                 </button>
+              </div>
+              <div className="button-row">
+                {(['top', 'front', 'side'] as const).map((cameraPreset) => (
+                  <button
+                    key={cameraPreset}
+                    type="button"
+                    onClick={() =>
+                      onSetThreePreviewSettings((previous) => ({
+                        ...previous,
+                        finalFoldCamera: cameraPreset,
+                      }))
+                    }
+                  >
+                    {cameraPreset[0].toUpperCase() + cameraPreset.slice(1)}
+                  </button>
+                ))}
               </div>
               <button type="button" onClick={() => downloadFinalReviewCollage(bridgeRef.current)}>
                 Capture Review Collage
@@ -293,7 +321,10 @@ export function WorkbenchThreePreviewInspector({
                 {`${finalProductSolveResult.converged ? 'Converged' : 'Partial'} | pairs ${finalProductSolveResult.stitchPairs.length} | unpaired ${finalProductSolveResult.unpairedChainCount}`}
               </p>
               <p className="hint">
-                {`RMS stitch ${finalProductSolveResult.rmsStitchErrorMm.toFixed(2)}mm | max hinge ${finalProductSolveResult.maxHingeErrorDeg.toFixed(1)}deg | collisions ${finalProductSolveResult.collisionWarningCount}`}
+                {`RMS stitch ${finalProductSolveResult.rmsStitchErrorMm.toFixed(2)}mm | max hinge ${finalProductSolveResult.maxHingeErrorDeg.toFixed(1)}deg | current collisions ${finalProductSolveResult.collisionWarningCount}`}
+              </p>
+              <p className="hint">
+                {`Fold sweep ${finalProductSolveResult.foldSweepCollisionCount} warnings across ${finalProductSolveResult.foldSweepSampleCount} samples${finalProductSolveResult.foldSweepWorstProgress === undefined ? '' : ` | worst ${Math.round(finalProductSolveResult.foldSweepWorstProgress * 100)}%`}`}
               </p>
               <p className="hint">{`Iterations ${finalProductSolveResult.iterations}`}</p>
               {finalProductSolveResult.diagnostics.slice(0, 5).map((diagnostic) => (

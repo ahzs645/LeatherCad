@@ -18,7 +18,7 @@ export const PRESET_META: PresetMeta[] = [
   },
   {
     id: 'trifold',
-    label: 'Tri-fold Layout',
+    label: 'Trifold Wallet Prototype',
   },
   {
     id: 'folding-box-net',
@@ -26,4 +26,4 @@ export const PRESET_META: PresetMeta[] = [
   },
 ]
 
-export const DEFAULT_PRESET_ID = PRESET_META[0].id
+export const DEFAULT_PRESET_ID = 'trifold'

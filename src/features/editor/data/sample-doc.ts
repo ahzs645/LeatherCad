@@ -328,57 +328,111 @@ const cardSleeveFolds: FoldLine[] = [
   },
 ]
 
-const triCenterLayer = makeLayer('tri-center', 'Center Body', 0)
-const triLeftFlapLayer = makeLayer('tri-left-flap', 'Left Flap', 1)
-const triRightFlapLayer = makeLayer('tri-right-flap', 'Right Flap', 1)
+const triFoldShellLayer = makeLayer('trifold-shell', 'One-Piece Trifold Shell', 0)
+const triFoldBillLayer = makeLayer('trifold-bill-pocket', 'Rear Bill Compartment Liner', 1)
+const triFoldInnerCardLayer = makeLayer('trifold-inner-card-pocket', 'Inner Face Card Holder', 2)
+const triFoldFrontCardLayer = makeLayer('trifold-front-card-pocket', 'Front Face Card Holder', 3)
+const triFoldGuideLayer = makeLayer('trifold-clearance-guides', 'Bill and Card Clearance Guides', 0)
 
-const triFoldLayers: Layer[] = [triCenterLayer, triLeftFlapLayer, triRightFlapLayer]
+const triFoldLayers: Layer[] = [
+  triFoldShellLayer,
+  triFoldGuideLayer,
+  triFoldBillLayer,
+  triFoldInnerCardLayer,
+  triFoldFrontCardLayer,
+]
 
 const triFoldShapes: Shape[] = [
-  ...rectangle('tri-center-outline', triCenterLayer.id, -110, -118, 110, 118),
-  ...stitchBox('tri-center-stitch', triCenterLayer.id, -110, -118, 110, 118, 12),
+  ...roundedRectangle('shell-outline', triFoldShellLayer.id, -126, -50, 126, 50, 8),
+  line('shell-left-fold-guide', triFoldShellLayer.id, -42, -50, -42, 50, GUIDE_LINE_TYPE_ID),
+  line('shell-right-fold-guide', triFoldShellLayer.id, 42, -50, 42, 50, GUIDE_LINE_TYPE_ID),
+  line('shell-top-stitch', triFoldShellLayer.id, -116, -40, 116, -40, STITCH_LINE_TYPE_ID),
+  line('shell-bottom-stitch', triFoldShellLayer.id, 116, 40, -116, 40, STITCH_LINE_TYPE_ID),
+  line('shell-left-edge-stitch', triFoldShellLayer.id, -116, -40, -116, 40, STITCH_LINE_TYPE_ID),
+  line('shell-right-edge-stitch', triFoldShellLayer.id, 116, 40, 116, -40, STITCH_LINE_TYPE_ID),
 
-  ...rectangle('tri-left-outline', triLeftFlapLayer.id, -302, -118, -100, 118),
-  line('tri-left-window', triLeftFlapLayer.id, -196, -118, -196, 118),
-  arc('tri-left-id-cut', triLeftFlapLayer.id, -286, 48, -202, 12, -118, 48),
-  ...stitchBox('tri-left-stitch', triLeftFlapLayer.id, -302, -118, -100, 118, 12),
+  ...rectangle('unfolded-bill-clearance', triFoldGuideLayer.id, -78, -35, 78, 35, GUIDE_LINE_TYPE_ID),
+  ...rectangle('folded-bill-clearance', triFoldGuideLayer.id, -37, -35, 37, 35, GUIDE_LINE_TYPE_ID),
+  ...rectangle('inner-card-clearance', triFoldGuideLayer.id, -120.8, -27, -48.2, 27, GUIDE_LINE_TYPE_ID),
+  ...rectangle('front-card-clearance', triFoldGuideLayer.id, 48.2, -27, 120.8, 27, GUIDE_LINE_TYPE_ID),
 
-  ...rectangle('tri-right-outline', triRightFlapLayer.id, 100, -118, 302, 118),
-  line('tri-right-window', triRightFlapLayer.id, 196, -118, 196, 118),
-  arc('tri-right-id-cut', triRightFlapLayer.id, 118, 48, 202, 12, 286, 48),
-  ...stitchBox('tri-right-stitch', triRightFlapLayer.id, 100, -118, 302, 118, 12),
-]
+  ...roundedRectangle('bill-liner-outline', triFoldBillLayer.id, -120, -42, 120, 44, 6),
+  line('bill-liner-mouth', triFoldBillLayer.id, -112, -30, 112, -30, GUIDE_LINE_TYPE_ID),
+  line('bill-liner-left-fold-guide', triFoldBillLayer.id, -42, -42, -42, 44, GUIDE_LINE_TYPE_ID),
+  line('bill-liner-right-fold-guide', triFoldBillLayer.id, 42, -42, 42, 44, GUIDE_LINE_TYPE_ID),
+  line('bill-liner-left-stitch', triFoldBillLayer.id, -112, -32, -112, 36, STITCH_LINE_TYPE_ID),
+  line('bill-liner-bottom-stitch', triFoldBillLayer.id, -112, 36, 112, 36, STITCH_LINE_TYPE_ID),
+  line('bill-liner-right-stitch', triFoldBillLayer.id, 112, 36, 112, -32, STITCH_LINE_TYPE_ID),
+
+  line('inner-card-left', triFoldInnerCardLayer.id, -122, -32, -122, 42),
+  line('inner-card-bottom', triFoldInnerCardLayer.id, -122, 42, -48, 42),
+  line('inner-card-right', triFoldInnerCardLayer.id, -48, 42, -48, -32),
+  arc('inner-card-thumb-cutout', triFoldInnerCardLayer.id, -48, -32, -85, -47, -122, -32),
+  bezier('inner-card-slot-mouth', triFoldInnerCardLayer.id, -114, -6, -85, -18, -56, -6, GUIDE_LINE_TYPE_ID),
+  line('inner-card-left-stitch', triFoldInnerCardLayer.id, -114, -22, -114, 34, STITCH_LINE_TYPE_ID),
+  line('inner-card-bottom-stitch', triFoldInnerCardLayer.id, -114, 34, -56, 34, STITCH_LINE_TYPE_ID),
+  line('inner-card-right-stitch', triFoldInnerCardLayer.id, -56, 34, -56, -22, STITCH_LINE_TYPE_ID),
+
+  line('front-card-left', triFoldFrontCardLayer.id, 48, -32, 48, 42),
+  line('front-card-bottom', triFoldFrontCardLayer.id, 48, 42, 122, 42),
+  line('front-card-right', triFoldFrontCardLayer.id, 122, 42, 122, -32),
+  arc('front-card-thumb-cutout', triFoldFrontCardLayer.id, 122, -32, 85, -47, 48, -32),
+  bezier('front-card-slot-mouth', triFoldFrontCardLayer.id, 56, -6, 85, -18, 114, -6, GUIDE_LINE_TYPE_ID),
+  line('front-card-left-stitch', triFoldFrontCardLayer.id, 56, -22, 56, 34, STITCH_LINE_TYPE_ID),
+  line('front-card-bottom-stitch', triFoldFrontCardLayer.id, 56, 34, 114, 34, STITCH_LINE_TYPE_ID),
+  line('front-card-right-stitch', triFoldFrontCardLayer.id, 114, 34, 114, -22, STITCH_LINE_TYPE_ID),
+].map(withPresetStrokeWidth)
 
 const triFoldFolds: FoldLine[] = [
   {
     id: 'tri-fold-left',
-    name: 'Tri-Fold Left',
-    start: { x: -100, y: -118 },
-    end: { x: -100, y: 118 },
-    angleDeg: 32,
+    name: 'Left Wing Over Center',
+    start: { x: -42, y: -50 },
+    end: { x: -42, y: 50 },
+    angleDeg: 180,
     maxAngleDeg: 180,
     direction: 'mountain',
-    radiusMm: 1.2,
-    thicknessMm: 1.6,
+    radiusMm: 4,
+    thicknessMm: 1.4,
     neutralAxisRatio: 0.5,
-    stiffness: 0.3,
-    clearanceMm: 0.2,
+    stiffness: 0.46,
+    clearanceMm: 3,
   },
   {
     id: 'tri-fold-right',
-    name: 'Tri-Fold Right',
-    start: { x: 100, y: -118 },
-    end: { x: 100, y: 118 },
-    angleDeg: 28,
+    name: 'Right Wing Over Stack',
+    start: { x: 42, y: -50 },
+    end: { x: 42, y: 50 },
+    angleDeg: 180,
     maxAngleDeg: 180,
     direction: 'valley',
-    radiusMm: 1.2,
-    thicknessMm: 1.6,
+    radiusMm: 4.5,
+    thicknessMm: 1.4,
     neutralAxisRatio: 0.5,
-    stiffness: 0.3,
-    clearanceMm: 0.2,
+    stiffness: 0.5,
+    clearanceMm: 4,
   },
 ]
+
+const triFoldPreviewSettings: ThreePreviewSettings = {
+  ...DEFAULT_THREE_PREVIEW_SETTINGS,
+  mode: 'final',
+  explodedFactor: 0,
+  finalFoldProgress: 1,
+  thicknessMm: 1.4,
+  foldTimeline: [
+    {
+      id: 'trifold-step-right-wing',
+      label: 'Fold right wing over center',
+      commands: [{ foldLineId: 'trifold-tri-fold-right', targetAngleDeg: 180, duration: 1.15 }],
+    },
+    {
+      id: 'trifold-step-left-wing',
+      label: 'Wrap left wing over stack',
+      commands: [{ foldLineId: 'trifold-tri-fold-left', targetAngleDeg: 180, duration: 1 }],
+    },
+  ],
+}
 
 const compactShellLayer = makeLayer('compact-shell', 'Outer Shell with Rounded Flap', 0)
 const compactMoneyLayer = makeLayer('compact-money', 'Back Money Holder', 1)
@@ -606,8 +660,8 @@ export const PRESET_DOCS: PresetDefinition[] = [
   },
   {
     id: 'trifold',
-    label: 'Tri-fold Layout',
-    doc: buildDoc('trifold', triFoldLayers, triFoldShapes, triFoldFolds, triCenterLayer.id),
+    label: 'Trifold Wallet Prototype',
+    doc: buildDoc('trifold', triFoldLayers, triFoldShapes, triFoldFolds, triFoldShellLayer.id, [], triFoldPreviewSettings),
   },
   {
     id: 'folding-box-net',
@@ -622,4 +676,4 @@ export const PRESET_DOCS: PresetDefinition[] = [
   },
 ]
 
-export const DEFAULT_PRESET_ID = PRESET_DOCS[0].id
+export const DEFAULT_PRESET_ID = 'trifold'

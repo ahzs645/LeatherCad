@@ -122,6 +122,10 @@ describe('WorkbenchThreePreview', () => {
     expect(lastRender.container.textContent).toContain('Mode final')
     expect(lastRender.container.textContent).toContain('Fold Progress 100%')
     expect(lastRender.container.textContent).toContain('Pattern View')
+    expect(lastRender.container.textContent).toContain('Half-Folded')
+    expect(lastRender.container.textContent).toContain('Top')
+    expect(lastRender.container.textContent).toContain('Front')
+    expect(lastRender.container.textContent).toContain('Side')
     expect(lastRender.container.textContent).toContain('Fold Timeline')
     expect(lastRender.container.textContent).toContain('Create From Folds')
 

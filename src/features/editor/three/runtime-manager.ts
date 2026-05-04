@@ -23,7 +23,7 @@ type Bounds3 = {
   maxZ: number
 }
 
-export type CameraFitMode = 'orbit' | 'pattern'
+export type CameraFitMode = 'orbit' | 'pattern' | 'top' | 'front' | 'side'
 
 export class ThreeRuntimeManager {
   readonly renderer: WebGLRenderer
@@ -115,7 +115,7 @@ export class ThreeRuntimeManager {
     this.controls.target.copy(center)
     this.controls.minDistance = Math.max(0.3, radius * 0.4)
     this.controls.maxDistance = Math.max(5.5, radius * 8)
-    if (mode === 'pattern') {
+    if (mode === 'pattern' || mode === 'top') {
       const aspect = Math.max(this.camera.aspect, 0.1)
       const verticalSpan = Math.max(size.z, 0.8)
       const horizontalSpan = Math.max(size.x / aspect, 0.8)
@@ -123,6 +123,12 @@ export class ThreeRuntimeManager {
       const distance = Math.max(1.2, (fitSpan * 0.62) / Math.tan((this.camera.fov * Math.PI) / 360))
       this.camera.up.set(0, 0, -1)
       this.camera.position.set(center.x, center.y + distance, center.z + 0.0001)
+    } else if (mode === 'front') {
+      this.camera.up.set(0, 1, 0)
+      this.camera.position.set(center.x, center.y + radius * 0.15, center.z + radius * 2.2)
+    } else if (mode === 'side') {
+      this.camera.up.set(0, 1, 0)
+      this.camera.position.set(center.x + radius * 2.2, center.y + radius * 0.15, center.z)
     } else {
       this.camera.up.set(0, 1, 0)
       this.camera.position.set(center.x + radius * 0.95, center.y + radius * 1.15, center.z + radius * 1.3)

@@ -18,6 +18,7 @@ import type {
 } from '../cad/cad-types'
 import { detectOutlines } from '../ops/outline-detection'
 import { buildFinalProductDocumentBounds } from '../three/final-product-document-bounds'
+import { analyzeFinalProductFoldSweep } from '../three/final-product-fold-sweep'
 import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct } from '../three/final-product-solver'
 import type { FinalProductDiagnostic } from '../three/final-product-types'
@@ -245,22 +246,41 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     }))
     const explicitDiagnostics = [...assemblyFinalDiagnostics, ...foldTimelinePreview.diagnostics]
 
-    return solveFinalProduct({
+    const regions = buildFinalProductRegions({
+      layers: layersFor3d,
+      lineTypes,
+      shapes: shapesIn3dView,
+      outlinePolygons,
+    })
+    const documentBounds = buildFinalProductDocumentBounds(shapesIn3dView, foldLines, outlinePolygons)
+    const result = solveFinalProduct({
       foldLines: foldTimelinePreview.foldLines,
       stitchHoles,
       explicitStitchChains: explicitSeams.chains,
       explicitStitchPairs: explicitSeams.pairs,
       explicitDiagnostics,
-      regions: buildFinalProductRegions({
-        layers: layersFor3d,
-        lineTypes,
-        shapes: shapesIn3dView,
-        outlinePolygons,
-      }),
+      regions,
       outlinePolygons,
-      documentBounds: buildFinalProductDocumentBounds(shapesIn3dView, foldLines, outlinePolygons),
+      documentBounds,
       thicknessMm: threePreviewSettings.thicknessMm,
     })
+    const foldSweep = analyzeFinalProductFoldSweep({
+      foldLines,
+      instructions: threePreviewSettings.foldTimeline,
+      stitchHoles,
+      explicitStitchChains: explicitSeams.chains,
+      explicitStitchPairs: explicitSeams.pairs,
+      regions,
+      outlinePolygons,
+      documentBounds,
+      thicknessMm: threePreviewSettings.thicknessMm,
+      sampleCount: 21,
+    })
+    result.foldSweepCollisionCount = foldSweep.collisionCount
+    result.foldSweepWorstProgress = foldSweep.worstProgress
+    result.foldSweepSampleCount = foldSweep.sampleCount
+    result.diagnostics.push(...foldSweep.diagnostics)
+    return result
   }, [
     foldLines,
     explicitSeams,

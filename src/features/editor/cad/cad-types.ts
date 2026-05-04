@@ -342,7 +342,7 @@ export type ThreePreviewSettings = {
   mode: ThreePreviewMode
   explodedFactor: number
   finalFoldProgress: number
-  finalFoldCamera: 'orbit' | 'pattern'
+  finalFoldCamera: 'orbit' | 'pattern' | 'top' | 'front' | 'side'
   foldTimeline?: FoldInstructionNode[]
   thicknessMm: number
   showSeams: boolean

@@ -10,9 +10,15 @@ import {
 import type {
   DocFile,
   FoldLine,
+  HardwareMarker,
   Layer,
   LineTypeRole,
+  PatternPiece,
+  PieceSeamAllowance,
+  SeamConnection,
   Shape,
+  StitchHole,
+  StitchHoleDefaults,
 } from '../cad/cad-types'
 import {
   DEFAULT_FOLD_CLEARANCE_MM,
@@ -22,11 +28,15 @@ import {
   DEFAULT_FOLD_STIFFNESS,
   DEFAULT_FOLD_THICKNESS_MM,
 } from '../ops/fold-line-ops'
+import { generateFixedPitchStitchHoles } from '../ops/stitch-hole-ops'
+import { runAiBuilderPreflight } from './ai-builder-preflight'
+import { createLeatherRef } from './ai-builder-refs'
 import { AI_BUILDER_TEXT_DEFAULTS } from './ai-builder-schema'
 import type {
   AiBuilderCompileResult,
   AiBuilderDocumentV1,
   AiBuilderEntity,
+  AiBuilderLeatherRef,
 } from './ai-builder-types'
 
 const LINE_ROLE_TO_TYPE_ID: Record<LineTypeRole, string> = {
@@ -38,12 +48,21 @@ const LINE_ROLE_TO_TYPE_ID: Record<LineTypeRole, string> = {
 }
 
 function resolveLineTypeId(entity: AiBuilderEntity) {
-  const role =
-    entity.type === 'text'
-      ? entity.line_role ?? 'mark'
-      : entity.type === 'fold'
-        ? 'fold'
-        : entity.line_role ?? 'cut'
+  let role: LineTypeRole = 'cut'
+  if (entity.type === 'text') {
+    role = entity.line_role ?? 'mark'
+  } else if (entity.type === 'fold') {
+    role = 'fold'
+  } else if (entity.type === 'stitch_path') {
+    role = 'stitch'
+  } else if (
+    entity.type === 'line' ||
+    entity.type === 'arc' ||
+    entity.type === 'bezier' ||
+    entity.type === 'rectangle'
+  ) {
+    role = entity.line_role ?? 'cut'
+  }
   return LINE_ROLE_TO_TYPE_ID[role]
 }
 
@@ -59,7 +78,12 @@ function humanizeId(value: string) {
     .join(' ')
 }
 
-function compileShape(entity: Exclude<AiBuilderEntity, { type: 'fold' }>): Shape[] {
+type ShapeEntity = Extract<
+  AiBuilderEntity,
+  { type: 'line' | 'arc' | 'bezier' | 'rectangle' | 'text' | 'stitch_path' }
+>
+
+function compileShape(entity: ShapeEntity): Shape[] {
   const lineTypeId = resolveLineTypeId(entity)
 
   if (entity.type === 'line') {
@@ -145,6 +169,47 @@ function compileShape(entity: Exclude<AiBuilderEntity, { type: 'fold' }>): Shape
     ]
   }
 
+  if (entity.type === 'stitch_path') {
+    if (entity.path_type === 'arc') {
+      return [
+        {
+          id: `stitch__${entity.id}`,
+          type: 'arc',
+          layerId: entity.layer_id,
+          lineTypeId,
+          start: { ...entity.start },
+          mid: { ...(entity.mid ?? entity.start) },
+          end: { ...entity.end },
+        },
+      ]
+    }
+
+    if (entity.path_type === 'bezier') {
+      return [
+        {
+          id: `stitch__${entity.id}`,
+          type: 'bezier',
+          layerId: entity.layer_id,
+          lineTypeId,
+          start: { ...entity.start },
+          control: { ...(entity.control ?? entity.start) },
+          end: { ...entity.end },
+        },
+      ]
+    }
+
+    return [
+      {
+        id: `stitch__${entity.id}`,
+        type: 'line',
+        layerId: entity.layer_id,
+        lineTypeId,
+        start: { ...entity.start },
+        end: { ...entity.end },
+      },
+    ]
+  }
+
   const fontFamily = entity.font_family ?? AI_BUILDER_TEXT_DEFAULTS.fontFamily
   const fontSizeMm = entity.font_size_mm ?? AI_BUILDER_TEXT_DEFAULTS.fontSizeMm
   const transform = entity.transform ?? AI_BUILDER_TEXT_DEFAULTS.transform
@@ -189,6 +254,168 @@ function compileFoldLine(entity: Extract<AiBuilderEntity, { type: 'fold' }>): Fo
   }
 }
 
+function compileStitchHoleDefaults(entity: Extract<AiBuilderEntity, { type: 'stitch_path' }>): StitchHoleDefaults {
+  const holeType = entity.hole_type ?? 'round'
+  return {
+    holeType,
+    renderShape: entity.render_shape,
+    diameterMm: entity.diameter_mm ?? (holeType === 'round' ? 0.9 : undefined),
+    widthMm: entity.width_mm ?? (holeType === 'slit' ? 1.3 : undefined),
+    heightMm: entity.height_mm ?? (holeType === 'slit' ? 0.55 : undefined),
+    tiltDeg: entity.tilt_deg,
+    inverted: entity.inverted,
+  }
+}
+
+function compileStitchHoles(
+  entity: Extract<AiBuilderEntity, { type: 'stitch_path' }>,
+  shape: Shape,
+  sequenceStart: number,
+): StitchHole[] {
+  return generateFixedPitchStitchHoles(
+    shape,
+    entity.pitch_mm,
+    compileStitchHoleDefaults(entity),
+    sequenceStart,
+    {
+      includeStartHole: entity.include_start_hole ?? true,
+      forceFitLastHole: entity.force_fit_last_hole ?? true,
+    },
+  ).map((hole, index) => ({
+    ...hole,
+    id: `stitch_hole__${entity.id}__${index + 1}`,
+  }))
+}
+
+function isShapeEntity(entity: AiBuilderEntity): entity is ShapeEntity {
+  return (
+    entity.type === 'line' ||
+    entity.type === 'arc' ||
+    entity.type === 'bezier' ||
+    entity.type === 'rectangle' ||
+    entity.type === 'text' ||
+    entity.type === 'stitch_path'
+  )
+}
+
+function firstMappedShapeId(entityId: string, entityShapeIds: Map<string, string[]>) {
+  return entityShapeIds.get(entityId)?.[0] ?? null
+}
+
+function compilePatternPiece(
+  entity: Extract<AiBuilderEntity, { type: 'pattern_piece' }>,
+  entityShapeIds: Map<string, string[]>,
+): PatternPiece | null {
+  const boundaryShapeId = firstMappedShapeId(entity.boundary_entity_id, entityShapeIds)
+  if (!boundaryShapeId) {
+    return null
+  }
+
+  const internalShapeIds = (entity.internal_entity_ids ?? [])
+    .flatMap((entityId) => entityShapeIds.get(entityId) ?? [])
+    .filter((shapeId) => shapeId !== boundaryShapeId)
+
+  return {
+    id: `piece__${entity.id}`,
+    name: entity.name,
+    boundaryShapeId,
+    internalShapeIds,
+    layerId: entity.layer_id,
+    quantity: entity.quantity ?? 1,
+    code: entity.code,
+    annotation: entity.annotation,
+    material: entity.material,
+    materialSide: entity.material_side ?? 'either',
+    notes: entity.notes,
+    onFold: entity.on_fold === true,
+    mirrorPair: entity.mirror_pair === true,
+    orientation: entity.orientation ?? 'any',
+    allowFlip: entity.allow_flip ?? true,
+    includeInLayout: entity.include_in_layout ?? true,
+    locked: false,
+    color: entity.color,
+    fill: entity.fill,
+  }
+}
+
+function compileSeamAllowance(
+  entity: Extract<AiBuilderEntity, { type: 'seam_allowance' }>,
+  pieceIdMap: Map<string, string>,
+): PieceSeamAllowance | null {
+  const pieceId = pieceIdMap.get(entity.piece_id)
+  if (!pieceId) {
+    return null
+  }
+  return {
+    id: `seam_allowance__${entity.id}`,
+    pieceId,
+    enabled: entity.enabled ?? true,
+    defaultOffsetMm: entity.default_offset_mm,
+    edgeOverrides: (entity.edge_overrides ?? []).map((override) => ({ ...override })),
+  }
+}
+
+function compileSeamConnection(
+  entity: Extract<AiBuilderEntity, { type: 'seam_connection' }>,
+  pieceIdMap: Map<string, string>,
+): SeamConnection | null {
+  const fromPieceId = pieceIdMap.get(entity.from.piece_id)
+  const toPieceId = pieceIdMap.get(entity.to.piece_id)
+  if (!fromPieceId || !toPieceId) {
+    return null
+  }
+  const from = {
+    pieceId: fromPieceId,
+    edgeIndex: entity.from.edge_index,
+  }
+  const to = {
+    pieceId: toPieceId,
+    edgeIndex: entity.to.edge_index,
+  }
+  return {
+    id: `seam_connection__${entity.id}`,
+    from,
+    to,
+    fromSpan:
+      entity.from.t0 !== undefined || entity.from.t1 !== undefined || entity.from.reversed !== undefined
+        ? {
+            ...from,
+            t0: entity.from.t0 ?? 0,
+            t1: entity.from.t1 ?? 1,
+            reversed: entity.from.reversed,
+          }
+        : undefined,
+    toSpan:
+      entity.to.t0 !== undefined || entity.to.t1 !== undefined || entity.to.reversed !== undefined
+        ? {
+            ...to,
+            t0: entity.to.t0 ?? 0,
+            t1: entity.to.t1 ?? 1,
+            reversed: entity.to.reversed,
+          }
+        : undefined,
+    toleranceMm: entity.tolerance_mm,
+    stitchSpacingMm: entity.stitch_spacing_mm,
+    reversed: entity.reversed,
+    kind: entity.kind ?? 'sewn',
+  }
+}
+
+function compileHardwareMarker(entity: Extract<AiBuilderEntity, { type: 'hardware_marker' }>): HardwareMarker {
+  return {
+    id: `hardware__${entity.id}`,
+    layerId: entity.layer_id,
+    point: { ...entity.point },
+    kind: entity.kind ?? 'custom',
+    label: entity.label ?? humanizeId(entity.id),
+    installationSide: entity.installation_side ?? 'either',
+    holeDiameterMm: entity.hole_diameter_mm ?? 4,
+    spacingMm: entity.spacing_mm ?? 0,
+    notes: entity.notes,
+    visible: entity.visible ?? true,
+  }
+}
+
 export function compileAiBuilderDocument(document: AiBuilderDocumentV1): AiBuilderCompileResult {
   const layers: Layer[] = document.layers.map((layer, index) => ({
     id: layer.id,
@@ -200,13 +427,80 @@ export function compileAiBuilderDocument(document: AiBuilderDocumentV1): AiBuild
 
   const objects: Shape[] = []
   const foldLines: FoldLine[] = []
+  const stitchHoles: StitchHole[] = []
+  const patternPieces: PatternPiece[] = []
+  const seamAllowances: PieceSeamAllowance[] = []
+  const seamConnections: SeamConnection[] = []
+  const hardwareMarkers: HardwareMarker[] = []
+  const refs: AiBuilderLeatherRef[] = []
+  const entityShapeIds = new Map<string, string[]>()
+  const pieceIdMap = new Map<string, string>()
 
   document.entities.forEach((entity) => {
     if (entity.type === 'fold') {
-      foldLines.push(compileFoldLine(entity))
+      const foldLine = compileFoldLine(entity)
+      foldLines.push(foldLine)
+      refs.push(createLeatherRef('entity', entity.id, entity.id))
+      refs.push(createLeatherRef('fold', foldLine.id, foldLine.name))
       return
     }
-    objects.push(...compileShape(entity))
+
+    if (isShapeEntity(entity)) {
+      const compiledShapes = compileShape(entity)
+      entityShapeIds.set(entity.id, compiledShapes.map((shape) => shape.id))
+      objects.push(...compiledShapes)
+      refs.push(createLeatherRef('entity', entity.id, entity.id))
+      compiledShapes.forEach((shape) => refs.push(createLeatherRef('shape', shape.id, shape.id)))
+      if (entity.type === 'stitch_path' && compiledShapes[0]) {
+        const generatedHoles = compileStitchHoles(entity, compiledShapes[0], stitchHoles.length)
+        stitchHoles.push(...generatedHoles)
+        generatedHoles.forEach((hole) => refs.push(createLeatherRef('stitch_hole', hole.id, hole.id)))
+      }
+      return
+    }
+  })
+
+  document.entities.forEach((entity) => {
+    if (entity.type !== 'pattern_piece') {
+      return
+    }
+    const piece = compilePatternPiece(entity, entityShapeIds)
+    if (!piece) {
+      return
+    }
+    patternPieces.push(piece)
+    pieceIdMap.set(entity.id, piece.id)
+    refs.push(createLeatherRef('entity', entity.id, entity.id))
+    refs.push(createLeatherRef('pattern_piece', piece.id, piece.name))
+  })
+
+  document.entities.forEach((entity) => {
+    if (entity.type === 'seam_allowance') {
+      const seamAllowance = compileSeamAllowance(entity, pieceIdMap)
+      if (seamAllowance) {
+        seamAllowances.push(seamAllowance)
+        refs.push(createLeatherRef('entity', entity.id, entity.id))
+        refs.push(createLeatherRef('seam_allowance', seamAllowance.id, seamAllowance.id))
+      }
+      return
+    }
+
+    if (entity.type === 'seam_connection') {
+      const seamConnection = compileSeamConnection(entity, pieceIdMap)
+      if (seamConnection) {
+        seamConnections.push(seamConnection)
+        refs.push(createLeatherRef('entity', entity.id, entity.id))
+        refs.push(createLeatherRef('seam_connection', seamConnection.id, seamConnection.id))
+      }
+      return
+    }
+
+    if (entity.type === 'hardware_marker') {
+      const hardwareMarker = compileHardwareMarker(entity)
+      hardwareMarkers.push(hardwareMarker)
+      refs.push(createLeatherRef('entity', entity.id, entity.id))
+      refs.push(createLeatherRef('hardware_marker', hardwareMarker.id, hardwareMarker.label))
+    }
   })
 
   const doc: DocFile = {
@@ -218,7 +512,14 @@ export function compileAiBuilderDocument(document: AiBuilderDocumentV1): AiBuild
     activeLineTypeId: DEFAULT_ACTIVE_LINE_TYPE_ID,
     objects,
     foldLines,
+    stitchHoles,
+    patternPieces,
+    seamAllowances,
+    seamConnections,
+    hardwareMarkers,
   }
+
+  const preflight = runAiBuilderPreflight(doc, refs)
 
   return {
     doc,
@@ -227,6 +528,15 @@ export function compileAiBuilderDocument(document: AiBuilderDocumentV1): AiBuild
       entityCount: document.entities.length,
       shapeCount: objects.length,
       foldCount: foldLines.length,
+      stitchHoleCount: stitchHoles.length,
+      patternPieceCount: patternPieces.length,
+      seamAllowanceCount: seamAllowances.length,
+      seamConnectionCount: seamConnections.length,
+      hardwareMarkerCount: hardwareMarkers.length,
+      preflightErrorCount: preflight.filter((issue) => issue.severity === 'error').length,
+      preflightWarningCount: preflight.filter((issue) => issue.severity === 'warning').length,
     },
+    refs,
+    preflight,
   }
 }

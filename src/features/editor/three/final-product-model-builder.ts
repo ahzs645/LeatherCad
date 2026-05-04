@@ -1,6 +1,5 @@
 import {
   BufferGeometry,
-  Color,
   Float32BufferAttribute,
   Group,
   Line,
@@ -23,13 +22,13 @@ import { solveFinalProduct, projectSolvedPointForPreview } from './final-product
 import type { FinalProductDiagnostic, FinalProductSolveResult, SolvedFoldPanel, StitchPair } from './final-product-types'
 import { buildFinalProductRegions } from './final-product-regions'
 import { relaxFinalProductSeamsWithXpbd, type XpbdFinalProductRelaxation } from './final-product-xpbd-relaxation'
+import { analyzeFinalProductFoldSweep } from './final-product-fold-sweep'
 import { buildFoldTimelinePreview } from './fold-timeline'
 import type { CommonRebuildParams } from './model-builder-types'
 
 const STITCH_SPHERE_SEGMENTS = 8
 const STITCH_SPHERE_RADIUS = 0.006
 const MIN_PANEL_THICKNESS_SCENE = 0.001
-const FINAL_LAYER_TINTS = ['#6f4a2e', '#b7834f', '#7f6038', '#a5533e', '#5f6f43', '#8f5f3b']
 
 export type RebuildFinalProductModelParams = CommonRebuildParams & {
   finalProductGroup: Group
@@ -90,11 +89,80 @@ function isFoldEdge(edgeStart: { x: number; y: number }, edgeEnd: { x: number; y
   )
 }
 
+function sideOfFoldLine(point: { x: number; y: number }, foldLine: FoldLine) {
+  return (
+    (foldLine.end.x - foldLine.start.x) * (point.y - foldLine.start.y) -
+    (foldLine.end.y - foldLine.start.y) * (point.x - foldLine.start.x)
+  )
+}
+
+function foldLineNormal(foldLine: FoldLine) {
+  const dx = foldLine.end.x - foldLine.start.x
+  const dy = foldLine.end.y - foldLine.start.y
+  const length = Math.hypot(dx, dy)
+  return {
+    x: length <= 1e-6 ? 0 : -dy / length,
+    y: length <= 1e-6 ? 0 : dx / length,
+  }
+}
+
+function panelCentroid(panel: SolvedFoldPanel) {
+  if (panel.polygon.length === 0) {
+    return { x: 0, y: 0 }
+  }
+  return {
+    x: panel.polygon.reduce((sum, point) => sum + point.x, 0) / panel.polygon.length,
+    y: panel.polygon.reduce((sum, point) => sum + point.y, 0) / panel.polygon.length,
+  }
+}
+
+function foldBandWidthMm(foldLine: FoldLine, thicknessMm: number, maxStackLevel: number) {
+  const stackAllowance = thicknessMm * Math.max(1, maxStackLevel + 1)
+  return Math.max(foldLine.radiusMm ?? 0, foldLine.clearanceMm ?? 0, stackAllowance, 2)
+}
+
+function leatherFoldWidthMm(foldLine: FoldLine, thicknessMm: number) {
+  return Math.max(foldLine.radiusMm ?? 0, thicknessMm * 1.5, 1.2)
+}
+
+function panelFoldInsetMm(panel: SolvedFoldPanel, foldLine: FoldLine, thicknessMm: number, maxStackLevel: number) {
+  if ((panel.stackLevel ?? 0) === 0) {
+    return leatherFoldWidthMm(foldLine, thicknessMm)
+  }
+  return foldBandWidthMm(foldLine, thicknessMm, maxStackLevel)
+}
+
+function renderPointForPanel(
+  panel: SolvedFoldPanel,
+  point: { x: number; y: number },
+  foldLines: FoldLine[],
+  thicknessMm: number,
+  maxStackLevel: number,
+) {
+  for (const foldLine of foldLines) {
+    if (!isPointOnSegment(point, foldLine.start, foldLine.end)) {
+      continue
+    }
+    const side = Math.sign(sideOfFoldLine(panelCentroid(panel), foldLine))
+    if (side === 0) {
+      continue
+    }
+    const normal = foldLineNormal(foldLine)
+    const insetMm = panelFoldInsetMm(panel, foldLine, thicknessMm, maxStackLevel)
+    return {
+      x: point.x + normal.x * side * insetMm,
+      y: point.y + normal.y * side * insetMm,
+    }
+  }
+  return point
+}
+
 function createPanelGeometry(
   panel: SolvedFoldPanel,
   transform: CommonRebuildParams['transform'],
   thicknessMm: number,
   foldLines: FoldLine[],
+  maxStackLevel: number,
 ) {
   if (panel.polygon.length < 3) {
     return null
@@ -106,7 +174,8 @@ function createPanelGeometry(
     return null
   }
 
-  const projected = panel.polygon.map((point) => projectSolvedPointForPreview(panel, point, transform))
+  const renderPolygon = panel.polygon.map((point) => renderPointForPanel(panel, point, foldLines, thicknessMm, maxStackLevel))
+  const projected = renderPolygon.map((point) => projectSolvedPointForPreview(panel, point, transform))
   const normal = panelNormal(projected)
   const halfThickness = Math.max(MIN_PANEL_THICKNESS_SCENE, thicknessMm * transform.scale * 0.5)
   const front = projected.map((point) => point.clone().addScaledVector(normal, halfThickness))
@@ -116,24 +185,26 @@ function createPanelGeometry(
 
   for (const triangle of triangles) {
     for (const index of triangle) {
-      pushVertex(vertices, uvs, front[index], panel.polygon[index])
+      pushVertex(vertices, uvs, front[index], renderPolygon[index])
     }
     for (const index of [...triangle].reverse()) {
-      pushVertex(vertices, uvs, back[index], panel.polygon[index])
+      pushVertex(vertices, uvs, back[index], renderPolygon[index])
     }
   }
 
-  for (let index = 0; index < projected.length; index += 1) {
-    const nextIndex = (index + 1) % projected.length
-    if (isFoldEdge(panel.polygon[index], panel.polygon[nextIndex], foldLines)) {
-      continue
+  if ((panel.stackLevel ?? 0) === 0) {
+    for (let index = 0; index < projected.length; index += 1) {
+      const nextIndex = (index + 1) % projected.length
+      if (isFoldEdge(panel.polygon[index], panel.polygon[nextIndex], foldLines)) {
+        continue
+      }
+      pushVertex(vertices, uvs, front[index], renderPolygon[index])
+      pushVertex(vertices, uvs, back[index], renderPolygon[index])
+      pushVertex(vertices, uvs, back[nextIndex], renderPolygon[nextIndex])
+      pushVertex(vertices, uvs, front[index], renderPolygon[index])
+      pushVertex(vertices, uvs, back[nextIndex], renderPolygon[nextIndex])
+      pushVertex(vertices, uvs, front[nextIndex], renderPolygon[nextIndex])
     }
-    pushVertex(vertices, uvs, front[index], panel.polygon[index])
-    pushVertex(vertices, uvs, back[index], panel.polygon[index])
-    pushVertex(vertices, uvs, back[nextIndex], panel.polygon[nextIndex])
-    pushVertex(vertices, uvs, front[index], panel.polygon[index])
-    pushVertex(vertices, uvs, back[nextIndex], panel.polygon[nextIndex])
-    pushVertex(vertices, uvs, front[nextIndex], panel.polygon[nextIndex])
   }
 
   const geometry = new BufferGeometry()
@@ -150,20 +221,76 @@ function addPanelMeshes(
   material: MeshStandardMaterial,
   transform: CommonRebuildParams['transform'],
   thicknessMm: number,
-  layerColorById: Map<string, string>,
 ) {
+  const maxStackLevel = Math.max(0, ...result.panels.map((panel) => panel.stackLevel ?? 0))
   for (const panel of result.panels) {
-    const geometry = createPanelGeometry(panel, transform, thicknessMm, result.hinges.map((hinge) => hinge.foldLine))
+    const geometry = createPanelGeometry(panel, transform, thicknessMm, result.hinges.map((hinge) => hinge.foldLine), maxStackLevel)
     if (!geometry) {
       continue
     }
     const panelMaterial = material.clone()
-    panelMaterial.color = new Color(layerColorById.get(panel.layerId) ?? FINAL_LAYER_TINTS[(panel.stackLevel ?? 0) % FINAL_LAYER_TINTS.length])
+    panelMaterial.color = material.color.clone()
     panelMaterial.needsUpdate = true
     const mesh = new Mesh(geometry, panelMaterial)
     mesh.name = `final-product-panel-${panel.id}`
     group.add(mesh)
+    if ((panel.stackLevel ?? 0) === 0) {
+      addPanelEdgeFinishing(group, panel, panelMaterial, transform, thicknessMm, result.hinges.map((hinge) => hinge.foldLine), maxStackLevel)
+    }
   }
+}
+
+function addPanelEdgeFinishing(
+  group: Group,
+  panel: SolvedFoldPanel,
+  material: MeshStandardMaterial,
+  transform: CommonRebuildParams['transform'],
+  thicknessMm: number,
+  foldLines: FoldLine[],
+  maxStackLevel: number,
+) {
+  if (panel.polygon.length < 2) {
+    return
+  }
+
+  const projected = panel.polygon
+    .map((point) => renderPointForPanel(panel, point, foldLines, thicknessMm, maxStackLevel))
+    .map((point) => projectSolvedPointForPreview(panel, point, transform))
+  const normal = panelNormal(projected)
+  const halfThickness = Math.max(MIN_PANEL_THICKNESS_SCENE, thicknessMm * transform.scale * 0.5)
+  const frontOffset = halfThickness + 0.0015
+  const backOffset = -halfThickness - 0.0015
+  const vertices: number[] = []
+
+  for (let index = 0; index < panel.polygon.length; index += 1) {
+    const nextIndex = (index + 1) % panel.polygon.length
+    const edgeStart = panel.polygon[index]
+    const edgeEnd = panel.polygon[nextIndex]
+    if (isFoldEdge(edgeStart, edgeEnd, foldLines)) {
+      continue
+    }
+
+    const start = projected[index]
+    const end = projected[nextIndex]
+    const frontStart = start.clone().addScaledVector(normal, frontOffset)
+    const frontEnd = end.clone().addScaledVector(normal, frontOffset)
+    const backStart = start.clone().addScaledVector(normal, backOffset)
+    const backEnd = end.clone().addScaledVector(normal, backOffset)
+
+    vertices.push(frontStart.x, frontStart.y, frontStart.z, frontEnd.x, frontEnd.y, frontEnd.z)
+    vertices.push(backStart.x, backStart.y, backStart.z, backEnd.x, backEnd.y, backEnd.z)
+  }
+
+  if (vertices.length === 0) {
+    return
+  }
+
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
+  const edgeColor = material.color.clone().multiplyScalar(0.45)
+  const line = new LineSegments(geometry, new LineBasicMaterial({ color: edgeColor }))
+  line.name = `final-product-edge-finish-${panel.id}`
+  group.add(line)
 }
 
 function findPanelForHole(result: FinalProductSolveResult, hole: StitchHole) {
@@ -286,24 +413,147 @@ function addSeamGuides(
   }
 }
 
+function hingeBandEndpoint(foldLine: FoldLine, panel: SolvedFoldPanel, point: { x: number; y: number }, widthMm: number) {
+  const side = Math.sign(sideOfFoldLine(panelCentroid(panel), foldLine))
+  const normal = foldLineNormal(foldLine)
+  return {
+    x: point.x + normal.x * side * widthMm,
+    y: point.y + normal.y * side * widthMm,
+  }
+}
+
+function addHingeBendSurfaces(
+  group: Group,
+  result: FinalProductSolveResult,
+  transform: CommonRebuildParams['transform'],
+  thicknessMm: number,
+  material: MeshStandardMaterial,
+) {
+  for (const hinge of result.hinges) {
+    const fromPanel = result.panels.find((panel) => panel.id === hinge.fromPanelId)
+    const toPanel = result.panels.find((panel) => panel.id === hinge.toPanelId)
+    if (!fromPanel || !toPanel) {
+      continue
+    }
+
+    const widthMm = leatherFoldWidthMm(hinge.foldLine, thicknessMm)
+    const fromStart = projectSolvedPointForPreview(fromPanel, hingeBandEndpoint(hinge.foldLine, fromPanel, hinge.foldLine.start, widthMm), transform)
+    const fromEnd = projectSolvedPointForPreview(fromPanel, hingeBandEndpoint(hinge.foldLine, fromPanel, hinge.foldLine.end, widthMm), transform)
+    const toStart = projectSolvedPointForPreview(toPanel, hingeBandEndpoint(hinge.foldLine, toPanel, hinge.foldLine.start, widthMm), transform)
+    const toEnd = projectSolvedPointForPreview(toPanel, hingeBandEndpoint(hinge.foldLine, toPanel, hinge.foldLine.end, widthMm), transform)
+    const normal = panelNormal([fromStart, fromEnd, toEnd, toStart])
+    const halfThickness = Math.max(MIN_PANEL_THICKNESS_SCENE, thicknessMm * transform.scale * 0.5)
+    const frontOffset = halfThickness
+    const backOffset = -halfThickness
+    const frontA = fromStart.clone().addScaledVector(normal, frontOffset)
+    const frontB = fromEnd.clone().addScaledVector(normal, frontOffset)
+    const frontC = toEnd.clone().addScaledVector(normal, frontOffset)
+    const frontD = toStart.clone().addScaledVector(normal, frontOffset)
+    const backA = fromStart.clone().addScaledVector(normal, backOffset)
+    const backB = fromEnd.clone().addScaledVector(normal, backOffset)
+    const backC = toEnd.clone().addScaledVector(normal, backOffset)
+    const backD = toStart.clone().addScaledVector(normal, backOffset)
+
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute([
+      frontA.x, frontA.y, frontA.z,
+      frontB.x, frontB.y, frontB.z,
+      frontC.x, frontC.y, frontC.z,
+      frontA.x, frontA.y, frontA.z,
+      frontC.x, frontC.y, frontC.z,
+      frontD.x, frontD.y, frontD.z,
+
+      backC.x, backC.y, backC.z,
+      backB.x, backB.y, backB.z,
+      backA.x, backA.y, backA.z,
+      backD.x, backD.y, backD.z,
+      backC.x, backC.y, backC.z,
+      backA.x, backA.y, backA.z,
+
+      frontA.x, frontA.y, frontA.z,
+      backA.x, backA.y, backA.z,
+      backB.x, backB.y, backB.z,
+      frontA.x, frontA.y, frontA.z,
+      backB.x, backB.y, backB.z,
+      frontB.x, frontB.y, frontB.z,
+
+      frontD.x, frontD.y, frontD.z,
+      frontC.x, frontC.y, frontC.z,
+      backC.x, backC.y, backC.z,
+      frontD.x, frontD.y, frontD.z,
+      backC.x, backC.y, backC.z,
+      backD.x, backD.y, backD.z,
+
+      frontA.x, frontA.y, frontA.z,
+      frontD.x, frontD.y, frontD.z,
+      backD.x, backD.y, backD.z,
+      frontA.x, frontA.y, frontA.z,
+      backD.x, backD.y, backD.z,
+      backA.x, backA.y, backA.z,
+
+      frontB.x, frontB.y, frontB.z,
+      backB.x, backB.y, backB.z,
+      backC.x, backC.y, backC.z,
+      frontB.x, frontB.y, frontB.z,
+      backC.x, backC.y, backC.z,
+      frontC.x, frontC.y, frontC.z,
+    ], 3))
+    geometry.computeVertexNormals()
+    const band = new Mesh(geometry, material.clone())
+    band.name = `final-product-fold-band-${hinge.id}`
+    group.add(band)
+  }
+}
+
 function addHingeGuides(
   group: Group,
   result: FinalProductSolveResult,
   transform: CommonRebuildParams['transform'],
+  thicknessMm: number,
 ) {
-  const material = new LineBasicMaterial({ color: '#38bdf8' })
+  const centerMaterial = new LineBasicMaterial({ color: '#38bdf8' })
+  const bandMaterial = new LineBasicMaterial({ color: '#7dd3fc' })
   for (const hinge of result.hinges) {
     const panel = result.panels.find((entry) => entry.id === hinge.fromPanelId) ?? result.panels[0]
     if (!panel) {
       continue
     }
-    const start = projectSolvedPointForPreview(panel, hinge.foldLine.start, transform)
-    const end = projectSolvedPointForPreview(panel, hinge.foldLine.end, transform)
-    const geometry = new BufferGeometry()
-    geometry.setAttribute('position', new Float32BufferAttribute([start.x, start.y + 0.006, start.z, end.x, end.y + 0.006, end.z], 3))
-    const line = new Line(geometry, material)
-    line.name = `final-product-hinge-${hinge.id}`
-    group.add(line)
+    const dx = hinge.foldLine.end.x - hinge.foldLine.start.x
+    const dy = hinge.foldLine.end.y - hinge.foldLine.start.y
+    const length = Math.hypot(dx, dy)
+    const maxStackLevel = Math.max(0, ...result.panels.map((entry) => entry.stackLevel ?? 0))
+    const bandMm = foldBandWidthMm(hinge.foldLine, thicknessMm, maxStackLevel)
+    const nx = length <= 1e-6 ? 0 : -dy / length
+    const ny = length <= 1e-6 ? 0 : dx / length
+    const offsets = [-bandMm, 0, bandMm]
+    const vertices: number[] = []
+
+    for (const offset of offsets) {
+      const start = projectSolvedPointForPreview(panel, {
+        x: hinge.foldLine.start.x + nx * offset,
+        y: hinge.foldLine.start.y + ny * offset,
+      }, transform)
+      const end = projectSolvedPointForPreview(panel, {
+        x: hinge.foldLine.end.x + nx * offset,
+        y: hinge.foldLine.end.y + ny * offset,
+      }, transform)
+      vertices.push(start.x, start.y + 0.008, start.z, end.x, end.y + 0.008, end.z)
+    }
+
+    const bandGeometry = new BufferGeometry()
+    bandGeometry.setAttribute('position', new Float32BufferAttribute([
+      ...vertices.slice(0, 6),
+      ...vertices.slice(12, 18),
+    ], 3))
+    const band = new LineSegments(bandGeometry, bandMaterial)
+    band.name = `final-product-fold-area-${hinge.id}`
+    group.add(band)
+
+    const centerGeometry = new BufferGeometry()
+    centerGeometry.setAttribute('position', new Float32BufferAttribute(vertices.slice(6, 12), 3))
+    const center = new Line(centerGeometry, centerMaterial)
+    center.name = `final-product-hinge-${hinge.id}`
+    group.add(center)
   }
 }
 
@@ -355,39 +605,47 @@ export function rebuildFinalProductModel({
     progress: previewSettings.finalFoldProgress,
   })
   const previewFoldLines = foldTimelinePreview.foldLines
-  const layerColorById = new Map(
-    layers.map((layer, index) => [
-      layer.id,
-      FINAL_LAYER_TINTS[(typeof layer.stackLevel === 'number' ? layer.stackLevel : index) % FINAL_LAYER_TINTS.length],
-    ]),
-  )
+  const regions = buildFinalProductRegions({ layers, lineTypes, shapes, outlinePolygons })
+  const compiledSeams = compileExplicitSeams({ pieceMeshes, seamConnections })
+  const assemblyDiagnostics = buildAssemblyDiagnostics({
+    patternPieces,
+    pieceMeshes,
+    seamConnections,
+    foldLines: previewFoldLines,
+    fallbackThicknessMm: previewSettings.thicknessMm,
+  })
+  const explicitDiagnostics = [
+    ...compiledSeams.diagnostics,
+    ...assemblyDiagnostics,
+  ].map(finalDiagnosticFromAssemblyDiagnostic).concat(foldTimelinePreview.diagnostics)
 
   const result = solveFinalProduct({
     foldLines: previewFoldLines,
     stitchHoles,
-    ...(() => {
-      const compiledSeams = compileExplicitSeams({ pieceMeshes, seamConnections })
-      const assemblyDiagnostics = buildAssemblyDiagnostics({
-        patternPieces,
-        pieceMeshes,
-        seamConnections,
-        foldLines: previewFoldLines,
-        fallbackThicknessMm: previewSettings.thicknessMm,
-      })
-      return {
-        explicitStitchChains: compiledSeams.chains,
-        explicitStitchPairs: compiledSeams.pairs,
-        explicitDiagnostics: [
-          ...compiledSeams.diagnostics,
-          ...assemblyDiagnostics,
-        ].map(finalDiagnosticFromAssemblyDiagnostic).concat(foldTimelinePreview.diagnostics),
-      }
-    })(),
-    regions: buildFinalProductRegions({ layers, lineTypes, shapes, outlinePolygons }),
+    explicitStitchChains: compiledSeams.chains,
+    explicitStitchPairs: compiledSeams.pairs,
+    explicitDiagnostics,
+    regions,
     outlinePolygons,
     documentBounds,
     thicknessMm: previewSettings.thicknessMm,
   })
+  const foldSweep = analyzeFinalProductFoldSweep({
+    foldLines,
+    instructions: previewSettings.foldTimeline,
+    stitchHoles,
+    explicitStitchChains: compiledSeams.chains,
+    explicitStitchPairs: compiledSeams.pairs,
+    regions,
+    outlinePolygons,
+    documentBounds,
+    thicknessMm: previewSettings.thicknessMm,
+    sampleCount: 21,
+  })
+  result.foldSweepCollisionCount = foldSweep.collisionCount
+  result.foldSweepWorstProgress = foldSweep.worstProgress
+  result.foldSweepSampleCount = foldSweep.sampleCount
+  result.diagnostics.push(...foldSweep.diagnostics)
   const relaxation = previewSettings.usePhysicsRelaxation ? relaxFinalProductSeamsWithXpbd(result) : null
 
   if (relaxation && relaxation.rmsAfterMm < relaxation.rmsBeforeMm) {
@@ -399,13 +657,12 @@ export function rebuildFinalProductModel({
     })
   }
 
-  addPanelMeshes(finalProductGroup, result, materials.assembledFrontMaterial, transform, previewSettings.thicknessMm, layerColorById)
+  addPanelMeshes(finalProductGroup, result, materials.assembledFrontMaterial, transform, previewSettings.thicknessMm)
   addStitchHoles(finalProductGroup, result, transform, threadColor, relaxation)
+  addHingeBendSurfaces(finalProductGroup, result, transform, previewSettings.thicknessMm, materials.assembledFrontMaterial)
   if (previewSettings.showSeams) {
     addSeamGuides(finalProductGroup, result, transform, previewSettings.showStressOverlay, relaxation)
-  }
-  if (previewSettings.showStressOverlay) {
-    addHingeGuides(finalProductGroup, result, transform)
+    addHingeGuides(finalProductGroup, result, transform, previewSettings.thicknessMm)
   }
 
   fitControlsToModel()

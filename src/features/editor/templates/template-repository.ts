@@ -1,8 +1,12 @@
 import type {
   DocFile,
   FoldLine,
+  HardwareMarker,
   Layer,
   LineType,
+  PatternPiece,
+  PieceSeamAllowance,
+  SeamConnection,
   Shape,
   StitchHole,
 } from '../cad/cad-types'
@@ -146,6 +150,10 @@ export type InsertTemplateResult = {
   shapes: Shape[]
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
+  insertedPatternPieces: PatternPiece[]
+  insertedSeamAllowances: PieceSeamAllowance[]
+  insertedSeamConnections: SeamConnection[]
+  insertedHardwareMarkers: HardwareMarker[]
   insertedShapeIds: string[]
   insertedLayerIds: string[]
 }
@@ -279,6 +287,91 @@ export function insertTemplateDocIntoCurrent(
     })
     .filter((stitchHole): stitchHole is StitchHole => stitchHole !== null)
 
+  const pieceMap = new Map<string, string>()
+  const insertedPatternPieces = (templateDoc.patternPieces ?? [])
+    .map((piece) => {
+      const boundaryShapeId = shapeMap.get(piece.boundaryShapeId)
+      if (!boundaryShapeId) {
+        return null
+      }
+      const nextId = uid()
+      pieceMap.set(piece.id, nextId)
+      return {
+        ...piece,
+        id: nextId,
+        boundaryShapeId,
+        internalShapeIds: piece.internalShapeIds
+          .map((shapeId) => shapeMap.get(shapeId))
+          .filter((shapeId): shapeId is string => typeof shapeId === 'string'),
+        layerId: layerMap.get(piece.layerId) ?? insertedLayers[0]?.id ?? piece.layerId,
+      }
+    })
+    .filter((piece): piece is PatternPiece => piece !== null)
+
+  const insertedSeamAllowances = (templateDoc.seamAllowances ?? [])
+    .filter((entry): entry is PieceSeamAllowance => 'pieceId' in entry && typeof entry.pieceId === 'string')
+    .map((entry) => {
+      const mappedPieceId = pieceMap.get(entry.pieceId)
+      if (!mappedPieceId) {
+        return null
+      }
+      return {
+        ...entry,
+        id: uid(),
+        pieceId: mappedPieceId,
+        edgeOverrides: entry.edgeOverrides.map((override) => ({ ...override })),
+      }
+    })
+    .filter((entry): entry is PieceSeamAllowance => entry !== null)
+
+  const insertedSeamConnections = (templateDoc.seamConnections ?? [])
+    .flatMap((connection): SeamConnection[] => {
+      const fromPieceId = pieceMap.get(connection.from.pieceId)
+      const toPieceId = pieceMap.get(connection.to.pieceId)
+      if (!fromPieceId || !toPieceId) {
+        return []
+      }
+      return [{
+        ...connection,
+        id: uid(),
+        from: {
+          ...connection.from,
+          pieceId: fromPieceId,
+        },
+        to: {
+          ...connection.to,
+          pieceId: toPieceId,
+        },
+        fromSpan: connection.fromSpan
+          ? {
+              ...connection.fromSpan,
+              pieceId: fromPieceId,
+            }
+          : undefined,
+        toSpan: connection.toSpan
+          ? {
+              ...connection.toSpan,
+              pieceId: toPieceId,
+            }
+          : undefined,
+      }]
+    })
+
+  const insertedHardwareMarkers = (templateDoc.hardwareMarkers ?? [])
+    .flatMap((marker): HardwareMarker[] => {
+      const mappedLayerId = layerMap.get(marker.layerId)
+      if (!mappedLayerId) {
+        return []
+      }
+      return [{
+        ...marker,
+        id: uid(),
+        layerId: mappedLayerId,
+        groupId: undefined,
+        point: { ...marker.point },
+      }]
+    })
+
   const lineTypes = normalizeLineTypes([...currentLineTypes, ...insertedLineTypes])
   const activeLineTypeId = resolveActiveLineTypeId(lineTypes, templateDoc.activeLineTypeId)
 
@@ -289,6 +382,10 @@ export function insertTemplateDocIntoCurrent(
     shapes: [...currentShapes, ...insertedShapes],
     foldLines: [...currentFoldLines, ...insertedFoldLines],
     stitchHoles: [...currentStitchHoles, ...insertedStitchHoles],
+    insertedPatternPieces,
+    insertedSeamAllowances,
+    insertedSeamConnections,
+    insertedHardwareMarkers,
     insertedShapeIds: insertedShapes.map((shape) => shape.id),
     insertedLayerIds: insertedLayers.map((layer) => layer.id),
   }

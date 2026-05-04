@@ -1,7 +1,25 @@
-import type { FoldDirection, LineTypeRole, Point, TextTransformMode } from '../cad/cad-types'
+import type {
+  FoldDirection,
+  HardwareKind,
+  LineTypeRole,
+  PatternPieceOrientation,
+  PieceSeamAllowanceEdgeOverride,
+  Point,
+  SeamConnectionKind,
+  StitchHoleRenderShape,
+  StitchHoleType,
+  TextTransformMode,
+} from '../cad/cad-types'
 import {
   AI_BUILDER_ALLOWED_FOLD_DIRECTIONS,
+  AI_BUILDER_ALLOWED_HARDWARE_KINDS,
   AI_BUILDER_ALLOWED_LINE_ROLES,
+  AI_BUILDER_ALLOWED_MATERIAL_SIDES,
+  AI_BUILDER_ALLOWED_PATTERN_ORIENTATIONS,
+  AI_BUILDER_ALLOWED_SEAM_CONNECTION_KINDS,
+  AI_BUILDER_ALLOWED_STITCH_HOLE_TYPES,
+  AI_BUILDER_ALLOWED_STITCH_PATH_TYPES,
+  AI_BUILDER_ALLOWED_STITCH_RENDER_SHAPES,
   AI_BUILDER_ALLOWED_TEXT_TRANSFORMS,
   AI_BUILDER_ENTITY_ALLOWED_KEYS,
   AI_BUILDER_ENTITY_TYPE_ORDER,
@@ -11,6 +29,8 @@ import {
   AI_BUILDER_TOP_LEVEL_ALLOWED_KEYS,
 } from './ai-builder-schema'
 import type {
+  AiBuilderEdgeRef,
+  AiBuilderMaterialSide,
   AiBuilderDocumentV1,
   AiBuilderEntity,
   AiBuilderLayer,
@@ -27,6 +47,13 @@ const AI_BUILDER_POINT_KEY_SET = new Set<string>(AI_BUILDER_POINT_ALLOWED_KEYS)
 const AI_BUILDER_LINE_ROLE_SET = new Set<string>(AI_BUILDER_ALLOWED_LINE_ROLES)
 const AI_BUILDER_TEXT_TRANSFORM_SET = new Set<string>(AI_BUILDER_ALLOWED_TEXT_TRANSFORMS)
 const AI_BUILDER_FOLD_DIRECTION_SET = new Set<string>(AI_BUILDER_ALLOWED_FOLD_DIRECTIONS)
+const AI_BUILDER_MATERIAL_SIDE_SET = new Set<string>(AI_BUILDER_ALLOWED_MATERIAL_SIDES)
+const AI_BUILDER_PATTERN_ORIENTATION_SET = new Set<string>(AI_BUILDER_ALLOWED_PATTERN_ORIENTATIONS)
+const AI_BUILDER_SEAM_CONNECTION_KIND_SET = new Set<string>(AI_BUILDER_ALLOWED_SEAM_CONNECTION_KINDS)
+const AI_BUILDER_HARDWARE_KIND_SET = new Set<string>(AI_BUILDER_ALLOWED_HARDWARE_KINDS)
+const AI_BUILDER_STITCH_PATH_TYPE_SET = new Set<string>(AI_BUILDER_ALLOWED_STITCH_PATH_TYPES)
+const AI_BUILDER_STITCH_HOLE_TYPE_SET = new Set<string>(AI_BUILDER_ALLOWED_STITCH_HOLE_TYPES)
+const AI_BUILDER_STITCH_RENDER_SHAPE_SET = new Set<string>(AI_BUILDER_ALLOWED_STITCH_RENDER_SHAPES)
 
 function pushError(errors: AiBuilderValidationError[], path: string, message: string) {
   errors.push({ path, message })
@@ -115,6 +142,21 @@ function validateOptionalFiniteNumber(
   return validateFiniteNumber(value, path, errors) ?? undefined
 }
 
+function validateOptionalBoolean(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): boolean | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'boolean') {
+    pushError(errors, path, 'must be a boolean when provided')
+    return undefined
+  }
+  return value
+}
+
 function validatePoint(
   value: unknown,
   path: string,
@@ -133,6 +175,17 @@ function validatePoint(
   }
 
   return { x, y }
+}
+
+function validateOptionalPoint(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): Point | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  return validatePoint(value, path, errors) ?? undefined
 }
 
 function validateLineRole(
@@ -178,6 +231,203 @@ function validateFoldDirection(
     return undefined
   }
   return value as FoldDirection
+}
+
+function validateMaterialSide(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): AiBuilderMaterialSide | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || !AI_BUILDER_MATERIAL_SIDE_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_MATERIAL_SIDES.join(', ')}`)
+    return undefined
+  }
+  return value as AiBuilderMaterialSide
+}
+
+function validatePatternOrientation(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): PatternPieceOrientation | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || !AI_BUILDER_PATTERN_ORIENTATION_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_PATTERN_ORIENTATIONS.join(', ')}`)
+    return undefined
+  }
+  return value as PatternPieceOrientation
+}
+
+function validateSeamConnectionKind(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): SeamConnectionKind | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || !AI_BUILDER_SEAM_CONNECTION_KIND_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_SEAM_CONNECTION_KINDS.join(', ')}`)
+    return undefined
+  }
+  return value as SeamConnectionKind
+}
+
+function validateHardwareKind(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): HardwareKind | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || !AI_BUILDER_HARDWARE_KIND_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_HARDWARE_KINDS.join(', ')}`)
+    return undefined
+  }
+  return value as HardwareKind
+}
+
+function validateStitchPathType(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): 'line' | 'arc' | 'bezier' | null {
+  if (typeof value !== 'string' || !AI_BUILDER_STITCH_PATH_TYPE_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_STITCH_PATH_TYPES.join(', ')}`)
+    return null
+  }
+  return value as 'line' | 'arc' | 'bezier'
+}
+
+function validateStitchHoleType(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): StitchHoleType | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || !AI_BUILDER_STITCH_HOLE_TYPE_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_STITCH_HOLE_TYPES.join(', ')}`)
+    return undefined
+  }
+  return value as StitchHoleType
+}
+
+function validateStitchRenderShape(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): StitchHoleRenderShape | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (typeof value !== 'string' || !AI_BUILDER_STITCH_RENDER_SHAPE_SET.has(value)) {
+    pushError(errors, path, `must be one of ${AI_BUILDER_ALLOWED_STITCH_RENDER_SHAPES.join(', ')}`)
+    return undefined
+  }
+  return value as StitchHoleRenderShape
+}
+
+function validateOptionalIdArray(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): string[] | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (!Array.isArray(value)) {
+    pushError(errors, path, 'must be an array when provided')
+    return undefined
+  }
+  const result: string[] = []
+  value.forEach((entry, index) => {
+    const id = validateId(entry, `${path}[${index}]`, errors)
+    if (id) {
+      result.push(id)
+    }
+  })
+  return result
+}
+
+function validateEdgeOverrides(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): PieceSeamAllowanceEdgeOverride[] | undefined {
+  if (value === undefined) {
+    return undefined
+  }
+  if (!Array.isArray(value)) {
+    pushError(errors, path, 'must be an array when provided')
+    return undefined
+  }
+
+  const result: PieceSeamAllowanceEdgeOverride[] = []
+  value.forEach((entry, index) => {
+    const entryPath = `${path}[${index}]`
+    if (!isPlainObject(entry)) {
+      pushError(errors, entryPath, 'must be an object')
+      return
+    }
+    const edgeIndex = validateFiniteNumber(entry.edgeIndex, `${entryPath}.edgeIndex`, errors)
+    const offsetMm = validateFiniteNumber(entry.offsetMm, `${entryPath}.offsetMm`, errors)
+    if (edgeIndex !== null && (!Number.isInteger(edgeIndex) || edgeIndex < 0)) {
+      pushError(errors, `${entryPath}.edgeIndex`, 'must be a non-negative integer')
+    }
+    if (offsetMm !== null && offsetMm < 0) {
+      pushError(errors, `${entryPath}.offsetMm`, 'must be 0 or greater')
+    }
+    if (edgeIndex !== null && offsetMm !== null) {
+      result.push({ edgeIndex, offsetMm })
+    }
+  })
+  return result
+}
+
+function validateAiBuilderEdgeRef(
+  value: unknown,
+  path: string,
+  errors: AiBuilderValidationError[],
+): AiBuilderEdgeRef | null {
+  if (!isPlainObject(value)) {
+    pushError(errors, path, 'must be an object')
+    return null
+  }
+  const piece_id = validateId(value.piece_id, `${path}.piece_id`, errors)
+  const edgeIndex = validateFiniteNumber(value.edge_index, `${path}.edge_index`, errors)
+  const t0 = validateOptionalFiniteNumber(value.t0, `${path}.t0`, errors)
+  const t1 = validateOptionalFiniteNumber(value.t1, `${path}.t1`, errors)
+  const reversed = validateOptionalBoolean(value.reversed, `${path}.reversed`, errors)
+
+  if (edgeIndex !== null && (!Number.isInteger(edgeIndex) || edgeIndex < 0)) {
+    pushError(errors, `${path}.edge_index`, 'must be a non-negative integer')
+  }
+  for (const [key, value] of [['t0', t0], ['t1', t1]] as const) {
+    if (value !== undefined && (value < 0 || value > 1)) {
+      pushError(errors, `${path}.${key}`, 'must be between 0 and 1')
+    }
+  }
+  if (t0 !== undefined && t1 !== undefined && t1 < t0) {
+    pushError(errors, `${path}.t1`, 'must be greater than or equal to t0')
+  }
+  if (!piece_id || edgeIndex === null) {
+    return null
+  }
+  return {
+    piece_id,
+    edge_index: edgeIndex,
+    t0,
+    t1,
+    reversed,
+  }
 }
 
 function reserveId(
@@ -357,6 +607,213 @@ function validateEntity(
     }
   }
 
+  if (entityType === 'stitch_path') {
+    const layer_id = validateLayerReference(value.layer_id, `${path}.layer_id`, layerIds, errors)
+    const path_type = validateStitchPathType(value.path_type, `${path}.path_type`, errors)
+    const start = validatePoint(value.start, `${path}.start`, errors)
+    const end = validatePoint(value.end, `${path}.end`, errors)
+    const mid = validateOptionalPoint(value.mid, `${path}.mid`, errors)
+    const control = validateOptionalPoint(value.control, `${path}.control`, errors)
+    const pitch_mm = validateFiniteNumber(value.pitch_mm, `${path}.pitch_mm`, errors)
+    const hole_type = validateStitchHoleType(value.hole_type, `${path}.hole_type`, errors)
+    const render_shape = validateStitchRenderShape(value.render_shape, `${path}.render_shape`, errors)
+    const diameter_mm = validateOptionalFiniteNumber(value.diameter_mm, `${path}.diameter_mm`, errors)
+    const width_mm = validateOptionalFiniteNumber(value.width_mm, `${path}.width_mm`, errors)
+    const height_mm = validateOptionalFiniteNumber(value.height_mm, `${path}.height_mm`, errors)
+    const tilt_deg = validateOptionalFiniteNumber(value.tilt_deg, `${path}.tilt_deg`, errors)
+    const inverted = validateOptionalBoolean(value.inverted, `${path}.inverted`, errors)
+    const include_start_hole = validateOptionalBoolean(value.include_start_hole, `${path}.include_start_hole`, errors)
+    const force_fit_last_hole = validateOptionalBoolean(value.force_fit_last_hole, `${path}.force_fit_last_hole`, errors)
+
+    if (path_type === 'arc' && !mid) {
+      pushError(errors, `${path}.mid`, 'is required when path_type is arc')
+    }
+    if (path_type !== 'arc' && value.mid !== undefined) {
+      pushError(errors, `${path}.mid`, 'is only allowed when path_type is arc')
+    }
+    if (path_type === 'bezier' && !control) {
+      pushError(errors, `${path}.control`, 'is required when path_type is bezier')
+    }
+    if (path_type !== 'bezier' && value.control !== undefined) {
+      pushError(errors, `${path}.control`, 'is only allowed when path_type is bezier')
+    }
+    if (pitch_mm !== null && pitch_mm <= 0) {
+      pushError(errors, `${path}.pitch_mm`, 'must be greater than 0')
+    }
+    if (diameter_mm !== undefined && diameter_mm <= 0) {
+      pushError(errors, `${path}.diameter_mm`, 'must be greater than 0')
+    }
+    if (width_mm !== undefined && width_mm <= 0) {
+      pushError(errors, `${path}.width_mm`, 'must be greater than 0')
+    }
+    if (height_mm !== undefined && height_mm <= 0) {
+      pushError(errors, `${path}.height_mm`, 'must be greater than 0')
+    }
+
+    if (errors.length !== errorCountBefore || !id || !layer_id || !path_type || !start || !end || pitch_mm === null) {
+      return null
+    }
+
+    return {
+      id,
+      type: 'stitch_path',
+      layer_id,
+      path_type,
+      start,
+      mid,
+      control,
+      end,
+      pitch_mm,
+      hole_type,
+      render_shape,
+      diameter_mm,
+      width_mm,
+      height_mm,
+      tilt_deg,
+      inverted,
+      include_start_hole,
+      force_fit_last_hole,
+    }
+  }
+
+  if (entityType === 'pattern_piece') {
+    const layer_id = validateLayerReference(value.layer_id, `${path}.layer_id`, layerIds, errors)
+    const boundary_entity_id = validateId(value.boundary_entity_id, `${path}.boundary_entity_id`, errors)
+    const internal_entity_ids = validateOptionalIdArray(value.internal_entity_ids, `${path}.internal_entity_ids`, errors)
+    const name = validateRequiredString(value.name, `${path}.name`, errors)
+    const quantity = validateOptionalFiniteNumber(value.quantity, `${path}.quantity`, errors)
+    const code = validateOptionalString(value.code, `${path}.code`, errors)
+    const annotation = validateOptionalString(value.annotation, `${path}.annotation`, errors)
+    const material = validateOptionalString(value.material, `${path}.material`, errors)
+    const material_side = validateMaterialSide(value.material_side, `${path}.material_side`, errors)
+    const notes = validateOptionalString(value.notes, `${path}.notes`, errors)
+    const on_fold = validateOptionalBoolean(value.on_fold, `${path}.on_fold`, errors)
+    const mirror_pair = validateOptionalBoolean(value.mirror_pair, `${path}.mirror_pair`, errors)
+    const orientation = validatePatternOrientation(value.orientation, `${path}.orientation`, errors)
+    const allow_flip = validateOptionalBoolean(value.allow_flip, `${path}.allow_flip`, errors)
+    const include_in_layout = validateOptionalBoolean(value.include_in_layout, `${path}.include_in_layout`, errors)
+    const color = validateOptionalString(value.color, `${path}.color`, errors)
+    const fill = validateOptionalString(value.fill, `${path}.fill`, errors)
+
+    if (quantity !== undefined && (!Number.isInteger(quantity) || quantity <= 0)) {
+      pushError(errors, `${path}.quantity`, 'must be a positive integer')
+    }
+    if (errors.length !== errorCountBefore || !id || !layer_id || !boundary_entity_id || !name) {
+      return null
+    }
+
+    return {
+      id,
+      type: 'pattern_piece',
+      layer_id,
+      boundary_entity_id,
+      internal_entity_ids,
+      name,
+      quantity,
+      code,
+      annotation,
+      material,
+      material_side,
+      notes,
+      on_fold,
+      mirror_pair,
+      orientation,
+      allow_flip,
+      include_in_layout,
+      color,
+      fill,
+    }
+  }
+
+  if (entityType === 'seam_allowance') {
+    const piece_id = validateId(value.piece_id, `${path}.piece_id`, errors)
+    const default_offset_mm = validateFiniteNumber(value.default_offset_mm, `${path}.default_offset_mm`, errors)
+    const enabled = validateOptionalBoolean(value.enabled, `${path}.enabled`, errors)
+    const edge_overrides = validateEdgeOverrides(value.edge_overrides, `${path}.edge_overrides`, errors)
+
+    if (default_offset_mm !== null && default_offset_mm < 0) {
+      pushError(errors, `${path}.default_offset_mm`, 'must be 0 or greater')
+    }
+    if (errors.length !== errorCountBefore || !id || !piece_id || default_offset_mm === null) {
+      return null
+    }
+
+    return {
+      id,
+      type: 'seam_allowance',
+      piece_id,
+      default_offset_mm,
+      enabled,
+      edge_overrides,
+    }
+  }
+
+  if (entityType === 'seam_connection') {
+    const from = validateAiBuilderEdgeRef(value.from, `${path}.from`, errors)
+    const to = validateAiBuilderEdgeRef(value.to, `${path}.to`, errors)
+    const kind = validateSeamConnectionKind(value.kind, `${path}.kind`, errors)
+    const stitch_spacing_mm = validateOptionalFiniteNumber(value.stitch_spacing_mm, `${path}.stitch_spacing_mm`, errors)
+    const tolerance_mm = validateOptionalFiniteNumber(value.tolerance_mm, `${path}.tolerance_mm`, errors)
+    const reversed = validateOptionalBoolean(value.reversed, `${path}.reversed`, errors)
+
+    if (stitch_spacing_mm !== undefined && stitch_spacing_mm <= 0) {
+      pushError(errors, `${path}.stitch_spacing_mm`, 'must be greater than 0')
+    }
+    if (tolerance_mm !== undefined && tolerance_mm < 0) {
+      pushError(errors, `${path}.tolerance_mm`, 'must be 0 or greater')
+    }
+    if (errors.length !== errorCountBefore || !id || !from || !to) {
+      return null
+    }
+
+    return {
+      id,
+      type: 'seam_connection',
+      from,
+      to,
+      kind,
+      stitch_spacing_mm,
+      tolerance_mm,
+      reversed,
+    }
+  }
+
+  if (entityType === 'hardware_marker') {
+    const layer_id = validateLayerReference(value.layer_id, `${path}.layer_id`, layerIds, errors)
+    const point = validatePoint(value.point, `${path}.point`, errors)
+    const kind = validateHardwareKind(value.kind, `${path}.kind`, errors)
+    const label = validateOptionalString(value.label, `${path}.label`, errors)
+    const hole_diameter_mm = validateOptionalFiniteNumber(value.hole_diameter_mm, `${path}.hole_diameter_mm`, errors)
+    const spacing_mm = validateOptionalFiniteNumber(value.spacing_mm, `${path}.spacing_mm`, errors)
+    const installation_side = validateMaterialSide(value.installation_side, `${path}.installation_side`, errors)
+    const notes = validateOptionalString(value.notes, `${path}.notes`, errors)
+    const visible = validateOptionalBoolean(value.visible, `${path}.visible`, errors)
+
+    if (hole_diameter_mm !== undefined && hole_diameter_mm <= 0) {
+      pushError(errors, `${path}.hole_diameter_mm`, 'must be greater than 0')
+    }
+    if (spacing_mm !== undefined && spacing_mm < 0) {
+      pushError(errors, `${path}.spacing_mm`, 'must be 0 or greater')
+    }
+    if (errors.length !== errorCountBefore || !id || !layer_id || !point) {
+      return null
+    }
+
+    return {
+      id,
+      type: 'hardware_marker',
+      layer_id,
+      point,
+      kind,
+      label,
+      hole_diameter_mm,
+      spacing_mm,
+      installation_side,
+      notes,
+      visible,
+    }
+  }
+
   const start = validatePoint(value.start, `${path}.start`, errors)
   const end = validatePoint(value.end, `${path}.end`, errors)
   const name = validateOptionalString(value.name, `${path}.name`, errors)
@@ -415,6 +872,57 @@ function validateEntity(
     stiffness,
     clearance_mm,
   }
+}
+
+function validateEntityReferences(entities: AiBuilderEntity[], errors: AiBuilderValidationError[]) {
+  const shapeEntityIds = new Set(
+    entities
+      .filter((entity) =>
+        entity.type === 'line' ||
+        entity.type === 'arc' ||
+        entity.type === 'bezier' ||
+        entity.type === 'rectangle' ||
+        entity.type === 'text' ||
+        entity.type === 'stitch_path',
+      )
+      .map((entity) => entity.id),
+  )
+  const patternPieceEntityIds = new Set(
+    entities
+      .filter((entity): entity is Extract<AiBuilderEntity, { type: 'pattern_piece' }> => entity.type === 'pattern_piece')
+      .map((entity) => entity.id),
+  )
+
+  entities.forEach((entity, index) => {
+    const path = `entities[${index}]`
+    if (entity.type === 'pattern_piece') {
+      if (!shapeEntityIds.has(entity.boundary_entity_id)) {
+        pushError(errors, `${path}.boundary_entity_id`, 'must reference a generated shape entity')
+      }
+      entity.internal_entity_ids?.forEach((entityId, internalIndex) => {
+        if (!shapeEntityIds.has(entityId)) {
+          pushError(errors, `${path}.internal_entity_ids[${internalIndex}]`, 'must reference a generated shape entity')
+        }
+      })
+      return
+    }
+
+    if (entity.type === 'seam_allowance') {
+      if (!patternPieceEntityIds.has(entity.piece_id)) {
+        pushError(errors, `${path}.piece_id`, 'must reference a pattern_piece entity')
+      }
+      return
+    }
+
+    if (entity.type === 'seam_connection') {
+      if (!patternPieceEntityIds.has(entity.from.piece_id)) {
+        pushError(errors, `${path}.from.piece_id`, 'must reference a pattern_piece entity')
+      }
+      if (!patternPieceEntityIds.has(entity.to.piece_id)) {
+        pushError(errors, `${path}.to.piece_id`, 'must reference a pattern_piece entity')
+      }
+    }
+  })
 }
 
 export function parseAiBuilderDocument(raw: string): AiBuilderParseResult {
@@ -479,6 +987,8 @@ export function parseAiBuilderDocument(raw: string): AiBuilderParseResult {
       }
     })
   }
+
+  validateEntityReferences(entities, errors)
 
   if (errors.length > 0 || !documentName) {
     return { ok: false, errors }

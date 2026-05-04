@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DocFile } from '../cad/cad-types'
+import {
+  appendAssistantTurn,
+  appendUserTurn,
+  EMPTY_AI_BUILDER_HISTORY,
+} from '../ai-builder/ai-builder-history'
 import { compileAiBuilderDocument } from '../ai-builder/ai-builder-compile'
 import { parseAiBuilderDocument } from '../ai-builder/ai-builder-parse'
-import { renderAiBuilderPrompt } from '../ai-builder/ai-builder-prompt'
+import { renderAiBuilderTurnPrompt } from '../ai-builder/ai-builder-prompt-turn'
+import { AI_BUILDER_DEFAULT_REQUEST } from '../ai-builder/ai-builder-schema'
 import type {
   AiBuilderCompileResult,
   AiBuilderValidationError,
@@ -62,8 +68,11 @@ export function AiBuilderModal({
   const requestRef = useRef<HTMLTextAreaElement | null>(null)
   const [request, setRequest] = useState('')
   const [rawJson, setRawJson] = useState('')
+  const [history, setHistory] = useState(EMPTY_AI_BUILDER_HISTORY)
+  const [lastHistoryRawJson, setLastHistoryRawJson] = useState('')
   const [validationState, setValidationState] = useState<ValidationState | null>(null)
-  const promptPreview = useMemo(() => renderAiBuilderPrompt(request), [request])
+  const promptPreview = useMemo(() => renderAiBuilderTurnPrompt({ history, request }), [history, request])
+  const savedDocumentCount = history.turns.filter((turn) => turn.role === 'assistant').length
 
   useEffect(() => {
     if (!open) {
@@ -122,14 +131,26 @@ export function AiBuilderModal({
     }
 
     const compileResult = compileAiBuilderDocument(parseResult.document)
+    const normalizedRawJson = rawJson.trim()
+    if (normalizedRawJson !== lastHistoryRawJson) {
+      const historyRequest = request.trim() || AI_BUILDER_DEFAULT_REQUEST
+      setHistory((currentHistory) => appendAssistantTurn(appendUserTurn(currentHistory, historyRequest), normalizedRawJson))
+      setLastHistoryRawJson(normalizedRawJson)
+    }
     setValidationState({
       kind: 'valid',
       documentName: parseResult.document.document_name,
       compileResult,
     })
     onSetStatus(
-      `AI Builder JSON is valid (${compileResult.summary.shapeCount} shapes, ${compileResult.summary.foldCount} folds, ${compileResult.summary.layerCount} layers)`,
+      `AI Builder JSON is valid (${compileResult.summary.shapeCount} shapes, ${compileResult.summary.patternPieceCount} pieces, ${compileResult.summary.stitchHoleCount} stitch holes, ${compileResult.summary.preflightErrorCount} preflight errors)`,
     )
+  }
+
+  const handleResetHistory = () => {
+    setHistory(EMPTY_AI_BUILDER_HISTORY)
+    setLastHistoryRawJson('')
+    onSetStatus('AI Builder refinement context reset')
   }
 
   const handleLoadDocument = () => {
@@ -160,7 +181,9 @@ export function AiBuilderModal({
         <div className="line-type-modal-header">
           <div>
             <h2>AI Builder</h2>
-            <p className="line-type-modal-subtitle">Prompt Out, JSON In</p>
+            <p className="line-type-modal-subtitle">
+              {savedDocumentCount > 0 ? `${savedDocumentCount} saved refinement turn${savedDocumentCount === 1 ? '' : 's'}` : 'Prompt Out, JSON In'}
+            </p>
           </div>
           <button type="button" onClick={onClose}>
             Close
@@ -200,6 +223,9 @@ export function AiBuilderModal({
           <div className="line-type-modal-actions">
             <button type="button" onClick={handleCopyPrompt}>
               Copy Prompt
+            </button>
+            <button type="button" onClick={handleResetHistory} disabled={savedDocumentCount === 0}>
+              Reset Context
             </button>
           </div>
         </div>
@@ -280,7 +306,51 @@ export function AiBuilderModal({
                 <span className="ai-builder-summary-label">Fold Lines</span>
                 <strong>{validationState.compileResult.summary.foldCount}</strong>
               </div>
+              <div className="ai-builder-summary-card">
+                <span className="ai-builder-summary-label">Stitch Holes</span>
+                <strong>{validationState.compileResult.summary.stitchHoleCount}</strong>
+              </div>
+              <div className="ai-builder-summary-card">
+                <span className="ai-builder-summary-label">Pieces</span>
+                <strong>{validationState.compileResult.summary.patternPieceCount}</strong>
+              </div>
+              <div className="ai-builder-summary-card">
+                <span className="ai-builder-summary-label">Seams</span>
+                <strong>{validationState.compileResult.summary.seamConnectionCount}</strong>
+              </div>
+              <div className="ai-builder-summary-card">
+                <span className="ai-builder-summary-label">Hardware</span>
+                <strong>{validationState.compileResult.summary.hardwareMarkerCount}</strong>
+              </div>
+              <div className="ai-builder-summary-card">
+                <span className="ai-builder-summary-label">Refs</span>
+                <strong>{validationState.compileResult.refs.length}</strong>
+              </div>
+              <div className="ai-builder-summary-card">
+                <span className="ai-builder-summary-label">Preflight</span>
+                <strong>
+                  {validationState.compileResult.summary.preflightErrorCount} / {validationState.compileResult.summary.preflightWarningCount}
+                </strong>
+              </div>
             </div>
+          )}
+
+          {validationState?.kind === 'valid' && validationState.compileResult.preflight.length > 0 && (
+            <ul className="ai-builder-error-list">
+              {validationState.compileResult.preflight.slice(0, 8).map((issue, index) => (
+                <li key={`${issue.code}-${index}`}>
+                  <strong>{issue.severity.toUpperCase()} {issue.code}</strong>: {issue.message}
+                  {issue.ref ? ` ${issue.ref}` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {validationState?.kind === 'valid' && validationState.compileResult.refs.length > 0 && (
+            <p className="hint">
+              Refs: {validationState.compileResult.refs.slice(0, 6).map((entry) => entry.ref).join(', ')}
+              {validationState.compileResult.refs.length > 6 ? ' ...' : ''}
+            </p>
           )}
         </div>
       </section>
