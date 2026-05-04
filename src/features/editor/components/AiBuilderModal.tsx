@@ -123,14 +123,19 @@ export function AiBuilderModal({
       return
     }
     let cancelled = false
-    setAgentStatus((current) => ({ ...current, mode: 'checking' }))
-    getAiAgentStatus().then((status) => {
+    const checkingTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setAgentStatus((current) => ({ ...current, mode: 'checking' }))
+      }
+    }, 0)
+    void getAiAgentStatus().then((status) => {
       if (!cancelled) {
         setAgentStatus(status)
       }
-    })
+    }, () => undefined)
     return () => {
       cancelled = true
+      window.clearTimeout(checkingTimer)
     }
   }, [open])
 
@@ -142,7 +147,6 @@ export function AiBuilderModal({
     if (!open) {
       agentControllerRef.current?.stop()
       agentControllerRef.current = null
-      setAgentRunning(false)
     }
   }, [open])
 

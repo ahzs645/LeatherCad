@@ -380,6 +380,8 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setStitchHoles,
     setConstraints,
     setPatternPieces,
+    setPieceInterfaces,
+    setAssemblyConnections,
     setPieceGrainlines,
     setPieceLabels,
     setPiecePlacementLabels,

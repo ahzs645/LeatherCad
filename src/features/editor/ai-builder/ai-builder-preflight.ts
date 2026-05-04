@@ -207,6 +207,7 @@ function checkExportReadiness(doc: DocFile, issues: AiBuilderPreflightIssue[]) {
 }
 
 export function runAiBuilderPreflight(doc: DocFile, _refs: AiBuilderLeatherRef[] = []): AiBuilderPreflightIssue[] {
+  void _refs
   const issues: AiBuilderPreflightIssue[] = []
   checkPatternPieces(doc, issues)
   checkSeamConnections(doc, issues)
