@@ -52,6 +52,7 @@ import { fitViewportToShapes, type ViewportFitSize } from '../ops/viewport-fit'
 type UseLoadedDocumentActionsParams = {
   clearDraft: () => void
   setDocumentName: Dispatch<SetStateAction<string | null>>
+  setActiveLocalDocumentId: Dispatch<SetStateAction<string | null>>
   setLayers: Dispatch<SetStateAction<Layer[]>>
   setActiveLayerId: Dispatch<SetStateAction<string>>
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
@@ -122,6 +123,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
   const {
     clearDraft,
     setDocumentName,
+    setActiveLocalDocumentId,
     setLayers,
     setActiveLayerId,
     setSketchGroups,
@@ -175,6 +177,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
   const applyLoadedDocument = useCallback((doc: DocFile, statusMessage: string) => {
     const normalizedDocumentName =
       typeof doc.documentName === 'string' && doc.documentName.trim().length > 0 ? doc.documentName.trim() : null
+    setActiveLocalDocumentId(null)
     const normalizedLayers = doc.layers.length > 0 ? doc.layers : [createDefaultLayer(uid())]
     const normalizedActiveLayerId = normalizedLayers.some((layer) => layer.id === doc.activeLayerId)
       ? doc.activeLayerId
@@ -369,6 +372,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
   }, [
     clearDraft,
     setDocumentName,
+    setActiveLocalDocumentId,
     setLayers,
     setActiveLayerId,
     setSketchGroups,

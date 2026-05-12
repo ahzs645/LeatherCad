@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import type { DocFile } from '../cad/cad-types'
+import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 import { safeLocalStorageGet, safeLocalStorageRemove } from '../ops/safe-storage'
 import type { CatalogRepositoryShop } from '../templates/catalog-repository'
 
@@ -9,6 +11,7 @@ type UseEditorDocumentBootstrapParams = {
   bundledCatalogRepository: CatalogRepositoryShop[]
   catalogRepository: CatalogRepositoryShop[]
   setSystemThemeMode: React.Dispatch<React.SetStateAction<'light' | 'dark'>>
+  setActiveLocalDocumentId: Dispatch<SetStateAction<string | null>>
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
 }
 
@@ -16,6 +19,7 @@ export function useEditorDocumentBootstrap({
   bundledCatalogRepository,
   catalogRepository,
   setSystemThemeMode,
+  setActiveLocalDocumentId,
   applyLoadedDocument,
 }: UseEditorDocumentBootstrapParams) {
   const mergedCatalogRepository = useMemo(() => {
@@ -50,6 +54,20 @@ export function useEditorDocumentBootstrap({
     }
 
     const url = new URL(window.location.href)
+    const localDocumentId = url.searchParams.get('openLocalDoc')
+    if (localDocumentId) {
+      void withEditorLocalDataClient((client) => client.documents.get(localDocumentId)).then((document) => {
+        if (!document) {
+          return
+        }
+        applyLoadedDocument(document.doc, `Loaded local project "${document.name}"`)
+        setActiveLocalDocumentId(document.id)
+        url.searchParams.delete('openLocalDoc')
+        window.history.replaceState(null, '', url.toString())
+      })
+      return
+    }
+
     const token = url.searchParams.get('openDoc')
     if (!token) {
       return
@@ -65,6 +83,7 @@ export function useEditorDocumentBootstrap({
       .then(({ parseImportedJsonDocument }) => {
         const parsed = parseImportedJsonDocument(raw)
         applyLoadedDocument(parsed.doc, 'Loaded project from new tab transfer')
+        setActiveLocalDocumentId(null)
         safeLocalStorageRemove(storageKey)
         url.searchParams.delete('openDoc')
         window.history.replaceState(null, '', url.toString())
@@ -72,7 +91,7 @@ export function useEditorDocumentBootstrap({
       .catch((error) => {
         console.error('Open in new tab transfer failed', error)
       })
-  }, [applyLoadedDocument])
+  }, [applyLoadedDocument, setActiveLocalDocumentId])
 
   return {
     mergedCatalogRepository,

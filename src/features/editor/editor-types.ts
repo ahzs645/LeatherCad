@@ -74,6 +74,7 @@ export type MobileFileAction =
   | 'export-pdf'
   | 'export-dxf'
   | 'export-options'
+  | 'local-projects'
   | 'template-repository'
   | 'pattern-tools'
   | 'import-tracing'

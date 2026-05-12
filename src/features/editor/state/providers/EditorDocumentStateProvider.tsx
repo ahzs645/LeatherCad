@@ -13,6 +13,7 @@ import {
 
 const initialEditorDocumentState: EditorDocumentState = {
   documentName: null,
+  activeLocalDocumentId: null,
   lineTypes: createDefaultLineTypes(),
   activeLineTypeId: DEFAULT_ACTIVE_LINE_TYPE_ID,
   shapes: [],
@@ -57,6 +58,8 @@ function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyActio
   return {
     setDocumentName: (value: React.SetStateAction<EditorDocumentState['documentName']>) =>
       dispatch({ type: 'documentName', value }),
+    setActiveLocalDocumentId: (value: React.SetStateAction<EditorDocumentState['activeLocalDocumentId']>) =>
+      dispatch({ type: 'activeLocalDocumentId', value }),
     setLineTypes: (value: React.SetStateAction<EditorDocumentState['lineTypes']>) =>
       dispatch({ type: 'lineTypes', value }),
     setActiveLineTypeId: (value: React.SetStateAction<EditorDocumentState['activeLineTypeId']>) =>

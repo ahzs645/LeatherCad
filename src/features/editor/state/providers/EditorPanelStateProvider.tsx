@@ -25,6 +25,7 @@ const initialEditorPanelState: EditorPanelState = {
   showAiBuilderModal: false,
   showHelpModal: false,
   showTemplateRepositoryModal: false,
+  showLocalProjectsModal: false,
   printPaper: 'letter',
   printTileX: 1,
   printTileY: 1,
@@ -86,6 +87,8 @@ function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<E
       dispatch({ type: 'showHelpModal', value }),
     setShowTemplateRepositoryModal: (value: React.SetStateAction<EditorPanelState['showTemplateRepositoryModal']>) =>
       dispatch({ type: 'showTemplateRepositoryModal', value }),
+    setShowLocalProjectsModal: (value: React.SetStateAction<EditorPanelState['showLocalProjectsModal']>) =>
+      dispatch({ type: 'showLocalProjectsModal', value }),
     setPrintPaper: (value: React.SetStateAction<EditorPanelState['printPaper']>) =>
       dispatch({ type: 'printPaper', value }),
     setPrintTileX: (value: React.SetStateAction<EditorPanelState['printTileX']>) =>

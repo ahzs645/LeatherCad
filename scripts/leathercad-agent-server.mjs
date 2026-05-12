@@ -150,6 +150,13 @@ function snake(value) {
 function inferKind(request, currentJson) {
   const lower = `${request} ${currentJson ?? ''}`.toLowerCase()
   if (lower.includes('belt')) return 'belt'
+  if (
+    lower.includes('compact wallet') ||
+    lower.includes('clasp wallet') ||
+    lower.includes('snap wallet') ||
+    lower.includes('maison') ||
+    (lower.includes('wallet') && (lower.includes('snap') || lower.includes('clasp') || lower.includes('flap')))
+  ) return 'compact_clasp_wallet'
   if (lower.includes('gusset')) return 'gusseted_pouch'
   if (lower.includes('coin') || lower.includes('snap') || lower.includes('pouch')) return 'snap_coin_pouch'
   if (lower.includes('bifold') || lower.includes('wallet')) return 'bifold_wallet'
@@ -346,6 +353,66 @@ function buildBifoldWallet(stage, preferences = inferPreferences('')) {
   return makeDoc('live_bifold_wallet', layers, entities)
 }
 
+function buildCompactClaspWallet(stage, preferences = inferPreferences('')) {
+  const layers = [
+    { id: 'shell', name: 'Outer Shell and Flap' },
+    { id: 'pockets', name: 'Card and Cash Pockets' },
+    { id: 'hardware', name: 'Snap Hardware and Guides' },
+  ]
+  const entities = [
+    rectangle('shell_rectangular_cut_envelope', 'shell', 0, 0, 92, 172),
+    rectangle('back_cash_sleeve_outline', 'pockets', 112, 48, 82, 102),
+    rectangle('middle_card_pocket_outline', 'pockets', 214, 72, 76, 54),
+    rectangle('front_card_pocket_outline', 'pockets', 310, 104, 80, 48),
+    piece('shell_piece', 'shell', 'shell_rectangular_cut_envelope', 'One-piece shell with rounded clasp flap', { code: 'A' }),
+    piece('back_cash_sleeve_piece', 'pockets', 'back_cash_sleeve_outline', 'Back cash sleeve', { code: 'B' }),
+    piece('middle_card_pocket_piece', 'pockets', 'middle_card_pocket_outline', 'Middle card pocket', { code: 'C' }),
+    piece('front_card_pocket_piece', 'pockets', 'front_card_pocket_outline', 'Front card pocket', { code: 'D' }),
+  ]
+
+  if (stage >= 2) {
+    entities.push(
+      { id: 'rounded_flap_right_profile', type: 'bezier', layer_id: 'shell', start: { x: 92, y: 36 }, control: { x: 76, y: -10 }, end: { x: 46, y: 0 }, line_role: 'guide' },
+      { id: 'rounded_flap_left_profile', type: 'bezier', layer_id: 'shell', start: { x: 46, y: 0 }, control: { x: 16, y: -10 }, end: { x: 0, y: 36 }, line_role: 'guide' },
+      { id: 'visible_flap_lip', type: 'bezier', layer_id: 'shell', start: { x: 6, y: 54 }, control: { x: 46, y: 75 }, end: { x: 86, y: 54 }, line_role: 'guide' },
+      { id: 'cash_sleeve_scoop', type: 'bezier', layer_id: 'pockets', start: { x: 112, y: 48 }, control: { x: 153, y: 68 }, end: { x: 194, y: 48 }, line_role: 'guide' },
+      { id: 'middle_pocket_scoop', type: 'bezier', layer_id: 'pockets', start: { x: 214, y: 72 }, control: { x: 252, y: 93 }, end: { x: 290, y: 72 }, line_role: 'guide' },
+      { id: 'front_pocket_scoop', type: 'bezier', layer_id: 'pockets', start: { x: 310, y: 104 }, control: { x: 350, y: 123 }, end: { x: 390, y: 104 }, line_role: 'guide' },
+      { id: 'flap_fold', type: 'fold', start: { x: 8, y: 38 }, end: { x: 84, y: 38 }, name: 'Rounded flap fold', direction: 'mountain', angle_deg: 74, max_angle_deg: 180, radius_mm: 2.2, thickness_mm: 1.5, clearance_mm: 1.5 },
+      { id: 'front_pocket_flex_fold', type: 'fold', start: { x: 310, y: 126 }, end: { x: 390, y: 126 }, name: 'Front pocket flex fold', direction: 'valley', angle_deg: 18, max_angle_deg: 90, radius_mm: 1, thickness_mm: 1.2, clearance_mm: 0.6 },
+      allowance('shell_allowance', 'shell_piece', preferences.seamAllowanceMm),
+      allowance('back_cash_sleeve_allowance', 'back_cash_sleeve_piece', preferences.seamAllowanceMm),
+      allowance('middle_card_pocket_allowance', 'middle_card_pocket_piece', preferences.seamAllowanceMm),
+      allowance('front_card_pocket_allowance', 'front_card_pocket_piece', preferences.seamAllowanceMm),
+      stitchPath('shell_left_stitches', 'shell', { x: 7, y: 42 }, { x: 7, y: 160 }, preferences.stitchPitchMm),
+      stitchPath('shell_bottom_stitches', 'shell', { x: 7, y: 160 }, { x: 85, y: 160 }, preferences.stitchPitchMm),
+      stitchPath('shell_right_stitches', 'shell', { x: 85, y: 160 }, { x: 85, y: 42 }, preferences.stitchPitchMm),
+      { id: 'flap_crown_stitches', type: 'stitch_path', layer_id: 'shell', path_type: 'bezier', start: { x: 10, y: 42 }, control: { x: 46, y: 11 }, end: { x: 82, y: 42 }, pitch_mm: preferences.stitchPitchMm, hole_type: 'slit', render_shape: 'diamond', width_mm: 1.2, height_mm: 0.55, tilt_deg: 35 },
+      stitchPath('cash_sleeve_left_stitches', 'pockets', { x: 118, y: 62 }, { x: 118, y: 142 }, preferences.stitchPitchMm),
+      stitchPath('cash_sleeve_bottom_stitches', 'pockets', { x: 118, y: 142 }, { x: 188, y: 142 }, preferences.stitchPitchMm),
+      stitchPath('cash_sleeve_right_stitches', 'pockets', { x: 188, y: 62 }, { x: 188, y: 142 }, preferences.stitchPitchMm),
+      stitchPath('middle_card_bottom_stitches', 'pockets', { x: 222, y: 119 }, { x: 282, y: 119 }, preferences.stitchPitchMm),
+      stitchPath('front_card_bottom_stitches', 'pockets', { x: 318, y: 145 }, { x: 382, y: 145 }, preferences.stitchPitchMm),
+    )
+  }
+
+  if (stage >= 3) {
+    entities.push(
+      seam('cash_sleeve_bottom_to_shell', 'back_cash_sleeve_piece', 2, 'shell_piece', 2, { stitch_spacing_mm: preferences.stitchPitchMm, tolerance_mm: 12 }),
+      seam('middle_card_bottom_to_shell', 'middle_card_pocket_piece', 2, 'shell_piece', 2, { stitch_spacing_mm: preferences.stitchPitchMm, tolerance_mm: 16 }),
+      seam('front_card_bottom_to_shell', 'front_card_pocket_piece', 2, 'shell_piece', 2, { stitch_spacing_mm: preferences.stitchPitchMm, tolerance_mm: 16 }),
+      hardware('flap_snap_cap', 'hardware', { x: 46, y: 24 }, 'snap', 'Flap snap cap', preferences.hardwareDiameterMm),
+      hardware('body_snap_socket', 'hardware', { x: 46, y: 112 }, 'snap', 'Body snap socket', preferences.hardwareDiameterMm),
+      line('snap_centerline', 'hardware', { x: 46, y: 24 }, { x: 46, y: 112 }, 'guide'),
+      label('shell_label', 'shell', { x: 10, y: 178 }, 'rounded flap shell'),
+      label('cash_sleeve_label', 'pockets', { x: 124, y: 158 }, 'cash sleeve'),
+      label('middle_card_label', 'pockets', { x: 224, y: 136 }, 'middle card'),
+      label('front_card_label', 'pockets', { x: 322, y: 162 }, 'front card'),
+    )
+  }
+  return makeDoc('live_compact_clasp_wallet', layers, entities)
+}
+
 function buildSnapCoinPouch(stage, preferences = inferPreferences('')) {
   const layers = [{ id: 'pouch', name: 'Pouch' }]
   const entities = [
@@ -453,6 +520,7 @@ function buildLocalDraftSnapshots(request, currentJson) {
     belt: buildBeltTemplate,
     bifold_wallet: buildBifoldWallet,
     card_sleeve: buildCardSleeve,
+    compact_clasp_wallet: buildCompactClaspWallet,
     gusseted_pouch: buildGussetedPouch,
     snap_coin_pouch: buildSnapCoinPouch,
   }

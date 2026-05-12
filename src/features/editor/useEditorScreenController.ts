@@ -72,6 +72,7 @@ export function useEditorScreenController() {
   const documentState = useEditorDocumentState()
   const {
     documentName, setDocumentName,
+    activeLocalDocumentId, setActiveLocalDocumentId,
     lineTypes, setLineTypes,
     activeLineTypeId, setActiveLineTypeId,
     shapes, setShapes,
@@ -161,6 +162,7 @@ export function useEditorScreenController() {
     catalogRepository, setCatalogRepository,
     bundledCatalogRepository,
     selectedCatalogShopId, setSelectedCatalogShopId,
+    localDbHydrated,
   } = repositoryState
   const panelState = useEditorPanelState()
   const {
@@ -177,6 +179,7 @@ export function useEditorScreenController() {
     setShowTracingModal,
     setShowPatternToolsModal,
     setShowTemplateRepositoryModal,
+    setShowLocalProjectsModal,
     setShowPrintAreas,
     setShowPrintPreviewModal,
   } = panelState
@@ -292,6 +295,7 @@ export function useEditorScreenController() {
     activeSketchGroup,
     activeLineType,
     clearDraft,
+    setActiveLocalDocumentId,
     setDocumentName,
     setLayers,
     setActiveLayerId,
@@ -349,6 +353,7 @@ export function useEditorScreenController() {
   const { applyLoadedDocument } = useLoadedDocumentActions({
     clearDraft,
     setDocumentName,
+    setActiveLocalDocumentId,
     setLayers,
     setActiveLayerId,
     setSketchGroups,
@@ -402,6 +407,7 @@ export function useEditorScreenController() {
     bundledCatalogRepository,
     catalogRepository,
     setSystemThemeMode,
+    setActiveLocalDocumentId,
     applyLoadedDocument,
   })
 
@@ -588,8 +594,11 @@ export function useEditorScreenController() {
   })
 
   useEffect(() => {
+    if (!localDbHydrated) {
+      return
+    }
     saveCatalogRepository(catalogRepository)
-  }, [catalogRepository])
+  }, [catalogRepository, localDbHydrated])
 
   const tracingActions = useTracingActions({
     setTracingOverlays,
@@ -652,6 +661,7 @@ export function useEditorScreenController() {
     setActiveTracingOverlayId,
     tracingObjectUrlsRef,
     templateRepository,
+    localDbHydrated,
     setSelectedTemplateEntryId,
     currentSnapshot,
     currentSnapshotSignature,
@@ -757,6 +767,8 @@ export function useEditorScreenController() {
   const fileActions = useFileActions({
     buildCurrentDocFile,
     applyLoadedDocument,
+    activeLocalDocumentId,
+    setActiveLocalDocumentId,
     selectedPresetId,
     setSelectedPresetId,
     isMobileLayout,
@@ -1034,6 +1046,7 @@ export function useEditorScreenController() {
     setShowLayerColorModal,
     setShowExportOptionsModal,
     setShowTemplateRepositoryModal,
+    setShowLocalProjectsModal,
     setShowPatternToolsModal,
     setShowPrintPreviewModal,
     setShowThreePreview,

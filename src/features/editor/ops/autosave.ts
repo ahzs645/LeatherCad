@@ -1,7 +1,8 @@
 import { safeLocalStorageGet, safeLocalStorageSet } from './safe-storage'
+import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 
 export const AUTOSAVE_STORAGE_KEY = 'leathercad-autosave-v1'
-const AUTOSAVE_PREF_KEY = 'leathercad-autosave-enabled-v1'
+export const AUTOSAVE_PREF_KEY = 'leathercad-autosave-enabled-v1'
 
 export function loadAutoSaveEnabled(defaultValue = false): boolean {
   if (typeof window === 'undefined') {
@@ -19,6 +20,7 @@ export function saveAutoSaveEnabled(enabled: boolean) {
     return
   }
   safeLocalStorageSet(AUTOSAVE_PREF_KEY, enabled ? 'true' : 'false')
+  void withEditorLocalDataClient((client) => client.settings.set(AUTOSAVE_PREF_KEY, enabled ? 'true' : 'false'))
 }
 
 export function writeAutoSaveSnapshot(serializedDoc: string) {
@@ -26,6 +28,7 @@ export function writeAutoSaveSnapshot(serializedDoc: string) {
     return
   }
   safeLocalStorageSet(AUTOSAVE_STORAGE_KEY, serializedDoc)
+  void withEditorLocalDataClient((client) => client.documents.writeAutoSaveSnapshot(serializedDoc))
 }
 
 export function readAutoSaveSnapshot(): string | null {
@@ -40,4 +43,20 @@ export function clearAutoSaveSnapshot() {
     return
   }
   safeLocalStorageSet(AUTOSAVE_STORAGE_KEY, '')
+  void withEditorLocalDataClient((client) => client.documents.clearAutoSaveSnapshot())
+}
+
+export async function loadAutoSaveEnabledFromLocalDb(defaultValue = false): Promise<boolean> {
+  const stored = await withEditorLocalDataClient((client) => client.settings.get(AUTOSAVE_PREF_KEY))
+  if (stored === 'true') {
+    return true
+  }
+  if (stored === 'false') {
+    return false
+  }
+  return loadAutoSaveEnabled(defaultValue)
+}
+
+export async function readAutoSaveSnapshotFromLocalDb(): Promise<string | null> {
+  return (await withEditorLocalDataClient((client) => client.documents.getAutoSaveSnapshot())) ?? readAutoSaveSnapshot()
 }

@@ -33,6 +33,10 @@ export type UseEditorModalStackPropsParams = {
   handleClearLayerColorOverride: (layerId: string) => void
   handleResetLayerColors: () => void
   handleSaveJson: () => void
+  activeLocalDocumentId: string | null
+  handleSaveLocalProject: () => Promise<void>
+  handleLoadLocalProject: (documentId: string) => Promise<void>
+  handleDeleteLocalProject: (documentId: string) => Promise<void>
   handleExportGarmentJson: () => void
   handleSaveLcc: () => void
   handleExportSvg: () => void
@@ -135,6 +139,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleClearLayerColorOverride,
     handleResetLayerColors,
     handleSaveJson,
+    activeLocalDocumentId,
+    handleSaveLocalProject,
+    handleLoadLocalProject,
+    handleDeleteLocalProject,
     handleExportGarmentJson,
     handleSaveLcc,
     handleExportSvg,
@@ -245,6 +253,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showLayerColorModal,
     showExportModal,
     showExportOptionsModal,
+    showLocalProjectsModal,
     exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes,
     exportForceSolidStrokes,
@@ -286,6 +295,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showLayerColorModal: state.showLayerColorModal,
     showExportModal: state.showExportModal,
     showExportOptionsModal: state.showExportOptionsModal,
+    showLocalProjectsModal: state.showLocalProjectsModal,
     exportOnlySelectedShapes: state.exportOnlySelectedShapes,
     exportOnlyVisibleLineTypes: state.exportOnlyVisibleLineTypes,
     exportForceSolidStrokes: state.exportForceSolidStrokes,
@@ -328,6 +338,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setShowLayerColorModal,
     setShowExportModal,
     setShowExportOptionsModal,
+    setShowLocalProjectsModal,
     setExportOnlySelectedShapes,
     setExportOnlyVisibleLineTypes,
     setExportForceSolidStrokes,
@@ -522,6 +533,14 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onDxfVersionChange: setDxfVersion,
       onDxfFlipYChange: setDxfFlipY,
       onResetDefaults: handleResetExportOptions,
+    },
+    localProjectsModalProps: {
+      open: showLocalProjectsModal,
+      activeLocalDocumentId,
+      onClose: () => setShowLocalProjectsModal(false),
+      onSaveCurrent: handleSaveLocalProject,
+      onLoadProject: handleLoadLocalProject,
+      onDeleteProject: handleDeleteLocalProject,
     },
     templateRepositoryModalProps: {
       open: showTemplateRepositoryModal,

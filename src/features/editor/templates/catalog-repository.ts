@@ -1,4 +1,5 @@
 import { BUNDLED_CATALOG_SUMMARIES } from './catalog-builtins'
+import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
 const CATALOG_REPOSITORY_STORAGE_KEY = 'leathercraft-catalog-repository-v1'
@@ -415,9 +416,21 @@ export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
       })),
     }))
     safeLocalStorageSet(CATALOG_REPOSITORY_STORAGE_KEY, JSON.stringify(serializableShops))
+    void withEditorLocalDataClient((client) => client.catalogRepository.replaceAll(serializableShops))
   } catch {
     // Catalog files can be large; keep runtime behavior resilient when storage quota is exceeded.
   }
+}
+
+export async function loadCatalogRepositoryFromLocalDb(): Promise<CatalogRepositoryShop[]> {
+  const shops = await withEditorLocalDataClient((client) => client.catalogRepository.list())
+  if (!shops || shops.length === 0) {
+    return loadCatalogRepository()
+  }
+  return shops
+    .map(parseCatalogRepositoryShop)
+    .filter((shop): shop is CatalogRepositoryShop => shop !== null)
+    .map((shop) => cloneCatalogRepositoryShop(shop))
 }
 
 export function getCatalogItemCount(shop: CatalogRepositoryShop): number {

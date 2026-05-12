@@ -60,7 +60,7 @@ type UseEditorWorkbenchControllerParams = {
   handleResetView: () => void
   setShowCanvasRuler: React.Dispatch<React.SetStateAction<boolean>>
   setShowDimensions: React.Dispatch<React.SetStateAction<boolean>>
-  handleLoadPreset: () => void | Promise<void>
+  handleLoadPreset: (presetId?: string) => void | Promise<void>
   setShowAnnotations: React.Dispatch<React.SetStateAction<boolean>>
   handleCopySelection: () => void
   handlePasteClipboard: () => void | Promise<void>
@@ -295,6 +295,9 @@ export function useEditorWorkbenchController({
         break
       case 'load-preset':
         void handleLoadPreset()
+        break
+      case 'load-compact-clasp-preset':
+        void handleLoadPreset('compact-clasp-wallet')
         break
       case 'toggle-annotations':
         setShowAnnotations((previous) => !previous)

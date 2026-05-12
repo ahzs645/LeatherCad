@@ -16,6 +16,9 @@ const PrintPreviewModal = lazy(() =>
 const TemplateRepositoryModal = lazy(() =>
   import('./TemplateRepositoryModal').then((mod) => ({ default: mod.TemplateRepositoryModal })),
 )
+const LocalProjectsModal = lazy(() =>
+  import('./LocalProjectsModal').then((mod) => ({ default: mod.LocalProjectsModal })),
+)
 const PatternToolsModal = lazy(() =>
   import('./PatternToolsModal').then((mod) => ({ default: mod.PatternToolsModal })),
 )
@@ -80,6 +83,7 @@ type EditorModalStackProps = {
   layerColorModalProps: ComponentProps<typeof LayerColorModal>
   exportModalProps: ComponentProps<typeof ExportModal>
   exportOptionsModalProps: ComponentProps<typeof ExportOptionsModal>
+  localProjectsModalProps: ComponentProps<typeof LocalProjectsModal>
   templateRepositoryModalProps: ComponentProps<typeof TemplateRepositoryModal>
   patternToolsModalProps: ComponentProps<typeof PatternToolsModal>
   aiBuilderModalProps: ComponentProps<typeof AiBuilderModal>
@@ -108,6 +112,7 @@ export function EditorModalStack({
   layerColorModalProps,
   exportModalProps,
   exportOptionsModalProps,
+  localProjectsModalProps,
   templateRepositoryModalProps,
   patternToolsModalProps,
   aiBuilderModalProps,
@@ -143,6 +148,9 @@ export function EditorModalStack({
       </Suspense>
       <Suspense fallback={null}>
         <ExportOptionsModal {...exportOptionsModalProps} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <LocalProjectsModal {...localProjectsModalProps} />
       </Suspense>
       <Suspense fallback={null}>
         <TemplateRepositoryModal {...templateRepositoryModalProps} />

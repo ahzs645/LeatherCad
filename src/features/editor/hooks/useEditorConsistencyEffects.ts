@@ -69,6 +69,7 @@ type UseEditorConsistencyEffectsParams = {
   setActiveTracingOverlayId: Dispatch<SetStateAction<string | null>>
   tracingObjectUrlsRef: MutableRefObject<Set<string>>
   templateRepository: TemplateRepositoryEntry[]
+  localDbHydrated: boolean
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
   currentSnapshot: EditorSnapshot
   currentSnapshotSignature: string
@@ -113,6 +114,7 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     setActiveTracingOverlayId,
     tracingObjectUrlsRef,
     templateRepository,
+    localDbHydrated,
     setSelectedTemplateEntryId,
     currentSnapshot,
     currentSnapshotSignature,
@@ -444,8 +446,11 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
   }, [templateRepository, setSelectedTemplateEntryId])
 
   useEffect(() => {
+    if (!localDbHydrated) {
+      return
+    }
     saveTemplateRepository(templateRepository)
-  }, [templateRepository])
+  }, [localDbHydrated, templateRepository])
 
   useEffect(() => {
     const objectUrls = new Set<string>()

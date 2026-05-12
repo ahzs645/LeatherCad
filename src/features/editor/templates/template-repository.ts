@@ -12,6 +12,7 @@ import type {
 } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
 import { normalizeLineTypes, resolveActiveLineTypeId, resolveShapeLineTypeId } from '../cad/line-types'
+import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
 const TEMPLATE_REPOSITORY_STORAGE_KEY = 'leathercraft-template-repository-v1'
@@ -92,6 +93,22 @@ export function saveTemplateRepository(entries: TemplateRepositoryEntry[]) {
     return
   }
   safeLocalStorageSet(TEMPLATE_REPOSITORY_STORAGE_KEY, JSON.stringify(entries))
+  void withEditorLocalDataClient((client) => client.templateRepository.replaceAll(entries))
+}
+
+export async function loadTemplateRepositoryFromLocalDb(): Promise<TemplateRepositoryEntry[]> {
+  const entries = await withEditorLocalDataClient((client) => client.templateRepository.list())
+  if (!entries || entries.length === 0) {
+    return loadTemplateRepository()
+  }
+  return entries.map(parseTemplateEntry).filter((entry): entry is TemplateRepositoryEntry => entry !== null)
+}
+
+export async function hasTemplateRepositoryStorageInLocalDb(): Promise<boolean> {
+  return (
+    (await withEditorLocalDataClient((client) => client.templateRepository.hasSavedEntries())) ||
+    hasTemplateRepositoryStorage()
+  )
 }
 
 export function createTemplateFromDoc(name: string, doc: DocFile): TemplateRepositoryEntry {

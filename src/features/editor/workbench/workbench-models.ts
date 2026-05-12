@@ -296,6 +296,7 @@ export function buildRibbonModel(params: {
         title: 'Draft',
         items: [
           { id: 'load-preset', label: 'Preset', icon: 'preset' },
+          { id: 'load-compact-clasp-preset', label: 'Compact', icon: 'preset' },
           { id: 'toggle-annotations', label: 'Notes', icon: 'notes' },
         ],
       },

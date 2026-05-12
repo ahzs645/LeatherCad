@@ -48,6 +48,7 @@ import type { SecondaryPreviewMode, WorkbenchRibbonTab, WorkspaceMode } from '..
 
 export type EditorDocumentState = {
   documentName: string | null
+  activeLocalDocumentId: string | null
   lineTypes: LineType[]
   activeLineTypeId: string
   shapes: Shape[]
@@ -182,6 +183,7 @@ export type EditorPanelState = {
   showAiBuilderModal: boolean
   showHelpModal: boolean
   showTemplateRepositoryModal: boolean
+  showLocalProjectsModal: boolean
   printPaper: PrintPaper
   printTileX: number
   printTileY: number

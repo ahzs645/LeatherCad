@@ -192,6 +192,7 @@ export type EditorTopbarProps = {
   onOpenInNewTab: () => void
   onOpenExportModal: () => void
   onOpenExportOptionsModal: () => void
+  onOpenLocalProjectsModal: () => void
   onOpenPatternToolsModal: () => void
   onOpenTemplateRepositoryModal: () => void
   onOpenTracingImport: () => void

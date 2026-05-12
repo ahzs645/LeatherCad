@@ -31,6 +31,7 @@ type UseMobileActionsParams = {
   resetDocument: () => void
   setShowLayerColorModal: Dispatch<SetStateAction<boolean>>
   setShowExportOptionsModal: Dispatch<SetStateAction<boolean>>
+  setShowLocalProjectsModal: Dispatch<SetStateAction<boolean>>
   setShowTemplateRepositoryModal: Dispatch<SetStateAction<boolean>>
   setShowPatternToolsModal: Dispatch<SetStateAction<boolean>>
   setShowPrintPreviewModal: Dispatch<SetStateAction<boolean>>
@@ -68,6 +69,7 @@ export function useMobileActions(params: UseMobileActionsParams) {
     resetDocument,
     setShowLayerColorModal,
     setShowExportOptionsModal,
+    setShowLocalProjectsModal,
     setShowTemplateRepositoryModal,
     setShowPatternToolsModal,
     setShowPrintPreviewModal,
@@ -176,6 +178,11 @@ export function useMobileActions(params: UseMobileActionsParams) {
 
     if (mobileFileAction === 'export-options') {
       setShowExportOptionsModal(true)
+      return
+    }
+
+    if (mobileFileAction === 'local-projects') {
+      setShowLocalProjectsModal(true)
       return
     }
 

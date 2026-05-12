@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type Dispatch, type SetStateAction } from '
 import type { DocFile, Layer, Point, Shape, SketchGroup } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
 import { downloadFile } from '../editor-utils'
+import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 import { safeLocalStorageSet } from '../ops/safe-storage'
 import type { MobileViewMode } from '../editor-types'
 import { computeBoundsFromShapes } from '../ops/pattern-ops'
@@ -52,6 +53,8 @@ export function resolveDocumentNameFromFileName(fileName: string): string | null
 type UseFileActionsParams = {
   buildCurrentDocFile: () => DocFile
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
+  activeLocalDocumentId: string | null
+  setActiveLocalDocumentId: Dispatch<SetStateAction<string | null>>
   selectedPresetId: string
   setSelectedPresetId: Dispatch<SetStateAction<string>>
   isMobileLayout: boolean
@@ -72,6 +75,8 @@ export function useFileActions(params: UseFileActionsParams) {
   const {
     buildCurrentDocFile,
     applyLoadedDocument,
+    activeLocalDocumentId,
+    setActiveLocalDocumentId,
     selectedPresetId,
     setSelectedPresetId,
     isMobileLayout,
@@ -89,8 +94,56 @@ export function useFileActions(params: UseFileActionsParams) {
   } = params
   const [pendingSvgImport, setPendingSvgImport] = useState<PendingSvgImport | null>(null)
 
+  const saveLocalProject = async (doc: DocFile, fallbackName = 'Untitled project') => {
+    const name = doc.documentName?.trim() || fallbackName
+    const saved = await withEditorLocalDataClient((client) =>
+      activeLocalDocumentId
+        ? client.documents.save({ id: activeLocalDocumentId, name, doc })
+        : client.documents.create({ name, doc }),
+    )
+    if (saved) {
+      setActiveLocalDocumentId(saved.id)
+    }
+    return saved
+  }
+
+  const createLocalProjectFromLoadedDoc = async (doc: DocFile, fallbackName: string) => {
+    const saved = await withEditorLocalDataClient((client) =>
+      client.documents.create({ name: doc.documentName?.trim() || fallbackName, doc }),
+    )
+    setActiveLocalDocumentId(saved?.id ?? null)
+  }
+
+  const handleSaveLocalProject = async () => {
+    const saved = await saveLocalProject(buildCurrentDocFile())
+    setStatus(saved ? `Saved local project "${saved.name}"` : 'Local project storage is unavailable')
+  }
+
+  const handleLoadLocalProject = async (documentId: string) => {
+    const document = await withEditorLocalDataClient((client) => client.documents.get(documentId))
+    if (!document) {
+      setStatus('Local project could not be loaded')
+      return
+    }
+    applyLoadedDocument(document.doc, `Loaded local project "${document.name}"`)
+    setActiveLocalDocumentId(document.id)
+  }
+
+  const handleDeleteLocalProject = async (documentId: string) => {
+    await withEditorLocalDataClient((client) => client.documents.delete(documentId))
+    if (activeLocalDocumentId === documentId) {
+      setActiveLocalDocumentId(null)
+    }
+    setStatus('Local project deleted')
+  }
+
   const handleSaveJson = () => {
     const doc = buildCurrentDocFile()
+    void saveLocalProject(doc).then((saved) => {
+      if (saved) {
+        setStatus(`Saved local project "${saved.name}"`)
+      }
+    })
     downloadFile('leathercraft-doc.json', JSON.stringify(doc, null, 2), 'application/json;charset=utf-8')
     setStatus('Document JSON saved')
   }
@@ -157,6 +210,7 @@ export function useFileActions(params: UseFileActionsParams) {
           documentName ? { ...result.doc, documentName } : result.doc,
           `Loaded LCC (${result.summary.shapeCount} shapes, ${result.summary.foldCount} folds, ${result.summary.stitchHoleCount} holes, ${result.summary.layerCount} layers)${warningNote}`,
         )
+        void createLocalProjectFromLoadedDoc(documentName ? { ...result.doc, documentName } : result.doc, file.name)
         return
       }
 
@@ -172,6 +226,7 @@ export function useFileActions(params: UseFileActionsParams) {
         documentName ? { ...imported.doc, documentName } : imported.doc,
         `Loaded JSON (${imported.summary.shapeCount} shapes, ${imported.summary.foldCount} folds, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers, ${imported.summary.hardwareMarkerCount} hardware markers)`,
       )
+      void createLocalProjectFromLoadedDoc(documentName ? { ...imported.doc, documentName } : imported.doc, file.name)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
       setStatus(`Could not load "${file.name}": ${message}`)
@@ -308,6 +363,7 @@ export function useFileActions(params: UseFileActionsParams) {
           ? `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
           : `Requested preset was unavailable. Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
       applyLoadedDocument(sample, loadedMessage)
+      void createLocalProjectFromLoadedDoc(sample, preset.label)
       setShowThreePreview(true)
       if (isMobileLayout) {
         setMobileViewMode('editor')
@@ -323,16 +379,33 @@ export function useFileActions(params: UseFileActionsParams) {
       return
     }
 
-    const token = uid()
-    const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
-    const url = new URL(window.location.href)
-    url.searchParams.set('openDoc', token)
-    safeLocalStorageSet(storageKey, JSON.stringify(buildCurrentDocFile()))
-    const opened = window.open(url.toString(), '_blank', 'noopener,noreferrer')
+    const opened = window.open('about:blank', '_blank', 'noopener,noreferrer')
     if (!opened) {
       setStatus('Could not open a new tab (popup may be blocked)')
       return
     }
+
+    const url = new URL(window.location.href)
+    const doc = buildCurrentDocFile()
+    void saveLocalProject(doc)
+      .then((saved) => {
+        if (saved) {
+          url.searchParams.set('openLocalDoc', saved.id)
+        } else {
+          const token = uid()
+          const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
+          url.searchParams.set('openDoc', token)
+          safeLocalStorageSet(storageKey, JSON.stringify(doc))
+        }
+        opened.location.href = url.toString()
+      })
+      .catch(() => {
+        const token = uid()
+        const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
+        url.searchParams.set('openDoc', token)
+        safeLocalStorageSet(storageKey, JSON.stringify(doc))
+        opened.location.href = url.toString()
+      })
     setStatus('Opened current project in a new tab')
   }
 
@@ -344,6 +417,9 @@ export function useFileActions(params: UseFileActionsParams) {
     handleImportSvg,
     handleLoadPreset,
     handleOpenInNewTab,
+    handleSaveLocalProject,
+    handleLoadLocalProject,
+    handleDeleteLocalProject,
     svgImportOptionsModalProps: pendingSvgImport
       ? {
           open: true,

@@ -1,8 +1,8 @@
-import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react'
 import { DEFAULT_GRID_SPACING } from '../../editor-constants'
 import { DEFAULT_PRESET_ID } from '../../data/sample-doc-meta'
 import { loadFontList } from '../../ops/font-list-ops'
-import { loadAutoSaveEnabled } from '../../ops/autosave'
+import { loadAutoSaveEnabled, loadAutoSaveEnabledFromLocalDb } from '../../ops/autosave'
 import { loadEditorPreferences } from '../../ops/editor-prefs'
 import { loadTranslationMap } from '../../ops/translation-ops'
 import type { EditorUIState } from '../editor-domain-types'
@@ -227,6 +227,23 @@ const EditorUIActionsContext = createContext<EditorUIStateActions | null>(null)
 export function EditorUIStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState)
   const actions = useMemo(() => createEditorUIStateActions(dispatch), [dispatch])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function hydrateLocalSettings() {
+      const autoSaveEnabled = await loadAutoSaveEnabledFromLocalDb()
+      if (!cancelled && autoSaveEnabled !== initialEditorUIState.autoSaveEnabled) {
+        dispatch({ type: 'autoSaveEnabled', value: autoSaveEnabled })
+      }
+    }
+
+    void hydrateLocalSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <EditorUIStateContext.Provider value={state}>

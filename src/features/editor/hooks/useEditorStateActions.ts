@@ -42,6 +42,7 @@ type UseEditorStateActionsParams = {
   activeLineType: LineType | null
   clearDraft: () => void
   setDocumentName: Dispatch<SetStateAction<string | null>>
+  setActiveLocalDocumentId: Dispatch<SetStateAction<string | null>>
   setLayers: Dispatch<SetStateAction<Layer[]>>
   setActiveLayerId: Dispatch<SetStateAction<string>>
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
@@ -96,6 +97,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     activeLineType,
     clearDraft,
     setDocumentName,
+    setActiveLocalDocumentId,
     setLayers,
     setActiveLayerId,
     setSketchGroups,
@@ -285,6 +287,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     const baseLayerId = uid()
     const defaultLineTypes = createDefaultLineTypes()
     setDocumentName(null)
+    setActiveLocalDocumentId(null)
     setLayers([createDefaultLayer(baseLayerId)])
     setActiveLayerId(baseLayerId)
     setSketchGroups([])
@@ -332,6 +335,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
   }, [
     clearDraft,
     setDocumentName,
+    setActiveLocalDocumentId,
     setLayers,
     setActiveLayerId,
     setSketchGroups,

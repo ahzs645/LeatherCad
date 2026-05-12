@@ -439,6 +439,7 @@ export function FileSection({
   onOpenInNewTab,
   onOpenExportModal,
   onOpenPatternToolsModal,
+  onOpenLocalProjectsModal,
   onOpenTemplateRepositoryModal,
   onOpenTracingModal,
   hasTracingOverlays,
@@ -481,6 +482,7 @@ export function FileSection({
               <option value="print-preview">Print Preview</option>
             </optgroup>
             <optgroup label="Tools">
+              <option value="local-projects">Local Projects</option>
               <option value="template-repository">Template Repository</option>
               <option value="pattern-tools">Pattern Tools</option>
             </optgroup>
@@ -513,6 +515,7 @@ export function FileSection({
             <span className="file-action-cluster-label">Exports</span>
             <div className="file-action-row">
               <button onClick={onOpenInNewTab}>Open in New Tab</button>
+              <button onClick={onOpenLocalProjectsModal}>Projects</button>
               <button onClick={onOpenExportModal}>Open Export Center</button>
             </div>
           </div>
