@@ -395,6 +395,7 @@ export function buildRibbonModel(params: {
         title: 'File',
         items: [
           { id: 'save-json', label: 'Save', icon: 'save' },
+          { id: 'local-projects', label: 'Projects', icon: 'open' },
           { id: 'load-json', label: 'Open', icon: 'open' },
           { id: 'import-svg', label: 'SVG In', icon: 'import' },
         ],

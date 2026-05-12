@@ -84,6 +84,7 @@ type UseEditorWorkbenchControllerParams = {
   handleExportPdf: () => void
   handleExportDxf: () => void
   setShowPrintPreviewModal: React.Dispatch<React.SetStateAction<boolean>>
+  setShowLocalProjectsModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowTemplateRepositoryModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowTracingModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowAiBuilderModal: React.Dispatch<React.SetStateAction<boolean>>
@@ -173,6 +174,7 @@ export function useEditorWorkbenchController({
   handleExportPdf,
   handleExportDxf,
   setShowPrintPreviewModal,
+  setShowLocalProjectsModal,
   setShowTemplateRepositoryModal,
   setShowTracingModal,
   setShowAiBuilderModal,
@@ -360,6 +362,9 @@ export function useEditorWorkbenchController({
         break
       case 'save-json':
         handleSaveJson()
+        break
+      case 'local-projects':
+        setShowLocalProjectsModal(true)
         break
       case 'load-json':
         fileInputRef.current?.click()

@@ -110,6 +110,7 @@ export function useEditorScreenWorkbenchModels({
     setShowAiBuilderModal,
     setShowHelpModal,
     setShowTemplateRepositoryModal,
+    setShowLocalProjectsModal,
     setShowPrintPreviewModal,
   } = panelState
   const {
@@ -354,6 +355,7 @@ export function useEditorScreenWorkbenchModels({
     handleExportPdf,
     handleExportDxf,
     setShowPrintPreviewModal,
+    setShowLocalProjectsModal,
     setShowTemplateRepositoryModal,
     setShowTracingModal,
     setShowAiBuilderModal,
