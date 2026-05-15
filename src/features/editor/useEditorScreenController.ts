@@ -883,6 +883,22 @@ export function useEditorScreenController() {
     loadStitchSimulatorSettings(),
   )
   useEffect(() => {
+    if (!leatherSimEnabled || stitchSimulatorSettings.showSimulatorPattern) {
+      return
+    }
+    queueMicrotask(() => {
+      setStitchSimulatorSettings((previous) => {
+        if (previous.showSimulatorPattern) {
+          return previous
+        }
+        const next = { ...previous, showSimulatorPattern: true }
+        saveStitchSimulatorSettings(next)
+        return next
+      })
+    })
+  }, [leatherSimEnabled, stitchSimulatorSettings.showSimulatorPattern])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       const isTypingContext = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT'

@@ -12,6 +12,12 @@ type ExportedLccPayload = {
   }>
   shapes: Array<{
     type: string
+    w?: string
+    h?: string
+    st?: string
+    inv?: string
+    StcIn?: [number, number]
+    StcOut?: [number, number]
     PrevStId?: string
     NextStId?: string
   }>
@@ -70,6 +76,47 @@ const MINIMAL_LCC = JSON.stringify({
   backdrops: [],
   printareas: [],
 })
+
+function baseShape(id: string, type: string) {
+  return {
+    id,
+    type,
+    sp: [0, 0],
+    ep: [0, 0],
+    ct: [0, 0],
+    w: '0.0',
+    h: '0.0',
+    color: 'Aqua',
+    dash: 'Solid',
+    opc: '0.5',
+    path: '',
+    rt: '0.0',
+    st: '',
+    inv: '0',
+    bz1: [0, 0],
+    bz2: [0, 0],
+    thk: '1.5',
+    la: '0.0',
+    lb: '0.0',
+    iv: '-1',
+    ih: '0',
+    sta: '0.0',
+    swa: '0.0',
+    tx: '',
+    fs: '10.0',
+    ff: 'Meiryo UI',
+    txst: '1.0',
+    txrd: '0.0',
+    guid: `{${id}}`,
+    nm: '',
+    gid: '0',
+    dim: '0',
+    arst: '0',
+    ared: '0',
+    layer: '0',
+    plidx: '0',
+  }
+}
 
 describe('importLccDocument', () => {
   it('parses a minimal LCC document', () => {
@@ -1010,6 +1057,98 @@ describe('exportLccDocument', () => {
       ['-1', '1003'],
       ['1002', '-1'],
     ])
+  })
+
+  it('imports native ARC, BEZIER, DOT, and OTHER path shapes instead of skipping them', () => {
+    const lcc = {
+      meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
+      layers: [{ id: 0, chk: '-1', nam: 'Layer 1' }],
+      shapes: [
+        {
+          ...baseShape('1', 'ARC'),
+          sp: [10, 0],
+          ep: [0, 10],
+          ct: [0, 0],
+          w: '10',
+          h: '10',
+          sta: '0',
+          swa: '90',
+        },
+        {
+          ...baseShape('2', 'BEZIER'),
+          sp: [0, 0],
+          ep: [20, 0],
+          ct: [10, 10],
+          bz1: [6, 8],
+          bz2: [14, 8],
+        },
+        {
+          ...baseShape('3', 'DOT'),
+          sp: [25, 25],
+          ct: [25, 25],
+          w: '1',
+          h: '1',
+        },
+        {
+          ...baseShape('4', 'OTHER'),
+          path: 'M0,0 L10,0 M10,0 C12,5 18,5 20,0',
+        },
+      ],
+      backdrops: [],
+    }
+
+    const result = importLccDocument(JSON.stringify(lcc))
+
+    expect(result.warnings).toEqual([])
+    expect(result.doc.objects.some((shape) => shape.type === 'arc')).toBe(true)
+    expect(result.doc.objects.some((shape) => shape.type === 'bezier')).toBe(true)
+    expect(result.summary.shapeCount).toBeGreaterThanOrEqual(5)
+  })
+
+  it('preserves source stitch-hole geometry and stitch endpoints on round trip', () => {
+    const lcc = {
+      meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
+      layers: [{ id: 0, chk: '-1', nam: 'Layer 1' }],
+      shapes: [
+        {
+          ...baseShape('10', 'S_HOLE'),
+          sp: [38.6, 22.3],
+          ct: [38.6, 22.3],
+          w: '0.6',
+          h: '2.2',
+          rt: '90',
+          st: 'D',
+          inv: '-1',
+          StcIn: [39.2, 22.0],
+          StcOut: [38.0, 22.6],
+          PrevStId: '-1',
+          NextStId: '-1',
+        },
+      ],
+      backdrops: [],
+    }
+
+    const imported = importLccDocument(JSON.stringify(lcc))
+    expect(imported.doc.stitchHoles).toHaveLength(1)
+    expect(imported.doc.stitchHoles[0]).toMatchObject({
+      widthMm: 0.6,
+      heightMm: 2.2,
+      renderShape: 'diamond',
+      inverted: true,
+      sourceStitchIn: { x: 39.2, y: 22.0 },
+      sourceStitchOut: { x: 38.0, y: 22.6 },
+    })
+
+    const exported = parseExportedLcc(exportLccDocument(imported.doc))
+    const stitchShape = exported.shapes.find((shape) => shape.type === 'S_HOLE')
+    expect(stitchShape).toMatchObject({
+      w: '0.6',
+      h: '2.2',
+      st: 'D',
+      inv: '-1',
+      StcIn: [39.2, 22.0],
+      StcOut: [38.0, 22.6],
+    })
   })
 
   it('exports layers matching LCC format', () => {

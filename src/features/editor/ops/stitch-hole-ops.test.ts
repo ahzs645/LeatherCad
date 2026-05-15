@@ -61,6 +61,20 @@ describe('findNearestStitchAnchor', () => {
     expect(holes.every((hole) => hole.widthMm === 0)).toBe(true)
   })
 
+  it('places inverted multi-blade pricking holes backward from the manual anchor', () => {
+    const shape = lineShape('line-1', 'stitch', 0)
+    const holes = createPrickingIronStitchHoles(
+      shape,
+      { shapeId: shape.id, point: { x: 12, y: 0 }, angleDeg: 0 },
+      { holeType: 'slit', pitchMm: 4, numBlades: 3, widthMm: 0, heightMm: 3, inverted: true },
+      0,
+    )
+
+    expect(holes.map((hole) => hole.point.x)).toEqual([12, 8, 4])
+    expect(holes.map((hole) => hole.angleDeg)).toEqual([180, 180, 180])
+    expect(holes.every((hole) => hole.inverted)).toBe(true)
+  })
+
   it('preserves stitch chain ids from saved documents', () => {
     const parsed = parseStitchHole({
       id: 'hole-1',

@@ -29,7 +29,7 @@
       "sourceAppFilename": "prickingirons.lccp",
       "sourceAppStorageKey": "LeathercraftCAD_PrickingIronGroups",
       "sourceAppCollectionKey": "pricking_iron_groups",
-      "status": "source-key-json-import-export-supported",
+      "status": "source-key-json-import-export-supported-real-native-fixture-still-needed",
       "reason": "Protect grouped/system/custom pricking iron preset migration."
     },
     {
@@ -38,7 +38,7 @@
       "priority": "p1",
       "generators": ["watch-band", "pass-case", "box-joint", "jigsaw", "dice-cup", "cap-pattern", "letter-stamp"],
       "repoGeneratedDirectory": "docs/fixtures/source-app-parity/generator-golden",
-      "status": "repo-generated-golden-outputs-available-real-desktop-samples-still-needed",
+      "status": "repo-generated-golden-outputs-available-real-desktop-samples-still-needed-for-source-equivalence",
       "reason": "Compare source-app generator dimensions and control semantics against clean-room generators."
     }
   ]

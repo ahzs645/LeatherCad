@@ -203,6 +203,8 @@ export type StitchHole = {
   presetName?: string
   renderShape?: StitchHoleRenderShape
   endHole?: boolean
+  sourceStitchIn?: Point
+  sourceStitchOut?: Point
 }
 
 export type ConstraintAnchor = 'start' | 'end' | 'mid' | 'center'

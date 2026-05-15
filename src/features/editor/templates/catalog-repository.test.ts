@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { decodeCatalogZipBmpToObjectUrl } from './catalog-image-preview'
 import {
@@ -219,11 +220,18 @@ describe('source catalog fixtures', () => {
     }
   })
 
-  it('keeps the copied source backImage.tiff fixture present and non-empty', () => {
+  it('keeps the copied source backImage.tiff fixture byte-identical to the extracted asset', () => {
     const imagePath = join(process.cwd(), 'public/assets/source-app/backImage.tiff')
+    const sourceImagePath = '/Users/ahmadjalil/Downloads/leather-making/extracted-app/Leathercraft_CAD_v2.8.3_macOS_ARM/.resource/backImage.tiff'
     expect(existsSync(imagePath)).toBe(true)
+    expect(existsSync(sourceImagePath)).toBe(true)
     const bytes = readFileSync(imagePath)
+    const sourceBytes = readFileSync(sourceImagePath)
     expect(bytes.byteLength).toBeGreaterThan(1000)
+    expect(bytes.byteLength).toBe(sourceBytes.byteLength)
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(
+      createHash('sha256').update(sourceBytes).digest('hex'),
+    )
     expect(
       (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a) ||
         (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00),
@@ -286,12 +294,13 @@ describe('catalog editing', () => {
 })
 
 describe('bundled catalog summaries', () => {
-  it('exposes group and item placeholders instead of empty bundled catalogs', () => {
+  it('loads checked-in source catalog data instead of summary placeholders', () => {
     const bundled = loadBundledCatalogRepository()
 
     expect(bundled.length).toBeGreaterThan(0)
     expect(bundled[0].groups.length).toBeGreaterThan(0)
     expect(bundled[0].groups[0].items.length).toBe(bundled[0].itemCount)
-    expect(bundled[0].groups[0].items[0].memo).toContain('Import the source .ctlg')
+    expect(bundled[0].groups[0].items[0].name).not.toMatch(/^Bundled item /)
+    expect(bundled.some((shop) => shop.groups.some((group) => group.items.some((item) => item.category || item.url)))).toBe(true)
   })
 })

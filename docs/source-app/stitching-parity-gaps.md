@@ -18,26 +18,29 @@ Verified in current repo:
 - Thread color in 3D preview
 - Print option to render stitch-role lines as dots
 - LCC import/export for `S_HOLE` entities and linked sequences
+- Grouped pricking iron catalogs with system delete guards, blade count, width, height, tilt, inversion, and source-shaped `prickingirons.lccp` JSON import/export
+- Stitch simulator pattern visibility, even/odd toggles, thread thickness, and F6 / quick-key controls
+- Leather Simulator coupling that enables stitch simulator pattern rendering and hides raw stitch holes
 
 ## Gap Matrix
 
 | Capability | Source-App Evidence | Current LeatherCad | Status | Gap Summary |
 | --- | --- | --- | --- | --- |
-| Custom pricking iron group persistence | `TfrmChangeStitchingHoleType`, `prickingirons.lccp`, `pricking_iron_groups`, deletion guards for system groups | Flat builtin + local-storage presets in `pricking-iron-ops.ts` | `partial` | Missing grouped presets, system presets, reorder, delete guards, and richer geometry fields. |
-| Hole inversion handling | `chkInverted`, `chkPTB_Invert`, release note "Changing holes to inverted... can be done anytime" | No inversion flag on `StitchHole`; only `holeType` and `angleDeg` | `missing` | Need explicit inversion state and UI to toggle it without changing path linkage. |
+| Custom pricking iron group persistence | `TfrmChangeStitchingHoleType`, `prickingirons.lccp`, `pricking_iron_groups`, deletion guards for system groups | Grouped builtin/custom catalogs in `pricking-iron-ops.ts`; source-shaped JSON import/export | `partial` | Native desktop `.lccp` fixture still needed; UI is still partly prompt-driven instead of a full source-style editor. |
+| Hole inversion handling | `chkInverted`, `chkPTB_Invert`, release note "Changing holes to inverted... can be done anytime" | `StitchHole.inverted` plus pricking-iron defaults; manual multi-blade placement walks backward when inverted | `partial` | Need broader source evidence for existing-hole inversion workflows and endpoint behavior on complex curves. |
 | Hole rotation and endpoint handling | Release notes mention curve-aligned rotation and endpoint bug fixes | `angleDeg` is computed from sampled path segments | `partial` | Baseline exists, but no source-style controls for manual override, inversion interaction, or endpoint correction behavior. |
 | Fixed and variable auto placement | Readme, `TfrmOptions`, `AutoPitch` config keys | Supported in `useStitchActions.ts` and `stitch-hole-ops.ts` | `implemented` | Present, but not configurable to the same depth as source app. |
-| Section-limited / manual-then-auto placement | Readme explicitly describes it | No range/section workflow | `missing` | Need section-based start/end targeting or continuation from a manually chosen point. |
-| Force-fit-last-hole behavior | `chkForceFitLastPrick`, `AutoPitch.ForceFitLastPrick` | Not exposed | `missing` | Current spacing heuristic cannot be switched between strict pitch and endpoint fit. |
-| Auto-pitch tuning parameters | `AutoPitchSteps2`, `AutoPitchPrecision2`, `AutoPitchStopGap` | Not exposed | `missing` | No user-facing or persisted solver tuning surface. |
+| Section-limited / manual-then-auto placement | Readme explicitly describes it | Continuation/end-boundary logic exists | `partial` | Still needs a first-class selected-section start/end workflow. |
+| Force-fit-last-hole behavior | `chkForceFitLastPrick`, `AutoPitch.ForceFitLastPrick` | Exposed in advanced auto-stitch settings | `implemented` | Needs native fixture validation. |
+| Auto-pitch tuning parameters | `AutoPitchSteps2`, `AutoPitchPrecision2`, `AutoPitchStopGap` | Exposed in advanced auto-stitch settings | `implemented` | Needs native fixture validation. |
 | Count by selected stitching paths | Action and count dialog strings | Supported via status text | `implemented` | Adequate baseline; source app likely has a dedicated result dialog. |
 | Delete holes on selected paths | Action and release-note bug fixes | Supported | `implemented` | Baseline present. |
 | Stitch order fixing from clicked hole | `actFixStitchingOrder`, release notes for right-click fix | Fix from selected hole and reverse | `partial` | Missing the explicit "clicked hole" context flow and possibly older-file repair logic. |
 | Select next hole and end stitch here | `actSelectNextStitchingHole`, `actEndsStitchHere`, `selectNextStitchingHoleMode` | Select next supported; "Ends stitch here" absent | `partial` | Need explicit chain-end editing, not just selection cycling. |
-| Simulator controls beyond thread color | `ShowStitchPattern`, `ShowEven/ShowOdd`, `ThreadThickness`, arrows release notes | Thread color only; 3D preview shows thread paths | `missing` | Need simulator state model, visibility toggles, thickness, and direction-arrow behavior. |
+| Simulator controls beyond thread color | `ShowStitchPattern`, `ShowEven/ShowOdd`, `ThreadThickness`, arrows release notes | Simulator state includes pattern, even/odd visibility, thickness, modal controls, and F6/quick-key handling | `partial` | Direction-arrow parity and source hotkey coverage still need validation. |
 | Export as dot vs slit/line based on tool geometry | `SVG.AsDots`, `SVG.DotRadius`, blade-width-zero string | Export actions do not output stitch-hole entities | `missing` | Need actual stitch-hole export model for SVG/DXF/PDF and geometry-dependent rendering mode. |
 | Print stitch holes as dots | `chkPrintStitchingHoleAsDot` | Supported in print preview | `implemented` | Print output now emits stitch-hole primitives and can force dot output for printing. |
-| Box stitch helper parameterization | `BoxStitch.Distance`, helper hint about stretch factor | Simple inset-rectangle helper | `partial` | Need pairing search distance, extraction workflow, and likely stretch-aware projection rules. |
+| Box stitch helper parameterization | `BoxStitch.Distance`, helper hint about stretch factor | Guide extraction, selected-hole projection, pitch fallback, and search settings exist | `partial` | Pairing remains heuristic for rotated, curved, and irregular cases until native samples prove the algorithm. |
 
 ## Implementation-Ready Tickets
 

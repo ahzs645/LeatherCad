@@ -12,12 +12,14 @@
 import { uid } from '../cad/cad-geometry'
 import type {
   Backdrop,
+  ArcShape,
   BezierShape,
   DocFile,
   FoldLine,
   Layer,
   LineShape,
   LineType,
+  Point,
   PrintArea,
   Shape,
   StitchHole,
@@ -45,6 +47,116 @@ import {
   DEFAULT_FOLD_STIFFNESS,
   DEFAULT_FOLD_THICKNESS_MM,
 } from '../ops/fold-line-ops'
+
+function parseLccPathPoints(path: string): Array<{ command: 'M' | 'L' | 'C'; points: Point[] }> {
+  const tokens = path.match(/[MLC]|-?\d+(?:\.\d+)?(?:E[+-]?\d+)?/gi) ?? []
+  const commands: Array<{ command: 'M' | 'L' | 'C'; points: Point[] }> = []
+  let index = 0
+  let currentCommand: 'M' | 'L' | 'C' | null = null
+
+  const readNumber = () => {
+    const raw = tokens[index]
+    if (raw === undefined || /^[MLC]$/i.test(raw)) {
+      return null
+    }
+    index += 1
+    const value = Number(raw)
+    return Number.isFinite(value) ? value : null
+  }
+
+  while (index < tokens.length) {
+    const token = tokens[index]
+    if (/^[MLC]$/i.test(token)) {
+      currentCommand = token.toUpperCase() as 'M' | 'L' | 'C'
+      index += 1
+    }
+    if (!currentCommand) {
+      index += 1
+      continue
+    }
+    const pointCount = currentCommand === 'C' ? 3 : 1
+    const points: Point[] = []
+    for (let pointIndex = 0; pointIndex < pointCount; pointIndex += 1) {
+      const x = readNumber()
+      const y = readNumber()
+      if (x === null || y === null) {
+        break
+      }
+      points.push({ x, y })
+    }
+    if (points.length === pointCount) {
+      commands.push({ command: currentCommand, points })
+    } else if (points.length === 0) {
+      currentCommand = null
+    }
+  }
+
+  return commands
+}
+
+function pathToEditableShapes(
+  path: string | undefined,
+  layerId: string,
+  lineTypeId: string,
+): Shape[] {
+  if (!path) {
+    return []
+  }
+  const commands = parseLccPathPoints(path)
+  const shapes: Shape[] = []
+  let cursor: Point | null = null
+  for (const command of commands) {
+    if (command.command === 'M') {
+      cursor = command.points[0]
+      continue
+    }
+    if (!cursor) {
+      cursor = command.points[command.points.length - 1]
+      continue
+    }
+    if (command.command === 'L') {
+      const end = command.points[0]
+      if (Math.hypot(end.x - cursor.x, end.y - cursor.y) > 1e-6) {
+        shapes.push({ id: uid(), type: 'line', layerId, lineTypeId, start: cursor, end })
+      }
+      cursor = end
+      continue
+    }
+    const [control1, control2, end] = command.points
+    shapes.push({
+      id: uid(),
+      type: 'bezier',
+      layerId,
+      lineTypeId,
+      start: cursor,
+      control: { x: (control1.x + control2.x) / 2, y: (control1.y + control2.y) / 2 },
+      end,
+    })
+    cursor = end
+  }
+  return shapes
+}
+
+function inferRenderShape(lccShape: LccShape): StitchHole['renderShape'] {
+  const marker = (lccShape.pr?.bt || lccShape.st || '').toUpperCase()
+  if (marker === 'R') return 'round'
+  if (marker === 'D') return 'diamond'
+  if (marker === 'F') return 'french'
+  if (marker === 'L') return 'flat'
+  return lccShape.st === '' ? 'round' : 'slit'
+}
+
+function stitchTypeFromRenderShape(renderShape: StitchHole['renderShape']): StitchHole['holeType'] {
+  return renderShape === 'round' ? 'round' : 'slit'
+}
+
+function stitchCodeFromRenderShape(renderShape: StitchHole['renderShape'], holeType: StitchHole['holeType']) {
+  if (renderShape === 'round' || holeType === 'round') return 'R'
+  if (renderShape === 'diamond') return 'D'
+  if (renderShape === 'french') return 'F'
+  if (renderShape === 'flat') return 'L'
+  return 'S'
+}
 
 // ---------------------------------------------------------------------------
 // LCC raw types
@@ -244,6 +356,63 @@ export function importLccDocument(raw: string): LccImportResult {
         break
       }
 
+      case 'ARC': {
+        const center = pt(lccShape.ct)
+        const w = parseLccFloat(lccShape.w)
+        const h = parseLccFloat(lccShape.h)
+        const startAngle = parseLccFloat(lccShape.sta)
+        const sweepAngle = parseLccFloat(lccShape.swa)
+        const arcs = w > 0 && h > 0 && sweepAngle !== 0
+          ? ellipseArcToShapes(center, w * 2, h * 2, startAngle, sweepAngle, layerId, lineTypeId)
+          : []
+        if (arcs.length > 0) {
+          shapes.push(...arcs)
+        } else {
+          const parsedPathShapes = pathToEditableShapes(lccShape.path, layerId, lineTypeId)
+          if (parsedPathShapes.length > 0) {
+            shapes.push(...parsedPathShapes)
+          } else {
+            const arc: ArcShape = {
+              id: uid(),
+              type: 'arc',
+              layerId,
+              lineTypeId,
+              start: pt(lccShape.sp),
+              mid: center,
+              end: pt(lccShape.ep),
+            }
+            shapes.push(arc)
+          }
+        }
+        break
+      }
+
+      case 'BEZIER': {
+        const start = pt(lccShape.sp)
+        const end = pt(lccShape.ep)
+        const bz1 = lccShape.bz1
+        const bz2 = lccShape.bz2
+        const hasControls =
+          (bz1[0] !== 0 || bz1[1] !== 0) || (bz2[0] !== 0 || bz2[1] !== 0)
+        const parsedPathShapes = !hasControls ? pathToEditableShapes(lccShape.path, layerId, lineTypeId) : []
+        if (parsedPathShapes.length > 0) {
+          shapes.push(...parsedPathShapes)
+        } else {
+          shapes.push({
+            id: uid(),
+            type: 'bezier',
+            layerId,
+            lineTypeId,
+            start,
+            control: hasControls
+              ? { x: (bz1[0] + bz2[0]) / 2, y: (bz1[1] + bz2[1]) / 2 }
+              : pt(lccShape.ct),
+            end,
+          })
+        }
+        break
+      }
+
       case 'ELLIPSE': {
         ellipseCount++
         const w = parseLccFloat(lccShape.w)
@@ -288,21 +457,46 @@ export function importLccDocument(raw: string): LccImportResult {
 
         const holeId = uid()
         const angleDeg = parseLccFloat(lccShape.rt)
-        const isRound = lccShape.st === 'R' || lccShape.st === ''
+        const renderShape = inferRenderShape(lccShape)
+        const holeHeight = parseLccFloat(lccShape.h)
 
         stitchHoles.push({
           id: holeId,
           shapeId: markerLine.id,
           point: center,
           angleDeg,
-          holeType: isRound ? 'round' : 'slit',
+          holeType: stitchTypeFromRenderShape(renderShape),
           sequence: 0, // will be recomputed from chain
           diameterMm: holeDiam > 0 ? holeDiam : undefined,
+          widthMm: holeDiam >= 0 ? holeDiam : undefined,
+          heightMm: holeHeight > 0 ? holeHeight : undefined,
+          inverted: lccShape.inv === '-1' || lccShape.inv === '1',
+          renderShape,
+          sourceStitchIn: Array.isArray(lccShape.StcIn) ? pt(lccShape.StcIn) : undefined,
+          sourceStitchOut: Array.isArray(lccShape.StcOut) ? pt(lccShape.StcOut) : undefined,
         })
 
         stitchHoleIdMap.set(lccShape.id, holeId)
         if (lccShape.NextStId && lccShape.NextStId !== '-1') {
           stitchNextMap.set(lccShape.id, lccShape.NextStId)
+        }
+        break
+      }
+
+      case 'DOT': {
+        const center = pt(lccShape.ct ?? lccShape.sp)
+        const w = parseLccFloat(lccShape.w)
+        const h = parseLccFloat(lccShape.h)
+        shapes.push(...ellipseToArcShapes(center, Math.max(0.1, w), Math.max(0.1, h), layerId, lineTypeId))
+        break
+      }
+
+      case 'OTHER': {
+        const parsedPathShapes = pathToEditableShapes(lccShape.path, layerId, lineTypeId)
+        if (parsedPathShapes.length > 0) {
+          shapes.push(...parsedPathShapes)
+        } else {
+          warnings.push(`OTHER shape "${lccShape.id}" has no parseable path, skipped`)
         }
         break
       }
@@ -536,6 +730,7 @@ export function exportLccDocument(doc: DocFile): string {
   exportIdCounter = 1000
 
   const lineTypesById = Object.fromEntries(doc.lineTypes.map((lt) => [lt.id, lt]))
+  const shapesById = new Map(doc.objects.map((shape) => [shape.id, shape]))
 
   // Build layer mapping: our layerId → LCC layer index
   const layerIndexMap = new Map<string, number>()
@@ -575,20 +770,21 @@ export function exportLccDocument(doc: DocFile): string {
         layer,
       })
     } else if (shape.type === 'arc') {
-      // Export arc as ELLIPSE with center and bounding box
-      const cx = (shape.start.x + shape.end.x) / 2
-      const cy = (shape.start.y + shape.end.y) / 2
-      const w = Math.abs(shape.end.x - shape.start.x)
-      const h = Math.abs(shape.end.y - shape.start.y)
+      const cx = shape.mid.x
+      const cy = shape.mid.y
+      const radius = Math.max(
+        Math.hypot(shape.start.x - cx, shape.start.y - cy),
+        Math.hypot(shape.end.x - cx, shape.end.y - cy),
+      )
       lccShapes.push({
         ...emptyLccShape(),
         id: nextExportId(),
-        type: 'LINE',
+        type: 'ARC',
         sp: [shape.start.x, shape.start.y],
         ep: [shape.end.x, shape.end.y],
         ct: [cx, cy],
-        w: String(w),
-        h: String(h),
+        w: String(radius),
+        h: String(radius),
         color,
         dash,
         arst: arrowStart,
@@ -599,7 +795,7 @@ export function exportLccDocument(doc: DocFile): string {
       lccShapes.push({
         ...emptyLccShape(),
         id: nextExportId(),
-        type: 'LINE',
+        type: 'BEZIER',
         sp: [shape.start.x, shape.start.y],
         ep: [shape.end.x, shape.end.y],
         ct: [shape.control.x, shape.control.y],
@@ -643,12 +839,25 @@ export function exportLccDocument(doc: DocFile): string {
       const idsByHoleId = new Map(sortedHoles.map((hole) => [hole.id, nextExportId()]))
       for (let i = 0; i < sortedHoles.length; i++) {
         const hole = sortedHoles[i]
-        const lineType = lineTypesById[doc.activeLineTypeId]
+        const hostShape = shapesById.get(hole.shapeId)
+        const lineType = lineTypesById[hostShape?.lineTypeId ?? doc.activeLineTypeId]
         const color = lineType ? hexToLccColor(lineType.color) : 'White'
         const stitchId = idsByHoleId.get(hole.id) ?? nextExportId()
         const prevId = i > 0 ? idsByHoleId.get(sortedHoles[i - 1].id) ?? '-1' : '-1'
         const nextId = i < sortedHoles.length - 1 ? idsByHoleId.get(sortedHoles[i + 1].id) ?? '-1' : '-1'
-        const lccLayerIdx = 3 // stitch layer
+        const lccLayerIdx = hostShape ? layerIndexMap.get(hostShape.layerId) ?? 3 : 3
+        const widthMm = Math.max(0, hole.widthMm ?? hole.diameterMm ?? 1.2)
+        const heightMm = Math.max(0, hole.heightMm ?? hole.diameterMm ?? widthMm)
+        const angleRad = (hole.angleDeg * Math.PI) / 180
+        const halfThreadSpan = Math.max(0.2, (widthMm > 0 ? widthMm : Math.max(0.6, heightMm)) * 0.75)
+        const fallbackStitchIn: [number, number] = [
+          hole.point.x - Math.cos(angleRad) * halfThreadSpan,
+          hole.point.y - Math.sin(angleRad) * halfThreadSpan,
+        ]
+        const fallbackStitchOut: [number, number] = [
+          hole.point.x + Math.cos(angleRad) * halfThreadSpan,
+          hole.point.y + Math.sin(angleRad) * halfThreadSpan,
+        ]
 
         lccShapes.push({
           ...emptyLccShape(),
@@ -657,17 +866,18 @@ export function exportLccDocument(doc: DocFile): string {
           sp: [hole.point.x, hole.point.y],
           ep: [0, 0],
           ct: [hole.point.x, hole.point.y],
-          w: '1.2',
-          h: '1.2',
+          w: String(widthMm),
+          h: String(heightMm),
           color,
           dash: 'Solid',
           rt: String(hole.angleDeg),
-          st: hole.holeType === 'round' ? 'R' : 'S',
+          st: stitchCodeFromRenderShape(hole.renderShape, hole.holeType),
+          inv: hole.inverted ? '-1' : '0',
           thk: '1.0',
           PrevStId: prevId,
           NextStId: nextId,
-          StcIn: [hole.point.x - 0.45, hole.point.y],
-          StcOut: [hole.point.x + 0.45, hole.point.y],
+          StcIn: hole.sourceStitchIn ? [hole.sourceStitchIn.x, hole.sourceStitchIn.y] : fallbackStitchIn,
+          StcOut: hole.sourceStitchOut ? [hole.sourceStitchOut.x, hole.sourceStitchOut.y] : fallbackStitchOut,
           layer: String(lccLayerIdx),
         })
       }

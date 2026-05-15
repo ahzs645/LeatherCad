@@ -17,25 +17,41 @@ function collectLccFiles(directory: string): string[] {
 }
 
 describe('AllLCC source project import parity', () => {
-  it('imports every .lcc project and reimports LeatherCad export output', () => {
+  it('imports every .lcc project without dropping known native shape families', () => {
     expect(existsSync(allLccRoot)).toBe(true)
     const files = collectLccFiles(allLccRoot).sort()
     expect(files.length).toBeGreaterThan(20)
 
     const failures: string[] = []
+    const rawTypeCounts = new Map<string, number>()
     for (const file of files) {
       try {
-        const imported = importLccDocument(readFileSync(file, 'utf8'))
+        const raw = readFileSync(file, 'utf8')
+        const parsed = JSON.parse(raw.replace(/^\uFEFF/, '')) as { shapes?: Array<{ type?: string }> }
+        for (const shape of parsed.shapes ?? []) {
+          if (shape.type) {
+            rawTypeCounts.set(shape.type, (rawTypeCounts.get(shape.type) ?? 0) + 1)
+          }
+        }
+
+        const imported = importLccDocument(raw)
         expect(imported.summary.layerCount, file).toBeGreaterThan(0)
         expect(imported.summary.shapeCount + imported.summary.stitchHoleCount + imported.summary.foldCount, file).toBeGreaterThan(0)
+        expect(imported.warnings.filter((warning) => warning.startsWith('Unknown shape type')), file).toEqual([])
 
         const reimported = importLccDocument(exportLccDocument(imported.doc))
         expect(reimported.summary.layerCount, file).toBeGreaterThan(0)
+        expect(reimported.summary.shapeCount + reimported.summary.stitchHoleCount + reimported.summary.foldCount, file).toBeGreaterThan(0)
       } catch (error) {
         failures.push(`${file}: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
+    expect(rawTypeCounts.get('ARC')).toBeGreaterThan(0)
+    expect(rawTypeCounts.get('BEZIER')).toBeGreaterThan(0)
+    expect(rawTypeCounts.get('DOT')).toBeGreaterThan(0)
+    expect(rawTypeCounts.get('OTHER')).toBeGreaterThan(0)
+    expect(rawTypeCounts.get('S_HOLE')).toBeGreaterThan(0)
     expect(failures).toEqual([])
   })
 })

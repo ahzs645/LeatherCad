@@ -291,10 +291,12 @@ export function createPrickingIronStitchHoles(
   const lengths = cumulativeLengths(polyline)
   const totalLength = lengths[lengths.length - 1] ?? 0
   const anchorDistance = projectDistanceOnShape(shape, anchor.point)
+  const direction = defaults.inverted ? -1 : 1
   const holes: StitchHole[] = []
 
   for (let index = 0; index < bladeCount; index += 1) {
-    const projected = pointAtDistance(polyline, lengths, Math.min(totalLength, anchorDistance + pitchMm * index))
+    const targetDistance = Math.max(0, Math.min(totalLength, anchorDistance + direction * pitchMm * index))
+    const projected = pointAtDistance(polyline, lengths, targetDistance)
     if (!projected) {
       continue
     }
@@ -303,13 +305,16 @@ export function createPrickingIronStitchHoles(
         {
           shapeId: shape.id,
           point: projected.point,
-          angleDeg: projected.angleDeg,
+          angleDeg: defaults.inverted ? (projected.angleDeg + 180) % 360 : projected.angleDeg,
         },
         defaults,
       ),
       sequence: sequenceStart + index,
     })
-    if (anchorDistance + pitchMm * index >= totalLength - 1e-6) {
+    if (
+      (!defaults.inverted && anchorDistance + pitchMm * index >= totalLength - 1e-6) ||
+      (defaults.inverted && anchorDistance - pitchMm * index <= 1e-6)
+    ) {
       break
     }
   }

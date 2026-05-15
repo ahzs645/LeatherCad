@@ -1,4 +1,5 @@
 import { BUNDLED_CATALOG_SUMMARIES } from './catalog-builtins'
+import { BUNDLED_CATALOG_RAW_BY_FILENAME } from './catalog-bundled-raw'
 import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
@@ -383,43 +384,58 @@ export function loadCatalogRepository(): CatalogRepositoryShop[] {
 }
 
 export function loadBundledCatalogRepository(): CatalogRepositoryShop[] {
-  return BUNDLED_CATALOG_SUMMARIES.map((summary) => ({
-    id: `builtin-${slugifyId(summary.sourceFileName)}`,
-    name: summary.name,
-    guid: summary.guid,
-    url: summary.url,
-    memo: summary.memo,
-    shopVersion: summary.shopVersion,
-    metaVersion: summary.metaVersion,
-    sourceFileName: summary.sourceFileName,
-    importedAt: BUNDLED_CATALOG_IMPORTED_AT,
-    groups: summary.groupCount > 0
-      ? Array.from({ length: summary.groupCount }, (_, index) => ({
-          id: `builtin-${slugifyId(summary.sourceFileName)}-group-${index + 1}`,
-          name: summary.groupCount === 1 ? 'Bundled catalog items' : `Bundled catalog group ${index + 1}`,
-          guid: '',
-          url: summary.url,
-          memo: 'Summary placeholder for bundled source catalog. Import the source .ctlg file to load item images and exact group names.',
-          items: index === 0
-            ? Array.from({ length: summary.itemCount }, (__, itemIndex) => ({
-                id: `builtin-${slugifyId(summary.sourceFileName)}-item-${itemIndex + 1}`,
-                name: `Bundled item ${itemIndex + 1}`,
-                guid: '',
-                category: '',
-                unitPrice: '',
-                unitStr: '',
-                url: summary.url,
-                memo: 'Summary placeholder. Import the source .ctlg file for full item metadata.',
-                hasImage: false,
-                imageDpi: null,
-              }))
-            : [],
-        }))
-      : [],
-    groupCount: summary.groupCount,
-    itemCount: summary.itemCount,
-    isBundled: true,
-  }))
+  return BUNDLED_CATALOG_SUMMARIES.map((summary) => {
+    const raw = BUNDLED_CATALOG_RAW_BY_FILENAME[summary.sourceFileName]
+    if (raw) {
+      try {
+        return {
+          ...parseCatalogShopImport(raw, summary.sourceFileName),
+          isBundled: true,
+          importedAt: BUNDLED_CATALOG_IMPORTED_AT,
+        }
+      } catch {
+        // Fall through to the metadata summary below; a bad bundled catalog
+        // should not make the editor unusable.
+      }
+    }
+    return {
+      id: `builtin-${slugifyId(summary.sourceFileName)}`,
+      name: summary.name,
+      guid: summary.guid,
+      url: summary.url,
+      memo: summary.memo,
+      shopVersion: summary.shopVersion,
+      metaVersion: summary.metaVersion,
+      sourceFileName: summary.sourceFileName,
+      importedAt: BUNDLED_CATALOG_IMPORTED_AT,
+      groups: summary.groupCount > 0
+        ? Array.from({ length: summary.groupCount }, (_, index) => ({
+            id: `builtin-${slugifyId(summary.sourceFileName)}-group-${index + 1}`,
+            name: summary.groupCount === 1 ? 'Bundled catalog items' : `Bundled catalog group ${index + 1}`,
+            guid: '',
+            url: summary.url,
+            memo: 'Summary placeholder for bundled source catalog. Import the source .ctlg file to load item images and exact group names.',
+            items: index === 0
+              ? Array.from({ length: summary.itemCount }, (__, itemIndex) => ({
+                  id: `builtin-${slugifyId(summary.sourceFileName)}-item-${itemIndex + 1}`,
+                  name: `Bundled item ${itemIndex + 1}`,
+                  guid: '',
+                  category: '',
+                  unitPrice: '',
+                  unitStr: '',
+                  url: summary.url,
+                  memo: 'Summary placeholder. Import the source .ctlg file for full item metadata.',
+                  hasImage: false,
+                  imageDpi: null,
+                }))
+              : [],
+          }))
+        : [],
+      groupCount: summary.groupCount,
+      itemCount: summary.itemCount,
+      isBundled: true,
+    }
+  })
 }
 
 export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
@@ -427,16 +443,7 @@ export function saveCatalogRepository(shops: CatalogRepositoryShop[]) {
     return
   }
   try {
-    const serializableShops: CatalogRepositoryShop[] = shops.map((shop) => ({
-      ...shop,
-      groups: shop.groups.map((group) => ({
-        ...group,
-        items: group.items.map((item) => ({
-          ...item,
-          zipBmpBase64: undefined,
-        })),
-      })),
-    }))
+    const serializableShops: CatalogRepositoryShop[] = shops.map((shop) => cloneCatalogRepositoryShop(shop))
     safeLocalStorageSet(CATALOG_REPOSITORY_STORAGE_KEY, JSON.stringify(serializableShops))
     void withEditorLocalDataClient((client) => client.catalogRepository.replaceAll(serializableShops))
   } catch {
