@@ -27,14 +27,87 @@ export type PrickingIronPreset = {
 export type PrickingIronCatalog = {
   groups: PrickingIronGroup[]
   presets: PrickingIronPreset[]
+  showFiveMmGuide?: boolean
 }
 
 type StoredPrickingIronCatalog = {
   groups?: unknown[]
   presets?: unknown[]
+  showFiveMmGuide?: unknown
+}
+
+type SourcePrickingIronGroup = {
+  id?: unknown
+  ID?: unknown
+  guid?: unknown
+  GUID?: unknown
+  name?: unknown
+  Name?: unknown
+  caption?: unknown
+  Caption?: unknown
+  system?: unknown
+  System?: unknown
+  order?: unknown
+  Order?: unknown
+  presets?: unknown
+  Presets?: unknown
+  items?: unknown
+  Items?: unknown
+  prickingIrons?: unknown
+  PrickingIrons?: unknown
+}
+
+type SourcePrickingIronPreset = {
+  id?: unknown
+  ID?: unknown
+  guid?: unknown
+  GUID?: unknown
+  groupId?: unknown
+  GroupId?: unknown
+  groupID?: unknown
+  GroupID?: unknown
+  name?: unknown
+  Name?: unknown
+  caption?: unknown
+  Caption?: unknown
+  shape?: unknown
+  Shape?: unknown
+  type?: unknown
+  Type?: unknown
+  pitchMm?: unknown
+  PitchMm?: unknown
+  pitch?: unknown
+  Pitch?: unknown
+  bladeCount?: unknown
+  BladeCount?: unknown
+  numBlades?: unknown
+  NumBlades?: unknown
+  widthMm?: unknown
+  WidthMm?: unknown
+  width?: unknown
+  Width?: unknown
+  heightMm?: unknown
+  HeightMm?: unknown
+  height?: unknown
+  Height?: unknown
+  tiltDeg?: unknown
+  TiltDeg?: unknown
+  angleDeg?: unknown
+  AngleDeg?: unknown
+  rotation?: unknown
+  Rotation?: unknown
+  inverted?: unknown
+  Inverted?: unknown
+  invert?: unknown
+  Invert?: unknown
+  system?: unknown
+  System?: unknown
 }
 
 export const CUSTOM_PRICKING_IRON_STORAGE_KEY = 'leathercraft-custom-pricking-irons-v2'
+export const SOURCE_APP_PRICKING_IRON_FILENAME = 'prickingirons.lccp'
+export const SOURCE_APP_PRICKING_IRON_GROUPS_KEY = 'LeathercraftCAD_PrickingIronGroups'
+export const SOURCE_APP_PRICKING_IRON_COLLECTION_KEY = 'pricking_iron_groups'
 
 const LEGACY_STORAGE_KEY = 'leathercraft-custom-pricking-irons-v1'
 const DEFAULT_CUSTOM_GROUP_ID = 'custom-group'
@@ -66,6 +139,54 @@ function clampTilt(value: number, fallback = 0) {
     return fallback
   }
   return Math.max(-89, Math.min(89, value))
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function asBoolean(value: unknown): boolean {
+  if (value === true) {
+    return true
+  }
+  if (typeof value === 'string') {
+    return value === 'true' || value === '-1' || value === '1'
+  }
+  if (typeof value === 'number') {
+    return value !== 0
+  }
+  return false
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    const parsed = asString(value)
+    if (parsed) {
+      return parsed
+    }
+  }
+  return null
+}
+
+function firstNumber(...values: unknown[]): number | null {
+  for (const value of values) {
+    const parsed = asNumber(value)
+    if (parsed !== null) {
+      return parsed
+    }
+  }
+  return null
 }
 
 function defaultGeometry(shape: PrickingIronShape) {
@@ -133,7 +254,7 @@ export function createBuiltinPrickingIronCatalog(): PrickingIronCatalog {
     }
   }
 
-  return { groups, presets }
+  return { groups, presets, showFiveMmGuide: false }
 }
 
 export function createDefaultCustomPrickingIronGroup(order = 0): PrickingIronGroup {
@@ -201,6 +322,26 @@ function parsePrickingIronGroup(value: unknown): PrickingIronGroup | null {
   }
 }
 
+function parseSourcePrickingIronGroup(value: unknown, index: number): PrickingIronGroup | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as SourcePrickingIronGroup
+  const id = firstString(candidate.id, candidate.ID, candidate.guid, candidate.GUID) ?? `source-group-${index + 1}`
+  const name = firstString(candidate.name, candidate.Name, candidate.caption, candidate.Caption)
+  if (!name) {
+    return null
+  }
+
+  return {
+    id,
+    name,
+    system: asBoolean(candidate.system ?? candidate.System),
+    order: Math.max(0, Math.round(firstNumber(candidate.order, candidate.Order) ?? index)),
+  }
+}
+
 export function parsePrickingIronPreset(value: unknown): PrickingIronPreset | null {
   if (typeof value !== 'object' || value === null) {
     return null
@@ -240,12 +381,120 @@ export function parsePrickingIronPreset(value: unknown): PrickingIronPreset | nu
       typeof candidate.numBlades === 'number' && Number.isFinite(candidate.numBlades)
         ? Math.max(1, Math.round(candidate.numBlades))
         : 2,
-    widthMm: clampPositive(candidate.widthMm ?? geometry.widthMm, geometry.widthMm),
+    widthMm: clampPositive(candidate.widthMm ?? geometry.widthMm, geometry.widthMm, 0),
     heightMm: clampPositive(candidate.heightMm ?? geometry.heightMm, geometry.heightMm),
     tiltDeg: clampTilt(candidate.tiltDeg ?? geometry.tiltDeg, geometry.tiltDeg),
     inverted: candidate.inverted === true,
     system: candidate.system === true,
   }
+}
+
+function normalizeSourceShape(value: unknown): PrickingIronShape {
+  const shape = asString(value)?.toLowerCase()
+  if (shape?.includes('diamond')) {
+    return 'diamond'
+  }
+  if (shape?.includes('french')) {
+    return 'french'
+  }
+  if (shape?.includes('flat')) {
+    return 'flat'
+  }
+  if (shape?.includes('round')) {
+    return 'round'
+  }
+  return parsePrickingIronShape(shape)
+}
+
+function parseSourcePrickingIronPreset(
+  value: unknown,
+  fallbackGroupId: string | null,
+  index: number,
+): PrickingIronPreset | null {
+  if (typeof value !== 'object' || value === null) {
+    return null
+  }
+
+  const candidate = value as SourcePrickingIronPreset
+  const groupId = firstString(candidate.groupId, candidate.GroupId, candidate.groupID, candidate.GroupID) ?? fallbackGroupId
+  const name = firstString(candidate.name, candidate.Name, candidate.caption, candidate.Caption)
+  const pitchMm = firstNumber(candidate.pitchMm, candidate.PitchMm, candidate.pitch, candidate.Pitch)
+  if (!groupId || !name || pitchMm === null) {
+    return null
+  }
+
+  const shape = normalizeSourceShape(candidate.shape ?? candidate.Shape ?? candidate.type ?? candidate.Type)
+  const geometry = defaultGeometry(shape)
+  return {
+    id: firstString(candidate.id, candidate.ID, candidate.guid, candidate.GUID) ?? `source-preset-${index + 1}`,
+    groupId,
+    name,
+    shape,
+    pitchMm: clampPitch(pitchMm),
+    numBlades: Math.max(
+      1,
+      Math.round(firstNumber(candidate.numBlades, candidate.NumBlades, candidate.bladeCount, candidate.BladeCount) ?? 2),
+    ),
+    widthMm: clampPositive(
+      firstNumber(candidate.widthMm, candidate.WidthMm, candidate.width, candidate.Width) ?? geometry.widthMm,
+      geometry.widthMm,
+      0,
+    ),
+    heightMm: clampPositive(
+      firstNumber(candidate.heightMm, candidate.HeightMm, candidate.height, candidate.Height) ?? geometry.heightMm,
+      geometry.heightMm,
+    ),
+    tiltDeg: clampTilt(
+      firstNumber(candidate.tiltDeg, candidate.TiltDeg, candidate.angleDeg, candidate.AngleDeg, candidate.rotation, candidate.Rotation)
+        ?? geometry.tiltDeg,
+      geometry.tiltDeg,
+    ),
+    inverted: asBoolean(candidate.inverted ?? candidate.Inverted ?? candidate.invert ?? candidate.Invert),
+    system: asBoolean(candidate.system ?? candidate.System),
+  }
+}
+
+function collectSourcePrickingIronEntries(candidate: StoredPrickingIronCatalog | Record<string, unknown>) {
+  const rawGroups = Array.isArray(candidate.groups) ? candidate.groups : []
+  const rawPresets = Array.isArray(candidate.presets) ? candidate.presets : []
+  const sourceGroups = rawGroups
+    .map((entry, index) => parseSourcePrickingIronGroup(entry, index))
+    .filter((entry): entry is PrickingIronGroup => entry !== null)
+  const sourcePresets: PrickingIronPreset[] = rawPresets
+    .map((entry, index) => parseSourcePrickingIronPreset(entry, null, index))
+    .filter((entry): entry is PrickingIronPreset => entry !== null)
+
+  rawGroups.forEach((entry, groupIndex) => {
+    if (typeof entry !== 'object' || entry === null) {
+      return
+    }
+    const group = sourceGroups[groupIndex] ?? parseSourcePrickingIronGroup(entry, groupIndex)
+    if (!group) {
+      return
+    }
+    const sourceGroup = entry as SourcePrickingIronGroup
+    const nested = sourceGroup.presets ?? sourceGroup.Presets ?? sourceGroup.items ?? sourceGroup.Items ?? sourceGroup.prickingIrons ?? sourceGroup.PrickingIrons
+    if (!Array.isArray(nested)) {
+      return
+    }
+    nested.forEach((preset, presetIndex) => {
+      const parsed = parseSourcePrickingIronPreset(preset, group.id, sourcePresets.length + presetIndex)
+      if (parsed) {
+        sourcePresets.push(parsed)
+      }
+    })
+  })
+
+  return { sourceGroups, sourcePresets }
+}
+
+function parseJsonPossiblyWrapped(raw: string): unknown {
+  const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
+  const parsed = JSON.parse(cleaned) as unknown
+  if (typeof parsed === 'string') {
+    return JSON.parse(parsed) as unknown
+  }
+  return parsed
 }
 
 function mergeCatalog(catalog: PrickingIronCatalog): PrickingIronCatalog {
@@ -259,7 +508,7 @@ function mergeCatalog(catalog: PrickingIronCatalog): PrickingIronCatalog {
     .sort((left, right) => left.name.localeCompare(right.name))
 
   const groups = Array.from(groupsById.values()).sort((left, right) => left.order - right.order || left.name.localeCompare(right.name))
-  return { groups, presets }
+  return { groups, presets, showFiveMmGuide: catalog.showFiveMmGuide === true }
 }
 
 function loadLegacyCustomPresets(): PrickingIronCatalog {
@@ -270,11 +519,11 @@ function loadLegacyCustomPresets(): PrickingIronCatalog {
   try {
     const raw = safeLocalStorageGet(LEGACY_STORAGE_KEY)
     if (!raw) {
-      return { groups: [], presets: [] }
+      return { groups: [], presets: [], showFiveMmGuide: false }
     }
     const parsed = JSON.parse(raw) as unknown
     if (!Array.isArray(parsed)) {
-      return { groups: [], presets: [] }
+      return { groups: [], presets: [], showFiveMmGuide: false }
     }
 
     const group = createDefaultCustomPrickingIronGroup(0)
@@ -287,34 +536,45 @@ function loadLegacyCustomPresets(): PrickingIronCatalog {
         system: false,
       }))
 
-    return presets.length > 0 ? { groups: [group], presets } : { groups: [], presets: [] }
+    return presets.length > 0 ? { groups: [group], presets, showFiveMmGuide: false } : { groups: [], presets: [], showFiveMmGuide: false }
   } catch {
-    return { groups: [], presets: [] }
+    return { groups: [], presets: [], showFiveMmGuide: false }
   }
 }
 
 export function loadCustomPrickingIronCatalog(storageKey = CUSTOM_PRICKING_IRON_STORAGE_KEY): PrickingIronCatalog {
   if (typeof window === 'undefined') {
-    return { groups: [], presets: [] }
+    return { groups: [], presets: [], showFiveMmGuide: false }
   }
 
   try {
-    const raw = safeLocalStorageGet(storageKey)
+    const raw = safeLocalStorageGet(storageKey) ?? safeLocalStorageGet(SOURCE_APP_PRICKING_IRON_GROUPS_KEY)
     if (!raw) {
       return loadLegacyCustomPresets()
     }
 
     const parsed = JSON.parse(raw) as StoredPrickingIronCatalog
-    const groups = Array.isArray(parsed.groups)
-      ? parsed.groups.map(parsePrickingIronGroup).filter((entry): entry is PrickingIronGroup => entry !== null && !entry.system)
-      : []
-    const presets = Array.isArray(parsed.presets)
+    const sourceCollection = (parsed as Record<string, unknown>)[SOURCE_APP_PRICKING_IRON_COLLECTION_KEY]
+    const rawGroups: unknown[] = Array.isArray(parsed.groups)
+      ? parsed.groups
+      : typeof sourceCollection === 'object' && sourceCollection !== null && Array.isArray((sourceCollection as StoredPrickingIronCatalog).groups)
+        ? (sourceCollection as StoredPrickingIronCatalog).groups ?? []
+        : []
+    const rawPresets: unknown[] = Array.isArray(parsed.presets)
       ? parsed.presets
+      : typeof sourceCollection === 'object' && sourceCollection !== null && Array.isArray((sourceCollection as StoredPrickingIronCatalog).presets)
+        ? (sourceCollection as StoredPrickingIronCatalog).presets ?? []
+        : []
+    const groups = rawGroups.length > 0
+      ? rawGroups.map(parsePrickingIronGroup).filter((entry): entry is PrickingIronGroup => entry !== null && !entry.system)
+      : []
+    const presets = rawPresets.length > 0
+      ? rawPresets
           .map(parsePrickingIronPreset)
           .filter((entry): entry is PrickingIronPreset => entry !== null && !entry.system)
       : []
 
-    return mergeCatalog({ groups, presets })
+    return mergeCatalog({ groups, presets, showFiveMmGuide: parsed.showFiveMmGuide === true })
   } catch {
     return loadLegacyCustomPresets()
   }
@@ -331,7 +591,24 @@ export function saveCustomPrickingIronCatalog(
   const customGroups = catalog.groups.filter((group) => !group.system)
   const customGroupIds = new Set(customGroups.map((group) => group.id))
   const customPresets = catalog.presets.filter((preset) => !preset.system && customGroupIds.has(preset.groupId))
-  safeLocalStorageSet(storageKey, JSON.stringify({ groups: customGroups, presets: customPresets }))
+  const payload = {
+    groups: customGroups,
+    presets: customPresets,
+    showFiveMmGuide: catalog.showFiveMmGuide === true,
+    sourceApp: {
+      filename: SOURCE_APP_PRICKING_IRON_FILENAME,
+      groupsKey: SOURCE_APP_PRICKING_IRON_GROUPS_KEY,
+      collectionKey: SOURCE_APP_PRICKING_IRON_COLLECTION_KEY,
+    },
+  }
+  safeLocalStorageSet(storageKey, JSON.stringify(payload))
+  safeLocalStorageSet(SOURCE_APP_PRICKING_IRON_GROUPS_KEY, JSON.stringify({
+    [SOURCE_APP_PRICKING_IRON_COLLECTION_KEY]: {
+      groups: customGroups,
+      presets: customPresets,
+    },
+    showFiveMmGuide: catalog.showFiveMmGuide === true,
+  }))
 }
 
 export function createCustomPrickingIronGroup(name: string, order: number): PrickingIronGroup {
@@ -365,10 +642,56 @@ export function createCustomPrickingIron(params: {
       typeof params.numBlades === 'number' && Number.isFinite(params.numBlades)
         ? Math.max(1, Math.round(params.numBlades))
         : 2,
-    widthMm: clampPositive(params.widthMm ?? geometry.widthMm, geometry.widthMm),
+    widthMm: clampPositive(params.widthMm ?? geometry.widthMm, geometry.widthMm, 0),
     heightMm: clampPositive(params.heightMm ?? geometry.heightMm, geometry.heightMm),
     tiltDeg: clampTilt(params.tiltDeg ?? geometry.tiltDeg, geometry.tiltDeg),
     inverted: params.inverted === true,
     system: false,
   }
+}
+
+export function serializePrickingIronLccp(catalog: PrickingIronCatalog): string {
+  const customGroups = catalog.groups.filter((group) => !group.system)
+  const customGroupIds = new Set(customGroups.map((group) => group.id))
+  const customPresets = catalog.presets.filter((preset) => !preset.system && customGroupIds.has(preset.groupId))
+  return JSON.stringify(
+    {
+      file: SOURCE_APP_PRICKING_IRON_FILENAME,
+      [SOURCE_APP_PRICKING_IRON_COLLECTION_KEY]: {
+        groups: customGroups,
+        presets: customPresets,
+      },
+      showFiveMmGuide: catalog.showFiveMmGuide === true,
+    },
+    null,
+    2,
+  )
+}
+
+export function parsePrickingIronLccp(raw: string): PrickingIronCatalog {
+  const parsed = parseJsonPossiblyWrapped(raw)
+  if (typeof parsed !== 'object' || parsed === null) {
+    return { groups: [], presets: [], showFiveMmGuide: false }
+  }
+
+  const root = parsed as Record<string, unknown>
+  const keyedPayload = root[SOURCE_APP_PRICKING_IRON_GROUPS_KEY]
+  const keyedParsed = typeof keyedPayload === 'string'
+    ? parseJsonPossiblyWrapped(keyedPayload)
+    : keyedPayload
+  const effectiveRoot = typeof keyedParsed === 'object' && keyedParsed !== null
+    ? keyedParsed as Record<string, unknown>
+    : root
+  const sourceCollection = effectiveRoot[SOURCE_APP_PRICKING_IRON_COLLECTION_KEY]
+  const candidate = typeof sourceCollection === 'object' && sourceCollection !== null
+    ? sourceCollection as StoredPrickingIronCatalog
+    : effectiveRoot as StoredPrickingIronCatalog
+  const sourceEntries = collectSourcePrickingIronEntries(candidate as StoredPrickingIronCatalog | Record<string, unknown>)
+  const groups = sourceEntries.sourceGroups.filter((entry) => !entry.system)
+  const presets = sourceEntries.sourcePresets.filter((entry) => !entry.system)
+  return mergeCatalog({
+    groups,
+    presets,
+    showFiveMmGuide: effectiveRoot.showFiveMmGuide === true || effectiveRoot.chkShow5mm === true || root.showFiveMmGuide === true,
+  })
 }

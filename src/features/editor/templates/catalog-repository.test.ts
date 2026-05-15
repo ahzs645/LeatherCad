@@ -7,6 +7,7 @@ import {
   updateCatalogGroup,
   updateCatalogItem,
   updateCatalogShop,
+  loadBundledCatalogRepository,
   type CatalogRepositoryShop,
 } from './catalog-repository'
 
@@ -220,5 +221,16 @@ describe('catalog editing', () => {
       imageCropMode: 'max',
     })
     expect(untouched[1].name).toBe('Bundled')
+  })
+})
+
+describe('bundled catalog summaries', () => {
+  it('exposes group and item placeholders instead of empty bundled catalogs', () => {
+    const bundled = loadBundledCatalogRepository()
+
+    expect(bundled.length).toBeGreaterThan(0)
+    expect(bundled[0].groups.length).toBeGreaterThan(0)
+    expect(bundled[0].groups[0].items.length).toBe(bundled[0].itemCount)
+    expect(bundled[0].groups[0].items[0].memo).toContain('Import the source .ctlg')
   })
 })

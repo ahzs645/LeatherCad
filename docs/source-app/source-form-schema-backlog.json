@@ -1,0 +1,92 @@
+{
+  "source": "/Users/ahmadjalil/Downloads/leather-making/extracted-rsrc/rsrc_form_details.txt",
+  "status": "partial",
+  "coveredElsewhere": [
+    "TfrmOptions",
+    "TfrmSVGExportOptions",
+    "TfrmStitchingHoleSettings",
+    "TfrmChangeStitchingHoleType",
+    "TfrmRepository",
+    "TfrmPreview",
+    "TfrmPDFViewer"
+  ],
+  "remainingForms": [
+    {
+      "form": "TfrmLetterStampSimulator",
+      "priority": "p1",
+      "repoOwners": [
+        "src/features/editor/components/LetterStampModal.tsx",
+        "src/features/editor/ops/letter-stamp-fontsets.ts",
+        "src/features/editor/ops/letter-stamp-ops.ts"
+      ],
+      "recoveredControls": [
+        "add/edit/delete/rename font",
+        "import/export font set",
+        "save/save-as font set",
+        "make placeholder",
+        "line gap",
+        "stamp height"
+      ],
+      "currentStatus": "Font-set save, save-as, rename, delete, import, export, placeholder, line spacing, and stamp size are implemented. Exact source font file format remains unknown."
+    },
+    {
+      "form": "actSecret_MakeCapPattern",
+      "priority": "p1",
+      "repoOwners": [
+        "src/features/editor/components/WizardModal.tsx",
+        "src/features/editor/ops/wizard-types.ts",
+        "src/features/editor/ops/wizard-ops.ts"
+      ],
+      "recoveredControls": [
+        "action name only: actSecret_MakeCapPattern/actSecret_MakeCapPatternExecute"
+      ],
+      "currentStatus": "LeatherCad now exposes explicit crown panel count, crown height, panel gap, crown bulge, base smile, seam allowance, brim width, brim depth, and brim back-rise controls with generated golden output. The native desktop form schema is still not present in the recovered resource dump."
+    },
+    {
+      "form": "TfrmCatalogShop/TfrmCatalogGroup/TfrmCatalogItem",
+      "priority": "p1",
+      "repoOwners": [
+        "src/features/editor/templates/catalog-repository.ts",
+        "src/features/editor/components/TemplateRepositoryModal.tsx"
+      ],
+      "recoveredControls": [
+        "shop/group/item name",
+        "URL",
+        "memo",
+        "category",
+        "unit price",
+        "unit label",
+        "item image calibration"
+      ],
+      "currentStatus": "Repository editor supports imported catalog editing and bundled summary placeholders; exact bundled item payloads require source .ctlg import or generated fixtures."
+    },
+    {
+      "form": "TfrmDocuments",
+      "priority": "p2",
+      "repoOwners": [
+        "src/features/editor/components/LocalProjectsModal.tsx"
+      ],
+      "recoveredControls": [
+        "document list",
+        "open/delete/manage saved documents"
+      ],
+      "currentStatus": "Local project modal exists; exact desktop document manager parity is not fully mapped."
+    },
+    {
+      "form": "TfrmAbout/TfrmSecretFeatures/help link controls",
+      "priority": "p3",
+      "repoOwners": [
+        "src/features/editor/components/HelpModal.tsx",
+        "src/features/editor/components/WizardModal.tsx"
+      ],
+      "recoveredControls": [
+        "website",
+        "FAQ",
+        "release notes",
+        "tutorial links",
+        "secret feature list"
+      ],
+      "currentStatus": "Help and secret generator access exist; exact external link parity is intentionally low priority."
+    }
+  ]
+}

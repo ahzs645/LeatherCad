@@ -21,6 +21,11 @@ export function getDefaultWizardParams(
     case 'watch-strap':
       return {
         totalLength: 220,
+        watchLength: 44,
+        wristCircumference: 170,
+        lugInnerWidth: 22,
+        buckleInnerWidth: 20,
+        buckleLength: 18,
         width: 22,
         buckleEndWidth: 18,
         taperLength: 30,
@@ -37,6 +42,10 @@ export function getDefaultWizardParams(
       return {
         cardWidth: 86,
         cardHeight: 54,
+        sourceWidth: 100,
+        sourceHeight: 70,
+        stitchPitchMm: 4,
+        stitchSpaceMm: 5,
         margin: 5,
         cornerRadius: 3,
         flapHeight: 0,
@@ -50,6 +59,19 @@ export function getDefaultWizardParams(
         width: 80,
         height: 50,
         materialThickness: 2,
+        lidMode: 'none',
+        grooveDepthMm: 1,
+        grooveOffsetMm: 4,
+        kerfCompensationMm: 0,
+        pinOverhangMm: 0,
+        bottomOffsetMm: 0,
+        sameThickness: true,
+        frontThicknessMm: 2,
+        backThicknessMm: 2,
+        leftThicknessMm: 2,
+        rightThicknessMm: 2,
+        bottomThicknessMm: 2,
+        lidThicknessMm: 2,
         fingerCount: 3,
         layerId: '',
         lineTypeId: '',
@@ -61,6 +83,10 @@ export function getDefaultWizardParams(
         pieceSize: 40,
         tabDepth: 8,
         tabWidth: 12,
+        randomSeed: 1,
+        randomizeTabs: false,
+        flatEdges: true,
+        flattenPath: false,
         layerId: '',
         lineTypeId: '',
       }
@@ -76,6 +102,9 @@ export function getDefaultWizardParams(
       }
     case 'cap-pattern':
       return {
+        panelCount: 6,
+        crownHeightMM: 99,
+        panelGapMM: 10,
         seamMM: 5,
         crownBulge: 6,
         baseSmile: 4,

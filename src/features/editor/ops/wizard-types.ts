@@ -4,6 +4,11 @@ export type WizardType = 'watch-strap' | 'pass-case' | 'box-joint' | 'jigsaw' | 
 
 export type WatchStrapParams = {
   totalLength: number
+  watchLength?: number
+  wristCircumference?: number
+  lugInnerWidth?: number
+  buckleInnerWidth?: number
+  buckleLength?: number
   width: number
   buckleEndWidth: number
   taperLength: number
@@ -20,6 +25,10 @@ export type WatchStrapParams = {
 export type PassCaseParams = {
   cardWidth: number
   cardHeight: number
+  sourceWidth?: number
+  sourceHeight?: number
+  stitchPitchMm?: number
+  stitchSpaceMm?: number
   margin: number
   cornerRadius: number
   flapHeight: number
@@ -33,6 +42,19 @@ export type BoxJointParams = {
   width: number
   height: number
   materialThickness: number
+  lidMode?: 'none' | 'drop-in' | 'sliding'
+  grooveDepthMm?: number
+  grooveOffsetMm?: number
+  kerfCompensationMm?: number
+  pinOverhangMm?: number
+  bottomOffsetMm?: number
+  sameThickness?: boolean
+  frontThicknessMm?: number
+  backThicknessMm?: number
+  leftThicknessMm?: number
+  rightThicknessMm?: number
+  bottomThicknessMm?: number
+  lidThicknessMm?: number
   fingerCount: number
   layerId: string
   lineTypeId: string
@@ -44,6 +66,10 @@ export type JigsawParams = {
   pieceSize: number
   tabDepth: number
   tabWidth: number
+  randomSeed?: number
+  randomizeTabs?: boolean
+  flatEdges?: boolean
+  flattenPath?: boolean
   layerId: string
   lineTypeId: string
 }
@@ -66,6 +92,9 @@ export type DiceCupParams = {
 }
 
 export type CapPatternParams = {
+  panelCount?: number
+  crownHeightMM?: number
+  panelGapMM?: number
   seamMM: number
   crownBulge: number
   baseSmile: number

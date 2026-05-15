@@ -118,6 +118,19 @@ describe('generateFixedPitchStitchHoles', () => {
     expect(continued.map((hole) => hole.sequence)).toEqual([2, 3, 4])
     expect(continued.map((hole) => hole.point.x)).toEqual([60, 80, 100])
   })
+
+  it('can stop fixed-pitch auto placement at an explicit section end boundary', () => {
+    const line = lineShape('stitch-line', 'stitch', 0)
+
+    const section = generateFixedPitchStitchHoles(line, 25, stitchDefaults, 0, {
+      startDistanceMm: 20,
+      endDistanceMm: 70,
+      includeStartHole: false,
+      forceFitLastHole: true,
+    })
+
+    expect(section.map((hole) => hole.point.x)).toEqual([45, 70])
+  })
 })
 
 describe('terminal stitch markers', () => {

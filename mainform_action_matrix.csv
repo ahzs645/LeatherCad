@@ -73,7 +73,7 @@ actMakeSelectedLineVertical,actMakeSelectedLineVertical,TfrmLeat,Other,,,,implem
 actMirrorMandalaItem,actMirrorMandalaItem;actMirrorMandalaItemExecute,TfrmLeat,Other,LC-P2-015,Mandala,P2,mapped,
 actMoveOrCopyWithSetDistance,actMoveOrCopyWithSetDistance,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actNewProject,actNewProject;actNewProjectExecute,TfrmLeat;TfrmLeat_Macintosh,ProjectLifecycle,,,,implemented,src/features/editor/hooks/useEditorStateActions.ts
-actOpenDemoProject,actOpenDemoProject;actOpenDemoProjectExecute,TfrmLeat,ProjectLifecycle,,,,unmapped,
+actOpenDemoProject,actOpenDemoProject;actOpenDemoProjectExecute,TfrmLeat,ProjectLifecycle,,,,implemented,src/features/editor/hooks/useFileActions.ts
 actOpenOptions,actOpenOptions;actOpenOptionsExecute,TfrmLeat,ProjectLifecycle,,,,implemented,src/features/editor/components/OptionsModal.tsx
 actOpenSecretFeatureList,actOpenSecretFeatureList;actOpenSecretFeatureListExecute,TfrmLeat,Other,,,,implemented,src/features/editor/useEditorScreenController.ts
 actOrder,actOrder;actOrderExecute,TfrmLeat,SelectionOrdering,,,,unmapped,

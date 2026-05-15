@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { StitchHoleDefaults } from '../cad/cad-types'
 import type { StitchAutoPitchSettings } from '../editor-types'
 import {
@@ -8,8 +8,11 @@ import {
   createDefaultCustomPrickingIronGroup,
   loadCustomPrickingIronCatalog,
   parsePrickingIronShape,
+  parsePrickingIronLccp,
   prickingIronPresetToDefaults,
+  serializePrickingIronLccp,
   saveCustomPrickingIronCatalog,
+  SOURCE_APP_PRICKING_IRON_FILENAME,
   type PrickingIronCatalog,
   type PrickingIronGroup,
   type PrickingIronPreset,
@@ -62,7 +65,7 @@ function normalizeCatalog(catalog: PrickingIronCatalog): PrickingIronCatalog {
   const presets = catalog.presets
     .slice()
     .sort((left, right) => left.name.localeCompare(right.name))
-  return { groups, presets }
+  return { groups, presets, showFiveMmGuide: catalog.showFiveMmGuide === true }
 }
 
 export function StitchHolePanel({
@@ -100,6 +103,7 @@ export function StitchHolePanel({
   const [customCatalog, setCustomCatalog] = useState<PrickingIronCatalog>(() => loadCustomPrickingIronCatalog())
   const [pendingPrickingIronId, setPendingPrickingIronId] = useState<string | null>(null)
   const [draftBladeCount, setDraftBladeCount] = useState(2)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
   const selectedPrickingIronId = pendingPrickingIronId ?? holeDefaults.presetId ?? builtinCatalog.presets[0]?.id ?? ''
 
   const mergedCatalog = useMemo(
@@ -107,6 +111,7 @@ export function StitchHolePanel({
       normalizeCatalog({
         groups: [...builtinCatalog.groups, ...customCatalog.groups],
         presets: [...builtinCatalog.presets, ...customCatalog.presets],
+        showFiveMmGuide: customCatalog.showFiveMmGuide,
       }),
     [builtinCatalog, customCatalog],
   )
@@ -164,6 +169,7 @@ export function StitchHolePanel({
     saveCustomCatalog({
       groups: [...customCatalog.groups, nextGroup],
       presets: customCatalog.presets,
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
   }
 
@@ -210,6 +216,7 @@ export function StitchHolePanel({
     saveCustomCatalog({
       groups: nextGroups,
       presets: [preset, ...customCatalog.presets],
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
     setPendingPrickingIronId(null)
     onUpdateHoleDefaults(prickingIronPresetToDefaults(preset))
@@ -228,6 +235,7 @@ export function StitchHolePanel({
         group.id === selectedCustomGroup.id ? { ...group, name } : group,
       ),
       presets: customCatalog.presets,
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
   }
 
@@ -241,6 +249,7 @@ export function StitchHolePanel({
     saveCustomCatalog({
       groups: customCatalog.groups.filter((group) => group.id !== selectedCustomGroup.id),
       presets: customCatalog.presets.filter((preset) => preset.groupId !== selectedCustomGroup.id),
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
     setPendingPrickingIronId(builtinCatalog.presets[0]?.id ?? null)
   }
@@ -263,6 +272,7 @@ export function StitchHolePanel({
     saveCustomCatalog({
       groups: nextGroups.map((group, groupIndex) => ({ ...group, order: groupIndex })),
       presets: customCatalog.presets,
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
   }
 
@@ -275,8 +285,36 @@ export function StitchHolePanel({
     saveCustomCatalog({
       groups: customCatalog.groups.filter((group) => nextPresets.some((preset) => preset.groupId === group.id)),
       presets: nextPresets,
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
     setPendingPrickingIronId(builtinCatalog.presets[0]?.id ?? null)
+  }
+
+  const handleExportPrickingLibrary = () => {
+    const blob = new Blob([serializePrickingIronLccp(customCatalog)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = SOURCE_APP_PRICKING_IRON_FILENAME
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImportPrickingLibrary = async (file: File | null) => {
+    if (!file) {
+      return
+    }
+    try {
+      const imported = parsePrickingIronLccp(await file.text())
+      saveCustomCatalog(imported)
+      setPendingPrickingIronId(imported.presets[0]?.id ?? builtinCatalog.presets[0]?.id ?? null)
+    } catch {
+      window.alert('Could not import prickingirons.lccp')
+    } finally {
+      if (importInputRef.current) {
+        importInputRef.current.value = ''
+      }
+    }
   }
 
   const renderShape = holeDefaults.renderShape ?? (holeDefaults.holeType === 'round' ? 'round' : 'slit')
@@ -337,6 +375,15 @@ export function StitchHolePanel({
       <button onClick={handleDeleteCustomPreset} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
         Delete Preset
       </button>
+      <button onClick={() => importInputRef.current?.click()}>Import .lccp</button>
+      <button onClick={handleExportPrickingLibrary}>Export .lccp</button>
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".lccp,application/json"
+        style={{ display: 'none' }}
+        onChange={(event) => void handleImportPrickingLibrary(event.target.files?.[0] ?? null)}
+      />
 
       <label className="stitch-pitch-inline">
         <span>Blades</span>
@@ -375,7 +422,7 @@ export function StitchHolePanel({
         <span>Width</span>
         <input
           type="number"
-          min={unitInputMin(displayUnit)}
+          min={0}
           step={unitInputStep(displayUnit)}
           value={toDisplayValue(holeDefaults.widthMm ?? holeDefaults.diameterMm ?? 1.2, displayUnit)}
           onChange={(event) => {
@@ -422,6 +469,36 @@ export function StitchHolePanel({
           onChange={(event) => onUpdateHoleDefaults({ inverted: event.target.checked })}
         />
         <span>Inverted</span>
+      </label>
+
+      {customCatalog.showFiveMmGuide && (
+        <div className="pricking-guide-preview" aria-label="5 mm pricking iron guide">
+          <svg viewBox="0 0 64 16" width="96" height="24" role="img">
+            <line x1="4" y1="8" x2="60" y2="8" stroke="currentColor" strokeWidth="1" />
+            {[4, 18, 32, 46, 60].map((x, index) => (
+              <g key={x}>
+                <line x1={x} y1="3" x2={x} y2="13" stroke="currentColor" strokeWidth={index % 2 === 0 ? 1.4 : 1} />
+                <circle cx={x} cy="8" r="1.5" fill="currentColor" />
+              </g>
+            ))}
+          </svg>
+          <span className="hint">5 mm reference pitch</span>
+        </div>
+      )}
+
+      <label className="layer-toggle-item">
+        <input
+          type="checkbox"
+          checked={customCatalog.showFiveMmGuide === true}
+          onChange={(event) =>
+            saveCustomCatalog({
+              groups: customCatalog.groups,
+              presets: customCatalog.presets,
+              showFiveMmGuide: event.target.checked,
+            })
+          }
+        />
+        <span>Show 5 mm guide</span>
       </label>
 
       <button onClick={onCountSelected} disabled={selectedShapeCount === 0}>
@@ -529,6 +606,7 @@ export function StitchHolePanel({
       {selectedPrickingIron && (
         <span className="hint">
           {groupsById[selectedPrickingIron.groupId]?.name ?? 'Group'}: {selectedPrickingIron.numBlades} blades
+          {customCatalog.showFiveMmGuide ? ', 5 mm guide on' : ''}
         </span>
       )}
 

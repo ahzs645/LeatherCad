@@ -35,8 +35,9 @@ export function LocalProjectsModal({
   onDeleteProject,
 }: LocalProjectsModalProps) {
   const [projects, setProjects] = useState<StoredEditorDocument[]>([])
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(activeLocalDocumentId)
+  const [manualSelectedProjectId, setManualSelectedProjectId] = useState<string | null | undefined>(undefined)
   const [loading, setLoading] = useState(false)
+  const selectedProjectId = manualSelectedProjectId === undefined ? activeLocalDocumentId : manualSelectedProjectId
 
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
@@ -54,8 +55,10 @@ export function LocalProjectsModal({
     if (!open) {
       return
     }
-    setSelectedProjectId(activeLocalDocumentId)
-    void refreshProjects()
+    const timeout = window.setTimeout(() => {
+      void refreshProjects()
+    }, 0)
+    return () => window.clearTimeout(timeout)
   }, [activeLocalDocumentId, open])
 
   if (!open) {
@@ -103,7 +106,7 @@ export function LocalProjectsModal({
                   type="radio"
                   name="local-project"
                   checked={selectedProjectId === project.id}
-                  onChange={() => setSelectedProjectId(project.id)}
+                  onChange={() => setManualSelectedProjectId(project.id)}
                 />
                 <span className="template-item-name">
                   {project.name}
@@ -135,7 +138,7 @@ export function LocalProjectsModal({
                 return
               }
               void onDeleteProject(selectedProject.id).then(() => {
-                setSelectedProjectId(null)
+                setManualSelectedProjectId(null)
                 return refreshProjects()
               })
             }}

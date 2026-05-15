@@ -9,6 +9,7 @@ export type AutoPitchGenerationOptions = {
   precisionMm?: number
   stopGapMm?: number
   startDistanceMm?: number
+  endDistanceMm?: number
   includeStartHole?: boolean
 }
 
@@ -556,9 +557,13 @@ export function generateFixedPitchStitchHoles(
   if (totalLength < 1e-6) {
     return [] as StitchHole[]
   }
+  const endDistanceMm = Math.max(0, Math.min(totalLength, options.endDistanceMm ?? totalLength))
+  if (endDistanceMm <= (options.startDistanceMm ?? 0)) {
+    return [] as StitchHole[]
+  }
 
   const holes: StitchHole[] = []
-  const distanceTargets = stitchDistancesForPitch(totalLength, safePitch, safePitch, options)
+  const distanceTargets = stitchDistancesForPitch(endDistanceMm, safePitch, safePitch, options)
 
   for (const [index, distanceValue] of distanceTargets.entries()) {
     const projected = pointAtDistance(polyline, lengths, distanceValue)
@@ -600,9 +605,13 @@ export function generateVariablePitchStitchHoles(
   if (totalLength < 1e-6) {
     return [] as StitchHole[]
   }
+  const endDistanceMm = Math.max(0, Math.min(totalLength, options.endDistanceMm ?? totalLength))
+  if (endDistanceMm <= (options.startDistanceMm ?? 0)) {
+    return [] as StitchHole[]
+  }
 
   const holes: StitchHole[] = []
-  const distanceTargets = stitchDistancesForPitch(totalLength, safeStartPitch, safeEndPitch, options)
+  const distanceTargets = stitchDistancesForPitch(endDistanceMm, safeStartPitch, safeEndPitch, options)
 
   for (const [index, distanceValue] of distanceTargets.entries()) {
     const projected = pointAtDistance(polyline, lengths, distanceValue)

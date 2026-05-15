@@ -393,7 +393,29 @@ export function loadBundledCatalogRepository(): CatalogRepositoryShop[] {
     metaVersion: summary.metaVersion,
     sourceFileName: summary.sourceFileName,
     importedAt: BUNDLED_CATALOG_IMPORTED_AT,
-    groups: [],
+    groups: summary.groupCount > 0
+      ? Array.from({ length: summary.groupCount }, (_, index) => ({
+          id: `builtin-${slugifyId(summary.sourceFileName)}-group-${index + 1}`,
+          name: summary.groupCount === 1 ? 'Bundled catalog items' : `Bundled catalog group ${index + 1}`,
+          guid: '',
+          url: summary.url,
+          memo: 'Summary placeholder for bundled source catalog. Import the source .ctlg file to load item images and exact group names.',
+          items: index === 0
+            ? Array.from({ length: summary.itemCount }, (__, itemIndex) => ({
+                id: `builtin-${slugifyId(summary.sourceFileName)}-item-${itemIndex + 1}`,
+                name: `Bundled item ${itemIndex + 1}`,
+                guid: '',
+                category: '',
+                unitPrice: '',
+                unitStr: '',
+                url: summary.url,
+                memo: 'Summary placeholder. Import the source .ctlg file for full item metadata.',
+                hasImage: false,
+                imageDpi: null,
+              }))
+            : [],
+        }))
+      : [],
     groupCount: summary.groupCount,
     itemCount: summary.itemCount,
     isBundled: true,

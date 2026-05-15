@@ -53,6 +53,11 @@ export function WizardModal({
 
   // Watch Strap
   const [strapTotalLength, setStrapTotalLength] = useState(220)
+  const [watchLength, setWatchLength] = useState(44)
+  const [wristCircumference, setWristCircumference] = useState(170)
+  const [lugInnerWidth, setLugInnerWidth] = useState(22)
+  const [buckleInnerWidth, setBuckleInnerWidth] = useState(20)
+  const [buckleLength, setBuckleLength] = useState(18)
   const [strapWidth, setStrapWidth] = useState(22)
   const [buckleEndWidth, setBuckleEndWidth] = useState(20)
   const [taperLength, setTaperLength] = useState(40)
@@ -66,6 +71,10 @@ export function WizardModal({
   // Pass Case
   const [cardWidth, setCardWidth] = useState(86)
   const [cardHeight, setCardHeight] = useState(54)
+  const [sourcePassWidth, setSourcePassWidth] = useState(100)
+  const [sourcePassHeight, setSourcePassHeight] = useState(70)
+  const [passStitchPitch, setPassStitchPitch] = useState(4)
+  const [passStitchSpace, setPassStitchSpace] = useState(5)
   const [margin, setMargin] = useState(5)
   const [cornerRadius, setCornerRadius] = useState(3)
   const [flapHeight, setFlapHeight] = useState(30)
@@ -77,6 +86,19 @@ export function WizardModal({
   const [jointHeight, setJointHeight] = useState(80)
   const [materialThickness, setMaterialThickness] = useState(3)
   const [fingerCount, setFingerCount] = useState(5)
+  const [lidMode, setLidMode] = useState<'none' | 'drop-in' | 'sliding'>('none')
+  const [grooveDepth, setGrooveDepth] = useState(1)
+  const [grooveOffset, setGrooveOffset] = useState(4)
+  const [kerfCompensation, setKerfCompensation] = useState(0)
+  const [pinOverhang, setPinOverhang] = useState(0)
+  const [bottomOffset, setBottomOffset] = useState(0)
+  const [sameThickness, setSameThickness] = useState(true)
+  const [frontThickness, setFrontThickness] = useState(3)
+  const [backThickness, setBackThickness] = useState(3)
+  const [leftThickness, setLeftThickness] = useState(3)
+  const [rightThickness, setRightThickness] = useState(3)
+  const [bottomThickness, setBottomThickness] = useState(3)
+  const [lidThickness, setLidThickness] = useState(3)
 
   // Jigsaw
   const [columns, setColumns] = useState(4)
@@ -84,6 +106,10 @@ export function WizardModal({
   const [pieceSize, setPieceSize] = useState(40)
   const [tabDepth, setTabDepth] = useState(10)
   const [tabWidth, setTabWidth] = useState(15)
+  const [jigsawRandomSeed, setJigsawRandomSeed] = useState(1)
+  const [jigsawRandomizeTabs, setJigsawRandomizeTabs] = useState(false)
+  const [jigsawFlatEdges, setJigsawFlatEdges] = useState(true)
+  const [jigsawFlattenPath, setJigsawFlattenPath] = useState(false)
 
   // Dice Cup
   const [topDiameter, setTopDiameter] = useState(70)
@@ -100,6 +126,9 @@ export function WizardModal({
   const [cupStitchTopRim, setCupStitchTopRim] = useState(false)
 
   // Cap Pattern
+  const [capPanelCount, setCapPanelCount] = useState(6)
+  const [capCrownHeightMM, setCapCrownHeightMM] = useState(99)
+  const [capPanelGapMM, setCapPanelGapMM] = useState(10)
   const [capSeamMM, setCapSeamMM] = useState(5)
   const [capCrownBulge, setCapCrownBulge] = useState(6)
   const [capBaseSmile, setCapBaseSmile] = useState(4)
@@ -122,6 +151,11 @@ export function WizardModal({
       case 'watch-strap':
         onGenerate('watch-strap', {
           totalLength: strapTotalLength,
+          watchLength,
+          wristCircumference,
+          lugInnerWidth,
+          buckleInnerWidth,
+          buckleLength,
           width: strapWidth,
           buckleEndWidth,
           taperLength,
@@ -139,6 +173,10 @@ export function WizardModal({
         onGenerate('pass-case', {
           cardWidth,
           cardHeight,
+          sourceWidth: sourcePassWidth,
+          sourceHeight: sourcePassHeight,
+          stitchPitchMm: passStitchPitch,
+          stitchSpaceMm: passStitchSpace,
           margin,
           cornerRadius,
           flapHeight,
@@ -153,6 +191,19 @@ export function WizardModal({
           width: jointWidth,
           height: jointHeight,
           materialThickness,
+          lidMode,
+          grooveDepthMm: grooveDepth,
+          grooveOffsetMm: grooveOffset,
+          kerfCompensationMm: kerfCompensation,
+          pinOverhangMm: pinOverhang,
+          bottomOffsetMm: bottomOffset,
+          sameThickness,
+          frontThicknessMm: frontThickness,
+          backThicknessMm: backThickness,
+          leftThicknessMm: leftThickness,
+          rightThicknessMm: rightThickness,
+          bottomThicknessMm: bottomThickness,
+          lidThicknessMm: lidThickness,
           fingerCount,
           layerId: defaultLayerId,
           lineTypeId: defaultLineTypeId,
@@ -165,6 +216,10 @@ export function WizardModal({
           pieceSize,
           tabDepth,
           tabWidth,
+          randomSeed: jigsawRandomSeed,
+          randomizeTabs: jigsawRandomizeTabs,
+          flatEdges: jigsawFlatEdges,
+          flattenPath: jigsawFlattenPath,
           layerId: defaultLayerId,
           lineTypeId: defaultLineTypeId,
         })
@@ -189,6 +244,9 @@ export function WizardModal({
         break
       case 'cap-pattern':
         onGenerate('cap-pattern', {
+          panelCount: capPanelCount,
+          crownHeightMM: capCrownHeightMM,
+          panelGapMM: capPanelGapMM,
           seamMM: capSeamMM,
           crownBulge: capCrownBulge,
           baseSmile: capBaseSmile,
@@ -224,6 +282,26 @@ export function WizardModal({
             <label className="field-row">
               <span>Total Length (mm)</span>
               <input type="number" min={50} step={1} value={strapTotalLength} onChange={(e) => setStrapTotalLength(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Watch Length (mm)</span>
+              <input type="number" min={0} step={1} value={watchLength} onChange={(e) => setWatchLength(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Wrist Circumference (mm)</span>
+              <input type="number" min={80} step={1} value={wristCircumference} onChange={(e) => setWristCircumference(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Lug Inner Width (mm)</span>
+              <input type="number" min={5} step={1} value={lugInnerWidth} onChange={(e) => setLugInnerWidth(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Buckle Inner Width (mm)</span>
+              <input type="number" min={5} step={1} value={buckleInnerWidth} onChange={(e) => setBuckleInnerWidth(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Buckle Length (mm)</span>
+              <input type="number" min={0} step={1} value={buckleLength} onChange={(e) => setBuckleLength(Number(e.target.value))} />
             </label>
             <label className="field-row">
               <span>Width (mm)</span>
@@ -279,6 +357,22 @@ export function WizardModal({
               <input type="number" min={10} step={1} value={cardHeight} onChange={(e) => setCardHeight(Number(e.target.value))} />
             </label>
             <label className="field-row">
+              <span>Source Width (mm)</span>
+              <input type="number" min={10} step={1} value={sourcePassWidth} onChange={(e) => setSourcePassWidth(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Source Height (mm)</span>
+              <input type="number" min={10} step={1} value={sourcePassHeight} onChange={(e) => setSourcePassHeight(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Stitch Pitch (mm)</span>
+              <input type="number" min={0.2} max={100} step={0.1} value={passStitchPitch} onChange={(e) => setPassStitchPitch(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Stitch Space (mm)</span>
+              <input type="number" min={0} step={0.5} value={passStitchSpace} onChange={(e) => setPassStitchSpace(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
               <span>Margin (mm)</span>
               <input type="number" min={0} max={20} step={0.5} value={margin} onChange={(e) => setMargin(Number(e.target.value))} />
             </label>
@@ -319,6 +413,66 @@ export function WizardModal({
               <span>Finger Count</span>
               <input type="number" min={2} max={20} step={1} value={fingerCount} onChange={(e) => setFingerCount(Number(e.target.value))} />
             </label>
+            <label className="field-row">
+              <span>Lid Mode</span>
+              <select value={lidMode} onChange={(e) => setLidMode(e.target.value as 'none' | 'drop-in' | 'sliding')}>
+                <option value="none">None</option>
+                <option value="drop-in">Drop-in</option>
+                <option value="sliding">Sliding</option>
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Groove Depth (mm)</span>
+              <input type="number" min={0} step={0.1} value={grooveDepth} onChange={(e) => setGrooveDepth(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Groove Offset (mm)</span>
+              <input type="number" min={0} step={0.5} value={grooveOffset} onChange={(e) => setGrooveOffset(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Kerf Compensation (mm)</span>
+              <input type="number" step={0.05} value={kerfCompensation} onChange={(e) => setKerfCompensation(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Pin Overhang (mm)</span>
+              <input type="number" min={0} step={0.5} value={pinOverhang} onChange={(e) => setPinOverhang(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Bottom Offset (mm)</span>
+              <input type="number" step={0.5} value={bottomOffset} onChange={(e) => setBottomOffset(Number(e.target.value))} />
+            </label>
+            <label className="layer-toggle-item">
+              <input type="checkbox" checked={sameThickness} onChange={(e) => setSameThickness(e.target.checked)} />
+              <span>Use same thickness</span>
+            </label>
+            {!sameThickness && (
+              <>
+                <label className="field-row">
+                  <span>Front Thickness (mm)</span>
+                  <input type="number" min={0.1} step={0.1} value={frontThickness} onChange={(e) => setFrontThickness(Number(e.target.value))} />
+                </label>
+                <label className="field-row">
+                  <span>Back Thickness (mm)</span>
+                  <input type="number" min={0.1} step={0.1} value={backThickness} onChange={(e) => setBackThickness(Number(e.target.value))} />
+                </label>
+                <label className="field-row">
+                  <span>Left Thickness (mm)</span>
+                  <input type="number" min={0.1} step={0.1} value={leftThickness} onChange={(e) => setLeftThickness(Number(e.target.value))} />
+                </label>
+                <label className="field-row">
+                  <span>Right Thickness (mm)</span>
+                  <input type="number" min={0.1} step={0.1} value={rightThickness} onChange={(e) => setRightThickness(Number(e.target.value))} />
+                </label>
+                <label className="field-row">
+                  <span>Bottom Thickness (mm)</span>
+                  <input type="number" min={0.1} step={0.1} value={bottomThickness} onChange={(e) => setBottomThickness(Number(e.target.value))} />
+                </label>
+                <label className="field-row">
+                  <span>Lid Thickness (mm)</span>
+                  <input type="number" min={0.1} step={0.1} value={lidThickness} onChange={(e) => setLidThickness(Number(e.target.value))} />
+                </label>
+              </>
+            )}
           </>
         )}
 
@@ -343,6 +497,22 @@ export function WizardModal({
             <label className="field-row">
               <span>Tab Width (mm)</span>
               <input type="number" min={1} max={30} step={1} value={tabWidth} onChange={(e) => setTabWidth(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Random Seed</span>
+              <input type="number" min={1} step={1} value={jigsawRandomSeed} onChange={(e) => setJigsawRandomSeed(Number(e.target.value))} />
+            </label>
+            <label className="layer-toggle-item">
+              <input type="checkbox" checked={jigsawRandomizeTabs} onChange={(e) => setJigsawRandomizeTabs(e.target.checked)} />
+              <span>Randomize tabs</span>
+            </label>
+            <label className="layer-toggle-item">
+              <input type="checkbox" checked={jigsawFlatEdges} onChange={(e) => setJigsawFlatEdges(e.target.checked)} />
+              <span>Flat outer edges</span>
+            </label>
+            <label className="layer-toggle-item">
+              <input type="checkbox" checked={jigsawFlattenPath} onChange={(e) => setJigsawFlattenPath(e.target.checked)} />
+              <span>Flatten generated path</span>
             </label>
           </>
         )}
@@ -412,6 +582,18 @@ export function WizardModal({
 
         {activeType === 'cap-pattern' && (
           <>
+            <label className="field-row">
+              <span>Crown Panels</span>
+              <input type="number" min={1} max={12} step={1} value={capPanelCount} onChange={(e) => setCapPanelCount(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Crown Height (mm)</span>
+              <input type="number" min={20} step={5} value={capCrownHeightMM} onChange={(e) => setCapCrownHeightMM(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Panel Gap (mm)</span>
+              <input type="number" min={0} step={1} value={capPanelGapMM} onChange={(e) => setCapPanelGapMM(Number(e.target.value))} />
+            </label>
             <label className="field-row">
               <span>Brim Width (mm)</span>
               <input type="number" min={60} step={5} value={capBrimWidthMM} onChange={(e) => setCapBrimWidthMM(Number(e.target.value))} />

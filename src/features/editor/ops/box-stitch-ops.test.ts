@@ -115,6 +115,8 @@ describe('extractBoxStitchGuideLines', () => {
     expect(result.extractedEdgeCount).toBe(4)
     expect(result.usedFallback).toBe(false)
     expect(result.guideLines.some((guide) => Math.abs(guide.start.y - guide.end.y) > 0.2)).toBe(true)
+    expect(Math.min(...result.guideGroups[0].points.map((point) => point.y))).toBeGreaterThanOrEqual(6)
+    expect(Math.max(...result.guideGroups[2].points.map((point) => point.y))).toBeLessThanOrEqual(34)
   })
 })
 

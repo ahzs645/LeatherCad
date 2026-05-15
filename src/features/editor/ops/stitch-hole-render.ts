@@ -55,6 +55,9 @@ export function resolveStitchHoleRenderAngleDeg(stitchHole: StitchHole) {
 }
 
 export function resolveStitchHoleWidthMm(stitchHole: StitchHole) {
+  if (stitchHole.widthMm === 0) {
+    return 0
+  }
   if (Number.isFinite(stitchHole.widthMm) && (stitchHole.widthMm ?? 0) > 0) {
     return stitchHole.widthMm ?? 0
   }
@@ -131,6 +134,9 @@ export function createStitchHolePrimitive(
   }
 
   const renderShape = resolveStitchHoleRenderShape(stitchHole)
+  if (resolveStitchHoleWidthMm(stitchHole) === 0 && renderShape !== 'round') {
+    return createSegmentPrimitive(stitchHole)
+  }
   if (renderShape === 'round') {
     return {
       kind: 'circle',

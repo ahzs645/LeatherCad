@@ -36,24 +36,31 @@ export type {
 
 export function generateWatchStrap(params: WatchStrapParams): WizardResult {
   const {
-    totalLength, width, buckleEndWidth, taperLength,
+    totalLength, watchLength = 0, wristCircumference = 0, lugInnerWidth = 0, buckleInnerWidth = 0, buckleLength = 0,
+    width, buckleEndWidth, taperLength,
     holeCount, holeSpacing, holeStartOffset, holeDiameter,
     tipShape, keeperWidth, layerId, lineTypeId,
   } = params
 
   const shapes: Shape[] = []
   const groupId = uid()
-  const halfW = width / 2
-  const halfBW = buckleEndWidth / 2
+  const fittedTotalLength = wristCircumference > 0
+    ? Math.max(50, wristCircumference - Math.max(0, watchLength) - Math.max(0, buckleLength) + holeStartOffset)
+    : totalLength
+  const workingTotalLength = Math.max(totalLength, fittedTotalLength)
+  const workingWidth = lugInnerWidth > 0 ? lugInnerWidth : width
+  const workingBuckleWidth = buckleInnerWidth > 0 ? buckleInnerWidth : buckleEndWidth
+  const halfW = workingWidth / 2
+  const halfBW = workingBuckleWidth / 2
   const cy = halfW // centerline y
 
   // --- Buckle end (left side) ---
-  if (buckleEndWidth < width && taperLength > 0) {
+  if (workingBuckleWidth < workingWidth && taperLength > 0) {
     // Tapered left end
     const topTaperStart: Point = { x: round(0), y: round(cy - halfBW) }
     const topTaperEnd: Point = { x: round(taperLength), y: round(0) }
     const bottomTaperStart: Point = { x: round(0), y: round(cy + halfBW) }
-    const bottomTaperEnd: Point = { x: round(taperLength), y: round(width) }
+    const bottomTaperEnd: Point = { x: round(taperLength), y: round(workingWidth) }
 
     // Left edge (buckle end)
     shapes.push(makeLine(topTaperStart, bottomTaperStart, layerId, lineTypeId, groupId))
@@ -61,37 +68,37 @@ export function generateWatchStrap(params: WatchStrapParams): WizardResult {
     shapes.push(makeLine(topTaperStart, topTaperEnd, layerId, lineTypeId, groupId))
     shapes.push(makeLine(bottomTaperStart, bottomTaperEnd, layerId, lineTypeId, groupId))
     // Top edge from taper to tip region
-    shapes.push(makeLine(topTaperEnd, { x: round(totalLength), y: round(0) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine(topTaperEnd, { x: round(workingTotalLength), y: round(0) }, layerId, lineTypeId, groupId))
     // Bottom edge from taper to tip region
-    shapes.push(makeLine(bottomTaperEnd, { x: round(totalLength), y: round(width) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine(bottomTaperEnd, { x: round(workingTotalLength), y: round(workingWidth) }, layerId, lineTypeId, groupId))
   } else {
     // No taper: straight rectangle edges
     const tl: Point = { x: round(0), y: round(0) }
-    const bl: Point = { x: round(0), y: round(width) }
+    const bl: Point = { x: round(0), y: round(workingWidth) }
     shapes.push(makeLine(tl, bl, layerId, lineTypeId, groupId))
-    shapes.push(makeLine(tl, { x: round(totalLength), y: round(0) }, layerId, lineTypeId, groupId))
-    shapes.push(makeLine(bl, { x: round(totalLength), y: round(width) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine(tl, { x: round(workingTotalLength), y: round(0) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine(bl, { x: round(workingTotalLength), y: round(workingWidth) }, layerId, lineTypeId, groupId))
   }
 
   // --- Tip end (right side) ---
-  const tipX = round(totalLength)
+  const tipX = round(workingTotalLength)
   if (tipShape === 'pointed') {
-    const tipPoint: Point = { x: round(totalLength + halfW), y: round(cy) }
+    const tipPoint: Point = { x: round(workingTotalLength + halfW), y: round(cy) }
     shapes.push(makeLine({ x: tipX, y: round(0) }, tipPoint, layerId, lineTypeId, groupId))
-    shapes.push(makeLine(tipPoint, { x: tipX, y: round(width) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine(tipPoint, { x: tipX, y: round(workingWidth) }, layerId, lineTypeId, groupId))
   } else if (tipShape === 'round') {
-    const arcMid: Point = { x: round(totalLength + halfW), y: round(cy) }
+    const arcMid: Point = { x: round(workingTotalLength + halfW), y: round(cy) }
     shapes.push(makeArc(
       { x: tipX, y: round(0) },
       arcMid,
-      { x: tipX, y: round(width) },
+      { x: tipX, y: round(workingWidth) },
       layerId, lineTypeId, groupId,
     ))
   } else {
     // square tip
     shapes.push(makeLine(
       { x: tipX, y: round(0) },
-      { x: tipX, y: round(width) },
+      { x: tipX, y: round(workingWidth) },
       layerId, lineTypeId, groupId,
     ))
   }
@@ -99,19 +106,19 @@ export function generateWatchStrap(params: WatchStrapParams): WizardResult {
   // --- Sizing holes ---
   const holeR = holeDiameter / 2
   for (let i = 0; i < holeCount; i++) {
-    const hx = totalLength - holeStartOffset - i * holeSpacing
+    const hx = workingTotalLength - holeStartOffset - i * holeSpacing
     shapes.push(...makeCircleArcs(round(hx), round(cy), holeR, layerId, lineTypeId, groupId))
   }
 
   // --- Keeper piece (separate rectangle below strap, 10mm gap) ---
   const keeperGroupId = uid()
-  const keeperPerimeter = round(width * Math.PI)
-  const keeperY = width + 10
+  const keeperPerimeter = round(workingWidth * Math.PI)
+  const keeperY = workingWidth + 10
   shapes.push(...makeRect(0, keeperY, keeperWidth, keeperPerimeter, layerId, lineTypeId, keeperGroupId))
 
   return {
     shapes,
-    description: `Watch strap: ${totalLength}mm total, ${width}mm wide, ${tipShape} tip, ${holeCount} holes, with keeper`,
+    description: `Watch strap: ${round(workingTotalLength)}mm total, ${workingWidth}mm lug width, ${workingBuckleWidth}mm buckle width, ${tipShape} tip, ${holeCount} holes, with keeper`,
   }
 }
 
@@ -121,7 +128,7 @@ export function generateWatchStrap(params: WatchStrapParams): WizardResult {
 
 export function generatePassCase(params: PassCaseParams): WizardResult {
   const {
-    cardWidth, cardHeight, margin, cornerRadius,
+    cardWidth, cardHeight, sourceWidth, sourceHeight, stitchPitchMm = 0, stitchSpaceMm = 0, margin, cornerRadius,
     flapHeight, pocketCount, layerId, lineTypeId,
   } = params
 
@@ -167,9 +174,39 @@ export function generatePassCase(params: PassCaseParams): WizardResult {
     }
   }
 
+  if (stitchSpaceMm > 0) {
+    const stitchInset = Math.min(stitchSpaceMm, Math.max(1, bodyW / 4), Math.max(1, bodyH / 4))
+    const stitchX = ox + stitchInset
+    const stitchY = oy + stitchInset
+    const stitchW = Math.max(1, bodyW - stitchInset * 2)
+    const stitchH = Math.max(1, bodyH - stitchInset * 2)
+    shapes.push(...makeRoundedRect(
+      stitchX,
+      stitchY,
+      stitchW,
+      stitchH,
+      Math.max(0, cornerRadius - stitchInset),
+      layerId,
+      lineTypeId,
+      groupId,
+    ))
+    if (stitchPitchMm > 0) {
+      const pitch = Math.max(0.2, stitchPitchMm)
+      const markRadius = Math.min(0.6, Math.max(0.25, pitch * 0.12))
+      for (let x = stitchX; x <= stitchX + stitchW + 1e-6; x += pitch) {
+        shapes.push(...makeCircleArcs(round(x), round(stitchY), markRadius, layerId, lineTypeId, groupId))
+        shapes.push(...makeCircleArcs(round(x), round(stitchY + stitchH), markRadius, layerId, lineTypeId, groupId))
+      }
+      for (let y = stitchY + pitch; y < stitchY + stitchH - 1e-6; y += pitch) {
+        shapes.push(...makeCircleArcs(round(stitchX), round(y), markRadius, layerId, lineTypeId, groupId))
+        shapes.push(...makeCircleArcs(round(stitchX + stitchW), round(y), markRadius, layerId, lineTypeId, groupId))
+      }
+    }
+  }
+
   return {
     shapes,
-    description: `Pass case: ${round(bodyW)}x${round(bodyH)}mm body, ${cornerRadius}mm corners, ${pocketCount} pocket(s)${flapHeight > 0 ? `, ${flapHeight}mm flap` : ''}`,
+    description: `Pass case: ${round(bodyW)}x${round(bodyH)}mm body${sourceWidth && sourceHeight ? ` from ${sourceWidth}x${sourceHeight}mm source sizing` : ''}, pitch ${stitchPitchMm}mm, space ${stitchSpaceMm}mm, ${pocketCount} pocket(s)${flapHeight > 0 ? `, ${flapHeight}mm flap` : ''}`,
   }
 }
 
@@ -281,9 +318,39 @@ function makeFingerEdgeVertical(
 }
 
 export function generateBoxJoint(params: BoxJointParams): WizardResult {
-  const { length, width, height, materialThickness, fingerCount, layerId, lineTypeId } = params
+  const {
+    length,
+    width,
+    height,
+    materialThickness,
+    lidMode = 'none',
+    grooveDepthMm = 0,
+    grooveOffsetMm = 0,
+    kerfCompensationMm = 0,
+    pinOverhangMm = 0,
+    bottomOffsetMm = 0,
+    sameThickness = true,
+    frontThicknessMm = materialThickness,
+    backThicknessMm = materialThickness,
+    leftThicknessMm = materialThickness,
+    rightThicknessMm = materialThickness,
+    bottomThicknessMm = materialThickness,
+    lidThicknessMm = materialThickness,
+    fingerCount,
+    layerId,
+    lineTypeId,
+  } = params
   const shapes: Shape[] = []
   const groupId = uid()
+  const panelThickness = (value: number) => Math.max(0.1, sameThickness ? materialThickness : value)
+  const frontThickness = panelThickness(frontThicknessMm)
+  const backThickness = panelThickness(backThicknessMm)
+  const leftThickness = panelThickness(leftThicknessMm)
+  const rightThickness = panelThickness(rightThicknessMm)
+  const bottomThickness = panelThickness(bottomThicknessMm)
+  const effectiveLength = Math.max(1, length + kerfCompensationMm * 2)
+  const effectiveWidth = Math.max(1, width + kerfCompensationMm * 2)
+  const effectiveHeight = Math.max(1, height + pinOverhangMm)
 
   // Cross / plus layout:
   //           [back]
@@ -292,79 +359,102 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
   const gap = 2
 
   // Bottom panel position (center of the cross)
-  const bx = height + gap
-  const by = height + gap
+  const bx = height + gap + bottomOffsetMm
+  const by = height + gap + bottomOffsetMm
 
   // Bottom panel: simple rectangle
-  shapes.push(...makeRect(bx, by, length, width, layerId, lineTypeId, groupId))
+  shapes.push(...makeRect(bx, by, effectiveLength, effectiveWidth, layerId, lineTypeId, groupId))
 
   // --- Front panel (below bottom) ---
   const fx = bx
-  const fy = by + width + gap
+  const fy = by + effectiveWidth + gap
   shapes.push(makeLine(
     { x: round(fx), y: round(fy) },
-    { x: round(fx), y: round(fy + height) },
+    { x: round(fx), y: round(fy + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
   shapes.push(makeLine(
-    { x: round(fx + length), y: round(fy) },
-    { x: round(fx + length), y: round(fy + height) },
+    { x: round(fx + effectiveLength), y: round(fy) },
+    { x: round(fx + effectiveLength), y: round(fy + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdge(fx, fy, length, fingerCount, -materialThickness, true, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdge(fx, fy + height, length, fingerCount, materialThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(fx, fy, effectiveLength, fingerCount, -frontThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(fx, fy + effectiveHeight, effectiveLength, fingerCount, frontThickness, false, layerId, lineTypeId, groupId))
 
   // --- Back panel (above bottom) ---
   const backX = bx
-  const backY = by - gap - height
+  const backY = by - gap - effectiveHeight
   shapes.push(makeLine(
     { x: round(backX), y: round(backY) },
-    { x: round(backX), y: round(backY + height) },
+    { x: round(backX), y: round(backY + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
   shapes.push(makeLine(
-    { x: round(backX + length), y: round(backY) },
-    { x: round(backX + length), y: round(backY + height) },
+    { x: round(backX + effectiveLength), y: round(backY) },
+    { x: round(backX + effectiveLength), y: round(backY + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdge(backX, backY, length, fingerCount, -materialThickness, false, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdge(backX, backY + height, length, fingerCount, materialThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(backX, backY, effectiveLength, fingerCount, -backThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(backX, backY + effectiveHeight, effectiveLength, fingerCount, backThickness, true, layerId, lineTypeId, groupId))
 
   // --- Left panel (left of bottom) ---
-  const lx = bx - gap - width
+  const lx = bx - gap - effectiveWidth
   const ly = by
   shapes.push(makeLine(
     { x: round(lx), y: round(ly) },
-    { x: round(lx + width), y: round(ly) },
+    { x: round(lx + effectiveWidth), y: round(ly) },
     layerId, lineTypeId, groupId,
   ))
   shapes.push(makeLine(
-    { x: round(lx), y: round(ly + height) },
-    { x: round(lx + width), y: round(ly + height) },
+    { x: round(lx), y: round(ly + effectiveHeight) },
+    { x: round(lx + effectiveWidth), y: round(ly + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdgeVertical(lx, ly, height, fingerCount, -materialThickness, false, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdgeVertical(lx + width, ly, height, fingerCount, materialThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(lx, ly, effectiveHeight, fingerCount, -leftThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(lx + effectiveWidth, ly, effectiveHeight, fingerCount, leftThickness, true, layerId, lineTypeId, groupId))
 
   // --- Right panel (right of bottom) ---
-  const rx = bx + length + gap
+  const rx = bx + effectiveLength + gap
   const ry = by
   shapes.push(makeLine(
     { x: round(rx), y: round(ry) },
-    { x: round(rx + width), y: round(ry) },
+    { x: round(rx + effectiveWidth), y: round(ry) },
     layerId, lineTypeId, groupId,
   ))
   shapes.push(makeLine(
-    { x: round(rx), y: round(ry + height) },
-    { x: round(rx + width), y: round(ry + height) },
+    { x: round(rx), y: round(ry + effectiveHeight) },
+    { x: round(rx + effectiveWidth), y: round(ry + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdgeVertical(rx, ry, height, fingerCount, -materialThickness, true, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdgeVertical(rx + width, ry, height, fingerCount, materialThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(rx, ry, effectiveHeight, fingerCount, -rightThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(rx + effectiveWidth, ry, effectiveHeight, fingerCount, rightThickness, false, layerId, lineTypeId, groupId))
+
+  if (lidMode !== 'none') {
+    const lidGroupId = uid()
+    const lidY = fy + effectiveHeight + gap + Math.max(2, lidThicknessMm)
+    shapes.push(...makeRect(bx, lidY, effectiveLength, effectiveWidth, layerId, lineTypeId, lidGroupId))
+    if (lidMode === 'sliding' && grooveDepthMm > 0) {
+      const grooveInset = Math.max(0, grooveOffsetMm)
+      shapes.push(makeLine(
+        { x: round(bx + grooveInset), y: round(lidY + grooveInset) },
+        { x: round(bx + effectiveLength - grooveInset), y: round(lidY + grooveInset) },
+        layerId,
+        lineTypeId,
+        lidGroupId,
+      ))
+      shapes.push(makeLine(
+        { x: round(bx + grooveInset), y: round(lidY + effectiveWidth - grooveInset) },
+        { x: round(bx + effectiveLength - grooveInset), y: round(lidY + effectiveWidth - grooveInset) },
+        layerId,
+        lineTypeId,
+        lidGroupId,
+      ))
+    }
+  }
 
   return {
     shapes,
-    description: `Box with finger joints: ${length}x${width}x${height}mm, ${materialThickness}mm thick, ${fingerCount} fingers per edge`,
+    description: `Box with finger joints: ${effectiveLength}x${effectiveWidth}x${effectiveHeight}mm, ${sameThickness ? `${materialThickness}mm` : 'independent'} thickness, bottom ${bottomThickness}mm, ${fingerCount} fingers per edge, lid ${lidMode}, groove ${grooveDepthMm}mm`,
   }
 }
 
@@ -379,6 +469,7 @@ function makeJigsawEdge(
   tabDepth: number,
   tabWidth: number,
   tabPositive: boolean,
+  flattenPath: boolean,
   layerId: string,
   lineTypeId: string,
   groupId?: string,
@@ -421,10 +512,19 @@ function makeJigsawEdge(
     result.push(makeLine(start, p1, layerId, lineTypeId, groupId))
   }
 
-  // Tab shape using bezier curves
-  result.push(makeBezier(p1, p2, p3, layerId, lineTypeId, groupId))
-  result.push(makeBezier(p3, p4, p5, layerId, lineTypeId, groupId))
-  result.push(makeBezier(p5, p6, p7, layerId, lineTypeId, groupId))
+  if (flattenPath) {
+    result.push(makeLine(p1, p2, layerId, lineTypeId, groupId))
+    result.push(makeLine(p2, p3, layerId, lineTypeId, groupId))
+    result.push(makeLine(p3, p4, layerId, lineTypeId, groupId))
+    result.push(makeLine(p4, p5, layerId, lineTypeId, groupId))
+    result.push(makeLine(p5, p6, layerId, lineTypeId, groupId))
+    result.push(makeLine(p6, p7, layerId, lineTypeId, groupId))
+  } else {
+    // Tab shape using bezier curves
+    result.push(makeBezier(p1, p2, p3, layerId, lineTypeId, groupId))
+    result.push(makeBezier(p3, p4, p5, layerId, lineTypeId, groupId))
+    result.push(makeBezier(p5, p6, p7, layerId, lineTypeId, groupId))
+  }
 
   // Straight segment after tab
   if (edgeLen - neckEnd > 1e-3) {
@@ -435,14 +535,49 @@ function makeJigsawEdge(
 }
 
 export function generateJigsaw(params: JigsawParams): WizardResult {
-  const { columns, rows, pieceSize, tabDepth, tabWidth, layerId, lineTypeId } = params
+  const { columns, rows, pieceSize, tabDepth, tabWidth, randomSeed = 1, randomizeTabs = false, flatEdges = true, flattenPath = false, layerId, lineTypeId } = params
   const shapes: Shape[] = []
   const groupId = uid()
   const totalW = columns * pieceSize
   const totalH = rows * pieceSize
+  let seed = Math.max(1, Math.round(randomSeed))
+  const nextRandom = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296
+    return seed / 4294967296
+  }
 
-  // External border
-  shapes.push(...makeRect(0, 0, totalW, totalH, layerId, lineTypeId, groupId))
+  if (flatEdges) {
+    shapes.push(...makeRect(0, 0, totalW, totalH, layerId, lineTypeId, groupId))
+  } else {
+    for (let col = 0; col < columns; col++) {
+      const xStart = col * pieceSize
+      const xEnd = (col + 1) * pieceSize
+      shapes.push(...makeJigsawEdge(
+        { x: round(xStart), y: 0 },
+        { x: round(xEnd), y: 0 },
+        tabDepth, tabWidth, randomizeTabs ? nextRandom() >= 0.5 : col % 2 === 0, flattenPath, layerId, lineTypeId, groupId,
+      ))
+      shapes.push(...makeJigsawEdge(
+        { x: round(xStart), y: totalH },
+        { x: round(xEnd), y: totalH },
+        tabDepth, tabWidth, randomizeTabs ? nextRandom() >= 0.5 : col % 2 !== 0, flattenPath, layerId, lineTypeId, groupId,
+      ))
+    }
+    for (let row = 0; row < rows; row++) {
+      const yStart = row * pieceSize
+      const yEnd = (row + 1) * pieceSize
+      shapes.push(...makeJigsawEdge(
+        { x: 0, y: round(yStart) },
+        { x: 0, y: round(yEnd) },
+        tabDepth, tabWidth, randomizeTabs ? nextRandom() >= 0.5 : row % 2 !== 0, flattenPath, layerId, lineTypeId, groupId,
+      ))
+      shapes.push(...makeJigsawEdge(
+        { x: totalW, y: round(yStart) },
+        { x: totalW, y: round(yEnd) },
+        tabDepth, tabWidth, randomizeTabs ? nextRandom() >= 0.5 : row % 2 === 0, flattenPath, layerId, lineTypeId, groupId,
+      ))
+    }
+  }
 
   // Internal vertical edges
   for (let col = 1; col < columns; col++) {
@@ -450,11 +585,11 @@ export function generateJigsaw(params: JigsawParams): WizardResult {
     for (let row = 0; row < rows; row++) {
       const yStart = row * pieceSize
       const yEnd = (row + 1) * pieceSize
-      const tabOut = (col + row) % 2 === 0
+      const tabOut = randomizeTabs ? nextRandom() >= 0.5 : (col + row) % 2 === 0
       shapes.push(...makeJigsawEdge(
         { x: round(x), y: round(yStart) },
         { x: round(x), y: round(yEnd) },
-        tabDepth, tabWidth, tabOut, layerId, lineTypeId, groupId,
+        tabDepth, tabWidth, tabOut, flattenPath, layerId, lineTypeId, groupId,
       ))
     }
   }
@@ -465,18 +600,18 @@ export function generateJigsaw(params: JigsawParams): WizardResult {
     for (let col = 0; col < columns; col++) {
       const xStart = col * pieceSize
       const xEnd = (col + 1) * pieceSize
-      const tabOut = (col + row) % 2 === 0
+      const tabOut = randomizeTabs ? nextRandom() >= 0.5 : (col + row) % 2 === 0
       shapes.push(...makeJigsawEdge(
         { x: round(xStart), y: round(y) },
         { x: round(xEnd), y: round(y) },
-        tabDepth, tabWidth, tabOut, layerId, lineTypeId, groupId,
+        tabDepth, tabWidth, tabOut, flattenPath, layerId, lineTypeId, groupId,
       ))
     }
   }
 
   return {
     shapes,
-    description: `Jigsaw puzzle: ${columns}x${rows} grid, ${pieceSize}mm pieces, ${tabDepth}mm tab depth`,
+    description: `Jigsaw puzzle: ${columns}x${rows} grid, ${pieceSize}mm pieces, ${tabDepth}mm tab depth${flatEdges ? ', flat outer edges' : ', tabbed outer edges'}${randomizeTabs ? `, randomized seed ${randomSeed}` : ''}${flattenPath ? ', flattened path' : ''}`,
   }
 }
 
@@ -637,18 +772,20 @@ export function generateDiceCup(params: DiceCupParams): WizardResult {
 
 export function generateCapPattern(params: CapPatternParams): WizardResult {
   const {
+    panelCount = 6, crownHeightMM,
+    panelGapMM = 10,
     seamMM, crownBulge, baseSmile,
     brimDepthMM, brimWidthMM, brimBackRiseMM,
     layerId, lineTypeId,
   } = params
 
   const shapes: Shape[] = []
-  const panelCount = 6
-  const panelBaseWidth = brimWidthMM / panelCount
-  const panelHeight = brimWidthMM * 0.55
-  const panelGap = 10
+  const safePanelCount = Math.max(1, Math.round(panelCount))
+  const panelBaseWidth = brimWidthMM / safePanelCount
+  const panelHeight = Math.max(20, crownHeightMM ?? brimWidthMM * 0.55)
+  const panelGap = Math.max(0, panelGapMM)
 
-  for (let i = 0; i < panelCount; i++) {
+  for (let i = 0; i < safePanelCount; i++) {
     const groupId = uid()
     const x0 = i * (panelBaseWidth + panelGap)
     const cx = x0 + panelBaseWidth / 2
@@ -668,7 +805,7 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
 
   const brimGroupId = uid()
   const brimY = panelHeight + baseSmile + 30
-  const crownSpan = panelCount * panelBaseWidth + (panelCount - 1) * panelGap
+  const crownSpan = safePanelCount * panelBaseWidth + (safePanelCount - 1) * panelGap
   const brimCx = crownSpan / 2
 
   const innerLeft: Point = { x: round(brimCx - brimWidthMM / 2), y: round(brimY) }
@@ -686,6 +823,6 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
 
   return {
     shapes,
-    description: `Cap pattern: ${panelCount} crown panels (base ${round(panelBaseWidth)}mm, bulge ${crownBulge}mm, smile ${baseSmile}mm), brim ${brimWidthMM}×${brimDepthMM}mm (back rise ${brimBackRiseMM}mm), seam ${seamMM}mm`,
+    description: `Cap pattern: ${safePanelCount} crown panels (base ${round(panelBaseWidth)}mm, height ${round(panelHeight)}mm, gap ${panelGap}mm, bulge ${crownBulge}mm, smile ${baseSmile}mm), brim ${brimWidthMM}×${brimDepthMM}mm (back rise ${brimBackRiseMM}mm), seam ${seamMM}mm`,
   }
 }

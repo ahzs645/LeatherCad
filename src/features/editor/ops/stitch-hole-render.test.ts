@@ -79,4 +79,14 @@ describe('stitch-hole-render', () => {
     }
     expect(primitive.start).not.toEqual(primitive.end)
   })
+
+  it('uses native single-line output for source-app zero-width blades', () => {
+    const primitive = createStitchHolePrimitive(makeStitchHole({ renderShape: 'diamond', widthMm: 0 }))
+
+    expect(primitive.kind).toBe('segment')
+    if (primitive.kind !== 'segment') {
+      throw new Error('expected segment primitive')
+    }
+    expect(primitive.strokeWidthMm).toBeGreaterThan(0)
+  })
 })

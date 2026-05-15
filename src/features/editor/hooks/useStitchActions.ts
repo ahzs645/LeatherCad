@@ -125,12 +125,16 @@ export function useStitchActions(params: UseStitchActionsParams) {
     }
 
     const retained = ordered.slice(0, selectedIndex + 1)
+    const terminalHole = ordered.find((stitchHole) => stitchHole.endHole === true)
+    const selectedDistance = projectDistanceOnShape(shape, selectedStitchHole.point)
+    const terminalDistance = terminalHole ? projectDistanceOnShape(shape, terminalHole.point) : null
     return {
       retained,
       sequenceStart: retained.length,
       generationOptions: {
         ...buildAutoPitchOptions(),
-        startDistanceMm: projectDistanceOnShape(shape, selectedStitchHole.point),
+        startDistanceMm: selectedDistance,
+        endDistanceMm: terminalDistance !== null && terminalDistance > selectedDistance ? terminalDistance : undefined,
         includeStartHole: false,
       },
       continued: true,

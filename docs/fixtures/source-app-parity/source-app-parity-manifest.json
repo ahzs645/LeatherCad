@@ -1,0 +1,45 @@
+{
+  "sourceBundle": "/Users/ahmadjalil/Downloads/leather-making",
+  "status": "partial",
+  "legacyRasterAsset": {
+    "source": "/Users/ahmadjalil/Downloads/leather-making/extracted-app/Leathercraft_CAD_v2.8.3_macOS_ARM/.resource/backImage.tiff",
+    "repoPath": "public/assets/source-app/backImage.tiff",
+    "description": "Desktop source-app backImage.png payload stored as TIFF."
+  },
+  "neededFixtures": [
+    {
+      "kind": "lcc-project",
+      "extension": ".lcc",
+      "priority": "p0",
+      "status": "missing-real-desktop-samples",
+      "reason": "Exercise source-app project persistence for shapes, layers, line palette, stitching holes, and generator output."
+    },
+    {
+      "kind": "catalog",
+      "extension": ".ctlg",
+      "priority": "p0",
+      "repoFixtureDirectory": "leather_catalog",
+      "status": "available-for-manual-import-and-parser-tests",
+      "reason": "Protect browser-safe catalog import/export compatibility."
+    },
+    {
+      "kind": "pricking-iron-library",
+      "extension": ".lccp",
+      "priority": "p1",
+      "sourceAppFilename": "prickingirons.lccp",
+      "sourceAppStorageKey": "LeathercraftCAD_PrickingIronGroups",
+      "sourceAppCollectionKey": "pricking_iron_groups",
+      "status": "source-key-json-import-export-supported",
+      "reason": "Protect grouped/system/custom pricking iron preset migration."
+    },
+    {
+      "kind": "generator-output",
+      "extension": ".lcc",
+      "priority": "p1",
+      "generators": ["watch-band", "pass-case", "box-joint", "jigsaw", "dice-cup", "cap-pattern", "letter-stamp"],
+      "repoGeneratedDirectory": "docs/fixtures/source-app-parity/generator-golden",
+      "status": "repo-generated-golden-outputs-available-real-desktop-samples-still-needed",
+      "reason": "Compare source-app generator dimensions and control semantics against clean-room generators."
+    }
+  ]
+}

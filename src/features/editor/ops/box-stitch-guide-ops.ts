@@ -365,9 +365,31 @@ function polylineToGuideLines(points: Point[], layerId: string, lineTypeId: stri
   return guideLines
 }
 
+function offsetProjectedPoints(
+  edge: BoxStitchEdge,
+  points: Point[],
+  bounds: BoxStitchBounds,
+  offsetMm: number,
+) {
+  return points.map((point) => {
+    if (edge === 'top') {
+      return { ...point, y: clampValue(point.y + offsetMm, bounds.minY + offsetMm, bounds.maxY - offsetMm) }
+    }
+    if (edge === 'bottom') {
+      return { ...point, y: clampValue(point.y - offsetMm, bounds.minY + offsetMm, bounds.maxY - offsetMm) }
+    }
+    if (edge === 'left') {
+      return { ...point, x: clampValue(point.x + offsetMm, bounds.minX + offsetMm, bounds.maxX - offsetMm) }
+    }
+    return { ...point, x: clampValue(point.x - offsetMm, bounds.minX + offsetMm, bounds.maxX - offsetMm) }
+  })
+}
+
 function buildProjectedGuidePathFromCandidate(
   candidate: BoxStitchEdgeCandidate,
   pairedRange: { start: number; end: number } | null,
+  bounds: BoxStitchBounds,
+  offsetMm: number,
 ) {
   const path = buildSampledGuidePath(candidate)
   if (!path) {
@@ -394,7 +416,7 @@ function buildProjectedGuidePathFromCandidate(
     points.push(pointAtFraction(path, fraction))
   }
 
-  return points
+  return offsetProjectedPoints(candidate.edge, points, bounds, offsetMm)
 }
 
 function shouldUseProjectedGuides(
@@ -420,7 +442,7 @@ function createGuidesForEdge(
   groupId?: string,
 ) {
   if (candidate && shouldUseProjectedGuides(candidate, oppositeCandidate)) {
-    const projectedPoints = buildProjectedGuidePathFromCandidate(candidate, pairedRange)
+    const projectedPoints = buildProjectedGuidePathFromCandidate(candidate, pairedRange, bounds, offsetMm)
     const projectedGuides = polylineToGuideLines(projectedPoints, layerId, lineTypeId, groupId)
     if (projectedGuides.length > 0 && projectedPoints.length > 1) {
       return {
