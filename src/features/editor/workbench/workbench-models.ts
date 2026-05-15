@@ -347,7 +347,7 @@ export function buildRibbonModel(params: {
         id: 'piece-main',
         title: 'Piece',
         items: [
-          { id: 'create-piece', label: 'Create', icon: 'piece', disabled: selectedShapeCount !== 1 },
+          { id: 'create-piece', label: 'Create', icon: 'piece', disabled: selectedShapeCount === 0 },
           { id: 'open-piece', label: 'Inspect', icon: 'inspect', disabled: !selectedPatternPiece },
           { id: 'apply-seam-allowance', label: 'Seam', icon: 'seam', disabled: selectedShapeCount === 0 },
         ],

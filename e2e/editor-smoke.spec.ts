@@ -136,3 +136,44 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await expect(page.getByText('Use the stitch-hole inspector to set or clear the terminal stitch hole.')).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()
 })
+
+test('drawn closed outlines can become shaped pieces from the interface', async ({ page }) => {
+  await page.goto('/')
+
+  const ribbonTabs = page.getByRole('tablist', { name: 'Workbench ribbon tabs' })
+  await expect(ribbonTabs).toBeVisible()
+
+  const canvas = page.locator('svg.canvas')
+  await page.getByRole('button', { name: 'Rect' }).click()
+  await canvas.click({ position: { x: 140, y: 140 } })
+  await canvas.click({ position: { x: 280, y: 250 } })
+
+  const canvasShapeLines = page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')
+  await expect(canvasShapeLines).toHaveCount(4)
+
+  await page.getByRole('button', { name: 'Move' }).click()
+  for (let index = 0; index < 4; index += 1) {
+    await canvasShapeLines.nth(index).dispatchEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      pointerId: index + 1,
+      pointerType: 'mouse',
+      button: 0,
+      buttons: 1,
+      shiftKey: index > 0,
+    })
+  }
+  await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-selected')).toHaveCount(4)
+
+  await ribbonTabs.getByRole('tab', { name: 'Piece' }).click()
+  await expect(page.getByRole('button', { name: 'Create', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+
+  await expect(page.getByRole('button', { name: /Piece 1/ })).toBeVisible()
+  await expect(page.getByText('4.0mm seam')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Open 3D Workspace' }).click()
+  await expect(page.getByText('3D Preview 4 shapes | 1 pieces')).toBeVisible()
+  await expect(page.getByText('Piece Placement')).toBeVisible()
+  await expect(page.locator('body')).toContainText('1 piece in the current 3D view.')
+})

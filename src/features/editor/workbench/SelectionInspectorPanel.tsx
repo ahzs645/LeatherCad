@@ -118,7 +118,7 @@ export function SelectionInspectorPanel({
           <button onClick={onAddEdgeConstraint} disabled={selectedShapeCount === 0}>Edge Constraint</button>
           <button onClick={onAddAlignConstraints} disabled={selectedShapeCount < 2}>Align Constraint</button>
           <button onClick={onApplyConstraints} disabled={selectedShapeCount === 0}>Apply Constraints</button>
-          <button onClick={onCreatePatternPiece} disabled={selectedShapeCount !== 1}>Create Piece</button>
+          <button onClick={onCreatePatternPiece} disabled={selectedShapeCount === 0}>Create Piece</button>
           <button onClick={onOpenPieceTab} disabled={!canOpenPieceTab}>Piece Tab</button>
           <button onClick={onApplySeamAllowance} disabled={selectedShapeCount === 0}>Apply Seam</button>
           <button onClick={onClearSeamAllowance} disabled={selectedShapeCount === 0}>Clear Seam</button>

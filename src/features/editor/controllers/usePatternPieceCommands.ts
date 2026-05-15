@@ -16,6 +16,7 @@ import {
   createDefaultPiecePlacementLabel,
   createDefaultPieceSeamAllowance,
 } from '../ops/pattern-piece-ops'
+import type { OutlineChain } from '../ops/outline-detection'
 
 type UsePatternPieceCommandsParams = {
   isMobileLayout: boolean
@@ -23,7 +24,7 @@ type UsePatternPieceCommandsParams = {
   shapesById: Record<string, Shape | undefined>
   patternPieces: PatternPiece[]
   patternPieceByBoundaryShapeId: Record<string, PatternPiece | undefined>
-  patternPieceChainsByShapeId: Map<string, { polygon: import('../cad/cad-types').Point[]; isClosed: boolean }>
+  patternPieceChainsByShapeId: Map<string, OutlineChain>
   selectedPatternPiece: PatternPiece | null
   selectedPatternPieceEdgeCount: number
   pieceGrainlines: import('../cad/cad-types').PieceGrainline[]
@@ -99,17 +100,39 @@ export function usePatternPieceCommands({
   }, [ensurePatternPieceSupportRecords, isMobileLayout, selectedPatternPiece, setActiveInspectorTab, setShowPieceInspectorModal, setStatus])
 
   const handleCreatePatternPieceFromSelection = useCallback(() => {
-    if (selectedShapeIds.length !== 1) {
-      setStatus('Select exactly one closed outline to create a pattern piece')
+    if (selectedShapeIds.length === 0) {
+      setStatus('Select a closed outline to create a pattern piece')
       return
     }
-    const boundaryShapeId = selectedShapeIds[0]
+
+    const selectedShapeIdSet = new Set(selectedShapeIds)
+    const selectedClosedChains = Array.from(
+      new Map(
+        selectedShapeIds
+          .map((shapeId) => patternPieceChainsByShapeId.get(shapeId))
+          .filter((chain): chain is NonNullable<ReturnType<typeof patternPieceChainsByShapeId.get>> =>
+            chain?.isClosed === true,
+          )
+          .map((chain) => [chain.id, chain] as const),
+      ).values(),
+    )
+    const selectedChain = selectedClosedChains.length === 1 ? selectedClosedChains[0] : null
+    const selectionStaysOnSelectedChain =
+      selectedChain !== null && selectedShapeIds.every((shapeId) => selectedChain.shapeIds.includes(shapeId))
+
+    if (!selectedChain || !selectionStaysOnSelectedChain) {
+      setStatus('Select one closed outline, or shapes from the same closed outline, to create a pattern piece')
+      return
+    }
+
+    const boundaryShapeId = selectedChain.shapeIds.find((shapeId) => selectedShapeIdSet.has(shapeId)) ?? selectedChain.shapeIds[0]
     const boundaryShape = shapesById[boundaryShapeId]
     if (!boundaryShape) {
       setStatus('Selected outline could not be resolved')
       return
     }
-    const existingPiece = patternPieceByBoundaryShapeId[boundaryShapeId]
+    const existingPiece =
+      selectedChain.shapeIds.map((shapeId) => patternPieceByBoundaryShapeId[shapeId]).find(Boolean) ?? null
     if (existingPiece) {
       ensurePatternPieceSupportRecords(existingPiece)
       if (isMobileLayout) {
@@ -118,11 +141,6 @@ export function usePatternPieceCommands({
         setActiveInspectorTab('piece')
       }
       setStatus('Pattern piece already exists for this boundary')
-      return
-    }
-    const chain = patternPieceChainsByShapeId.get(boundaryShapeId)
-    if (!chain?.isClosed) {
-      setStatus('Pattern pieces require a closed outline boundary')
       return
     }
 

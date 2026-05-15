@@ -86,7 +86,7 @@ export function ContextualActionsPanel({
           Add Align Constraints
         </button>
         <button onClick={onApplyConstraints}>Apply Constraints</button>
-        <button onClick={onCreatePatternPiece} disabled={selectedCount !== 1}>
+        <button onClick={onCreatePatternPiece} disabled={selectedCount === 0}>
           Create Piece
         </button>
         <button onClick={onEditPatternPiece} disabled={!canEditPatternPiece}>
