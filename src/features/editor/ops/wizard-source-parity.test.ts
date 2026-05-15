@@ -65,7 +65,9 @@ describe('source-app wizard parity controls', () => {
       width: 80,
       height: 50,
       materialThickness: 2,
+      boxMode: 'open',
       lidMode: 'sliding',
+      pinWidthMm: 10,
       grooveDepthMm: 1,
       grooveOffsetMm: 4,
       kerfCompensationMm: 0.5,
@@ -81,9 +83,31 @@ describe('source-app wizard parity controls', () => {
       fingerCount: 3,
     })
 
+    expect(result.description).toContain('open box')
+    expect(result.description).toContain('10mm pin width')
     expect(result.description).toContain('lid sliding')
     expect(result.description).toContain('independent')
     expect(result.shapes.length).toBeGreaterThan(60)
+  })
+
+  it('supports compact source-style pass-case width height pitch and space mode', () => {
+    const result = generatePassCase({
+      ...base,
+      compactSourceMode: true,
+      cardWidth: 86,
+      cardHeight: 54,
+      sourceWidth: 100,
+      sourceHeight: 70,
+      stitchPitchMm: 5,
+      stitchSpaceMm: 4,
+      margin: 5,
+      cornerRadius: 2,
+      flapHeight: 30,
+      pocketCount: 1,
+    })
+
+    expect(result.description).toContain('100x70mm body')
+    expect(result.description).toContain('compact source mode')
   })
 
   it('makes randomized jigsaw generation deterministic by seed', () => {

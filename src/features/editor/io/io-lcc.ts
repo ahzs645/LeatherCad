@@ -631,36 +631,46 @@ export function exportLccDocument(doc: DocFile): string {
 
   // Export stitch holes
   if (doc.stitchHoles) {
-    const sortedHoles = [...doc.stitchHoles].sort((a, b) => a.sequence - b.sequence)
-    for (let i = 0; i < sortedHoles.length; i++) {
-      const hole = sortedHoles[i]
-      const lineType = lineTypesById[doc.activeLineTypeId]
-      const color = lineType ? hexToLccColor(lineType.color) : 'White'
-      const stitchId = nextExportId()
-      const prevId = i > 0 ? String(parseInt(stitchId) - 1) : '-1'
-      const nextId = i < sortedHoles.length - 1 ? String(parseInt(stitchId) + 1) : '-1'
-      const lccLayerIdx = 3 // stitch layer
+    const groups = new Map<string, StitchHole[]>()
+    for (const hole of doc.stitchHoles) {
+      const groupKey = hole.chainId ? `chain:${hole.chainId}` : `shape:${hole.shapeId}`
+      const group = groups.get(groupKey) ?? []
+      group.push(hole)
+      groups.set(groupKey, group)
+    }
+    for (const group of groups.values()) {
+      const sortedHoles = group.slice().sort((a, b) => a.sequence - b.sequence || a.id.localeCompare(b.id))
+      const idsByHoleId = new Map(sortedHoles.map((hole) => [hole.id, nextExportId()]))
+      for (let i = 0; i < sortedHoles.length; i++) {
+        const hole = sortedHoles[i]
+        const lineType = lineTypesById[doc.activeLineTypeId]
+        const color = lineType ? hexToLccColor(lineType.color) : 'White'
+        const stitchId = idsByHoleId.get(hole.id) ?? nextExportId()
+        const prevId = i > 0 ? idsByHoleId.get(sortedHoles[i - 1].id) ?? '-1' : '-1'
+        const nextId = i < sortedHoles.length - 1 ? idsByHoleId.get(sortedHoles[i + 1].id) ?? '-1' : '-1'
+        const lccLayerIdx = 3 // stitch layer
 
-      lccShapes.push({
-        ...emptyLccShape(),
-        id: stitchId,
-        type: 'S_HOLE',
-        sp: [hole.point.x, hole.point.y],
-        ep: [0, 0],
-        ct: [hole.point.x, hole.point.y],
-        w: '1.2',
-        h: '1.2',
-        color,
-        dash: 'Solid',
-        rt: String(hole.angleDeg),
-        st: hole.holeType === 'round' ? 'R' : 'S',
-        thk: '1.0',
-        PrevStId: prevId,
-        NextStId: nextId,
-        StcIn: [hole.point.x - 0.45, hole.point.y],
-        StcOut: [hole.point.x + 0.45, hole.point.y],
-        layer: String(lccLayerIdx),
-      })
+        lccShapes.push({
+          ...emptyLccShape(),
+          id: stitchId,
+          type: 'S_HOLE',
+          sp: [hole.point.x, hole.point.y],
+          ep: [0, 0],
+          ct: [hole.point.x, hole.point.y],
+          w: '1.2',
+          h: '1.2',
+          color,
+          dash: 'Solid',
+          rt: String(hole.angleDeg),
+          st: hole.holeType === 'round' ? 'R' : 'S',
+          thk: '1.0',
+          PrevStId: prevId,
+          NextStId: nextId,
+          StcIn: [hole.point.x - 0.45, hole.point.y],
+          StcOut: [hole.point.x + 0.45, hole.point.y],
+          layer: String(lccLayerIdx),
+        })
+      }
     }
   }
 

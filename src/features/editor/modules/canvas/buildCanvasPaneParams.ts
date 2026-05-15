@@ -26,6 +26,7 @@ type BuildCanvasPaneParamsInput = Omit<
   setActiveBackdropId: Dispatch<SetStateAction<string | null>>
   handleZoomStep: (factor: number) => void
   stitchSimulatorResult: StitchSimulatorResult | null
+  hideRawStitchHoles?: boolean
   handleBringSelectionToFront: () => void
   handleSendSelectionToBack: () => void
   handleDuplicateSelection: () => void
@@ -48,6 +49,7 @@ export function buildCanvasPaneParams({
   setActiveBackdropId,
   handleZoomStep,
   stitchSimulatorResult,
+  hideRawStitchHoles,
   stitchSimulatorSettings,
   handleBringSelectionToFront,
   handleSendSelectionToBack,
@@ -104,5 +106,6 @@ export function buildCanvasPaneParams({
     stitchSimulatorSettings,
     simulatedStitchSegments: stitchSimulatorSettings?.showSimulatorPattern ? stitchSimulatorResult?.segments ?? [] : [],
     stitchSimulatorTerminalHoleId: stitchSimulatorResult?.terminalHoleId ?? null,
+    hideRawStitchHoles,
   }
 }

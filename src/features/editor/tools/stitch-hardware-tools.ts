@@ -1,7 +1,7 @@
 import type { HardwareMarker, SeamConnection } from '../cad/cad-types'
 import { HARDWARE_PRESETS } from '../editor-constants'
 import { findNearestPatternPieceEdge, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
-import { findNearestStitchAnchor, createStitchHole } from '../ops/stitch-hole-ops'
+import { findNearestStitchAnchor, createPrickingIronStitchHoles } from '../ops/stitch-hole-ops'
 import { clamp, pickToolPoint, uid } from './tool-helpers'
 import type { ToolDefinition } from './tool-types'
 
@@ -33,25 +33,30 @@ export const stitchHardwareToolDefinitions = {
       }
 
       let createdHoleId: string | null = null
+      let createdCount = 0
       runtime.setStitchHoles((previous) => {
         const nextSequence =
           previous
             .filter((stitchHole) => stitchHole.shapeId === nearestStitchAnchor.shapeId)
             .reduce((maximum, stitchHole) => Math.max(maximum, stitchHole.sequence), -1) + 1
-        const createdHole = {
-          ...createStitchHole(nearestStitchAnchor, runtime.stitchHoleDefaults),
-          sequence: nextSequence,
-        }
-        createdHoleId = createdHole.id
-        return [...previous, createdHole]
+        const createdHoles = createPrickingIronStitchHoles(
+          targetShape,
+          nearestStitchAnchor,
+          runtime.stitchHoleDefaults,
+          nextSequence,
+        )
+        createdHoleId = createdHoles[0]?.id ?? null
+        createdCount = createdHoles.length
+        return [...previous, ...createdHoles]
       })
       runtime.setSelectedStitchHoleId(createdHoleId)
       pickToolPoint(runtime, point)
       const targetLineTypeRole = runtime.lineTypesById[targetShape.lineTypeId]?.role ?? 'cut'
+      const placedLabel = createdCount > 1 ? `${createdCount} stitch holes placed` : 'Stitch hole placed'
       runtime.setStatus(
         targetLineTypeRole === 'stitch'
-          ? `Stitch hole placed (${runtime.stitchHoleDefaults.presetName ?? runtime.stitchHoleDefaults.renderShape ?? runtime.stitchHoleDefaults.holeType})`
-          : `Stitch hole placed on ${targetLineTypeRole} path (${runtime.stitchHoleDefaults.presetName ?? runtime.stitchHoleDefaults.renderShape ?? runtime.stitchHoleDefaults.holeType})`,
+          ? `${placedLabel} (${runtime.stitchHoleDefaults.presetName ?? runtime.stitchHoleDefaults.renderShape ?? runtime.stitchHoleDefaults.holeType})`
+          : `${placedLabel} on ${targetLineTypeRole} path (${runtime.stitchHoleDefaults.presetName ?? runtime.stitchHoleDefaults.renderShape ?? runtime.stitchHoleDefaults.holeType})`,
       )
     },
   },

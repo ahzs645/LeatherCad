@@ -35,6 +35,7 @@ describe('createBoxStitchFromSelection', () => {
 
     const result = createBoxStitchFromSelection(
       shapes,
+      [],
       new Set(shapes.map((shape) => shape.id)),
       { distanceMm: 5, stretchCompensationPercent: 100 },
       'stitch',
@@ -53,5 +54,36 @@ describe('createBoxStitchFromSelection', () => {
       end: { x: 95, y: 5 },
     })
     expect(result.stitchHoles.length).toBeGreaterThan(0)
+  })
+
+  it('projects existing selected stitch holes onto generated guide paths before falling back to pitch', () => {
+    const shapes = [
+      line('top-source', { x: 0, y: 0 }, { x: 100, y: 0 }, true),
+      line('bottom-source', { x: 0, y: 40 }, { x: 100, y: 40 }, true),
+      line('left-source', { x: 0, y: 0 }, { x: 0, y: 40 }, true),
+      line('right-source', { x: 100, y: 0 }, { x: 100, y: 40 }, true),
+    ]
+
+    const result = createBoxStitchFromSelection(
+      shapes,
+      [
+        { id: 'h1', shapeId: 'top-source', point: { x: 10, y: 0 }, angleDeg: 0, holeType: 'round', sequence: 0 },
+        { id: 'h2', shapeId: 'top-source', point: { x: 90, y: 0 }, angleDeg: 0, holeType: 'round', sequence: 1 },
+      ],
+      new Set(shapes.map((shape) => shape.id)),
+      { distanceMm: 5, stretchCompensationPercent: 100 },
+      'stitch',
+      'layer-1',
+      6,
+      stitchHoleDefaults,
+    )
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      return
+    }
+    expect(result.stitchHoles).toHaveLength(8)
+    expect(result.stitchHoles[0]).toMatchObject({ point: { x: 14, y: 5 } })
+    expect(result.stitchHoles[1]).toMatchObject({ point: { x: 86, y: 5 } })
   })
 })

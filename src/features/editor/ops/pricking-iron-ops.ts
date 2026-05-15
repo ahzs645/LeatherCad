@@ -291,6 +291,8 @@ export function prickingIronPresetToDefaults(preset: PrickingIronPreset): Stitch
   return {
     holeType: prickingIronToHoleType(preset.shape),
     renderShape: prickingIronToRenderShape(preset.shape),
+    pitchMm: preset.pitchMm,
+    numBlades: preset.numBlades,
     diameterMm: preset.shape === 'round' ? preset.widthMm : undefined,
     widthMm: preset.widthMm,
     heightMm: preset.heightMm,
@@ -551,6 +553,11 @@ export function loadCustomPrickingIronCatalog(storageKey = CUSTOM_PRICKING_IRON_
     const raw = safeLocalStorageGet(storageKey) ?? safeLocalStorageGet(SOURCE_APP_PRICKING_IRON_GROUPS_KEY)
     if (!raw) {
       return loadLegacyCustomPresets()
+    }
+
+    const imported = parsePrickingIronLccp(raw)
+    if (imported.groups.length > 0 || imported.presets.length > 0 || imported.showFiveMmGuide === true) {
+      return imported
     }
 
     const parsed = JSON.parse(raw) as StoredPrickingIronCatalog

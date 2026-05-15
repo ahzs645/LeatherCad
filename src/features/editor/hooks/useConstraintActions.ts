@@ -7,6 +7,7 @@ import type {
   PieceSeamAllowance,
   Shape,
   SnapSettings,
+  StitchHole,
 } from '../cad/cad-types'
 import {
   applyCornerOnSelectedLines,
@@ -48,6 +49,7 @@ type UseConstraintActionsParams = {
   stitchLineTypeId: string
   layers: Layer[]
   shapes: Shape[]
+  stitchHoles: StitchHole[]
   selectedShapeIds: string[]
   selectedShapeIdSet: Set<string>
   constraints: ParametricConstraint[]
@@ -56,7 +58,7 @@ type UseConstraintActionsParams = {
   snapSettings: SnapSettings
   boxStitchHelperSettings: BoxStitchHelperSettings
   setShapes: Dispatch<SetStateAction<Shape[]>>
-  setStitchHoles: Dispatch<SetStateAction<import('../cad/cad-types').StitchHole[]>>
+  setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
   setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
@@ -70,6 +72,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     stitchLineTypeId,
     layers,
     shapes,
+    stitchHoles,
     selectedShapeIds,
     selectedShapeIdSet,
     constraints,
@@ -109,6 +112,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
   ) => {
     const result = createBoxStitchFromSelection(
       shapes,
+      stitchHoles,
       selectedShapeIdSet,
       settings,
       stitchLineTypeId,

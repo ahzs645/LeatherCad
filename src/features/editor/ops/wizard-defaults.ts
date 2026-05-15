@@ -40,6 +40,7 @@ export function getDefaultWizardParams(
       }
     case 'pass-case':
       return {
+        compactSourceMode: false,
         cardWidth: 86,
         cardHeight: 54,
         sourceWidth: 100,
@@ -59,7 +60,9 @@ export function getDefaultWizardParams(
         width: 80,
         height: 50,
         materialThickness: 2,
+        boxMode: 'closed',
         lidMode: 'none',
+        pinWidthMm: 12,
         grooveDepthMm: 1,
         grooveOffsetMm: 4,
         kerfCompensationMm: 0,

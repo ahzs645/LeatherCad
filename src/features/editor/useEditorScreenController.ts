@@ -42,7 +42,7 @@ import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
 import { type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
-import { loadStitchSimulatorSettings } from './ops/stitch-simulator-settings'
+import { loadStitchSimulatorSettings, saveStitchSimulatorSettings } from './ops/stitch-simulator-settings'
 import { loadBoxStitchHelperSettings, type BoxStitchHelperSettings } from './ops/box-stitch-settings'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
 import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
@@ -882,6 +882,63 @@ export function useEditorScreenController() {
   const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
     loadStitchSimulatorSettings(),
   )
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const isTypingContext = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT'
+      if (isTypingContext || event.ctrlKey || event.metaKey || event.altKey) {
+        return
+      }
+      if (event.key === 'F6') {
+        event.preventDefault()
+        setShowStitchSimulatorModal((previous) => !previous)
+        setStitchSimulatorSettings((previous) => {
+          const next = { ...previous, showSimulatorPattern: !previous.showSimulatorPattern }
+          saveStitchSimulatorSettings(next)
+          return next
+        })
+        setStatus('Toggled stitching simulator')
+        return
+      }
+      if (event.key === '+' || event.key === '-') {
+        event.preventDefault()
+        const delta = event.key === '+' ? 0.1 : -0.1
+        setStitchSimulatorSettings((previous) => {
+          const next = {
+            ...previous,
+            threadWidthMm: Math.max(0.3, Math.min(2, Number((previous.threadWidthMm + delta).toFixed(2)))),
+          }
+          saveStitchSimulatorSettings(next)
+          setStatus(`Thread width ${next.threadWidthMm.toFixed(1)} mm`)
+          return next
+        })
+        return
+      }
+      if (event.key === '=') {
+        event.preventDefault()
+        setStitchSimulatorSettings((previous) => {
+          const next =
+            previous.showEvenStitches && previous.showOddStitches
+              ? { ...previous, showOddStitches: false }
+              : previous.showEvenStitches
+                ? { ...previous, showEvenStitches: false, showOddStitches: true }
+                : { ...previous, showEvenStitches: true, showOddStitches: true }
+          saveStitchSimulatorSettings(next)
+          setStatus(
+            next.showEvenStitches && next.showOddStitches
+              ? 'Showing even and odd stitches'
+              : next.showEvenStitches
+                ? 'Showing even stitches'
+                : 'Showing odd stitches',
+          )
+          return next
+        })
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [setShowStitchSimulatorModal, setStatus])
   const [boxStitchHelperSettings, setBoxStitchHelperSettings] = useState<BoxStitchHelperSettings>(() =>
     loadBoxStitchHelperSettings(),
   )
@@ -892,6 +949,7 @@ export function useEditorScreenController() {
     stitchLineTypeId: STITCH_LINE_TYPE_ID,
     layers,
     shapes,
+    stitchHoles,
     selectedShapeIds,
     selectedShapeIdSet,
     constraints,

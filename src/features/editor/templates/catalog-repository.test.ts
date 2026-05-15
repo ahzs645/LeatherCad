@@ -1,4 +1,7 @@
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { decodeCatalogZipBmpToObjectUrl } from './catalog-image-preview'
 import {
   moveCatalogRepositoryShop,
   parseCatalogShopImport,
@@ -167,6 +170,64 @@ describe('catalog export', () => {
     expect(item.imageRulerLengthMm).toBe(50)
     expect(item.imageRotationDeg).toBe(90)
     expect(item.imageCropMode).toBe('square')
+  })
+})
+
+describe('source catalog fixtures', () => {
+  const catalogDir = join(process.cwd(), 'leather_catalog')
+
+  it('parses and round-trips every bundled source .ctlg file', () => {
+    const files = readdirSync(catalogDir).filter((file) => file.endsWith('.ctlg')).sort()
+    expect(files.length).toBeGreaterThan(0)
+
+    for (const file of files) {
+      const raw = readFileSync(join(catalogDir, file), 'utf8')
+      const imported = parseCatalogShopImport(raw, file)
+      expect(imported.name, file).toBeTruthy()
+      expect(imported.groups.length, file).toBeGreaterThan(0)
+      expect(imported.itemCount, file).toBeGreaterThan(0)
+
+      const roundTripped = parseCatalogShopImport(serializeCatalogShop(imported), file)
+      expect(roundTripped.name, file).toBe(imported.name)
+      expect(roundTripped.groupCount, file).toBe(imported.groupCount)
+      expect(roundTripped.itemCount, file).toBe(imported.itemCount)
+    }
+  })
+
+  it('decodes at least one real source catalog zipbmp image payload', async () => {
+    const file = readdirSync(catalogDir).find((entry) => entry.endsWith('.ctlg'))
+    expect(file).toBeTruthy()
+    const imported = parseCatalogShopImport(readFileSync(join(catalogDir, file ?? ''), 'utf8'), file)
+    const itemWithImage = imported.groups.flatMap((group) => group.items).find((item) => item.zipBmpBase64)
+    expect(itemWithImage?.zipBmpBase64).toBeTruthy()
+
+    const createdUrls: string[] = []
+    const originalCreateObjectUrl = URL.createObjectURL
+    const originalRevokeObjectUrl = URL.revokeObjectURL
+    URL.createObjectURL = ((blob: Blob) => {
+      expect(blob.size).toBeGreaterThan(0)
+      createdUrls.push('blob:test-catalog-image')
+      return 'blob:test-catalog-image'
+    }) as typeof URL.createObjectURL
+    URL.revokeObjectURL = (() => undefined) as typeof URL.revokeObjectURL
+    try {
+      await expect(decodeCatalogZipBmpToObjectUrl(itemWithImage?.zipBmpBase64 ?? '')).resolves.toBe('blob:test-catalog-image')
+      expect(createdUrls).toHaveLength(1)
+    } finally {
+      URL.createObjectURL = originalCreateObjectUrl
+      URL.revokeObjectURL = originalRevokeObjectUrl
+    }
+  })
+
+  it('keeps the copied source backImage.tiff fixture present and non-empty', () => {
+    const imagePath = join(process.cwd(), 'public/assets/source-app/backImage.tiff')
+    expect(existsSync(imagePath)).toBe(true)
+    const bytes = readFileSync(imagePath)
+    expect(bytes.byteLength).toBeGreaterThan(1000)
+    expect(
+      (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a) ||
+        (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00),
+    ).toBe(true)
   })
 })
 

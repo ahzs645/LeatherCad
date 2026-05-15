@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { LetterStampParams } from '../ops/letter-stamp-ops'
-import { getDefaultLetterStampParams } from '../ops/letter-stamp-ops'
+import { computeStampPlacements, getDefaultLetterStampParams } from '../ops/letter-stamp-ops'
 import {
   createLetterStampFontSet,
   loadLetterStampFontSets,
@@ -36,6 +36,7 @@ export function LetterStampModal({
   const [fontFamily, setFontFamily] = useState(defaults.fontFamily)
   const [fontSets, setFontSets] = useState<LetterStampFontSet[]>(() => loadLetterStampFontSets())
   const [selectedFontSetId, setSelectedFontSetId] = useState('')
+  const [calcSummary, setCalcSummary] = useState('')
   const importInputRef = useRef<HTMLInputElement | null>(null)
 
   if (!open) {
@@ -153,6 +154,30 @@ export function LetterStampModal({
     setText('ABCDEFGHIJKLMNOPQRSTUVWXYZ\n0123456789')
   }
 
+  function handleEditFont() {
+    const nextFont = window.prompt('Font family', fontFamily)?.trim()
+    if (nextFont) {
+      setFontFamily(nextFont)
+    }
+  }
+
+  function handleCalc() {
+    const placements = computeStampPlacements({
+      text,
+      stampSizeMm,
+      spacingMm,
+      lineSpacingMm,
+      alignment,
+      baselineAngleDeg,
+      origin: { x: 0, y: 0 },
+      fontFamily,
+      layerId: defaultLayerId,
+      lineTypeId: defaultLineTypeId,
+    })
+    const rows = new Set(placements.map((placement) => placement.row)).size
+    setCalcSummary(`${placements.length} stamps across ${rows} line${rows === 1 ? '' : 's'}`)
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose} aria-label="Letter Stamp">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -255,9 +280,11 @@ export function LetterStampModal({
           <button onClick={handleDeleteFontSet} disabled={!selectedFontSetId}>
             Delete Font Set
           </button>
+          <button onClick={handleEditFont}>Edit Font</button>
           <button onClick={() => importInputRef.current?.click()}>Import</button>
           <button onClick={handleExportFontSets} disabled={fontSets.length === 0}>Export</button>
           <button onClick={handleMakePlaceholder}>Placeholder</button>
+          <button onClick={handleCalc}>Calc</button>
           <input
             ref={importInputRef}
             type="file"
@@ -266,6 +293,7 @@ export function LetterStampModal({
             onChange={(event) => void handleImportFontSets(event.target.files?.[0] ?? null)}
           />
         </div>
+        {calcSummary && <p className="hint">{calcSummary}</p>}
 
         <div className="modal-actions">
           <button onClick={onClose}>Cancel</button>

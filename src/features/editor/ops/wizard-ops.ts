@@ -128,15 +128,15 @@ export function generateWatchStrap(params: WatchStrapParams): WizardResult {
 
 export function generatePassCase(params: PassCaseParams): WizardResult {
   const {
-    cardWidth, cardHeight, sourceWidth, sourceHeight, stitchPitchMm = 0, stitchSpaceMm = 0, margin, cornerRadius,
+    compactSourceMode = false, cardWidth, cardHeight, sourceWidth, sourceHeight, stitchPitchMm = 0, stitchSpaceMm = 0, margin, cornerRadius,
     flapHeight, pocketCount, layerId, lineTypeId,
   } = params
 
   const shapes: Shape[] = []
   const groupId = uid()
 
-  const bodyW = cardWidth + 2 * margin
-  const bodyH = cardHeight * 2 + 2 * margin + flapHeight
+  const bodyW = compactSourceMode && sourceWidth ? sourceWidth : cardWidth + 2 * margin
+  const bodyH = compactSourceMode && sourceHeight ? sourceHeight : cardHeight * 2 + 2 * margin + flapHeight
   // Centered at origin
   const ox = round(-bodyW / 2)
   const oy = round(-bodyH / 2)
@@ -206,7 +206,7 @@ export function generatePassCase(params: PassCaseParams): WizardResult {
 
   return {
     shapes,
-    description: `Pass case: ${round(bodyW)}x${round(bodyH)}mm body${sourceWidth && sourceHeight ? ` from ${sourceWidth}x${sourceHeight}mm source sizing` : ''}, pitch ${stitchPitchMm}mm, space ${stitchSpaceMm}mm, ${pocketCount} pocket(s)${flapHeight > 0 ? `, ${flapHeight}mm flap` : ''}`,
+    description: `Pass case: ${round(bodyW)}x${round(bodyH)}mm body${sourceWidth && sourceHeight ? ` from ${sourceWidth}x${sourceHeight}mm source sizing` : ''}, pitch ${stitchPitchMm}mm, space ${stitchSpaceMm}mm, ${compactSourceMode ? 'compact source mode, ' : ''}${pocketCount} pocket(s)${flapHeight > 0 ? `, ${flapHeight}mm flap` : ''}`,
   }
 }
 
@@ -323,7 +323,9 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
     width,
     height,
     materialThickness,
+    boxMode = 'closed',
     lidMode = 'none',
+    pinWidthMm = 0,
     grooveDepthMm = 0,
     grooveOffsetMm = 0,
     kerfCompensationMm = 0,
@@ -350,7 +352,10 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
   const bottomThickness = panelThickness(bottomThicknessMm)
   const effectiveLength = Math.max(1, length + kerfCompensationMm * 2)
   const effectiveWidth = Math.max(1, width + kerfCompensationMm * 2)
-  const effectiveHeight = Math.max(1, height + pinOverhangMm)
+  const effectiveHeight = Math.max(1, height + (boxMode === 'closed' ? pinOverhangMm : 0))
+  const effectiveFingerCount = pinWidthMm > 0
+    ? Math.max(1, Math.round(Math.min(effectiveLength, effectiveWidth, effectiveHeight) / Math.max(1, pinWidthMm)))
+    : fingerCount
 
   // Cross / plus layout:
   //           [back]
@@ -378,8 +383,8 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
     { x: round(fx + effectiveLength), y: round(fy + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdge(fx, fy, effectiveLength, fingerCount, -frontThickness, true, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdge(fx, fy + effectiveHeight, effectiveLength, fingerCount, frontThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(fx, fy, effectiveLength, effectiveFingerCount, -frontThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(fx, fy + effectiveHeight, effectiveLength, effectiveFingerCount, frontThickness, false, layerId, lineTypeId, groupId))
 
   // --- Back panel (above bottom) ---
   const backX = bx
@@ -394,8 +399,8 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
     { x: round(backX + effectiveLength), y: round(backY + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdge(backX, backY, effectiveLength, fingerCount, -backThickness, false, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdge(backX, backY + effectiveHeight, effectiveLength, fingerCount, backThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(backX, backY, effectiveLength, effectiveFingerCount, -backThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdge(backX, backY + effectiveHeight, effectiveLength, effectiveFingerCount, backThickness, true, layerId, lineTypeId, groupId))
 
   // --- Left panel (left of bottom) ---
   const lx = bx - gap - effectiveWidth
@@ -410,8 +415,8 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
     { x: round(lx + effectiveWidth), y: round(ly + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdgeVertical(lx, ly, effectiveHeight, fingerCount, -leftThickness, false, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdgeVertical(lx + effectiveWidth, ly, effectiveHeight, fingerCount, leftThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(lx, ly, effectiveHeight, effectiveFingerCount, -leftThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(lx + effectiveWidth, ly, effectiveHeight, effectiveFingerCount, leftThickness, true, layerId, lineTypeId, groupId))
 
   // --- Right panel (right of bottom) ---
   const rx = bx + effectiveLength + gap
@@ -426,8 +431,8 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
     { x: round(rx + effectiveWidth), y: round(ry + effectiveHeight) },
     layerId, lineTypeId, groupId,
   ))
-  shapes.push(...makeFingerEdgeVertical(rx, ry, effectiveHeight, fingerCount, -rightThickness, true, layerId, lineTypeId, groupId))
-  shapes.push(...makeFingerEdgeVertical(rx + effectiveWidth, ry, effectiveHeight, fingerCount, rightThickness, false, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(rx, ry, effectiveHeight, effectiveFingerCount, -rightThickness, true, layerId, lineTypeId, groupId))
+  shapes.push(...makeFingerEdgeVertical(rx + effectiveWidth, ry, effectiveHeight, effectiveFingerCount, rightThickness, false, layerId, lineTypeId, groupId))
 
   if (lidMode !== 'none') {
     const lidGroupId = uid()
@@ -454,7 +459,7 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
 
   return {
     shapes,
-    description: `Box with finger joints: ${effectiveLength}x${effectiveWidth}x${effectiveHeight}mm, ${sameThickness ? `${materialThickness}mm` : 'independent'} thickness, bottom ${bottomThickness}mm, ${fingerCount} fingers per edge, lid ${lidMode}, groove ${grooveDepthMm}mm`,
+    description: `Box with finger joints: ${effectiveLength}x${effectiveWidth}x${effectiveHeight}mm, ${boxMode} box, ${sameThickness ? `${materialThickness}mm` : 'independent'} thickness, bottom ${bottomThickness}mm, ${effectiveFingerCount} fingers per edge${pinWidthMm > 0 ? ` from ${pinWidthMm}mm pin width` : ''}, lid ${lidMode}, groove ${grooveDepthMm}mm`,
   }
 }
 

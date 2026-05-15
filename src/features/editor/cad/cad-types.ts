@@ -172,6 +172,8 @@ export type StitchHoleRenderShape = 'round' | 'slit' | 'diamond' | 'french' | 'f
 export type StitchHoleDefaults = {
   holeType: StitchHoleType
   renderShape?: StitchHoleRenderShape
+  pitchMm?: number
+  numBlades?: number
   diameterMm?: number
   widthMm?: number
   heightMm?: number

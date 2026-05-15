@@ -104,8 +104,58 @@ function generateCenteredStitchHolesAlongGuidePath(
   })
 }
 
+function projectExistingStitchHolesAlongGuidePath(
+  sourceHoles: StitchHole[],
+  sourceShapes: Shape[],
+  points: Point[],
+  guideLines: Extract<Shape, { type: 'line' }>[],
+) {
+  if (sourceHoles.length === 0 || sourceShapes.length === 0 || points.length < 2 || guideLines.length === 0) {
+    return [] as StitchHole[]
+  }
+
+  const sourceBounds = computeBoundsFromShapes(sourceShapes)
+  if (!sourceBounds) {
+    return [] as StitchHole[]
+  }
+  const sourceSpan = Math.max(sourceBounds.maxX - sourceBounds.minX, sourceBounds.maxY - sourceBounds.minY, 1e-9)
+  const useX = sourceBounds.maxX - sourceBounds.minX >= sourceBounds.maxY - sourceBounds.minY
+  const guideLengths = cumulativePolylineLengths(points)
+  const guideTotalLength = guideLengths[guideLengths.length - 1] ?? 0
+  if (guideTotalLength < 1e-6) {
+    return [] as StitchHole[]
+  }
+
+  return sourceHoles
+    .slice()
+    .sort((left, right) => left.sequence - right.sequence || left.id.localeCompare(right.id))
+    .flatMap((sourceHole, sequence) => {
+      const sourceAlong = useX
+        ? (sourceHole.point.x - sourceBounds.minX) / sourceSpan
+        : (sourceHole.point.y - sourceBounds.minY) / sourceSpan
+      const projected = projectPointAtDistance(points, guideLengths, guideTotalLength * Math.max(0, Math.min(1, sourceAlong)))
+      if (!projected) {
+        return []
+      }
+      const guideLine = guideLines[Math.min(projected.segmentIndex, guideLines.length - 1)]
+      if (!guideLine) {
+        return []
+      }
+      return [{
+        ...sourceHole,
+        id: uid(),
+        shapeId: guideLine.id,
+        point: projected.point,
+        angleDeg: projected.angleDeg,
+        sequence,
+        endHole: false,
+      } satisfies StitchHole]
+    })
+}
+
 export function createBoxStitchFromSelection(
   shapes: Shape[],
+  stitchHoles: StitchHole[],
   selectedShapeIds: Set<string>,
   settings: BoxStitchHelperSettings,
   stitchLineTypeId: string,
@@ -157,11 +207,16 @@ export function createBoxStitchFromSelection(
   }
 
   const guideLines = extracted.guideLines
-  const stitchHoles = normalizeStitchHoleSequences(
-    extracted.guideGroups.flatMap((group) =>
-      generateCenteredStitchHolesAlongGuidePath(group.points, group.guideLines, stitchPitchMm, stitchHoleDefaults),
-    ),
+  const selectedSourceHoles = stitchHoles.filter((hole) => selectedShapeIds.has(hole.shapeId))
+  const projectedHoles = selectedSourceHoles.length > 0
+    ? extracted.guideGroups.flatMap((group) =>
+        projectExistingStitchHolesAlongGuidePath(selectedSourceHoles, helperSourceShapes, group.points, group.guideLines),
+      )
+    : []
+  const generatedHoles = extracted.guideGroups.flatMap((group) =>
+    generateCenteredStitchHolesAlongGuidePath(group.points, group.guideLines, stitchPitchMm, stitchHoleDefaults),
   )
+  const createdStitchHoles = normalizeStitchHoleSequences(projectedHoles.length > 0 ? projectedHoles : generatedHoles)
 
   return {
     ok: true as const,
@@ -172,6 +227,6 @@ export function createBoxStitchFromSelection(
           ? `Box stitch extracted from ${extracted.extractedEdgeCount} candidate edge${extracted.extractedEdgeCount === 1 ? '' : 's'}${extracted.usedFallback ? ' with fallback guides' : ''}`
           : 'Box stitch generated from selection bounds',
     guideLines,
-    stitchHoles,
+    stitchHoles: createdStitchHoles,
   }
 }

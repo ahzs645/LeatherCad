@@ -73,6 +73,7 @@ export function WizardModal({
   const [cardHeight, setCardHeight] = useState(54)
   const [sourcePassWidth, setSourcePassWidth] = useState(100)
   const [sourcePassHeight, setSourcePassHeight] = useState(70)
+  const [passCompactSourceMode, setPassCompactSourceMode] = useState(false)
   const [passStitchPitch, setPassStitchPitch] = useState(4)
   const [passStitchSpace, setPassStitchSpace] = useState(5)
   const [margin, setMargin] = useState(5)
@@ -86,6 +87,8 @@ export function WizardModal({
   const [jointHeight, setJointHeight] = useState(80)
   const [materialThickness, setMaterialThickness] = useState(3)
   const [fingerCount, setFingerCount] = useState(5)
+  const [boxMode, setBoxMode] = useState<'closed' | 'open'>('closed')
+  const [pinWidthMm, setPinWidthMm] = useState(12)
   const [lidMode, setLidMode] = useState<'none' | 'drop-in' | 'sliding'>('none')
   const [grooveDepth, setGrooveDepth] = useState(1)
   const [grooveOffset, setGrooveOffset] = useState(4)
@@ -173,6 +176,7 @@ export function WizardModal({
         onGenerate('pass-case', {
           cardWidth,
           cardHeight,
+          compactSourceMode: passCompactSourceMode,
           sourceWidth: sourcePassWidth,
           sourceHeight: sourcePassHeight,
           stitchPitchMm: passStitchPitch,
@@ -191,7 +195,9 @@ export function WizardModal({
           width: jointWidth,
           height: jointHeight,
           materialThickness,
+          boxMode,
           lidMode,
+          pinWidthMm,
           grooveDepthMm: grooveDepth,
           grooveOffsetMm: grooveOffset,
           kerfCompensationMm: kerfCompensation,
@@ -279,6 +285,14 @@ export function WizardModal({
 
         {activeType === 'watch-strap' && (
           <>
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() => setStrapTotalLength(Math.max(50, wristCircumference - watchLength - buckleLength + holeStartOffset))}
+              >
+                Calc Fit
+              </button>
+            </div>
             <label className="field-row">
               <span>Total Length (mm)</span>
               <input type="number" min={50} step={1} value={strapTotalLength} onChange={(e) => setStrapTotalLength(Number(e.target.value))} />
@@ -372,6 +386,10 @@ export function WizardModal({
               <span>Stitch Space (mm)</span>
               <input type="number" min={0} step={0.5} value={passStitchSpace} onChange={(e) => setPassStitchSpace(Number(e.target.value))} />
             </label>
+            <label className="layer-toggle-item">
+              <input type="checkbox" checked={passCompactSourceMode} onChange={(e) => setPassCompactSourceMode(e.target.checked)} />
+              <span>Compact source width/height mode</span>
+            </label>
             <label className="field-row">
               <span>Margin (mm)</span>
               <input type="number" min={0} max={20} step={0.5} value={margin} onChange={(e) => setMargin(Number(e.target.value))} />
@@ -408,6 +426,17 @@ export function WizardModal({
             <label className="field-row">
               <span>Material Thickness (mm)</span>
               <input type="number" min={0.5} max={10} step={0.5} value={materialThickness} onChange={(e) => setMaterialThickness(Number(e.target.value))} />
+            </label>
+            <label className="field-row">
+              <span>Box Mode</span>
+              <select value={boxMode} onChange={(e) => setBoxMode(e.target.value as 'closed' | 'open')}>
+                <option value="closed">Closed</option>
+                <option value="open">Open</option>
+              </select>
+            </label>
+            <label className="field-row">
+              <span>Pin Width (mm)</span>
+              <input type="number" min={1} step={0.5} value={pinWidthMm} onChange={(e) => setPinWidthMm(Number(e.target.value))} />
             </label>
             <label className="field-row">
               <span>Finger Count</span>
@@ -502,6 +531,14 @@ export function WizardModal({
               <span>Random Seed</span>
               <input type="number" min={1} step={1} value={jigsawRandomSeed} onChange={(e) => setJigsawRandomSeed(Number(e.target.value))} />
             </label>
+            <div className="button-row">
+              <button
+                type="button"
+                onClick={() => setJigsawRandomSeed(Math.max(1, Math.floor(Math.random() * 2147483647)))}
+              >
+                Random
+              </button>
+            </div>
             <label className="layer-toggle-item">
               <input type="checkbox" checked={jigsawRandomizeTabs} onChange={(e) => setJigsawRandomizeTabs(e.target.checked)} />
               <span>Randomize tabs</span>

@@ -142,6 +142,39 @@ describe('pricking-iron-ops', () => {
     expect(loaded.presets).toEqual([expect.objectContaining({ id: 'source-preset', numBlades: 4, inverted: true })])
   })
 
+  it('loads PascalCase source-shaped native storage payloads through startup parsing', () => {
+    localStorage.setItem(
+      SOURCE_APP_PRICKING_IRON_GROUPS_KEY,
+      JSON.stringify({
+        [SOURCE_APP_PRICKING_IRON_COLLECTION_KEY]: {
+          groups: [{
+            GUID: 'startup-group',
+            Name: 'Startup Source Group',
+            Items: [{
+              GUID: 'startup-iron',
+              Name: 'Startup Iron',
+              Type: 'Diamond',
+              Pitch: '3.85',
+              BladeCount: '4',
+              Width: '1.1',
+              Height: '3.4',
+            }],
+          }],
+        },
+      }),
+    )
+
+    const loaded = loadCustomPrickingIronCatalog(STORAGE_KEY)
+
+    expect(loaded.groups[0]).toMatchObject({ id: 'startup-group', name: 'Startup Source Group' })
+    expect(loaded.presets[0]).toMatchObject({
+      id: 'startup-iron',
+      groupId: 'startup-group',
+      pitchMm: 3.85,
+      numBlades: 4,
+    })
+  })
+
   it('round-trips browser-safe prickingirons.lccp JSON', () => {
     const group = createCustomPrickingIronGroup('Library', 0)
     const preset = createCustomPrickingIron({

@@ -12,6 +12,7 @@ type CanvasStitchLayerProps = {
   stitchSimulatorSettings: StitchSimulatorSettings | null
   renderableTerminalHole: StitchHole | null
   renderablePersistedTerminalHoles: StitchHole[]
+  hideRawStitchHoles?: boolean
   viewportScale: number
 }
 
@@ -24,6 +25,7 @@ export function CanvasStitchLayer({
   stitchSimulatorSettings,
   renderableTerminalHole,
   renderablePersistedTerminalHoles,
+  hideRawStitchHoles = false,
   viewportScale,
 }: CanvasStitchLayerProps) {
   return (
@@ -133,7 +135,7 @@ export function CanvasStitchLayer({
           />
         )}
 
-      {renderableStitchHoles.map((stitchHole) => {
+      {!hideRawStitchHoles && renderableStitchHoles.map((stitchHole) => {
         const isSelected = stitchHole.id === selectedStitchHoleId
         const primitive = createStitchHolePrimitive(stitchHole)
         const r = primitive.kind === 'circle' ? primitive.radiusMm : stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.6

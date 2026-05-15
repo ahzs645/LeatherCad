@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { LineType, Shape, StitchHoleDefaults } from '../cad/cad-types'
 import {
   clearTerminalStitchHole,
+  createPrickingIronStitchHoles,
   findNearestStitchAnchor,
   generateFixedPitchStitchHoles,
   getTerminalStitchHoleIdForShape,
@@ -46,6 +47,20 @@ const stitchDefaults: StitchHoleDefaults = {
 }
 
 describe('findNearestStitchAnchor', () => {
+  it('places a multi-blade pricking iron group from one manual anchor', () => {
+    const shape = lineShape('line-1', 'stitch', 0)
+    const holes = createPrickingIronStitchHoles(
+      shape,
+      { shapeId: shape.id, point: { x: 2, y: 0 }, angleDeg: 0 },
+      { holeType: 'slit', pitchMm: 4, numBlades: 3, widthMm: 0, heightMm: 3 },
+      5,
+    )
+
+    expect(holes.map((hole) => hole.sequence)).toEqual([5, 6, 7])
+    expect(holes.map((hole) => hole.point.x)).toEqual([2, 6, 10])
+    expect(holes.every((hole) => hole.widthMm === 0)).toBe(true)
+  })
+
   it('preserves stitch chain ids from saved documents', () => {
     const parsed = parseStitchHole({
       id: 'hole-1',

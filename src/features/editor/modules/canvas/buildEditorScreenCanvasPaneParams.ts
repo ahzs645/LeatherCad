@@ -45,6 +45,7 @@ export function buildEditorScreenCanvasPaneParams({
     sketchWorkspaceMode,
     legendMode,
     setLegendMode,
+    leatherSimEnabled,
   } = uiState
   const { selectedStitchHoleId, selectedHardwareMarkerId } = selectionState
   const { showPrintAreas } = panelState
@@ -174,6 +175,7 @@ export function buildEditorScreenCanvasPaneParams({
     onStitchHolePointerDown: handleStitchHolePointerDown,
     stitchSimulatorResult,
     stitchSimulatorSettings,
+    hideRawStitchHoles: leatherSimEnabled && stitchSimulatorSettings.showSimulatorPattern,
     visibleHardwareMarkers: workspaceHardwareMarkers,
     selectedHardwareMarkerId,
     onHardwarePointerDown: handleHardwarePointerDown,

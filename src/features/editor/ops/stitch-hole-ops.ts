@@ -271,6 +271,52 @@ export function createStitchHole(anchor: StitchAnchor, defaults: StitchHoleDefau
   return applyStitchHoleDefaults(anchor, defaults)
 }
 
+export function createPrickingIronStitchHoles(
+  shape: Shape,
+  anchor: StitchAnchor,
+  defaults: StitchHoleDefaults,
+  sequenceStart = 0,
+): StitchHole[] {
+  const bladeCount = Math.max(1, Math.round(defaults.numBlades ?? 1))
+  const pitchMm = Math.max(0.2, defaults.pitchMm ?? 0)
+  if (bladeCount <= 1 || pitchMm <= 0) {
+    return [{ ...createStitchHole(anchor, defaults), sequence: sequenceStart }]
+  }
+
+  const polyline = shapePolyline(shape)
+  if (polyline.length < 2) {
+    return [{ ...createStitchHole(anchor, defaults), sequence: sequenceStart }]
+  }
+
+  const lengths = cumulativeLengths(polyline)
+  const totalLength = lengths[lengths.length - 1] ?? 0
+  const anchorDistance = projectDistanceOnShape(shape, anchor.point)
+  const holes: StitchHole[] = []
+
+  for (let index = 0; index < bladeCount; index += 1) {
+    const projected = pointAtDistance(polyline, lengths, Math.min(totalLength, anchorDistance + pitchMm * index))
+    if (!projected) {
+      continue
+    }
+    holes.push({
+      ...applyStitchHoleDefaults(
+        {
+          shapeId: shape.id,
+          point: projected.point,
+          angleDeg: projected.angleDeg,
+        },
+        defaults,
+      ),
+      sequence: sequenceStart + index,
+    })
+    if (anchorDistance + pitchMm * index >= totalLength - 1e-6) {
+      break
+    }
+  }
+
+  return holes.length > 0 ? holes : [{ ...createStitchHole(anchor, defaults), sequence: sequenceStart }]
+}
+
 function lineLength(start: Point, end: Point) {
   return Math.hypot(end.x - start.x, end.y - start.y)
 }

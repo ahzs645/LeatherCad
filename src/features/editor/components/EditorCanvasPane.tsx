@@ -113,6 +113,7 @@ export type EditorCanvasPaneProps = {
   simulatedStitchSegments: import('../ops/stitch-simulator-ops').ThreadSegment[]
   stitchSimulatorSettings: import('../ops/stitch-simulator-ops').StitchSimulatorSettings | null
   stitchSimulatorTerminalHoleId: string | null
+  hideRawStitchHoles?: boolean
   visibleHardwareMarkers: HardwareMarker[]
   selectedHardwareMarkerId: string | null
   onHardwarePointerDown: (event: PointerEvent<SVGGElement>, markerId: string) => void
@@ -188,6 +189,7 @@ export function EditorCanvasPane({
   simulatedStitchSegments,
   stitchSimulatorSettings,
   stitchSimulatorTerminalHoleId,
+  hideRawStitchHoles,
   visibleHardwareMarkers,
   selectedHardwareMarkerId,
   onHardwarePointerDown,
@@ -490,6 +492,7 @@ export function EditorCanvasPane({
             stitchSimulatorSettings={stitchSimulatorSettings}
             renderableTerminalHole={renderableTerminalHole}
             renderablePersistedTerminalHoles={renderablePersistedTerminalHoles}
+            hideRawStitchHoles={hideRawStitchHoles}
             viewportScale={viewport.scale}
           />
 

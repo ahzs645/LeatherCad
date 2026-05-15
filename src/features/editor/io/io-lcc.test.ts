@@ -10,6 +10,11 @@ type ExportedLccPayload = {
   layers: Array<{
     nam: string
   }>
+  shapes: Array<{
+    type: string
+    PrevStId?: string
+    NextStId?: string
+  }>
 }
 
 function parseExportedLcc(output: string): ExportedLccPayload {
@@ -985,6 +990,26 @@ describe('exportLccDocument', () => {
     expect(reimported.doc.printAreas![0].offsetX).toBe(10)
     expect(reimported.doc.printAreas![0].offsetY).toBe(20)
     expect(reimported.doc.printAreas![0].scalePercent).toBe(100)
+  })
+
+  it('exports previous and next stitch ids per independent stitch chain', () => {
+    const doc = makeMinimalDoc()
+    doc.stitchHoles = [
+      { id: 'a1', shapeId: 'shape-a', point: { x: 0, y: 0 }, angleDeg: 0, holeType: 'round', sequence: 0 },
+      { id: 'b1', shapeId: 'shape-b', point: { x: 0, y: 10 }, angleDeg: 0, holeType: 'round', sequence: 0 },
+      { id: 'a2', shapeId: 'shape-a', point: { x: 10, y: 0 }, angleDeg: 0, holeType: 'round', sequence: 1 },
+      { id: 'b2', shapeId: 'shape-b', point: { x: 10, y: 10 }, angleDeg: 0, holeType: 'round', sequence: 1 },
+    ]
+
+    const exported = parseExportedLcc(exportLccDocument(doc))
+    const stitchShapes = exported.shapes.filter((shape) => shape.type === 'S_HOLE')
+
+    expect(stitchShapes.map((shape) => [shape.PrevStId, shape.NextStId])).toEqual([
+      ['-1', '1001'],
+      ['1000', '-1'],
+      ['-1', '1003'],
+      ['1002', '-1'],
+    ])
   })
 
   it('exports layers matching LCC format', () => {

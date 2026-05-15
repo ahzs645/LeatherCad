@@ -23,6 +23,7 @@ export type WatchStrapParams = {
 }
 
 export type PassCaseParams = {
+  compactSourceMode?: boolean
   cardWidth: number
   cardHeight: number
   sourceWidth?: number
@@ -42,7 +43,9 @@ export type BoxJointParams = {
   width: number
   height: number
   materialThickness: number
+  boxMode?: 'closed' | 'open'
   lidMode?: 'none' | 'drop-in' | 'sliding'
+  pinWidthMm?: number
   grooveDepthMm?: number
   grooveOffsetMm?: number
   kerfCompensationMm?: number
