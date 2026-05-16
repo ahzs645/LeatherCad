@@ -148,11 +148,14 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     textRadiusMm: state.textRadiusMm,
     textSweepDeg: state.textSweepDeg,
   }))
-  const { hardwarePreset, customHardwareDiameterMm, customHardwareSpacingMm } = useEditorPanelSelector((state) => ({
-    hardwarePreset: state.hardwarePreset,
-    customHardwareDiameterMm: state.customHardwareDiameterMm,
-    customHardwareSpacingMm: state.customHardwareSpacingMm,
-  }))
+  const { hardwarePreset, customHardwareDiameterMm, customHardwareSpacingMm, dimensionDefaults } = useEditorPanelSelector(
+    (state) => ({
+      hardwarePreset: state.hardwarePreset,
+      customHardwareDiameterMm: state.customHardwareDiameterMm,
+      customHardwareSpacingMm: state.customHardwareSpacingMm,
+      dimensionDefaults: state.dimensionDefaults,
+    }),
+  )
   const { setStatus } = useEditorUIActions()
   const { setDraftPoints, setCursorPoint, setSnapIndicator, clearDraft } = useEditorToolActions()
 
@@ -262,6 +265,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       stitchHoles,
       pieceNotches,
       seamConnections,
+      dimensionDefaults,
       setDraftPoints,
       clearDraft,
       setStatus,

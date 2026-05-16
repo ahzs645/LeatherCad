@@ -59,6 +59,7 @@ export type UseEditorModalStackPropsParams = {
   handleLoadPreset: () => void
   handleLoadTemplateAsDocument: () => void
   handleInsertTemplateIntoDocument: () => void
+  handleSeparateTemplateIntoShapes: () => void
   handleDeleteTemplateFromRepository: (entryId: string) => void
   handleMoveTemplateEntry: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   handleSortTemplates: (sortKey: TemplateRepositorySortKey) => void
@@ -165,6 +166,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleLoadPreset,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
+    handleSeparateTemplateIntoShapes,
     handleDeleteTemplateFromRepository,
     handleMoveTemplateEntry,
     handleSortTemplates,
@@ -423,10 +425,12 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setShowAnnotations,
     setActiveTracingOverlayId,
   } = useEditorDocumentActions()
-  const { selectedPresetId } = useEditorUISelector((state) => ({
+  const { selectedPresetId, exportIncludeText, exportIncludeTemplateMetadata } = useEditorUISelector((state) => ({
     selectedPresetId: state.selectedPresetId,
+    exportIncludeText: state.exportIncludeText,
+    exportIncludeTemplateMetadata: state.exportIncludeTemplateMetadata,
   }))
-  const { setSelectedPresetId, setStatus } = useEditorUIActions()
+  const { setSelectedPresetId, setStatus, setExportIncludeText, setExportIncludeTemplateMetadata } = useEditorUIActions()
 
   const activeLineType = useMemo(
     () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
@@ -515,6 +519,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       exportOnlySelectedShapes,
       exportOnlyVisibleLineTypes,
       exportForceSolidStrokes,
+      exportIncludeText,
+      exportIncludeTemplateMetadata,
       exportStitchHoleRenderMode,
       exportStitchDotRadiusMm,
       exportRoleFilters,
@@ -523,6 +529,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onExportOnlySelectedShapesChange: setExportOnlySelectedShapes,
       onExportOnlyVisibleLineTypesChange: setExportOnlyVisibleLineTypes,
       onExportForceSolidStrokesChange: setExportForceSolidStrokes,
+      onExportIncludeTextChange: setExportIncludeText,
+      onExportIncludeTemplateMetadataChange: setExportIncludeTemplateMetadata,
       onExportStitchHoleRenderModeChange: setExportStitchHoleRenderMode,
       onExportStitchDotRadiusMmChange: setExportStitchDotRadiusMm,
       onExportRoleFilterChange: (role, enabled) =>
@@ -562,6 +570,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onLoadPreset: handleLoadPreset,
       onLoadAsDocument: handleLoadTemplateAsDocument,
       onInsertIntoDocument: handleInsertTemplateIntoDocument,
+      onSeparateIntoShapes: handleSeparateTemplateIntoShapes,
       onDeleteTemplate: handleDeleteTemplateFromRepository,
       onMoveTemplate: handleMoveTemplateEntry,
       onSortTemplates: handleSortTemplates,

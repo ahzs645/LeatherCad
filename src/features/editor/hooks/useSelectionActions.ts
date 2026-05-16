@@ -11,6 +11,7 @@ import type {
   PiecePlacementLabel,
   PieceNotch,
   PieceSeamAllowance,
+  Point,
   SeamConnection,
   Shape,
   SketchGroup,
@@ -26,15 +27,14 @@ import {
   parseClipboardPayload,
   pasteClipboardPayload,
   rotatePointAround,
-  rotateSelection,
   scalePointFrom,
-  scaleSelection,
   serializeClipboardPayload,
   transformSelectedStitchHoles,
   translateSelection,
   ungroupSelection,
   type ClipboardPayload,
 } from '../ops/shape-selection-ops'
+import { rotateSelectionAround, scaleSelectionNonUniform } from '../ops/transform-ops'
 import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 
@@ -52,6 +52,7 @@ type UseSelectionActionsParams = {
   seamAllowances: PieceSeamAllowance[]
   pieceNotches: PieceNotch[]
   activeLayerId: string | null
+  customRotationPivot: Point | null
   clipboardPayload: ClipboardPayload | null
   pasteCountRef: MutableRefObject<number>
   setClipboardPayload: Dispatch<SetStateAction<ClipboardPayload | null>>
@@ -95,6 +96,7 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
     seamAllowances,
     pieceNotches,
     activeLayerId,
+    customRotationPivot,
     clipboardPayload,
     pasteCountRef,
     setClipboardPayload,
@@ -535,19 +537,20 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       setStatus('Select one or more shapes to rotate')
       return
     }
-    const center = getSelectionCenter(shapes, selectedShapeIdSet)
+    const center = customRotationPivot ?? getSelectionCenter(shapes, selectedShapeIdSet)
     if (!center) {
       setStatus('Could not compute selection center')
       return
     }
     const radians = (angleDeg * Math.PI) / 180
-    setShapes((previous) => rotateSelection(previous, selectedShapeIdSet, angleDeg))
+    setShapes((previous) => rotateSelectionAround(previous, selectedShapeIdSet, angleDeg, center))
     setStitchHoles((previous) =>
       normalizeStitchHoleSequences(
         transformSelectedStitchHoles(previous, selectedShapeIdSet, (point) => rotatePointAround(point, center, radians)),
       ),
     )
-    setStatus(`Rotated selected shapes by ${angleDeg.toFixed(1)} deg`)
+    const pivotNote = customRotationPivot ? ' (custom pivot)' : ''
+    setStatus(`Rotated selected shapes by ${angleDeg.toFixed(1)} deg${pivotNote}`)
   }
 
   const handleScaleSelection = (factor: number) => {
@@ -555,18 +558,19 @@ export function useSelectionActions(params: UseSelectionActionsParams) {
       setStatus('Select one or more shapes to scale')
       return
     }
-    const center = getSelectionCenter(shapes, selectedShapeIdSet)
+    const center = customRotationPivot ?? getSelectionCenter(shapes, selectedShapeIdSet)
     if (!center) {
       setStatus('Could not compute selection center')
       return
     }
-    setShapes((previous) => scaleSelection(previous, selectedShapeIdSet, factor))
+    setShapes((previous) => scaleSelectionNonUniform(previous, selectedShapeIdSet, factor, factor, center))
     setStitchHoles((previous) =>
       normalizeStitchHoleSequences(
         transformSelectedStitchHoles(previous, selectedShapeIdSet, (point) => scalePointFrom(point, center, factor)),
       ),
     )
-    setStatus(`Scaled selected shapes by ${(factor * 100).toFixed(1)}%`)
+    const pivotNote = customRotationPivot ? ' (custom pivot)' : ''
+    setStatus(`Scaled selected shapes by ${(factor * 100).toFixed(1)}%${pivotNote}`)
   }
 
   return {

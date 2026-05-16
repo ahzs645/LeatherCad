@@ -112,6 +112,14 @@ export type BuildEditorOverlayPropsParams = {
   setLineToolConstraint: Dispatch<SetStateAction<OptionsModalProps['lineToolConstraint']>>
   gridBackgroundMode: OptionsModalProps['gridBackgroundMode']
   setGridBackgroundMode: Dispatch<SetStateAction<OptionsModalProps['gridBackgroundMode']>>
+  dimensionDefaults: OptionsModalProps['dimensionDefaults']
+  setDimensionDefaults: (next: OptionsModalProps['dimensionDefaults']) => void
+  forceFitLastPrick: boolean
+  setForceFitLastPrick: (value: boolean) => void
+  printCalibrationXPercent: number
+  setPrintCalibrationXPercent: (value: number) => void
+  printCalibrationYPercent: number
+  setPrintCalibrationYPercent: (value: number) => void
   showLengthAdjustModal: boolean; setShowLengthAdjustModal: Dispatch<SetStateAction<boolean>>
   shapes: Shape[]; selectedShapeIdSet: Set<string>; setShapes: Dispatch<SetStateAction<Shape[]>>
   showProjectMemoModal: boolean; setShowProjectMemoModal: Dispatch<SetStateAction<boolean>>; projectMemo: string; setProjectMemo: Dispatch<SetStateAction<string>>
@@ -222,6 +230,14 @@ export function buildEditorOverlayProps({
   lineToolConstraint,
   setLineToolConstraint,
   gridBackgroundMode,
+  dimensionDefaults,
+  setDimensionDefaults,
+  forceFitLastPrick,
+  setForceFitLastPrick,
+  printCalibrationXPercent,
+  setPrintCalibrationXPercent,
+  printCalibrationYPercent,
+  setPrintCalibrationYPercent,
   setGridBackgroundMode,
   showLengthAdjustModal,
   setShowLengthAdjustModal,
@@ -597,6 +613,14 @@ export function buildEditorOverlayProps({
             lineToolConstraint: value,
           })
         },
+        dimensionDefaults,
+        onChangeDimensionDefaults: setDimensionDefaults,
+        forceFitLastPrick,
+        onChangeForceFitLastPrick: setForceFitLastPrick,
+        printCalibrationXPercent,
+        printCalibrationYPercent,
+        onChangePrintCalibrationXPercent: setPrintCalibrationXPercent,
+        onChangePrintCalibrationYPercent: setPrintCalibrationYPercent,
       },
       lengthAdjustModalProps: {
         open: showLengthAdjustModal,

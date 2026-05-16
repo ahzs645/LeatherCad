@@ -213,7 +213,13 @@ export function CanvasAnnotationLayer({
             const e = { x: dim.end.x + nx, y: dim.end.y + ny }
             const mx = (s.x + e.x) / 2
             const my = (s.y + e.y) / 2
-            const dimText = dim.text ?? formatDisplayDistance(len, displayUnit, displayUnit === 'in' ? 3 : 1)
+            const precision =
+              typeof dim.precision === 'number' && Number.isFinite(dim.precision) && dim.precision >= 0
+                ? Math.min(6, Math.floor(dim.precision))
+                : displayUnit === 'in'
+                  ? 3
+                  : 1
+            const dimText = dim.text ?? formatDisplayDistance(len, displayUnit, precision)
             const dimensionTextSizeMm = dim.fontSizeMm ?? DEFAULT_DIMENSION_LABEL_FONT_SIZE_MM
             const measureLen = Math.hypot(e.x - s.x, e.y - s.y)
             const labelGapMm = Math.min(
@@ -221,12 +227,25 @@ export function CanvasAnnotationLayer({
               Math.max(dimensionTextSizeMm * 2.4, dimText.length * dimensionTextSizeMm * 0.62 + dimensionTextSizeMm * 1.2),
             )
             const halfGapMm = labelGapMm / 2
-            const canGapMeasureLine = measureLen > labelGapMm + 2
+            const arrowOnly = dim.arrowOnly === true
+            const textInside = dim.textInside !== false
+            const singleLine = dim.singleLine === true
+            const canGapMeasureLine = !singleLine && !arrowOnly && textInside && measureLen > labelGapMm + 2
             const firstMeasureEnd = canGapMeasureLine ? pointAlong(s, e, measureLen / 2 - halfGapMm) : null
             const secondMeasureStart = canGapMeasureLine ? pointAlong(s, e, measureLen / 2 + halfGapMm) : null
             const hasAuthoredLabelPlacement = Boolean(dim.labelPoint)
-            const labelPoint = dim.labelPoint ?? { x: mx, y: my }
+            const baseLabelPoint = dim.labelPoint ?? { x: mx, y: my }
+            const outsideOffsetMm = dimensionTextSizeMm * 1.4
+            const labelPoint =
+              !textInside && !hasAuthoredLabelPlacement
+                ? {
+                    x: mx + (-dy / len) * (dim.offsetMm > 0 ? outsideOffsetMm : -outsideOffsetMm),
+                    y: my + (dx / len) * (dim.offsetMm > 0 ? outsideOffsetMm : -outsideOffsetMm),
+                  }
+                : baseLabelPoint
             const labelRotationDeg = dim.labelRotationDeg ?? 0
+            const reverseRotation = dim.textReverse ? 180 : 0
+            const effectiveLabelRotation = labelRotationDeg + reverseRotation
             const centerLabel = !hasAuthoredLabelPlacement || dim.labelPlacement === 'center'
             return (
               <g key={`dimline-${dim.id}`} className="dimension-line-group">
@@ -252,21 +271,23 @@ export function CanvasAnnotationLayer({
                     style={{ markerStart: 'url(#arrow-start)', markerEnd: 'url(#arrow-end)' }}
                   />
                 )}
-                <text
-                  x={labelPoint.x}
-                  y={labelPoint.y}
-                  textAnchor={centerLabel ? 'middle' : undefined}
-                  dominantBaseline={centerLabel ? 'middle' : undefined}
-                  className="dimension-label"
-                  style={dimensionLabelStyle(dimensionTextSizeMm)}
-                  transform={
-                    hasAuthoredLabelPlacement && labelRotationDeg
-                      ? `rotate(${round(labelRotationDeg)} ${round(labelPoint.x)} ${round(labelPoint.y)})`
-                      : undefined
-                  }
-                >
-                  {dimText}
-                </text>
+                {arrowOnly ? null : (
+                  <text
+                    x={labelPoint.x}
+                    y={labelPoint.y}
+                    textAnchor={centerLabel ? 'middle' : undefined}
+                    dominantBaseline={centerLabel ? 'middle' : undefined}
+                    className="dimension-label"
+                    style={dimensionLabelStyle(dimensionTextSizeMm)}
+                    transform={
+                      effectiveLabelRotation
+                        ? `rotate(${round(effectiveLabelRotation)} ${round(labelPoint.x)} ${round(labelPoint.y)})`
+                        : undefined
+                    }
+                  >
+                    {dimText}
+                  </text>
+                )}
               </g>
             )
           })}

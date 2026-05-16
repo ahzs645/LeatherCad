@@ -97,6 +97,8 @@ export function parseStitchHole(value: unknown): StitchHole | null {
     presetName?: unknown
     renderShape?: unknown
     endHole?: unknown
+    sourceStitchIn?: unknown
+    sourceStitchOut?: unknown
   }
 
   if (
@@ -130,7 +132,7 @@ export function parseStitchHole(value: unknown): StitchHole | null {
         ? candidate.diameterMm
         : undefined,
     widthMm:
-      typeof candidate.widthMm === 'number' && Number.isFinite(candidate.widthMm) && candidate.widthMm > 0
+      typeof candidate.widthMm === 'number' && Number.isFinite(candidate.widthMm) && candidate.widthMm >= 0
         ? candidate.widthMm
         : undefined,
     heightMm:
@@ -153,6 +155,20 @@ export function parseStitchHole(value: unknown): StitchHole | null {
         ? candidate.renderShape
         : undefined,
     endHole: candidate.endHole === true,
+    sourceStitchIn:
+      typeof candidate.sourceStitchIn === 'object' &&
+      candidate.sourceStitchIn !== null &&
+      typeof (candidate.sourceStitchIn as { x?: unknown }).x === 'number' &&
+      typeof (candidate.sourceStitchIn as { y?: unknown }).y === 'number'
+        ? { x: (candidate.sourceStitchIn as { x: number }).x, y: (candidate.sourceStitchIn as { y: number }).y }
+        : undefined,
+    sourceStitchOut:
+      typeof candidate.sourceStitchOut === 'object' &&
+      candidate.sourceStitchOut !== null &&
+      typeof (candidate.sourceStitchOut as { x?: unknown }).x === 'number' &&
+      typeof (candidate.sourceStitchOut as { y?: unknown }).y === 'number'
+        ? { x: (candidate.sourceStitchOut as { x: number }).x, y: (candidate.sourceStitchOut as { y: number }).y }
+        : undefined,
   }
 }
 

@@ -66,6 +66,7 @@ export const constructionToolDefinitions = {
       }
 
       const lengthMm = distance(start, point)
+      const defaults = runtime.dimensionDefaults
       runtime.setDimensionLines((previous) => [
         ...previous,
         {
@@ -73,7 +74,13 @@ export const constructionToolDefinitions = {
           start: { x: start.x, y: start.y },
           end: { x: point.x, y: point.y },
           offsetMm: 6,
-          text: `${lengthMm.toFixed(1)}mm`,
+          text: `${lengthMm.toFixed(Math.min(6, Math.max(0, defaults.precision)))}mm`,
+          fontSizeMm: defaults.fontSizeMm,
+          precision: defaults.precision,
+          arrowOnly: defaults.arrowOnly,
+          singleLine: defaults.singleLine,
+          textInside: defaults.textInside,
+          textReverse: defaults.textReverse,
           layerId: runtime.activeLayerId,
           lineTypeId: runtime.activeLineTypeId,
         },

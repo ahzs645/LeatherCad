@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { clamp } from '../cad/cad-geometry'
 import type { TracingOverlay } from '../cad/cad-types'
 
@@ -13,6 +14,13 @@ type TracingModalProps = {
   onSetPdfTracingPage: (overlay: TracingOverlay, pageNumber: number) => void
 }
 
+type DragState = {
+  startClientX: number
+  startClientY: number
+  startOffsetX: number
+  startOffsetY: number
+}
+
 export function TracingModal({
   open,
   onClose,
@@ -24,11 +32,49 @@ export function TracingModal({
   onUpdateTracingOverlay,
   onSetPdfTracingPage,
 }: TracingModalProps) {
+  const dragStateRef = useRef<DragState | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   if (!open) {
     return null
   }
   const pdfPageCount = activeTracingOverlay?.kind === 'pdf' ? (activeTracingOverlay.pdfPageCount ?? 1) : 1
   const pdfPageNumber = activeTracingOverlay?.kind === 'pdf' ? (activeTracingOverlay.pdfPageNumber ?? 1) : 1
+
+  const handlePreviewPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!activeTracingOverlay || activeTracingOverlay.locked) {
+      return
+    }
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragStateRef.current = {
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startOffsetX: activeTracingOverlay.offsetX,
+      startOffsetY: activeTracingOverlay.offsetY,
+    }
+    setIsDragging(true)
+  }
+
+  const handlePreviewPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const dragState = dragStateRef.current
+    if (!dragState || !activeTracingOverlay) {
+      return
+    }
+    const dx = event.clientX - dragState.startClientX
+    const dy = event.clientY - dragState.startClientY
+    onUpdateTracingOverlay(activeTracingOverlay.id, {
+      offsetX: Math.round(dragState.startOffsetX + dx),
+      offsetY: Math.round(dragState.startOffsetY + dy),
+    })
+  }
+
+  const handlePreviewPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    dragStateRef.current = null
+    setIsDragging(false)
+  }
 
   return (
     <div
@@ -71,8 +117,19 @@ export function TracingModal({
         {activeTracingOverlay ? (
           <div className="control-block">
             <div className="tracing-preview-panel">
-              <div className="tracing-preview-media">
-                <img src={activeTracingOverlay.sourceUrl} alt={activeTracingOverlay.name} />
+              <div
+                className="tracing-preview-media"
+                onPointerDown={handlePreviewPointerDown}
+                onPointerMove={handlePreviewPointerMove}
+                onPointerUp={handlePreviewPointerUp}
+                onPointerCancel={handlePreviewPointerUp}
+                style={{
+                  cursor: activeTracingOverlay.locked ? 'not-allowed' : isDragging ? 'grabbing' : 'grab',
+                  touchAction: 'none',
+                }}
+                title={activeTracingOverlay.locked ? 'Tracing is locked' : 'Drag to reposition (updates offset X/Y)'}
+              >
+                <img src={activeTracingOverlay.sourceUrl} alt={activeTracingOverlay.name} draggable={false} />
               </div>
               <div className="tracing-preview-meta">
                 <span>{activeTracingOverlay.kind === 'pdf' ? `PDF page ${pdfPageNumber}/${pdfPageCount}` : 'Image'}</span>
@@ -80,6 +137,7 @@ export function TracingModal({
                   {Math.round(activeTracingOverlay.width)} x {Math.round(activeTracingOverlay.height)} px
                 </span>
                 <span>{activeTracingOverlay.dpi ? `${activeTracingOverlay.dpi} dpi` : 'DPI unset'}</span>
+                <span className="hint">Drag the image to reposition</span>
               </div>
             </div>
             <label className="layer-toggle-item">

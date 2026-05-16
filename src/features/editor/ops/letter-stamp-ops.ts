@@ -56,6 +56,17 @@ function rotatePoint(point: Point, origin: Point, angleDeg: number): Point {
   }
 }
 
+function rotateVector(dx: number, dy: number, angleDeg: number): { dx: number; dy: number } {
+  if (angleDeg === 0) return { dx, dy }
+  const rad = (angleDeg * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  return {
+    dx: round(dx * cos - dy * sin),
+    dy: round(dx * sin + dy * cos),
+  }
+}
+
 export function computeStampPlacements(params: LetterStampParams): StampPlacement[] {
   const { text, stampSizeMm, spacingMm, lineSpacingMm, alignment, baselineAngleDeg, origin } = params
   const lines = text.split('\n')
@@ -118,18 +129,25 @@ export function computeStampPlacements(params: LetterStampParams): StampPlacemen
 export function generateLetterStampPreview(params: LetterStampParams): LetterStampResult {
   const placements = computeStampPlacements(params)
 
+  const half = params.stampSizeMm / 2
+  const angle = params.baselineAngleDeg
+  // Rotate the start/end offset vectors by the same angle applied to placement centers,
+  // so text shapes are oriented along the baseline direction rather than remaining horizontal.
+  const startOff = rotateVector(-half, half, angle)
+  const endOff = rotateVector(half, half, angle)
+
   const textShapes: TextShape[] = placements.map((placement) => ({
     id: uid(),
     type: 'text' as const,
     layerId: params.layerId,
     lineTypeId: params.lineTypeId,
     start: {
-      x: round(placement.center.x - params.stampSizeMm / 2),
-      y: round(placement.center.y + params.stampSizeMm / 2),
+      x: round(placement.center.x + startOff.dx),
+      y: round(placement.center.y + startOff.dy),
     },
     end: {
-      x: round(placement.center.x + params.stampSizeMm / 2),
-      y: round(placement.center.y + params.stampSizeMm / 2),
+      x: round(placement.center.x + endOff.dx),
+      y: round(placement.center.y + endOff.dy),
     },
     text: placement.character,
     fontFamily: params.fontFamily,

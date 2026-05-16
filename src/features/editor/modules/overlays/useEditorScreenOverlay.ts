@@ -32,6 +32,7 @@ type UseEditorScreenOverlayParams = UseEditorScreenShellsParams & {
 export function useEditorScreenOverlay({
   documentState,
   uiState,
+  panelState,
   repositoryState,
   layerState,
   toolState,
@@ -126,6 +127,23 @@ export function useEditorScreenOverlay({
     lineToolConstraint,
     setLineToolConstraint,
   } = uiState
+  const {
+    dimensionDefaults,
+    setDimensionDefaults,
+    forceFitLastPrick,
+    setForceFitLastPrick,
+    printCalibrationXPercent,
+    setPrintCalibrationXPercent,
+    printCalibrationYPercent,
+    setPrintCalibrationYPercent,
+  } = panelState
+  const setForceFitLastPrickAndSync = (value: boolean) => {
+    setForceFitLastPrick(value)
+    toolState.setStitchAutoPitchSettings((previous) => ({
+      ...previous,
+      forceFitLastHole: value,
+    }))
+  }
   const {
     selectedTemplateEntryId,
     selectedCatalogShopId,
@@ -269,6 +287,7 @@ export function useEditorScreenOverlay({
     handleDeleteTemplateFromRepository,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
+    handleSeparateTemplateIntoShapes,
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
     handleImportCatalogFile,
@@ -359,6 +378,7 @@ export function useEditorScreenOverlay({
       handleLoadPreset,
       handleLoadTemplateAsDocument,
       handleInsertTemplateIntoDocument,
+      handleSeparateTemplateIntoShapes,
       handleDeleteTemplateFromRepository,
       handleMoveTemplateEntry,
       handleSortTemplates,
@@ -498,6 +518,14 @@ export function useEditorScreenOverlay({
       setLineToolConstraint,
       gridBackgroundMode,
       setGridBackgroundMode,
+      dimensionDefaults,
+      setDimensionDefaults,
+      forceFitLastPrick,
+      setForceFitLastPrick: setForceFitLastPrickAndSync,
+      printCalibrationXPercent,
+      setPrintCalibrationXPercent,
+      printCalibrationYPercent,
+      setPrintCalibrationYPercent,
       showLengthAdjustModal,
       setShowLengthAdjustModal,
       shapes,

@@ -346,17 +346,18 @@ export function groupHolesByShape(holes: StitchHole[]): Map<string, StitchHole[]
   const groups = new Map<string, StitchHole[]>()
 
   for (const hole of holes) {
-    const group = groups.get(hole.shapeId)
+    const key = hole.chainId ? `chain:${hole.chainId}` : hole.shapeId
+    const group = groups.get(key)
     if (group) {
       group.push(hole)
     } else {
-      groups.set(hole.shapeId, [hole])
+      groups.set(key, [hole])
     }
   }
 
   // Sort each group by sequence
-  for (const [shapeId, group] of groups) {
-    groups.set(shapeId, sortHolesBySequence(group))
+  for (const [key, group] of groups) {
+    groups.set(key, sortHolesBySequence(group))
   }
 
   return groups

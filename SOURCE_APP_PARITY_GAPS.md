@@ -1,163 +1,175 @@
 # Source-App Parity Gaps (Extraction Review)
 
-Date: 2026-02-25
+Last updated: 2026-05-16
 
-This is a gap review between:
-- Extracted source app artifacts in `/home/workspace/workspace/leather-making/extracted-app/...`
-- Current LeatherCad web app in this repo (`leathercraft-rebuild`)
+This document tracks parity between the extracted source app (Leathercraft_CAD_v2.8.3) and the
+current LeatherCad web app. Items marked ✓ are fully implemented.
 
-## Evidence used
-- Extracted action tokens:
-  - `/home/workspace/workspace/leather-making/source_app_actions_normalized.txt`
-  - `/home/workspace/workspace/leather-making/source_app_actions_core.txt`
-- Source app release notes:
-  - `/home/workspace/workspace/leather-making/extracted-app/Leathercraft_CAD_v2.8.3_macOS_ARM/LeathercraftCAD.app/Contents/Resources/StartUp/ReadMe_en.txt`
-- Existing extraction docs:
-  - `/home/workspace/workspace/leather-making/source-app-feature-list.md`
-  - `/home/workspace/workspace/leather-making/source-app-pass2-ticket-plan.md`
+## Implemented (complete)
 
-## Current LeatherCad baseline (already implemented)
-- 2D drafting: pan, line, arc, bezier, fold line.
-- Layer system: add/rename/delete/reorder/hide/lock, stack level, color continuum.
-- JSON save/load.
-- SVG export.
-- 3D preview bridge: fold angle control, texture URLs, layer visibility in 3D.
-- Mobile modes and layout improvements.
+### Core 2D drafting
+- ✓ Pan, line, polyline, arc, bezier, circle, ellipse, rectangle, freehand tools
+- ✓ Layer system: add/rename/delete/reorder/hide/lock, stack level
+- ✓ Dimension lines, fold lines, cut-line shortcut tool
 
-## High-priority missing features
+### Line Type Palette (LP-01 / LP-02)
+- ✓ First-class `lineType` on all shapes (`lineTypeId`)
+- ✓ 5 default roles: `cut`, `stitch`, `fold`, `guide`, `mark`
+- ✓ Line palette UI: toggle visibility, isolate by type, assign selected shapes to type
+- ✓ Export filtering by line-type role and visibility
 
-### 1) Line Type Palette + Stitch Line Types (highest priority)
-Why:
-- User workflows rely on line-type-coded operations and visibility.
-- Strong source evidence for palette and line-type behavior:
-  - `actLinePaletteShowHide`, `actLinePaletteUnselectLineType`, `actLinePaletteSelectAll`
-  - release-note entries for line-type selection/hide/show and export grouping by line type.
+### Stitch Hole Engine (ST-01 / ST-02 / ST-03)
+- ✓ Stitch hole entities with manual placement, snapping to nearest stitch-role path
+- ✓ Auto placement — fixed pitch
+- ✓ Auto placement — variable pitch (`from` → `to`)
+- ✓ Pricking iron presets (round, diamond, french, flat, custom) stored in localStorage
+- ✓ Hole counting and delete-on-selected-path tools
+- ✓ Stitch-hole sequence index persistence and normalisation
+- ✓ Order-fix actions (`Fix From Selected`, `Fix Reverse`)
+- ✓ Stitch chain rebuild from `.lcc` `PrevStId`/`NextStId` linked lists (`chainId` assignment)
+- ✓ `sourceStitchIn` / `sourceStitchOut` preserved through JSON save/load
+- ✓ `widthMm: 0` (zero-width blade) preserved through JSON save/load
 
-Missing in current app:
-- No first-class `lineType` on shapes.
-- No line-type palette UI (color/style/visibility/select-by-type).
-- No stitch-vs-cut semantics backed by line-type metadata (current stitch detection is name/id heuristic).
+### Stitch Simulator
+- ✓ Saddle, running, cross, backstitch modes
+- ✓ Thread colour and thickness controls
+- ✓ Direction arrows, per-parity (even/odd) visibility toggles
+- ✓ Simulator groups by `chainId` when present (imported `.lcc` chains render correctly)
 
-Recommended scope:
-- Add `lineTypes` registry to document model (id, name, color, style, visible, role).
-- Add `shape.lineTypeId` and migrate existing shapes.
-- Add palette UI (toggle visibility, isolate type, assign selected shapes to type).
-- Add role presets: `cut`, `stitch`, `fold`, `guide`, `mark`.
-- Replace heuristic stitch detection with explicit role.
+### Import / Export (EX-01 / EX-02)
+- ✓ SVG import (line/polyline/polygon/rect/circle/ellipse/path)
+- ✓ DXF export (R12/R14), line-type style mapping, Y-flip, selected-only
+- ✓ Dashed/dotted-to-solid export toggle
+- ✓ `.lcc` import/export with full shape, layer, stitch-hole, and backdrop fidelity
+- ✓ Imported S_HOLE marker lines flagged (`stitchHoleMarker`) and skipped in `.lcc` export
+- ✓ PDF tracing import with scale/rotation/opacity controls
+- ✓ Repository ZIP import/export
 
-### 2) Stitch Hole Engine (core leathercraft parity)
-Why:
-- Source app has deep stitching workflows:
-  - hole shapes, manual/auto placement, fixed/variable pitch, count/delete holes, next-hole selection.
-  - action evidence: `actChangeStitchingHoleShape`, `actCountNumOfStitchingHolesOnSelectedPaths`, `actDeleteStitchingHolesOnSelectedPaths`, `actSelectNextStitchingHole`.
+### Undo / Redo / Clipboard (LC-MVP-006)
+- ✓ Document-level undo/redo (120-item limit), keyboard shortcuts
+- ✓ Copy/cut/paste/duplicate/delete with stitch-hole linkage preservation
+- ✓ Selection ordering (step forward/back, to front/back)
 
-Missing in current app:
-- No stitch-hole entities.
-- No pricking iron presets.
-- No auto placement or pitch controls.
+### Template Repository (LC-MVP-010)
+- ✓ Local catalog: save/load/delete templates, insert into document
+- ✓ Repository JSON import/export; ID remapping on insert
 
-Recommended scope:
-- Introduce `stitchHoles` model + render layer above geometry.
-- Implement manual hole placement on stitch-type paths.
-- Implement auto placement (fixed pitch first, variable pitch second).
-- Add hole counting and delete-on-selected-path tools.
+### Tracing Overlays (LC-P2-012)
+- ✓ PNG/JPEG/PDF import with overlay controls (visibility, lock, opacity, scale, rotation, offset)
 
-### 3) Stitch Simulator Depth
-Why:
-- Source app includes thread color, direction hints, and stitch-order correction.
+### Print Workflow (LC-P2-014)
+- ✓ Tile/grid controls, overlap, margins, paper size, scale
+- ✓ Toggles: selected-only, ruler inside, print in colour, stitch holes as dots
 
-Missing in current app:
-- 3D panel is material/fold-focused, not stitch-path simulation.
-- No stitch-order model or simulator controls.
+### Generators / Secret Tools
+- ✓ Watch strap — all parameters including hardware measurements and tip shape
+- ✓ Pass case — stitch pitch, stitch space, compact source mode, flap, pockets
+- ✓ Box joint — all lid modes (`none` / `drop-in` / `sliding`), independent thickness, kerf, groove
+  - `drop-in` lid is now geometrically inset by wall thickness (distinct from `sliding`)
+  - `grooveDepthMm` gates groove lines on `sliding` lid
+- ✓ Jigsaw — deterministic seeded randomisation, flat edges, flattened path
+- ✓ Dice cup — frustum unroll, thickness compensation, stitch offsets
+- ✓ Cap pattern — `seamMM` now applied to panel and brim geometry (not just description)
+- ✓ Letter stamp — `baselineAngleDeg` now rotates text shape endpoints as well as placement centres
 
-Recommended scope:
-- Add thread color and thickness controls.
-- Add sequence arrows/indices on stitch holes.
-- Add “fix order from clicked hole” operation.
+### Pattern Pieces & Seam Allowance
+- ✓ Pattern piece definitions, seam connections, piece notches
+- ✓ Per-edge seam allowance, grain lines, piece labels
 
-### 4) Import/Export parity for production workflows
-Why:
-- Source app emphasizes practical interoperability and cutting-machine compatibility.
+### 3D Preview & Fold Simulation
+- ✓ Fold angle, mountain/valley direction, material properties
+- ✓ XPBD constraint-based relaxation, physics seam stress distribution
+- ✓ Exploded view, camera modes, stress overlay, edge labels
 
-Missing in current app:
-- No SVG import.
-- No DXF export (R12/R14 compatibility options).
-- No “dashed/dotted to solid on export” option.
-- No export filtering by line type visibility.
+### Miscellaneous
+- ✓ Mandala radial helper, golden ratio / silver ratio guides
+- ✓ Backdrop/reference images with transform controls
+- ✓ Hardware markers (snap, rivet, buckle, custom)
+- ✓ AI builder integration
+- ✓ Nesting / layout
+- ✓ Parametric dimensions / constraint solver
 
-Recommended scope:
-- SVG import with explode vs grouped mode.
-- DXF export pipeline.
-- Export option matrix driven by line-type roles/visibility.
+---
 
-## Medium-priority missing features
-- Tracing overlays (PNG/JPEG/PDF import, transform, show/hide).
-- Template repository (register reusable parts, place, separate-to-shapes).
-- Undo/redo + clipboard workflow.
-- Dimension lines + XY ruler/scale toggles.
-- Trim/extend and shape-size numeric editing.
+## Remaining gaps (lower priority)
 
-## Low-priority / later parity
-- Mandala feature family.
-- Printing pipeline parity (tiling/calibration/inside-ruler options).
-- Secret/bonus tools (out of MVP scope).
+### Fixture / test coverage
+- `backImage.tiff` SHA validation is tied to the local extracted app path — no checked-in hash.
+- No checked-in `prickingirons.lccp` native fixture (only the system-preset fallback is tested).
+- Generator tests include geometry invariants for cap seam (incl. apex), box lid (drop-in vs
+  sliding), box joint groove slots, letter stamp rotation, and watch strap holes.
+  Additional per-generator coordinate invariants can be added over time.
+- AllLCC test now skips gracefully when corpus directory is absent (CI-safe) and asserts
+  S_HOLE count preservation through export round-trip instead of total shape count (which
+  was fragile due to DOT→4×ARC expansion).
 
-## Recommended next implementation order
-1. `LP-01` Line type data model + migration (`shape.lineTypeId`, doc `lineTypes`).
-2. `LP-02` Line palette UI (assign/select/show-hide/isolate by type).
-3. `ST-01` Stitch hole entities + manual placement on stitch-type paths.
-4. `ST-02` Auto placement (fixed pitch), then variable pitch.
-5. `EX-01` SVG import and DXF export with line-type-aware options.
+### Export option depth (EX-03) — ✓ closed
+- `exportIncludeText` and `exportIncludeTemplateMetadata` are now surfaced in
+  `ExportOptionsModal` with checkboxes ("Include text shapes", "Include template / painted
+  parts"). Previously they were only reachable through the global OptionsModal (settings).
 
-## Concrete acceptance criteria for stitch line types
-- A shape can be assigned to a line type in one click.
-- At least 5 default line-type roles exist: cut/stitch/fold/guide/mark.
-- Hiding a line type immediately hides all shapes using that type.
-- Export can exclude hidden line types.
-- Stitch tools operate only on line types marked as stitch role.
+### PDF tracing depth (LC-P2-012 pass 2)
+- True PDF page raster preview with interactive canvas drag handles is not yet implemented.
+  Current implementation uses numeric offset inputs only.
 
-## Progress update (2026-02-27)
-- `ST-01` baseline started and integrated:
-  - Added `stitchHoles` document model and JSON persistence.
-  - Added `Stitch Hole` drawing tool that snaps placement to nearest stitch-role path.
-  - Added stitch hole rendering overlay in 2D (`round` and `slit` hole types).
-  - Added stitch-hole controls for count/delete-on-selected and clear-all.
-  - Added modular helpers in `src/stitch-hole-ops.ts` and modular UI in `src/components/StitchHolePanel.tsx`.
-- `ST-02` baseline integrated:
-  - Added fixed-pitch auto placement for selected stitch paths.
-  - Added stitch-hole sequence index persistence and normalization.
-  - Added path-based resequence and reverse-order actions.
-  - Added optional sequence labels in 2D view.
-- Stitch visualization expansion:
-  - Added 3D stitch-hole points and thread-path rendering in the Three.js bridge.
-- `EX-01` baseline integrated:
-  - Added SVG import (line/polyline/polygon/rect/circle/ellipse/path sampled to line segments).
-  - Added DXF export (`AC1009`/R12-style `LINE` entities from visible shapes).
-- `ST-03` stitch-order tooling integrated:
-  - Added variable-pitch auto placement (`from` -> `to` pitch) on selected stitch-role paths.
-  - Added stitch-hole selection in Move mode + `Select Next` cycle action.
-  - Added order-fix actions from selected hole (`Fix From Selected`, `Fix Reverse`) to align with `actFixStitchingOrder*`.
-  - Added selected-hole highlight in 2D for explicit order-start targeting.
-- `EX-02` export option parity integrated:
-  - Added line-type-aware export filtering by role (`cut/stitch/fold/guide/mark`) and visibility.
-  - Added dashed/dotted-to-solid export toggle.
-  - Added DXF option surface: `Flip Y`, `R12/R14` version selector.
-  - Added DXF linetype table output (`CONTINUOUS`, `DASHED`, `DOTTED`) with per-shape line-type style mapping.
-- `LC-MVP-006` undo/redo + clipboard baseline integrated:
-  - Added document-level undo/redo history tracking with keyboard shortcuts (`Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, `Cmd/Ctrl+Y`).
-  - Added shape clipboard flow: copy/cut/paste/duplicate/delete with stitch-hole linkage preservation.
-  - Added selection ordering actions (step forward/back, to front/back) to match source selection/order family.
-- `LC-MVP-010` template repository baseline integrated:
-  - Added local repository catalog (save/load/delete templates, insert template into current document).
-  - Added repository JSON import/export for portability.
-  - Insert flow now remaps layer/line-type IDs and preserves stitch-hole references.
-- `LC-P2-012` tracing overlay baseline integrated:
-  - Added tracing import for image + PDF files with overlay controls (visibility, lock, opacity, scale, rotation, offset).
-  - Added 2D overlay rendering as reference backdrop and PDF trace placeholder coverage box.
-- `LC-P2-014` print workflow baseline integrated:
-  - Added print preview modal with tile/grid controls (`tileX`, `tileY`, overlap, margins, paper size, scale).
-  - Added print option toggles (`selected only`, `ruler inside`, `print in color`, `stitch holes as dots`) and page-plan summary.
-  - Added show/hide print areas overlay in the 2D canvas.
-- Next implementation target:
-  - `EX-03` SVG/DXF option-depth parity: export selected-only, template/text toggles, and dot-radius/options alignment to recovered `TfrmSVGExportOptions` controls.
-  - `LC-P2-012` tracing depth pass: true PDF page raster preview + interactive drag handles.
+### Box joint assembly geometry — ✓ closed
+- Side panels now include bottom-panel groove slots (pairs of parallel guide lines at
+  `grooveOffsetMm` from the bottom-adjacent edge, spaced by `bottomThicknessMm`) when
+  `grooveDepthMm > 0`. Previously grooves only appeared on the sliding lid.
+
+### Cap pattern — ✓ closed
+- Apex seam is now modelled: the crown panel apex is raised by `seamMM` (moved to `y = -s`)
+  so all four edges of each panel receive seam allowance. Previously only left/right/bottom
+  edges were expanded.
+
+## 2026-05-16 closures
+
+### Quick rotate / scale (Edit ribbon) — ✓ closed
+- `Rotate ±1` / `Rotate ±5` and `Scale ±1%` / `Scale ±5%` buttons live in the Edit ribbon
+  and honour the `customRotationPivot` when one is set (matches `actRotateCW1Deg`,
+  `actScaleUp1`, etc.).
+
+### Set rotation pivot / snap anchor — ✓ closed
+- "Set Pivot" / "Clear Pivot" and "Set Snap Pt" / "Clear Snap Pt" toolbar buttons store the
+  selection center; quick and Specify rotation/scale handlers now use it.
+
+### Separate template into shapes — ✓ closed
+- Inserting a template wraps the inserted shapes in a SketchGroup whose annotation begins
+  with `Template:`. A new "Separate Template Into Shapes" button in the Template Repository
+  modal dissolves any such group covering the current selection (`actSeparateTemplateIntoShapes`).
+
+### Dimension formatting controls — ✓ closed
+- `DimensionLine` now carries optional `arrowOnly`, `singleLine`, `textInside`, `textReverse`,
+  and `precision` fields, all consumed by `CanvasAnnotationLayer`. Defaults for new
+  dimensions are configurable in `OptionsModal` ("Dimension defaults" section), backed by
+  `EditorPanelState.dimensionDefaults` and routed through the construction-tool runtime.
+
+### Force-fit last pricking-iron tooth — ✓ closed
+- Surfaced in `OptionsModal` as "Force last pricking iron tooth to land on path endpoint".
+  The toggle writes through to `stitchAutoPitchSettings.forceFitLastHole`, so auto-pitch
+  generators already honour it.
+
+### Global print calibration — ✓ closed
+- `printCalibrationX/YPercent` are now editable from `OptionsModal` ("Print calibration"
+  section), backed by `EditorPanelState`. The Print Preview modal continues to read the
+  same values, so they survive session boundaries as workshop calibration.
+
+### PDF tracing drag handles — ✓ closed
+- `TracingModal` preview pane is now a drag surface: pointer-drag updates `offsetX/offsetY`
+  in-place. Pointer-capture keeps drags responsive, and the cursor switches to `grabbing`
+  during interaction. Page selection, DPI calibration, and ruler-derived calibration were
+  already implemented.
+
+### Help / Documents tabs — ✓ closed
+- `HelpModal` now has tabs for About, Shortcuts, ReadMe, License, Donation (with crypto
+  wallets and copy-to-clipboard), and Resources/External links — matching the source
+  `TfrmDocuments` and `TfrmAbout` layouts.
+
+---
+
+## Remaining nice-to-haves (no functional gap)
+
+- Per-dimension inspector (currently formatting is applied as workspace defaults; a
+  selection-aware inspector would let users tweak each dimension individually).
+- Crypto wallet addresses in the donation tab are placeholders; replace with real
+  project-owner values when published.

@@ -41,6 +41,7 @@ type TemplateRepositoryModalProps = {
   onLoadPreset: () => void
   onLoadAsDocument: () => void
   onInsertIntoDocument: () => void
+  onSeparateIntoShapes: () => void
   onDeleteTemplate: (entryId: string) => void
   onMoveTemplate: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   onSortTemplates: (sortKey: TemplateRepositorySortKey) => void
@@ -95,6 +96,7 @@ export function TemplateRepositoryModal({
   onLoadPreset,
   onLoadAsDocument,
   onInsertIntoDocument,
+  onSeparateIntoShapes,
   onDeleteTemplate,
   onMoveTemplate,
   onSortTemplates,
@@ -339,6 +341,9 @@ export function TemplateRepositoryModal({
               </button>
               <button onClick={onInsertIntoDocument} disabled={!selectedTemplateEntry}>
                 Insert into Current
+              </button>
+              <button onClick={onSeparateIntoShapes} title="Explode an inserted template into individual shapes">
+                Separate Template Into Shapes
               </button>
               <button
                 onClick={() => {

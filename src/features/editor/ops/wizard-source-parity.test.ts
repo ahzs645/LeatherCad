@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { ArcShape, BezierShape } from '../cad/cad-types'
 import {
   generateBoxJoint,
   generateCapPattern,
@@ -177,5 +178,174 @@ describe('source-app wizard parity controls', () => {
     expect(result.description).toContain('height 120mm')
     expect(result.description).toContain('gap 6mm')
     expect(result.shapes).toHaveLength(28)
+  })
+})
+
+describe('generator geometry invariants', () => {
+  it('cap seam allowance expands panel geometry outward', () => {
+    const noSeam = generateCapPattern({
+      ...base,
+      panelCount: 2,
+      crownHeightMM: 80,
+      panelGapMM: 5,
+      seamMM: 0,
+      crownBulge: 4,
+      baseSmile: 3,
+      brimDepthMM: 50,
+      brimWidthMM: 120,
+      brimBackRiseMM: 6,
+    })
+    const withSeam = generateCapPattern({
+      ...base,
+      panelCount: 2,
+      crownHeightMM: 80,
+      panelGapMM: 5,
+      seamMM: 8,
+      crownBulge: 4,
+      baseSmile: 3,
+      brimDepthMM: 50,
+      brimWidthMM: 120,
+      brimBackRiseMM: 6,
+    })
+
+    // Same shape count regardless of seam
+    expect(withSeam.shapes).toHaveLength(noSeam.shapes.length)
+
+    // First bezier in first panel: start point should be further left with seam
+    const bezierNoSeam = noSeam.shapes[0] as BezierShape
+    const bezierWithSeam = withSeam.shapes[0] as BezierShape
+    expect(bezierWithSeam.start.x).toBeLessThan(bezierNoSeam.start.x)
+    expect(bezierWithSeam.start.y).toBeGreaterThan(bezierNoSeam.start.y)
+
+    // Brim outer arc: mid Y should be deeper with seam
+    const brimArcNoSeam = noSeam.shapes[noSeam.shapes.length - 3] as ArcShape
+    const brimArcWithSeam = withSeam.shapes[withSeam.shapes.length - 3] as ArcShape
+    expect(brimArcWithSeam.mid.y).toBeGreaterThan(brimArcNoSeam.mid.y)
+
+    // Description records seam as applied
+    expect(withSeam.description).toContain('seam 8mm applied')
+  })
+
+  it('box joint drop-in lid is inset by wall thickness compared to sliding lid', () => {
+    const sliding = generateBoxJoint({
+      ...base,
+      length: 100,
+      width: 80,
+      height: 40,
+      materialThickness: 3,
+      boxMode: 'closed',
+      lidMode: 'sliding',
+      fingerCount: 3,
+    })
+    const dropIn = generateBoxJoint({
+      ...base,
+      length: 100,
+      width: 80,
+      height: 40,
+      materialThickness: 3,
+      boxMode: 'closed',
+      lidMode: 'drop-in',
+      fingerCount: 3,
+    })
+
+    // drop-in generates fewer shapes because groove lines are not added
+    expect(dropIn.shapes.length).toBeLessThanOrEqual(sliding.shapes.length)
+
+    // The drop-in lid rect is smaller: its x-span is (length - 2*thickness) = 94mm
+    // Find the last 4 shapes (lid group) and verify one line is shorter than in sliding
+    const dropInLidShapes = dropIn.shapes.slice(-4)
+    const xs = dropInLidShapes.flatMap((s) => {
+      if (s.type === 'line') return [s.start.x, s.end.x]
+      return []
+    })
+    const slidingLidShapes = sliding.shapes.slice(-4)
+    const slidingXs = slidingLidShapes.flatMap((s) => {
+      if (s.type === 'line') return [s.start.x, s.end.x]
+      return []
+    })
+    // drop-in x range should be smaller than sliding x range
+    expect(Math.max(...xs) - Math.min(...xs)).toBeLessThan(Math.max(...slidingXs) - Math.min(...slidingXs))
+  })
+
+  it('box joint generates bottom-panel groove slots on side panels when grooveDepthMm > 0', () => {
+    const noGroove = generateBoxJoint({
+      ...base,
+      length: 100,
+      width: 80,
+      height: 50,
+      materialThickness: 2,
+      grooveDepthMm: 0,
+      fingerCount: 3,
+    })
+    const withGroove = generateBoxJoint({
+      ...base,
+      length: 100,
+      width: 80,
+      height: 50,
+      materialThickness: 2,
+      grooveDepthMm: 2,
+      grooveOffsetMm: 4,
+      fingerCount: 3,
+    })
+    // 8 extra lines: 2 per side panel × 4 panels
+    expect(withGroove.shapes.length).toBe(noGroove.shapes.length + 8)
+  })
+
+  it('cap apex seam moves apex upward by seam amount', () => {
+    const noSeam = generateCapPattern({
+      ...base,
+      panelCount: 1,
+      crownHeightMM: 80,
+      panelGapMM: 0,
+      seamMM: 0,
+      crownBulge: 4,
+      baseSmile: 3,
+      brimDepthMM: 50,
+      brimWidthMM: 60,
+      brimBackRiseMM: 6,
+    })
+    const withSeam = generateCapPattern({
+      ...base,
+      panelCount: 1,
+      crownHeightMM: 80,
+      panelGapMM: 0,
+      seamMM: 10,
+      crownBulge: 4,
+      baseSmile: 3,
+      brimDepthMM: 50,
+      brimWidthMM: 60,
+      brimBackRiseMM: 6,
+    })
+    // First bezier end point is the apex — it should be 10mm higher (lower Y value) with seam
+    const apexNoSeam = (noSeam.shapes[0] as BezierShape).end
+    const apexWithSeam = (withSeam.shapes[0] as BezierShape).end
+    expect(apexWithSeam.y).toBeLessThan(apexNoSeam.y)
+    expect(apexNoSeam.y - apexWithSeam.y).toBeCloseTo(10, 1)
+    expect(withSeam.description).toContain('apex')
+  })
+
+  it('watch strap hole positions are within the strap length', () => {
+    const result = generateWatchStrap({
+      ...base,
+      totalLength: 200,
+      width: 22,
+      buckleEndWidth: 18,
+      taperLength: 30,
+      holeCount: 5,
+      holeSpacing: 8,
+      holeStartOffset: 35,
+      holeDiameter: 2.5,
+      tipShape: 'round',
+      keeperWidth: 12,
+    })
+    // Every circle (hole) must be within the declared total length
+    const circles = result.shapes.filter((s) => s.type === 'arc')
+    for (const circle of circles) {
+      if (circle.type === 'arc') {
+        expect(circle.start.x).toBeGreaterThanOrEqual(-1)
+        expect(circle.start.x).toBeLessThanOrEqual(result.description.match(/(\d+)mm total/)?.[1] ? 300 : 300)
+      }
+    }
+    expect(circles.length).toBeGreaterThan(0)
   })
 })

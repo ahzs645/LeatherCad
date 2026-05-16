@@ -49,6 +49,15 @@ const initialEditorPanelState: EditorPanelState = {
   hardwarePreset: 'snap',
   customHardwareDiameterMm: 4,
   customHardwareSpacingMm: 0,
+  dimensionDefaults: {
+    fontSizeMm: 5,
+    precision: 1,
+    arrowOnly: false,
+    singleLine: false,
+    textInside: true,
+    textReverse: false,
+  },
+  forceFitLastPrick: false,
 }
 
 function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<EditorPanelState>>) {
@@ -137,6 +146,10 @@ function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<E
       dispatch({ type: 'customHardwareDiameterMm', value }),
     setCustomHardwareSpacingMm: (value: React.SetStateAction<EditorPanelState['customHardwareSpacingMm']>) =>
       dispatch({ type: 'customHardwareSpacingMm', value }),
+    setDimensionDefaults: (value: React.SetStateAction<EditorPanelState['dimensionDefaults']>) =>
+      dispatch({ type: 'dimensionDefaults', value }),
+    setForceFitLastPrick: (value: React.SetStateAction<EditorPanelState['forceFitLastPrick']>) =>
+      dispatch({ type: 'forceFitLastPrick', value }),
   }
 }
 

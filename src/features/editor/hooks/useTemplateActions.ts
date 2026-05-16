@@ -1,10 +1,12 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
+import { uid } from '../cad/cad-geometry'
 import type {
   DocFile,
   FoldLine,
   Layer,
   LineType,
   Shape,
+  SketchGroup,
   StitchHole,
 } from '../cad/cad-types'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
@@ -51,6 +53,8 @@ type UseTemplateActionsParams = {
   shapes: Shape[]
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
+  sketchGroups: SketchGroup[]
+  selectedShapeIdSet: Set<string>
   clearDraft: () => void
   setTemplateRepository: Dispatch<SetStateAction<TemplateRepositoryEntry[]>>
   setCatalogRepository: Dispatch<SetStateAction<CatalogRepositoryShop[]>>
@@ -62,10 +66,13 @@ type UseTemplateActionsParams = {
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
   setStitchHoles: Dispatch<SetStateAction<StitchHole[]>>
+  setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setActiveLayerId: Dispatch<SetStateAction<string>>
   setStatus: Dispatch<SetStateAction<string>>
 }
+
+const TEMPLATE_GROUP_ANNOTATION_PREFIX = 'Template: '
 
 export function useTemplateActions(params: UseTemplateActionsParams) {
   const {
@@ -81,6 +88,8 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     shapes,
     foldLines,
     stitchHoles,
+    sketchGroups,
+    selectedShapeIdSet,
     clearDraft,
     setTemplateRepository,
     setCatalogRepository,
@@ -92,6 +101,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     setShapes,
     setFoldLines,
     setStitchHoles,
+    setSketchGroups,
     setSelectedShapeIds,
     setActiveLayerId,
     setStatus,
@@ -173,18 +183,74 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
       foldLines,
       stitchHoles,
     )
+
+    const templateGroupId = uid()
+    const templateGroupLayerId =
+      inserted.insertedLayerIds[0] ?? inserted.layers[0]?.id ?? layers[0]?.id ?? ''
+    const insertedShapeIdSet = new Set(inserted.insertedShapeIds)
+    const taggedShapes = inserted.shapes.map((shape) =>
+      insertedShapeIdSet.has(shape.id) ? { ...shape, groupId: templateGroupId } : shape,
+    )
+    const templateGroup: SketchGroup = {
+      id: templateGroupId,
+      name: `${selectedTemplateEntry.name} (template)`,
+      layerId: templateGroupLayerId,
+      visible: true,
+      locked: false,
+      annotation: `${TEMPLATE_GROUP_ANNOTATION_PREFIX}${selectedTemplateEntry.name}`,
+    }
+
     setLayers(inserted.layers)
     setLineTypes(inserted.lineTypes)
     setActiveLineTypeId(inserted.activeLineTypeId)
-    setShapes(inserted.shapes)
+    setShapes(taggedShapes)
     setFoldLines(inserted.foldLines)
     setStitchHoles(normalizeStitchHoleSequences(inserted.stitchHoles))
+    setSketchGroups((previous) =>
+      inserted.insertedShapeIds.length > 0 ? [...previous, templateGroup] : previous,
+    )
     setSelectedShapeIds(inserted.insertedShapeIds)
     if (inserted.insertedLayerIds.length > 0) {
       setActiveLayerId(inserted.insertedLayerIds[0])
     }
     clearDraft()
     setStatus(`Inserted template: ${selectedTemplateEntry.name}`)
+  }
+
+  const handleSeparateTemplateIntoShapes = () => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select shapes from an inserted template to separate')
+      return
+    }
+    const templateGroups = sketchGroups.filter(
+      (group) => typeof group.annotation === 'string' && group.annotation.startsWith(TEMPLATE_GROUP_ANNOTATION_PREFIX),
+    )
+    if (templateGroups.length === 0) {
+      setStatus('No inserted template groups found in the document')
+      return
+    }
+    const affectedGroupIds = new Set<string>()
+    for (const shape of shapes) {
+      if (!selectedShapeIdSet.has(shape.id) || !shape.groupId) continue
+      if (templateGroups.some((group) => group.id === shape.groupId)) {
+        affectedGroupIds.add(shape.groupId)
+      }
+    }
+    if (affectedGroupIds.size === 0) {
+      setStatus('Selection is not part of an inserted template')
+      return
+    }
+    setShapes((previous) =>
+      previous.map((shape) =>
+        shape.groupId && affectedGroupIds.has(shape.groupId)
+          ? { ...shape, groupId: undefined }
+          : shape,
+      ),
+    )
+    setSketchGroups((previous) => previous.filter((group) => !affectedGroupIds.has(group.id)))
+    setStatus(
+      `Separated ${affectedGroupIds.size} template instance${affectedGroupIds.size === 1 ? '' : 's'} into shapes`,
+    )
   }
 
   const handleExportTemplateRepository = () => {
@@ -325,6 +391,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleSortTemplates,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
+    handleSeparateTemplateIntoShapes,
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
     handleImportCatalogFile,

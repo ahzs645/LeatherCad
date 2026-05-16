@@ -15,6 +15,7 @@ import type {
   TextTransformMode,
   Tool,
 } from '../cad/cad-types'
+import type { DimensionDefaults } from '../state/editor-domain-types'
 import type { EditorToolSession } from './tool-session'
 
 type HardwareKind = HardwareMarker['kind']
@@ -48,6 +49,7 @@ export type ToolRuntime = {
   stitchHoles: StitchHole[]
   pieceNotches: PieceNotch[]
   seamConnections: SeamConnection[]
+  dimensionDefaults: DimensionDefaults
   setDraftPoints: (updater: Point[] | ((previous: Point[]) => Point[])) => void
   clearDraft: () => void
   setStatus: (status: string) => void

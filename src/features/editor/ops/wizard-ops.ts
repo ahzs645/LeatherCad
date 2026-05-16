@@ -434,26 +434,60 @@ export function generateBoxJoint(params: BoxJointParams): WizardResult {
   shapes.push(...makeFingerEdgeVertical(rx, ry, effectiveHeight, effectiveFingerCount, -rightThickness, true, layerId, lineTypeId, groupId))
   shapes.push(...makeFingerEdgeVertical(rx + effectiveWidth, ry, effectiveHeight, effectiveFingerCount, rightThickness, false, layerId, lineTypeId, groupId))
 
+  // Bottom-panel groove slots: when grooveDepthMm > 0 each side panel gets a pair of
+  // parallel guide lines showing where the bottom panel's edge inserts.
+  if (grooveDepthMm > 0) {
+    const gOff = Math.max(0, grooveOffsetMm)
+    const gW = bottomThickness // groove width matches bottom panel thickness
+    // Front panel — groove at top edge (adjacent to bottom panel, at y = fy)
+    shapes.push(makeLine({ x: round(fx), y: round(fy + gOff) }, { x: round(fx + effectiveLength), y: round(fy + gOff) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine({ x: round(fx), y: round(fy + gOff + gW) }, { x: round(fx + effectiveLength), y: round(fy + gOff + gW) }, layerId, lineTypeId, groupId))
+    // Back panel — groove at bottom edge (adjacent to bottom panel, at y = backY + effectiveHeight)
+    shapes.push(makeLine({ x: round(backX), y: round(backY + effectiveHeight - gOff - gW) }, { x: round(backX + effectiveLength), y: round(backY + effectiveHeight - gOff - gW) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine({ x: round(backX), y: round(backY + effectiveHeight - gOff) }, { x: round(backX + effectiveLength), y: round(backY + effectiveHeight - gOff) }, layerId, lineTypeId, groupId))
+    // Left panel — groove at right edge (adjacent to bottom panel, at x = lx + effectiveWidth)
+    shapes.push(makeLine({ x: round(lx + effectiveWidth - gOff - gW), y: round(ly) }, { x: round(lx + effectiveWidth - gOff - gW), y: round(ly + effectiveHeight) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine({ x: round(lx + effectiveWidth - gOff), y: round(ly) }, { x: round(lx + effectiveWidth - gOff), y: round(ly + effectiveHeight) }, layerId, lineTypeId, groupId))
+    // Right panel — groove at left edge (adjacent to bottom panel, at x = rx)
+    shapes.push(makeLine({ x: round(rx + gOff), y: round(ry) }, { x: round(rx + gOff), y: round(ry + effectiveHeight) }, layerId, lineTypeId, groupId))
+    shapes.push(makeLine({ x: round(rx + gOff + gW), y: round(ry) }, { x: round(rx + gOff + gW), y: round(ry + effectiveHeight) }, layerId, lineTypeId, groupId))
+  }
+
   if (lidMode !== 'none') {
     const lidGroupId = uid()
     const lidY = fy + effectiveHeight + gap + Math.max(2, lidThicknessMm)
-    shapes.push(...makeRect(bx, lidY, effectiveLength, effectiveWidth, layerId, lineTypeId, lidGroupId))
-    if (lidMode === 'sliding' && grooveDepthMm > 0) {
-      const grooveInset = Math.max(0, grooveOffsetMm)
-      shapes.push(makeLine(
-        { x: round(bx + grooveInset), y: round(lidY + grooveInset) },
-        { x: round(bx + effectiveLength - grooveInset), y: round(lidY + grooveInset) },
-        layerId,
-        lineTypeId,
-        lidGroupId,
-      ))
-      shapes.push(makeLine(
-        { x: round(bx + grooveInset), y: round(lidY + effectiveWidth - grooveInset) },
-        { x: round(bx + effectiveLength - grooveInset), y: round(lidY + effectiveWidth - grooveInset) },
-        layerId,
-        lineTypeId,
-        lidGroupId,
-      ))
+
+    if (lidMode === 'drop-in') {
+      // Drop-in lid fits inside the walls — inset by each wall's thickness so it can be lowered in.
+      const insetL = sameThickness ? materialThickness : leftThickness
+      const insetR = sameThickness ? materialThickness : rightThickness
+      const insetF = sameThickness ? materialThickness : frontThickness
+      const insetB = sameThickness ? materialThickness : backThickness
+      const dropInLength = Math.max(1, effectiveLength - insetL - insetR)
+      const dropInWidth = Math.max(1, effectiveWidth - insetF - insetB)
+      const dropInX = bx + insetL
+      const dropInY = lidY + insetF
+      shapes.push(...makeRect(dropInX, dropInY, dropInLength, dropInWidth, layerId, lineTypeId, lidGroupId))
+    } else {
+      // Sliding lid spans the full box top; groove lines mark the rails.
+      shapes.push(...makeRect(bx, lidY, effectiveLength, effectiveWidth, layerId, lineTypeId, lidGroupId))
+      if (grooveDepthMm > 0) {
+        const grooveInset = Math.max(0, grooveOffsetMm)
+        shapes.push(makeLine(
+          { x: round(bx + grooveInset), y: round(lidY + grooveInset) },
+          { x: round(bx + effectiveLength - grooveInset), y: round(lidY + grooveInset) },
+          layerId,
+          lineTypeId,
+          lidGroupId,
+        ))
+        shapes.push(makeLine(
+          { x: round(bx + grooveInset), y: round(lidY + effectiveWidth - grooveInset) },
+          { x: round(bx + effectiveLength - grooveInset), y: round(lidY + effectiveWidth - grooveInset) },
+          layerId,
+          lineTypeId,
+          lidGroupId,
+        ))
+      }
     }
   }
 
@@ -789,19 +823,22 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
   const panelBaseWidth = brimWidthMM / safePanelCount
   const panelHeight = Math.max(20, crownHeightMM ?? brimWidthMM * 0.55)
   const panelGap = Math.max(0, panelGapMM)
+  // Seam allowance expands left/right edges outward and the bottom edge downward.
+  const s = Math.max(0, seamMM)
 
   for (let i = 0; i < safePanelCount; i++) {
     const groupId = uid()
     const x0 = i * (panelBaseWidth + panelGap)
     const cx = x0 + panelBaseWidth / 2
 
-    const baseLeft: Point = { x: round(x0), y: round(panelHeight) }
-    const baseMid: Point = { x: round(cx), y: round(panelHeight + baseSmile) }
-    const baseRight: Point = { x: round(x0 + panelBaseWidth), y: round(panelHeight) }
-    const apex: Point = { x: round(cx), y: round(0) }
+    const baseLeft: Point = { x: round(x0 - s), y: round(panelHeight + s) }
+    const baseMid: Point = { x: round(cx), y: round(panelHeight + baseSmile + s) }
+    const baseRight: Point = { x: round(x0 + panelBaseWidth + s), y: round(panelHeight + s) }
+    // Apex extends upward by seam to allow the button/top seam allowance.
+    const apex: Point = { x: round(cx), y: round(-s) }
 
-    const leftBulge: Point = { x: round(x0 - crownBulge), y: round(panelHeight / 2) }
-    const rightBulge: Point = { x: round(x0 + panelBaseWidth + crownBulge), y: round(panelHeight / 2) }
+    const leftBulge: Point = { x: round(x0 - crownBulge - s), y: round(panelHeight / 2) }
+    const rightBulge: Point = { x: round(x0 + panelBaseWidth + crownBulge + s), y: round(panelHeight / 2) }
 
     shapes.push(makeBezier(baseLeft, leftBulge, apex, layerId, lineTypeId, groupId))
     shapes.push(makeBezier(apex, rightBulge, baseRight, layerId, lineTypeId, groupId))
@@ -809,7 +846,7 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
   }
 
   const brimGroupId = uid()
-  const brimY = panelHeight + baseSmile + 30
+  const brimY = panelHeight + baseSmile + 30 + s
   const crownSpan = safePanelCount * panelBaseWidth + (safePanelCount - 1) * panelGap
   const brimCx = crownSpan / 2
 
@@ -817,9 +854,9 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
   const innerMid: Point = { x: round(brimCx), y: round(brimY - brimBackRiseMM) }
   const innerRight: Point = { x: round(brimCx + brimWidthMM / 2), y: round(brimY) }
 
-  const outerLeft: Point = { x: round(brimCx - brimWidthMM / 2), y: round(brimY + brimDepthMM) }
-  const outerMid: Point = { x: round(brimCx), y: round(brimY + brimDepthMM + brimBackRiseMM) }
-  const outerRight: Point = { x: round(brimCx + brimWidthMM / 2), y: round(brimY + brimDepthMM) }
+  const outerLeft: Point = { x: round(brimCx - brimWidthMM / 2), y: round(brimY + brimDepthMM + s) }
+  const outerMid: Point = { x: round(brimCx), y: round(brimY + brimDepthMM + brimBackRiseMM + s) }
+  const outerRight: Point = { x: round(brimCx + brimWidthMM / 2), y: round(brimY + brimDepthMM + s) }
 
   shapes.push(makeArc(innerLeft, innerMid, innerRight, layerId, lineTypeId, brimGroupId))
   shapes.push(makeArc(outerLeft, outerMid, outerRight, layerId, lineTypeId, brimGroupId))
@@ -828,6 +865,6 @@ export function generateCapPattern(params: CapPatternParams): WizardResult {
 
   return {
     shapes,
-    description: `Cap pattern: ${safePanelCount} crown panels (base ${round(panelBaseWidth)}mm, height ${round(panelHeight)}mm, gap ${panelGap}mm, bulge ${crownBulge}mm, smile ${baseSmile}mm), brim ${brimWidthMM}×${brimDepthMM}mm (back rise ${brimBackRiseMM}mm), seam ${seamMM}mm`,
+    description: `Cap pattern: ${safePanelCount} crown panels (base ${round(panelBaseWidth)}mm, height ${round(panelHeight)}mm, gap ${panelGap}mm, bulge ${crownBulge}mm, smile ${baseSmile}mm), brim ${brimWidthMM}×${brimDepthMM}mm (back rise ${brimBackRiseMM}mm), seam ${seamMM}mm applied (all edges incl. apex)`,
   }
 }

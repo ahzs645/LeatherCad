@@ -450,6 +450,7 @@ export function importLccDocument(raw: string): LccImportResult {
           type: 'line',
           layerId,
           lineTypeId,
+          stitchHoleMarker: true,
           start: { x: center.x - radius, y: center.y },
           end: { x: center.x + radius, y: center.y },
         }
@@ -747,6 +748,10 @@ export function exportLccDocument(doc: DocFile): string {
   const lccShapes: LccShape[] = []
 
   for (const shape of doc.objects) {
+    if (shape.type === 'line' && shape.stitchHoleMarker) {
+      continue
+    }
+
     const lineType = lineTypesById[shape.lineTypeId]
     const color = lineType ? hexToLccColor(lineType.color) : 'White'
     const dash = lineType ? styleToLccDash(lineType.style) : 'Solid'

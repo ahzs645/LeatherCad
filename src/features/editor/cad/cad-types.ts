@@ -65,6 +65,8 @@ export type LineShape = {
   arrowEnd?: BaseShape['arrowEnd']
   boxStitchSource?: BaseShape['boxStitchSource']
   strokeWidthOverride?: BaseShape['strokeWidthOverride']
+  /** True when this line was auto-generated as a visual marker for an imported S_HOLE; skipped during .lcc export. */
+  stitchHoleMarker?: boolean
   start: Point
   end: Point
 }
@@ -596,6 +598,11 @@ export type DimensionLine = {
   labelPoint?: Point
   labelRotationDeg?: number
   labelPlacement?: 'baseline' | 'center'
+  arrowOnly?: boolean
+  singleLine?: boolean
+  textInside?: boolean
+  textReverse?: boolean
+  precision?: number
   layerId: string
   lineTypeId: string
 }

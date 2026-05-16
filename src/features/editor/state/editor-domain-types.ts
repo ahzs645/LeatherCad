@@ -207,6 +207,17 @@ export type EditorPanelState = {
   hardwarePreset: import('../cad/cad-types').HardwareKind
   customHardwareDiameterMm: number
   customHardwareSpacingMm: number
+  dimensionDefaults: DimensionDefaults
+  forceFitLastPrick: boolean
+}
+
+export type DimensionDefaults = {
+  fontSizeMm: number
+  precision: number
+  arrowOnly: boolean
+  singleLine: boolean
+  textInside: boolean
+  textReverse: boolean
 }
 
 export type EditorToolState = {

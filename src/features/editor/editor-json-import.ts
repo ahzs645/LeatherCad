@@ -221,6 +221,9 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         ? { extracted: true as const }
         : undefined
 
+    const stitchHoleMarker =
+      (candidate as { stitchHoleMarker?: unknown }).stitchHoleMarker === true ? true : undefined
+
     if (candidate.type === 'line') {
       nextShapes.push({
         id: nextShapeId,
@@ -231,6 +234,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
         arrowStart,
         arrowEnd,
         boxStitchSource,
+        stitchHoleMarker,
         start: candidate.start,
         end: candidate.end,
       })

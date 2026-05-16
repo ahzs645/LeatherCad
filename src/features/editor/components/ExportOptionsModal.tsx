@@ -8,6 +8,8 @@ type ExportOptionsModalProps = {
   exportOnlySelectedShapes: boolean
   exportOnlyVisibleLineTypes: boolean
   exportForceSolidStrokes: boolean
+  exportIncludeText: boolean
+  exportIncludeTemplateMetadata: boolean
   exportStitchHoleRenderMode: StitchHoleExportRenderMode
   exportStitchDotRadiusMm: number
   exportRoleFilters: ExportRoleFilters
@@ -16,6 +18,8 @@ type ExportOptionsModalProps = {
   onExportOnlySelectedShapesChange: (enabled: boolean) => void
   onExportOnlyVisibleLineTypesChange: (enabled: boolean) => void
   onExportForceSolidStrokesChange: (enabled: boolean) => void
+  onExportIncludeTextChange: (enabled: boolean) => void
+  onExportIncludeTemplateMetadataChange: (enabled: boolean) => void
   onExportStitchHoleRenderModeChange: (mode: StitchHoleExportRenderMode) => void
   onExportStitchDotRadiusMmChange: (value: number) => void
   onExportRoleFilterChange: (role: LineTypeRole, enabled: boolean) => void
@@ -33,6 +37,8 @@ export function ExportOptionsModal({
   exportOnlySelectedShapes,
   exportOnlyVisibleLineTypes,
   exportForceSolidStrokes,
+  exportIncludeText,
+  exportIncludeTemplateMetadata,
   exportStitchHoleRenderMode,
   exportStitchDotRadiusMm,
   exportRoleFilters,
@@ -41,6 +47,8 @@ export function ExportOptionsModal({
   onExportOnlySelectedShapesChange,
   onExportOnlyVisibleLineTypesChange,
   onExportForceSolidStrokesChange,
+  onExportIncludeTextChange,
+  onExportIncludeTemplateMetadataChange,
   onExportStitchHoleRenderModeChange,
   onExportStitchDotRadiusMmChange,
   onExportRoleFilterChange,
@@ -95,6 +103,22 @@ export function ExportOptionsModal({
               onChange={(event) => onExportForceSolidStrokesChange(event.target.checked)}
             />
             <span>Convert dashed/dotted/dash-dot-dot to solid on export</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={exportIncludeText}
+              onChange={(event) => onExportIncludeTextChange(event.target.checked)}
+            />
+            <span>Include text shapes</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={exportIncludeTemplateMetadata}
+              onChange={(event) => onExportIncludeTemplateMetadataChange(event.target.checked)}
+            />
+            <span>Include template / painted parts</span>
           </label>
         </div>
 
