@@ -1,5 +1,25 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import type { FoldLine, Shape, StitchHole } from '../cad/cad-types'
+import type {
+  AssemblyConnection,
+  Backdrop,
+  DimensionLine,
+  FoldLine,
+  HardwareMarker,
+  ParametricConstraint,
+  PatternPiece,
+  PieceGrainline,
+  PieceInterface,
+  PieceLabel,
+  PieceNotch,
+  PiecePlacement3D,
+  PiecePlacementLabel,
+  PieceSeamAllowance,
+  SeamConnection,
+  Shape,
+  SketchGroup,
+  StitchHole,
+  TracingOverlay,
+} from '../cad/cad-types'
 import { findConnectedShapeIds } from '../ops/shape-selection-ops'
 import { tileSelectionAsStamp } from '../ops/stamp-simulator-ops'
 
@@ -17,6 +37,25 @@ export type CreateEditorTopbarCommandHandlersParams = {
   setFoldLines: Dispatch<SetStateAction<FoldLine[]>>
   setSelectedShapeIds: Dispatch<SetStateAction<string[]>>
   setSelectedStitchHoleId: Dispatch<SetStateAction<string | null>>
+  setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
+  setHardwareMarkers: Dispatch<SetStateAction<HardwareMarker[]>>
+  setDimensionLines: Dispatch<SetStateAction<DimensionLine[]>>
+  setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
+  setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
+  setPatternPieces: Dispatch<SetStateAction<PatternPiece[]>>
+  setPieceInterfaces: Dispatch<SetStateAction<PieceInterface[]>>
+  setAssemblyConnections: Dispatch<SetStateAction<AssemblyConnection[]>>
+  setPieceGrainlines: Dispatch<SetStateAction<PieceGrainline[]>>
+  setPieceLabels: Dispatch<SetStateAction<PieceLabel[]>>
+  setPiecePlacementLabels: Dispatch<SetStateAction<PiecePlacementLabel[]>>
+  setPiecePlacements3d: Dispatch<SetStateAction<PiecePlacement3D[]>>
+  setSeamConnections: Dispatch<SetStateAction<SeamConnection[]>>
+  setSeamAllowances: Dispatch<SetStateAction<PieceSeamAllowance[]>>
+  setPieceNotches: Dispatch<SetStateAction<PieceNotch[]>>
+  setConstraints: Dispatch<SetStateAction<ParametricConstraint[]>>
+  setBackdrops: Dispatch<SetStateAction<Backdrop[]>>
+  setActiveBackdropId: Dispatch<SetStateAction<string | null>>
+  setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
   setStatus: Dispatch<SetStateAction<string>>
   resetDocument: () => void
   setShowFontListModal: Dispatch<SetStateAction<boolean>>
@@ -46,6 +85,25 @@ export function createEditorTopbarCommandHandlers({
   setFoldLines,
   setSelectedShapeIds,
   setSelectedStitchHoleId,
+  setSelectedHardwareMarkerId,
+  setHardwareMarkers,
+  setDimensionLines,
+  setSketchGroups,
+  setActiveSketchGroupId,
+  setPatternPieces,
+  setPieceInterfaces,
+  setAssemblyConnections,
+  setPieceGrainlines,
+  setPieceLabels,
+  setPiecePlacementLabels,
+  setPiecePlacements3d,
+  setSeamConnections,
+  setSeamAllowances,
+  setPieceNotches,
+  setConstraints,
+  setBackdrops,
+  setActiveBackdropId,
+  setTracingOverlays,
   setStatus,
   resetDocument,
   setShowFontListModal,
@@ -109,14 +167,33 @@ export function createEditorTopbarCommandHandlers({
         return
       }
       const confirmed = window.confirm(
-        'Clear all shapes, stitch holes, and fold lines? Layers and line types stay put.',
+        'Clear all canvas content (shapes, stitch holes, fold lines, dimensions, hardware, backdrops, tracing)? Layers, line types, and options stay put.',
       )
       if (!confirmed) return
       setShapes([])
       setStitchHoles([])
       setFoldLines([])
+      setHardwareMarkers([])
+      setDimensionLines([])
+      setSketchGroups([])
+      setActiveSketchGroupId(null)
+      setPatternPieces([])
+      setPieceInterfaces([])
+      setAssemblyConnections([])
+      setPieceGrainlines([])
+      setPieceLabels([])
+      setPiecePlacementLabels([])
+      setPiecePlacements3d([])
+      setSeamConnections([])
+      setSeamAllowances([])
+      setPieceNotches([])
+      setConstraints([])
+      setBackdrops([])
+      setActiveBackdropId(null)
+      setTracingOverlays([])
       setSelectedShapeIds([])
       setSelectedStitchHoleId(null)
+      setSelectedHardwareMarkerId(null)
       setStatus('Canvas cleared')
     },
     handleSelectConnectedChain: () => {

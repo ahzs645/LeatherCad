@@ -199,6 +199,43 @@ current LeatherCad web app. Items marked ✓ are fully implemented.
   custom `text`). Opened from `OptionsModal` → Dimension defaults → "Open per-dimension
   inspector…". `setShowDimensionInspectorModal` is wired through the standard overlay chain.
 
+## 2026-05-16 closures (pass 3)
+
+### Auto-pitch tunables in Options dialog (gbOP_AutoPitchParameters) — ✓ closed
+- `OptionsModal` now exposes `solverSteps`, `precisionMm`, `stopGapMm`, and the
+  `continueFromSelectedHole` flag from `StitchAutoPitchSettings`. Values persist via
+  `saveStitchAutoPitchSettings` and stay in sync with `forceFitLastPrick`.
+
+### Default pitch mode radio (gbOP_DefaultPitchMode) — ✓ closed
+- `OptionsModal` adds a Fixed / Variable radio bound to `StitchAutoPitchSettings.defaultMode`.
+
+### Box stitch helper defaults (gbOP_BoxStitchHelper) — ✓ closed
+- `OptionsModal` now edits `BoxStitchHelperSettings.distanceMm` (search distance) and
+  `stretchCompensationPercent`. Persisted via `saveBoxStitchHelperSettings`.
+
+### Print calibration from measured length (lblOP_ActualScaleLengthX/Y) — ✓ closed
+- `OptionsModal` print-calibration section now includes a "Derive from measured length"
+  block: enter the reference length (default 100 mm), the X and Y measured lengths, and
+  the Apply X / Apply Y buttons update `printCalibrationX/YPercent` automatically
+  (clamped to 50–150 %).
+
+### Clear All shapes (actClearAll) — ✓ closed
+- `handleClearAll` in `editor-topbar-command-handlers.ts` now wipes shapes, stitch
+  holes, fold lines, hardware markers, dimension lines, sketch groups, pattern pieces
+  and all their satellites, constraints, backdrops, and tracing overlays — while
+  preserving layers, line types, and editor options. Confirmation prompt updated.
+
+### Specify horizontal scale ratio (actSpecifyScaleRatioHorizontally) — ✓ closed
+- `SpecifyScaleModal` axis extended to `'both' | 'vertical' | 'horizontal'`.
+  `handleOpenSpecifyScaleModal` accepts the new axis, `useEditorTopbarProps` adds
+  `onSpecifyScaleRatioHorizontally`, and the Transform ribbon now has a "Scale X…"
+  button next to "Scale Y…".
+
+### Quick grid background swap (actSetGridBackgroundBlack/White) — ✓ closed
+- `WorkspaceViewSection` (View ribbon) gains "Grid: White" / "Grid: Black" toggle
+  buttons mapped to `setGridBackgroundMode('light')` / `'dark'`. The previous tri-state
+  `theme / light / dark` radio in `OptionsModal` is retained for the third option.
+
 ## Remaining nice-to-haves (no functional gap)
 
 - Crypto wallet addresses in the donation tab are placeholders; replace with real

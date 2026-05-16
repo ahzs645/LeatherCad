@@ -32,6 +32,9 @@ export function WorkspaceViewSection({
   onSetSketchWorkspaceMode,
   showDimensions,
   onToggleDimensions,
+  gridBackgroundMode,
+  onSetGridBackgroundLight,
+  onSetGridBackgroundDark,
   isMobileLayout,
   themeMode,
   onSetThemeMode,
@@ -47,6 +50,22 @@ export function WorkspaceViewSection({
         </button>
       </div>
       <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
+      <div className="view-mode-toggle" role="group" aria-label="Grid background">
+        <button
+          className={gridBackgroundMode === 'light' ? 'active' : ''}
+          onClick={onSetGridBackgroundLight}
+          title="Set grid background to white"
+        >
+          Grid: White
+        </button>
+        <button
+          className={gridBackgroundMode === 'dark' ? 'active' : ''}
+          onClick={onSetGridBackgroundDark}
+          title="Set grid background to black"
+        >
+          Grid: Black
+        </button>
+      </div>
       {isMobileLayout && (
         <ThemeModeToggle
           themeMode={themeMode}
@@ -72,6 +91,7 @@ export function TransformSection({
   onSpecifyRotationAngle,
   onSpecifyScaleRatio,
   onSpecifyScaleRatioVertically,
+  onSpecifyScaleRatioHorizontally,
   hasCustomRotationPivot,
   onClearRotationCenter,
   onSetAsRotationCenter,
@@ -105,6 +125,7 @@ export function TransformSection({
       <button onClick={onReverseSelectedPaths} disabled={selectedShapeCount === 0}>Reverse Path</button>
       <button onClick={onSpecifyRotationAngle} disabled={selectedShapeCount === 0}>Rotate…</button>
       <button onClick={onSpecifyScaleRatio} disabled={selectedShapeCount === 0}>Scale…</button>
+      <button onClick={onSpecifyScaleRatioHorizontally} disabled={selectedShapeCount === 0}>Scale X…</button>
       <button onClick={onSpecifyScaleRatioVertically} disabled={selectedShapeCount === 0}>Scale Y…</button>
       <button
         onClick={hasCustomRotationPivot ? onClearRotationCenter : onSetAsRotationCenter}

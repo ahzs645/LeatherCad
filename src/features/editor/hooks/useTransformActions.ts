@@ -23,7 +23,7 @@ type UseTransformActionsParams = {
   setCustomSnapPoint: Dispatch<SetStateAction<Point | null>>
   setShowSpecifyRotationModal: Dispatch<SetStateAction<boolean>>
   setShowSpecifyScaleModal: Dispatch<SetStateAction<boolean>>
-  setSpecifyScaleModalAxis: Dispatch<SetStateAction<'both' | 'vertical'>>
+  setSpecifyScaleModalAxis: Dispatch<SetStateAction<'both' | 'vertical' | 'horizontal'>>
   setStatus: Dispatch<SetStateAction<string>>
 }
 
@@ -144,7 +144,7 @@ export function useTransformActions(params: UseTransformActionsParams) {
     setShowSpecifyRotationModal(true)
   }
 
-  const handleOpenSpecifyScaleModal = (axis: 'both' | 'vertical') => {
+  const handleOpenSpecifyScaleModal = (axis: 'both' | 'vertical' | 'horizontal') => {
     if (!requireSelection('scale')) return
     setSpecifyScaleModalAxis(axis)
     setShowSpecifyScaleModal(true)

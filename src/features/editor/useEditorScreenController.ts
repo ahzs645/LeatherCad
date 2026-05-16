@@ -1221,6 +1221,7 @@ export function useEditorScreenController() {
     mergedCatalogRepository,
     setStitchSimulatorSettings,
     boxStitchHelperSettings,
+    setBoxStitchHelperSettings,
     showPieceInspectorModal,
     setShowPieceInspectorModal,
     pieceInspectorContentProps,

@@ -38,7 +38,7 @@ export type UseEditorTopbarPropsParams = {
   handleFlipSelection: (axis: 'horizontal' | 'vertical') => void
   handleReverseSelectedPaths: () => void
   handleOpenSpecifyRotationModal: () => void
-  handleOpenSpecifyScaleModal: (axis: 'both' | 'vertical') => void
+  handleOpenSpecifyScaleModal: (axis: 'both' | 'vertical' | 'horizontal') => void
   handleSetAsRotationCenter: () => void
   handleClearRotationCenter: () => void
   handleSetAsSnapPoint: () => void
@@ -321,6 +321,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     sketchWorkspaceMode,
     mobileLayerAction,
     mobileFileAction,
+    gridBackgroundMode,
   } = useEditorUISelector((state) => ({
     isMobileLayout: state.isMobileLayout,
     desktopRibbonTab: state.desktopRibbonTab,
@@ -334,6 +335,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     sketchWorkspaceMode: state.sketchWorkspaceMode,
     mobileLayerAction: state.mobileLayerAction,
     mobileFileAction: state.mobileFileAction,
+    gridBackgroundMode: state.gridBackgroundMode,
   }))
   const {
     setDesktopRibbonTab,
@@ -348,6 +350,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     setMobileLayerAction,
     setMobileFileAction,
     setShowThreePreview,
+    setGridBackgroundMode,
   } = useEditorUIActions()
   const activeLineType = useMemo(
     () => lineTypes.find((lineType) => lineType.id === activeLineTypeId) ?? lineTypes[0] ?? null,
@@ -391,6 +394,9 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onToggleCanvasRuler: () => setShowCanvasRuler((previous) => !previous),
     showDimensions,
     onToggleDimensions: () => setShowDimensions((previous) => !previous),
+    gridBackgroundMode,
+    onSetGridBackgroundLight: () => setGridBackgroundMode('light'),
+    onSetGridBackgroundDark: () => setGridBackgroundMode('dark'),
     gridSpacing,
     onSetGridSpacing: setGridSpacing,
     sketchWorkspaceMode,
@@ -431,6 +437,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onSpecifyRotationAngle: handleOpenSpecifyRotationModal,
     onSpecifyScaleRatio: () => handleOpenSpecifyScaleModal('both'),
     onSpecifyScaleRatioVertically: () => handleOpenSpecifyScaleModal('vertical'),
+    onSpecifyScaleRatioHorizontally: () => handleOpenSpecifyScaleModal('horizontal'),
     onSetAsRotationCenter: handleSetAsRotationCenter,
     onClearRotationCenter: handleClearRotationCenter,
     onSetAsSnapPoint: handleSetAsSnapPoint,

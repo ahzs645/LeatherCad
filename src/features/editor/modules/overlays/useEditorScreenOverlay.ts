@@ -19,6 +19,7 @@ type UseEditorScreenOverlayParams = UseEditorScreenShellsParams & {
   stitchSimulatorSettings: StitchSimulatorSettings
   setStitchSimulatorSettings: Dispatch<SetStateAction<StitchSimulatorSettings>>
   boxStitchHelperSettings: BoxStitchHelperSettings
+  setBoxStitchHelperSettings: Dispatch<SetStateAction<BoxStitchHelperSettings>>
   showPieceInspectorModal: boolean
   setShowPieceInspectorModal: Dispatch<SetStateAction<boolean>>
   pieceInspectorContentProps: OverlayPropsParams['pieceInspectorContentProps']
@@ -47,6 +48,7 @@ export function useEditorScreenOverlay({
   stitchSimulatorSettings,
   setStitchSimulatorSettings,
   boxStitchHelperSettings,
+  setBoxStitchHelperSettings,
   showPieceInspectorModal,
   setShowPieceInspectorModal,
   pieceInspectorContentProps,
@@ -528,6 +530,12 @@ export function useEditorScreenOverlay({
       setDimensionDefaults,
       forceFitLastPrick,
       setForceFitLastPrick: setForceFitLastPrickAndSync,
+      autoPitchSettings: toolState.stitchAutoPitchSettings,
+      setAutoPitchSettings: (next: import('../../editor-types').StitchAutoPitchSettings) => {
+        toolState.setStitchAutoPitchSettings(next)
+        setForceFitLastPrick(next.forceFitLastHole)
+      },
+      setBoxStitchHelperSettings,
       printCalibrationXPercent,
       setPrintCalibrationXPercent,
       printCalibrationYPercent,

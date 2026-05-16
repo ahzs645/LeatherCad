@@ -41,6 +41,9 @@ export type EditorTopbarProps = {
   onToggleCanvasRuler: () => void
   showDimensions: boolean
   onToggleDimensions: () => void
+  gridBackgroundMode: 'theme' | 'light' | 'dark'
+  onSetGridBackgroundLight: () => void
+  onSetGridBackgroundDark: () => void
   gridSpacing: number
   onSetGridSpacing: (spacing: number) => void
   sketchWorkspaceMode: SketchWorkspaceMode
@@ -81,6 +84,7 @@ export type EditorTopbarProps = {
   onSpecifyRotationAngle: () => void
   onSpecifyScaleRatio: () => void
   onSpecifyScaleRatioVertically: () => void
+  onSpecifyScaleRatioHorizontally: () => void
   onSetAsRotationCenter: () => void
   onClearRotationCenter: () => void
   onSetAsSnapPoint: () => void

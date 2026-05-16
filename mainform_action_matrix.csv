@@ -6,15 +6,15 @@ actAlignMiddleH,actAlignMiddleH,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implem
 actAlignMiddleV,actAlignMiddleV,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implemented,src/features/editor/ops/transform-ops.ts
 actAlignRight,actAlignRight,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implemented,src/features/editor/ops/transform-ops.ts
 actAlignTop,actAlignTop,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implemented,src/features/editor/ops/transform-ops.ts
-actAlignment,actAlignment;actAlignmentExecute,TfrmLeat,Transforms,,,,unmapped,
-actBackToSelectMode,actBackToSelectMode;actBackToSelectModeExecute,TfrmLeat;TfrmLeat_Macintosh,Other,,,,unmapped,
+actAlignment,actAlignment;actAlignmentExecute,TfrmLeat,Transforms,,,,menu-container,parent of actAlignLeft/Right/Top/Bottom/MiddleH/MiddleV (all implemented)
+actBackToSelectMode,actBackToSelectMode;actBackToSelectModeExecute,TfrmLeat;TfrmLeat_Macintosh,Other,,,,implemented,src/features/editor/hooks/useKeyboardShortcuts.ts
 actBezierCp_makeOpponentFlat,actBezierCp_makeOpponentFlat,TfrmLeat,Other,LC-MVP-007,Geometry,MVP,mapped,
 actBezierMenu,actBezierMenu;actBezierMenuExecute,TfrmLeat,Other,LC-MVP-007,Geometry,MVP,mapped,
 actBoxStitch,actBoxStitch;actBoxStitchExecute,TfrmLeat,Other,LC-P2-011,Stitching,P2,mapped,
 actCenterLine,actCenterLine,TfrmLeat,GeometryEdit,,,,implemented,src/features/editor/ops/geometry-editing-ops.ts
 actChangeStitchingHoleShape,actChangeStitchingHoleShape,TfrmLeat;TfrmLeat_Macintosh,Other,LC-MVP-008,Stitching,MVP,mapped,
 actChangeThreadColor,actChangeThreadColor;actChangeThreadColorExecute,TfrmLeat,Other,LC-MVP-009,Stitching,MVP,mapped,
-actClearAll,actClearAll,TfrmLeat,ProjectLifecycle,,,,unmapped,
+actClearAll,actClearAll,TfrmLeat;TfrmLeat_Macintosh,ProjectLifecycle,,,,implemented,src/features/editor/controllers/editor-topbar-command-handlers.ts
 actClose,actClose;actCloseExecute,TfrmLeat;TfrmLeat_Macintosh,ProjectLifecycle,,,,implemented,src/features/editor/useEditorScreenController.ts
 actConvertACopyToPath,actConvertACopyToPath;actConvertACopyToPathExecute,TfrmLeat,GeometryEdit,,,,implemented,src/features/editor/ops/geometry-editing-ops.ts
 actConvertArcToBezier,actConvertArcToBezier;actConvertArcToBezierExecute,TfrmLeat,GeometryEdit,LC-MVP-007,Geometry,MVP,mapped,
@@ -48,7 +48,7 @@ actImportCatalog,actImportCatalog;actImportCatalogExecute,TfrmLeat,Other,LC-MVP-
 actImportRepository,actImportRepository;actImportRepositoryExecute,TfrmLeat,Other,LC-MVP-010,Templates,MVP,mapped,
 actImportSVG,actImportSVG;actImportSVGExecute,TfrmLeat,Other,LC-MVP-001,ImportExport,MVP,mapped,
 actImportTranslationFile,actImportTranslationFile;actImportTranslationFileExecute,TfrmLeat,Other,LC-P2-016,Localization,P2,mapped,
-actLayer,actLayer;actLayerExecute,TfrmLeat,LayerAdvanced,,,,unmapped,
+actLayer,actLayer;actLayerExecute,TfrmLeat,LayerAdvanced,,,,menu-container,parent of actLayer_* (all implemented)
 actLayer_AddNewLayer,actLayer_AddNewLayer;actLayer_AddNewLayerExecute,TfrmLeat;TfrmLeat_Macintosh,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
 actLayer_ChangeName,actLayer_ChangeName;actLayer_ChangeNameExecute,TfrmLeat;TfrmLeat_Macintosh,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
 actLayer_DeleteLayer,actLayer_DeleteLayer;actLayer_DeleteLayerExecute,TfrmLeat;TfrmLeat_Macintosh,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
@@ -63,7 +63,7 @@ actLayer_ShowAllLayers,actLayer_ShowAllLayers;actLayer_ShowAllLayersExecute,Tfrm
 actLayer_ToggleIndependentLayer,actLayer_ToggleIndependentLayer,TfrmLeat,LayerAdvanced,LC-MVP-005,Layers,MVP,mapped,
 actLeatherSim_RotateImage,actLeatherSim_RotateImage,TfrmLeat,Other,LC-P2-013,LeatherSim,P2,implemented,src/features/editor/three/material-manager.ts
 actLinePaletteSelectAll,actLinePaletteSelectAll;actLinePaletteSelectAllExecute;actLinePalletSelectAll,TfrmLeat,LineTypePalette,,,,implemented,src/features/editor/hooks/useLineTypeActions.ts
-actLinePaletteShowHide,actLinePaletteShowHide;actLinePaletteShowHideExecute;actLinePalletShowHide,TfrmLeat,LineTypePalette,,,,unmapped,
+actLinePaletteShowHide,actLinePaletteShowHide;actLinePaletteShowHideExecute;actLinePalletShowHide,TfrmLeat,LineTypePalette,,,,implemented,src/features/editor/hooks/useEditorTopbarProps.ts (Palette button via setShowLineTypePalette)
 actLinePaletteUnselectLineType,actLinePaletteUnselectLineType;actLinePalletUnselectLineType,TfrmLeat,LineTypePalette,,,,implemented,src/features/editor/hooks/useLineTypeActions.ts
 actLinePaletteUnselectOthers,actLinePaletteUnselectOthers;actLinePalletUnselectOthers,TfrmLeat,LineTypePalette,,,,implemented,src/features/editor/hooks/useLineTypeActions.ts
 actLineSymmetry,actLineSymmetry;actLineSymmetryExecute,TfrmLeat;TfrmLeat_Macintosh,GeometryEdit,LC-MVP-007,Geometry,MVP,mapped,
@@ -76,7 +76,7 @@ actNewProject,actNewProject;actNewProjectExecute,TfrmLeat;TfrmLeat_Macintosh,Pro
 actOpenDemoProject,actOpenDemoProject;actOpenDemoProjectExecute,TfrmLeat,ProjectLifecycle,,,,implemented,src/features/editor/hooks/useFileActions.ts
 actOpenOptions,actOpenOptions;actOpenOptionsExecute,TfrmLeat,ProjectLifecycle,,,,implemented,src/features/editor/components/OptionsModal.tsx
 actOpenSecretFeatureList,actOpenSecretFeatureList;actOpenSecretFeatureListExecute,TfrmLeat,Other,,,,implemented,src/features/editor/useEditorScreenController.ts
-actOrder,actOrder;actOrderExecute,TfrmLeat,SelectionOrdering,,,,unmapped,
+actOrder,actOrder;actOrderExecute,TfrmLeat,SelectionOrdering,,,,menu-container,parent of actOrder_BringToFront/SendToBack and forward/backward step actions (all implemented)
 actOrder_BringToFront,actOrder_BringToFront;actOrder_BringToFrontExecute,TfrmLeat,SelectionOrdering,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actOrder_SendToBack,actOrder_SendToBack;actOrder_SendToBackExecute,TfrmLeat,SelectionOrdering,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actPasteFromClipboard,actPasteFromClipboard;actPasteFromClipboardExecute,TfrmLeat;TfrmLeat_Macintosh,Other,LC-MVP-006,Editing,MVP,mapped,
@@ -94,7 +94,7 @@ actScaleDown1,actScaleDown1;actScaleDown1Execute,TfrmLeat,Transforms,,,,implemen
 actScaleDown5,actScaleDown5;actScaleDown5Execute,TfrmLeat,Transforms,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actScaleUp1,actScaleUp1;actScaleUp1Execute,TfrmLeat,Transforms,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
 actScaleUp5,actScaleUp5;actScaleUp5Execute,TfrmLeat,Transforms,,,,implemented,src/features/editor/hooks/useSelectionActions.ts
-actSecretMenu,actSecretMenu;actSecretMenuExecute,TfrmLeat,SecretBonus,,,,unmapped,
+actSecretMenu,actSecretMenu;actSecretMenuExecute,TfrmLeat,SecretBonus,,,,menu-container,parent of actSecret_BoxJoint/JigSaw/MakeCapPattern/MakeDiceCup/WatchBand (all implemented)
 actSecret_BoxJoint,actSecret_BoxJoint;actSecret_BoxJointExecute,TfrmLeat,SecretBonus,,,,implemented,src/features/editor/ops/wizard-ops.ts
 actSecret_JigSaw,actSecret_JigSaw,TfrmLeat,SecretBonus,,,,implemented,src/features/editor/ops/wizard-ops.ts
 actSecret_MakeCapPattern,actSecret_MakeCapPattern;actSecret_MakeCapPatternExecute,TfrmLeat,SecretBonus,,,,implemented,src/features/editor/ops/wizard-ops.ts
@@ -105,12 +105,12 @@ actSelectNextStitchingHole,actSelectNextStitchingHole,TfrmLeat,SelectionOrdering
 actSeparateTemplateIntoShapes,actSeparateTemplateIntoShapes,TfrmLeat,Other,LC-MVP-010,Templates,MVP,mapped,
 actSetAsRotationCenter,actSetAsRotationCenter;actSetAsRotationCenterExecute,TfrmLeat,Transforms,,,,implemented,src/features/editor/hooks/useTransformActions.ts
 actSetAsSnapPoint,actSetAsSnapPoint,TfrmLeat,Transforms,,,,implemented,src/features/editor/hooks/useTransformActions.ts
-actSetGridBackgroundBlack,actSetGridBackgroundBlack,TfrmLeat,ViewportDisplay,,,,unmapped,
-actSetGridBackgroundWhite,actSetGridBackgroundWhite,TfrmLeat,ViewportDisplay,,,,unmapped,
+actSetGridBackgroundBlack,actSetGridBackgroundBlack,TfrmLeat,ViewportDisplay,,,,implemented,src/features/editor/components/topbar/EditorTopbarSections.tsx (Grid: Black button)
+actSetGridBackgroundWhite,actSetGridBackgroundWhite,TfrmLeat,ViewportDisplay,,,,implemented,src/features/editor/components/topbar/EditorTopbarSections.tsx (Grid: White button)
 actShowAbout,actShowAbout;actShowAboutExecute,TfrmLeat,HelpLinks,,,,implemented,src/features/editor/components/HelpModal.tsx
 actShowDonation,actShowDonation;actShowDonationExecute,TfrmLeat,HelpLinks,,,,implemented,src/features/editor/components/HelpModal.tsx
 actShowHideDimensionLines,actShowHideDimensionLines,TfrmLeat,ViewportDisplay,,,,implemented,src/features/editor/hooks/useEditorTopbarProps.ts
-actShowHideGrid,actShowHideGrid;actShowHideGridExecute,TfrmLeat,ViewportDisplay,,,,unmapped,
+actShowHideGrid,actShowHideGrid;actShowHideGridExecute,TfrmLeat,ViewportDisplay,,,,implemented,src/features/editor/modules/canvas/useEditorGlobalShortcuts.ts ('g' key toggles showGrid)
 actShowHidePrintAreas,actShowHidePrintAreas;actShowHidePrintAreasExecute,TfrmLeat,ViewportDisplay,LC-P2-014,Print,P2,mapped,
 actShowHideScale,actShowHideScale;actShowHideScaleExecute,TfrmLeat,ViewportDisplay,,,,implemented,src/features/editor/hooks/useEditorTopbarProps.ts
 actShowHideStitchingSimulator,actShowHideStitchingSimulator,TfrmLeat,HelpLinks,LC-MVP-009,Stitching,MVP,mapped,
@@ -129,3 +129,16 @@ actVisitFAQ,actVisitFAQ;actVisitFAQExecute,TfrmLeat,HelpLinks,,,,implemented,src
 actVisitTwitter,actVisitTwitter;actVisitTwitterExecute,TfrmLeat,HelpLinks,,,,implemented,src/features/editor/components/HelpModal.tsx
 actVisitWebsite,actVisitWebsite;actVisitWebsiteExecute,TfrmLeat,HelpLinks,,,,implemented,src/features/editor/components/HelpModal.tsx
 actVisitYouTube,actVisitYouTube;actVisitYouTubeExecute,TfrmLeat,HelpLinks,,,,implemented,src/features/editor/components/HelpModal.tsx
+actBezierCp_makeOpponentFlat,actBezierCp_makeOpponentFlat,TfrmLeat,Geometry,LC-MVP-007,Geometry,MVP,implemented,src/features/editor/ops/geometry/path-editing.ts
+actBezierCp_makeOpponentSameLength,actBezierCp_makeOpponentSameLength,TfrmLeat,Geometry,LC-MVP-007,Geometry,MVP,implemented,src/features/editor/ops/geometry/path-editing.ts
+actBezierCp_makeOpponentSymmetric,actBezierCp_makeOpponentSymmetric,TfrmLeat,Geometry,LC-MVP-007,Geometry,MVP,implemented,src/features/editor/ops/geometry/path-editing.ts
+actLayer_ActivateLayerOfSelectedShape,actLayer_ActivateLayerOfSelectedShape,TfrmLeat,LayerAdvanced,LC-MVP-005,Layers,MVP,implemented,src/features/editor/hooks/useLayerActions.ts
+actLayer_DuplicateSelectedShapesOnBelowLayer,actLayer_DuplicateSelectedShapesOnBelowLayer,TfrmLeat,LayerAdvanced,LC-MVP-005,Layers,MVP,implemented,src/features/editor/hooks/useLayerActions.ts
+actLayer_HighlightShapesOnCurrentLayer,actLayer_HighlightShapesOnCurrentLayer,TfrmLeat,LayerAdvanced,LC-MVP-005,Layers,MVP,implemented,src/features/editor/hooks/useLayerActions.ts
+actLayer_MoveSelectedShapesToTheLayerBelow,actLayer_MoveSelectedShapesToTheLayerBelow,TfrmLeat,LayerAdvanced,LC-MVP-005,Layers,MVP,implemented,src/features/editor/hooks/useLayerActions.ts
+actSpecifyScaleRatioHorizontally,actSpecifyScaleRatioHorizontally,TfrmLeat,Transforms,,,,implemented,src/features/editor/components/SpecifyScaleModal.tsx
+actCountNumOfStitchingHolesOnSelectedPaths,actCountNumOfStitchingHolesOnSelectedPaths;actCountNumOfStitchingHolesOnSelectedPathsx,TfrmLeat,Stitching,LC-MVP-008,Stitching,MVP,implemented,src/features/editor/hooks/useStitchActions.ts
+actDeleteStitchingHolesOnSelectedPaths,actDeleteStitchingHolesOnSelectedPaths,TfrmLeat,Stitching,LC-MVP-008,Stitching,MVP,implemented,src/features/editor/hooks/useStitchActions.ts
+actDesignHelper_WhiteSilverRatio,actDesignHelper_WhiteSilverRatio,TfrmLeat,GeometryEdit,,,,implemented,src/features/editor/ops/mandala-ops.ts
+actMoveOrCopyWithSetDistance,actMoveOrCopyWithSetDistance,TfrmLeat;TfrmLeat_Macintosh,Transforms,,,,implemented,src/features/editor/components/MoveCopyDistanceModal.tsx
+actSecret_letter_stamp_simulator,actSecret_letter_stamp_simulator,TfrmLeat,SecretBonus,,,,implemented,src/features/editor/components/LetterStampModal.tsx

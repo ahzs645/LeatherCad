@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 type SpecifyScaleModalProps = {
   open: boolean
-  axis: 'both' | 'vertical'
+  axis: 'both' | 'vertical' | 'horizontal'
   onClose: () => void
   onApply: (factorX: number, factorY: number) => void
 }
@@ -24,6 +24,13 @@ export function SpecifyScaleModal({ open, axis, onClose, onApply }: SpecifyScale
       }
       return
     }
+    if (axis === 'horizontal') {
+      const fx = Number(percentX) / 100
+      if (Number.isFinite(fx) && fx > 0) {
+        onApply(fx, 1)
+      }
+      return
+    }
     const fx = Number(percentX) / 100
     const fy = uniform ? fx : Number(percentY) / 100
     if (Number.isFinite(fx) && Number.isFinite(fy) && fx > 0 && fy > 0) {
@@ -31,7 +38,12 @@ export function SpecifyScaleModal({ open, axis, onClose, onApply }: SpecifyScale
     }
   }
 
-  const title = axis === 'vertical' ? 'Specify Vertical Scale Ratio' : 'Specify Scale Ratio'
+  const title =
+    axis === 'vertical'
+      ? 'Specify Vertical Scale Ratio'
+      : axis === 'horizontal'
+        ? 'Specify Horizontal Scale Ratio'
+        : 'Specify Scale Ratio'
 
   return (
     <div className="modal-overlay" onClick={onClose} aria-label={title}>
@@ -81,7 +93,7 @@ export function SpecifyScaleModal({ open, axis, onClose, onApply }: SpecifyScale
               <span>Uniform (same X and Y)</span>
             </label>
           </>
-        ) : (
+        ) : axis === 'vertical' ? (
           <label className="field-row">
             <span>Vertical scale (%)</span>
             <input
@@ -91,6 +103,18 @@ export function SpecifyScaleModal({ open, axis, onClose, onApply }: SpecifyScale
               value={percentY}
               autoFocus
               onChange={(e) => setPercentY(e.target.value)}
+            />
+          </label>
+        ) : (
+          <label className="field-row">
+            <span>Horizontal scale (%)</span>
+            <input
+              type="number"
+              min={0.01}
+              step={1}
+              value={percentX}
+              autoFocus
+              onChange={(e) => setPercentX(e.target.value)}
             />
           </label>
         )}

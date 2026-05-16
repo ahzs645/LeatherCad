@@ -131,7 +131,7 @@ export type EditorUIState = {
   customSnapPoint: import('../cad/cad-types').Point | null
   showSpecifyRotationModal: boolean
   showSpecifyScaleModal: boolean
-  specifyScaleModalAxis: 'both' | 'vertical'
+  specifyScaleModalAxis: 'both' | 'vertical' | 'horizontal'
   showFontListModal: boolean
   fontList: string[]
   autoSaveEnabled: boolean

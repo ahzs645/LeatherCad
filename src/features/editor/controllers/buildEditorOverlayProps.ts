@@ -8,15 +8,17 @@ import type { PieceInspectorContentProps } from '../components/PieceInspectorCon
 import type { PieceInspectorModalProps } from '../components/PieceInspectorModal'
 import type { ProjectMemoModalProps } from '../components/ProjectMemoModal'
 import { saveAutoSaveEnabled } from '../ops/autosave'
-import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
+import { saveBoxStitchHelperSettings, type BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import { saveEditorPreferences, getDefaultEditorPreferences } from '../ops/editor-prefs'
 import { addFontToList, removeFontFromList, saveFontList } from '../ops/font-list-ops'
 import { getArcGeometry, getLineAngleDeg, getLineLengthMm, scaleLineLengthByRatio, setArcGeometry, setLineAngle, setLineLength } from '../ops/geometry-editing-ops'
 import type { OutlineChain } from '../ops/outline-detection'
+import { saveStitchAutoPitchSettings } from '../ops/stitch-auto-pitch-settings'
 import { getTerminalStitchHoleIdForShape } from '../ops/stitch-hole-ops'
 import type { StitchSimulatorResult, StitchSimulatorSettings } from '../ops/stitch-simulator-ops'
 import { saveStitchSimulatorSettings } from '../ops/stitch-simulator-settings'
 import { parseTranslationFile, saveTranslationMap } from '../ops/translation-ops'
+import type { StitchAutoPitchSettings } from '../editor-types'
 
 type ModalStackProps = ComponentProps<typeof EditorModalStack>
 type BoxStitchModalProps = NonNullable<ModalStackProps['boxStitchModalProps']>; type BoxStitchHelperModalProps = NonNullable<ModalStackProps['boxStitchHelperModalProps']>
@@ -117,6 +119,9 @@ export type BuildEditorOverlayPropsParams = {
   setDimensionDefaults: (next: OptionsModalProps['dimensionDefaults']) => void
   forceFitLastPrick: boolean
   setForceFitLastPrick: (value: boolean) => void
+  autoPitchSettings: StitchAutoPitchSettings
+  setAutoPitchSettings: (next: StitchAutoPitchSettings) => void
+  setBoxStitchHelperSettings: (next: BoxStitchHelperSettings) => void
   printCalibrationXPercent: number
   setPrintCalibrationXPercent: (value: number) => void
   printCalibrationYPercent: number
@@ -240,6 +245,9 @@ export function buildEditorOverlayProps({
   setDimensionDefaults,
   forceFitLastPrick,
   setForceFitLastPrick,
+  autoPitchSettings,
+  setAutoPitchSettings,
+  setBoxStitchHelperSettings,
   printCalibrationXPercent,
   setPrintCalibrationXPercent,
   printCalibrationYPercent,
@@ -629,6 +637,16 @@ export function buildEditorOverlayProps({
         onChangeDimensionDefaults: setDimensionDefaults,
         forceFitLastPrick,
         onChangeForceFitLastPrick: setForceFitLastPrick,
+        autoPitchSettings,
+        onChangeAutoPitchSettings: (next: StitchAutoPitchSettings) => {
+          setAutoPitchSettings(next)
+          saveStitchAutoPitchSettings(next)
+        },
+        boxStitchHelperSettings,
+        onChangeBoxStitchHelperSettings: (next: BoxStitchHelperSettings) => {
+          setBoxStitchHelperSettings(next)
+          saveBoxStitchHelperSettings(next)
+        },
         printCalibrationXPercent,
         printCalibrationYPercent,
         onChangePrintCalibrationXPercent: setPrintCalibrationXPercent,
