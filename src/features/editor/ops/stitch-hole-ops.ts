@@ -749,6 +749,28 @@ export function deleteStitchHolesForShapes(stitchHoles: StitchHole[], shapeIds: 
   return stitchHoles.filter((stitchHole) => !shapeIds.has(stitchHole.shapeId))
 }
 
+/**
+ * Apply a new visual `renderShape` to every stitch hole whose parent shape is in `shapeIds`.
+ * Also syncs `holeType` (round shapes map to `'round'`, all others to `'slit'`) so the
+ * existing geometry code paths stay consistent.
+ *
+ * Matches the source app's `actChangeStitchingHoleShape` action: select shapes containing
+ * holes, pick a shape, and apply it to all holes on those shapes.
+ */
+export function changeStitchHoleShapesOnShapes(
+  stitchHoles: StitchHole[],
+  shapeIds: Set<string>,
+  renderShape: StitchHole['renderShape'],
+): StitchHole[] {
+  if (shapeIds.size === 0 || !renderShape) {
+    return stitchHoles
+  }
+  const holeType: StitchHole['holeType'] = renderShape === 'round' ? 'round' : 'slit'
+  return stitchHoles.map((hole) =>
+    shapeIds.has(hole.shapeId) ? { ...hole, renderShape, holeType } : hole,
+  )
+}
+
 export function countStitchHolesByShape(stitchHoles: StitchHole[]) {
   const counts: Record<string, number> = {}
   for (const stitchHole of stitchHoles) {

@@ -68,6 +68,8 @@ export function useEditorScreenOverlay({
     setProjectMemo,
     patternPieces,
     pieceGrainlines,
+    dimensionLines,
+    setDimensionLines,
   } = documentState
   const {
     setStatus,
@@ -117,6 +119,8 @@ export function useEditorScreenOverlay({
     setGridBackgroundMode,
     showLengthAdjustModal,
     setShowLengthAdjustModal,
+    showDimensionInspectorModal,
+    setShowDimensionInspectorModal,
     showOptionsModal,
     setShowOptionsModal,
     leatherSimTextureRotationDeg,
@@ -212,6 +216,7 @@ export function useEditorScreenOverlay({
   const {
     handleSpecifyRotation,
     handleSpecifyScale,
+    handleMirrorSelectionAcrossAxis,
   } = transformActions
   const {
     handleMoveSelectionByDistance,
@@ -460,6 +465,7 @@ export function useEditorScreenOverlay({
       handleGenerateSpiral,
       handleGenerateGoldenGuides,
       handleGenerateWhiteSilverGuides,
+      handleMirrorSelectionAcrossAxis,
       showWizardModal,
       setShowWizardModal,
       handleGenerateWizardPattern,
@@ -528,6 +534,10 @@ export function useEditorScreenOverlay({
       setPrintCalibrationYPercent,
       showLengthAdjustModal,
       setShowLengthAdjustModal,
+      showDimensionInspectorModal,
+      setShowDimensionInspectorModal,
+      dimensionLines,
+      setDimensionLines,
       shapes,
       selectedShapeIdSet,
       setShapes,

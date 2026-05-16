@@ -76,6 +76,7 @@ const initialEditorUIState: EditorUIState = {
   gridBackgroundMode: 'theme',
   showLengthAdjustModal: false,
   showOptionsModal: false,
+  showDimensionInspectorModal: false,
   leatherSimTextureRotationDeg: loadEditorPreferences().leatherSimTextureRotationDeg,
   exportIncludeText: loadEditorPreferences().exportIncludeText,
   exportIncludeTemplateMetadata: loadEditorPreferences().exportIncludeTemplateMetadata,
@@ -205,6 +206,9 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'showLengthAdjustModal', value }),
     setShowOptionsModal: (value: React.SetStateAction<EditorUIState['showOptionsModal']>) =>
       dispatch({ type: 'showOptionsModal', value }),
+    setShowDimensionInspectorModal: (
+      value: React.SetStateAction<EditorUIState['showDimensionInspectorModal']>,
+    ) => dispatch({ type: 'showDimensionInspectorModal', value }),
     setLeatherSimTextureRotationDeg: (
       value: React.SetStateAction<EditorUIState['leatherSimTextureRotationDeg']>,
     ) => dispatch({ type: 'leatherSimTextureRotationDeg', value }),

@@ -23,6 +23,7 @@ export type CreateEditorTopbarCommandHandlersParams = {
   setShowWizardModal: Dispatch<SetStateAction<boolean>>
   setShowOptionsModal: Dispatch<SetStateAction<boolean>>
   setShowLengthAdjustModal: Dispatch<SetStateAction<boolean>>
+  setShowDimensionInspectorModal: Dispatch<SetStateAction<boolean>>
   handleEditSelectedLineAngle: (angleDeg: number) => void
   handleDeleteDuplicates: () => void
   handleSplitIntoN: (count: number) => void
@@ -51,6 +52,7 @@ export function createEditorTopbarCommandHandlers({
   setShowWizardModal,
   setShowOptionsModal,
   setShowLengthAdjustModal,
+  setShowDimensionInspectorModal,
   handleEditSelectedLineAngle,
   handleDeleteDuplicates,
   handleSplitIntoN,
@@ -178,6 +180,7 @@ export function createEditorTopbarCommandHandlers({
     },
     handleOpenOptionsModal: () => setShowOptionsModal(true),
     handleOpenLengthAdjustModal: () => setShowLengthAdjustModal(true),
+    handleOpenDimensionInspectorModal: () => setShowDimensionInspectorModal(true),
     handleFilletSelectedCornerPrompt: () => {
       const raw = window.prompt('Fillet (chamfer) radius in mm?', '2')
       if (raw === null) {

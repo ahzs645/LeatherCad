@@ -6,6 +6,7 @@ import {
   alignSelectionToEdge,
   flipSelection,
   makeSelectedLinesAxisAligned,
+  mirrorSelectionAcrossAxis,
   reverseSelectedPaths,
   rotateSelectionAround,
   scaleSelectionNonUniform,
@@ -62,6 +63,24 @@ export function useTransformActions(params: UseTransformActionsParams) {
     if (!requireSelection('flip')) return
     setShapes((previous) => flipSelection(previous, selectedShapeIdSet, axis))
     setStatus(`Flipped selection ${axis === 'horizontal' ? 'horizontally' : 'vertically'}`)
+  }
+
+  const handleMirrorSelectionAcrossAxis = (axisAngleDeg: number) => {
+    if (!requireSelection('mirror')) return
+    if (!Number.isFinite(axisAngleDeg)) {
+      setStatus('Mirror cancelled')
+      return
+    }
+    const pivot = customRotationPivot ?? getSelectionCenter(shapes, selectedShapeIdSet)
+    if (!pivot) {
+      setStatus('Could not compute mirror pivot')
+      return
+    }
+    setShapes((previous) =>
+      mirrorSelectionAcrossAxis(previous, selectedShapeIdSet, pivot, axisAngleDeg),
+    )
+    const pivotNote = customRotationPivot ? ' (custom pivot)' : ''
+    setStatus(`Mirrored selection across ${axisAngleDeg.toFixed(1)}° axis${pivotNote}`)
   }
 
   const handleReverseSelectedPaths = () => {
@@ -179,6 +198,7 @@ export function useTransformActions(params: UseTransformActionsParams) {
   return {
     handleAlignSelectionToEdge,
     handleFlipSelection,
+    handleMirrorSelectionAcrossAxis,
     handleReverseSelectedPaths,
     handleSpecifyRotation,
     handleSpecifyScale,

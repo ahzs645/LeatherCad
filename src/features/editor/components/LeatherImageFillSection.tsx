@@ -133,6 +133,48 @@ export function LeatherImageFillSection({
               }
             />
           </label>
+          <div className="line-type-modal-actions" aria-label="Quick rotate leather image">
+            <button
+              type="button"
+              onClick={() =>
+                onUpdateLeatherImageFill(activeLeatherImageFill.id, {
+                  rotationDeg: ((activeLeatherImageFill.rotationDeg - 90) % 360 + 360) % 360,
+                })
+              }
+            >
+              ↺ 90°
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onUpdateLeatherImageFill(activeLeatherImageFill.id, {
+                  rotationDeg: ((activeLeatherImageFill.rotationDeg + 90) % 360 + 360) % 360,
+                })
+              }
+            >
+              ↻ 90°
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onUpdateLeatherImageFill(activeLeatherImageFill.id, {
+                  rotationDeg: activeLeatherImageFill.rotationDeg - 1,
+                })
+              }
+            >
+              ↺ 1°
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onUpdateLeatherImageFill(activeLeatherImageFill.id, {
+                  rotationDeg: activeLeatherImageFill.rotationDeg + 1,
+                })
+              }
+            >
+              ↻ 1°
+            </button>
+          </div>
           <label className="field-row">
             <span>DPI</span>
             <input

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { MandalaSettings, GoldenSpiralParams } from '../ops/mandala-ops'
 
-type MandalaTab = 'radial' | 'spiral' | 'golden' | 'silver'
+type MandalaTab = 'radial' | 'spiral' | 'golden' | 'silver' | 'mirror'
 
 type MandalaModalProps = {
   open: boolean
@@ -10,6 +10,8 @@ type MandalaModalProps = {
   onGenerateSpiral: (params: GoldenSpiralParams) => void
   onGenerateGoldenGuides: (center: { x: number; y: number }, size: number) => void
   onGenerateWhiteSilverGuides: (center: { x: number; y: number }, size: number) => void
+  onMirrorSelectionAcrossAxis?: (axisAngleDeg: number) => void
+  selectedShapeCount?: number
   defaultLayerId: string
   defaultLineTypeId: string
 }
@@ -21,10 +23,13 @@ export function MandalaModal({
   onGenerateSpiral,
   onGenerateGoldenGuides,
   onGenerateWhiteSilverGuides,
+  onMirrorSelectionAcrossAxis,
+  selectedShapeCount = 0,
   defaultLayerId,
   defaultLineTypeId,
 }: MandalaModalProps) {
   const [activeTab, setActiveTab] = useState<MandalaTab>('radial')
+  const [mirrorAxisAngleDeg, setMirrorAxisAngleDeg] = useState(0)
 
   // Radial Symmetry state
   const [segmentCount, setSegmentCount] = useState(8)
@@ -81,6 +86,12 @@ export function MandalaModal({
     onGenerateWhiteSilverGuides({ x: goldenCenterX, y: goldenCenterY }, goldenSize)
   }
 
+  function handleApplyMirror() {
+    if (onMirrorSelectionAcrossAxis) {
+      onMirrorSelectionAcrossAxis(mirrorAxisAngleDeg)
+    }
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose} aria-label="Mandala and Golden Ratio Tools">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -110,6 +121,12 @@ export function MandalaModal({
             onClick={() => setActiveTab('silver')}
           >
             White-Silver
+          </button>
+          <button
+            className={activeTab === 'mirror' ? 'active' : ''}
+            onClick={() => setActiveTab('mirror')}
+          >
+            Mirror Item
           </button>
         </div>
 
@@ -293,6 +310,44 @@ export function MandalaModal({
             <div className="modal-actions">
               <button onClick={onClose}>Cancel</button>
               <button onClick={handleGenerateGolden}>Generate</button>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'mirror' && (
+          <>
+            <p>
+              Mirror the selected shapes across an axis through the rotation pivot
+              (or selection center if no pivot is set). Axis angle 0° is horizontal,
+              90° is vertical, 45° mirrors diagonally — useful for mirroring across a
+              mandala spoke.
+            </p>
+            <p>
+              {selectedShapeCount} selected shape{selectedShapeCount === 1 ? '' : 's'}
+            </p>
+            <label className="field-row">
+              <span>Axis angle (°)</span>
+              <input
+                type="number"
+                step={1}
+                value={mirrorAxisAngleDeg}
+                onChange={(e) => setMirrorAxisAngleDeg(Number(e.target.value))}
+              />
+            </label>
+            <div className="button-row">
+              <button onClick={() => setMirrorAxisAngleDeg(0)}>0°</button>
+              <button onClick={() => setMirrorAxisAngleDeg(45)}>45°</button>
+              <button onClick={() => setMirrorAxisAngleDeg(90)}>90°</button>
+              <button onClick={() => setMirrorAxisAngleDeg(135)}>135°</button>
+            </div>
+            <div className="modal-actions">
+              <button onClick={onClose}>Cancel</button>
+              <button
+                onClick={handleApplyMirror}
+                disabled={selectedShapeCount === 0 || !onMirrorSelectionAcrossAxis}
+              >
+                Mirror
+              </button>
             </div>
           </>
         )}

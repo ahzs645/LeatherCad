@@ -1,6 +1,7 @@
 # Source-App Parity Gaps (Extraction Review)
 
-Last updated: 2026-05-16
+Last updated: 2026-05-16 (pass 2: silver ratio, mandala mirror, per-hole stitch shape, leather-sim
+rotate, per-dimension inspector, prickingirons.lccp fixture)
 
 This document tracks parity between the extracted source app (Leathercraft_CAD_v2.8.3) and the
 current LeatherCad web app. Items marked ✓ are fully implemented.
@@ -95,7 +96,10 @@ current LeatherCad web app. Items marked ✓ are fully implemented.
 
 ### Fixture / test coverage
 - `backImage.tiff` SHA validation is tied to the local extracted app path — no checked-in hash.
-- No checked-in `prickingirons.lccp` native fixture (only the system-preset fallback is tested).
+- Checked-in `prickingirons.lccp` fixture at `docs/fixtures/source-app-parity/prickingirons.lccp`
+  is exercised by `pricking-iron-ops.test.ts` and represents the source-shaped
+  `LeathercraftCAD_PrickingIronGroups` envelope. A genuine native desktop sample would still be
+  preferable for byte-level guarantees, but parser parity is now under test.
 - Generator tests include geometry invariants for cap seam (incl. apex), box lid (drop-in vs
   sliding), box joint groove slots, letter stamp rotation, and watch strap holes.
   Additional per-generator coordinate invariants can be added over time.
@@ -108,9 +112,10 @@ current LeatherCad web app. Items marked ✓ are fully implemented.
   `ExportOptionsModal` with checkboxes ("Include text shapes", "Include template / painted
   parts"). Previously they were only reachable through the global OptionsModal (settings).
 
-### PDF tracing depth (LC-P2-012 pass 2)
-- True PDF page raster preview with interactive canvas drag handles is not yet implemented.
-  Current implementation uses numeric offset inputs only.
+### PDF tracing depth (LC-P2-012 pass 2) — ✓ closed
+- `renderPdfPageToTracingImage` (pdfjs) rasterizes the chosen page into a PNG `sourceUrl`. The
+  `TracingModal` preview now binds pointer drag (preview pane and on-canvas chrome both update
+  `offsetX/offsetY`), exposes Previous/Next page controls, and supports DPI/ruler calibration.
 
 ### Box joint assembly geometry — ✓ closed
 - Side panels now include bottom-panel groove slots (pairs of parallel guide lines at
@@ -167,9 +172,34 @@ current LeatherCad web app. Items marked ✓ are fully implemented.
 
 ---
 
+## 2026-05-16 closures (pass 2)
+
+### Per-hole stitch shape override (actChangeStitchingHoleShape) — ✓ closed
+- `SelectionInspectorPanel` already lets a single selected hole pick its `renderShape`. A new
+  batch path (`changeStitchHoleShapesOnShapes` in `stitch-hole-ops.ts`,
+  `handleChangeStitchHoleShapeOnSelectedShapes` in `useStitchActions.ts`) and a "Change Shape"
+  dropdown in `StitchHolePanel` apply a shape to every hole on the selected shapes.
+
+### Silver-ratio (actDesignHelper_WhiteSilverRatio) — ✓ closed
+- `generateWhiteSilverGuides` (1:√2) sits alongside `generateGoldenRatioGuides` in
+  `mandala-ops.ts` and is exposed in `MandalaModal` as the **White-Silver** tab.
+
+### Mandala mirror (actMirrorMandalaItem) — ✓ closed
+- `mirrorSelectionAcrossAxis` in `transform-ops.ts` mirrors selected shapes across any axis
+  through the current rotation pivot (or selection centroid). `MandalaModal` adds a "Mirror Item"
+  tab with quick-axis presets (0/45/90/135°).
+
+### Leather sim rotate image (actLeatherSim_RotateImage) — ✓ closed
+- `LeatherImageFillSection` now exposes quick-rotate buttons (±90°, ±1°) next to the numeric
+  rotation field for the active leather image fill.
+
+### Per-dimension inspector — ✓ closed
+- New `DimensionInspectorModal` lists all dimensions and edits per-instance fields
+  (`arrowOnly`, `singleLine`, `textInside`, `textReverse`, `precision`, `fontSizeMm`, `offsetMm`,
+  custom `text`). Opened from `OptionsModal` → Dimension defaults → "Open per-dimension
+  inspector…". `setShowDimensionInspectorModal` is wired through the standard overlay chain.
+
 ## Remaining nice-to-haves (no functional gap)
 
-- Per-dimension inspector (currently formatting is applied as workspace defaults; a
-  selection-aware inspector would let users tweak each dimension individually).
 - Crypto wallet addresses in the donation tab are placeholders; replace with real
   project-owner values when published.

@@ -26,6 +26,7 @@ type OptionsModalProps = {
   onChangeForceFitLastPrick: (value: boolean) => void
   onChangePrintCalibrationXPercent: (value: number) => void
   onChangePrintCalibrationYPercent: (value: number) => void
+  onOpenDimensionInspector?: () => void
   onClose: () => void
 }
 
@@ -55,6 +56,7 @@ export function OptionsModal({
   printCalibrationYPercent,
   onChangePrintCalibrationXPercent,
   onChangePrintCalibrationYPercent,
+  onOpenDimensionInspector,
   onClose,
 }: OptionsModalProps) {
   const updateDimensionDefaults = <K extends keyof DimensionDefaults>(key: K, value: DimensionDefaults[K]) => {
@@ -230,6 +232,17 @@ export function OptionsModal({
               }}
             />
           </label>
+          {onOpenDimensionInspector && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenDimensionInspector()
+                onClose()
+              }}
+            >
+              Open per-dimension inspector…
+            </button>
+          )}
         </section>
 
         <section className="help-section">

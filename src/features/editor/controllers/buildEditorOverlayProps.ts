@@ -60,6 +60,7 @@ export type BuildEditorOverlayPropsParams = {
   handleGenerateSpiral: MandalaModalProps['onGenerateSpiral']
   handleGenerateGoldenGuides: MandalaModalProps['onGenerateGoldenGuides']
   handleGenerateWhiteSilverGuides: MandalaModalProps['onGenerateWhiteSilverGuides']
+  handleMirrorSelectionAcrossAxis: (axisAngleDeg: number) => void
   showWizardModal: boolean
   setShowWizardModal: Dispatch<SetStateAction<boolean>>
   handleGenerateWizardPattern: WizardModalProps['onGenerate']
@@ -121,6 +122,10 @@ export type BuildEditorOverlayPropsParams = {
   printCalibrationYPercent: number
   setPrintCalibrationYPercent: (value: number) => void
   showLengthAdjustModal: boolean; setShowLengthAdjustModal: Dispatch<SetStateAction<boolean>>
+  showDimensionInspectorModal: boolean
+  setShowDimensionInspectorModal: Dispatch<SetStateAction<boolean>>
+  dimensionLines: import('../cad/cad-types').DimensionLine[]
+  setDimensionLines: Dispatch<SetStateAction<import('../cad/cad-types').DimensionLine[]>>
   shapes: Shape[]; selectedShapeIdSet: Set<string>; setShapes: Dispatch<SetStateAction<Shape[]>>
   showProjectMemoModal: boolean; setShowProjectMemoModal: Dispatch<SetStateAction<boolean>>; projectMemo: string; setProjectMemo: Dispatch<SetStateAction<string>>
   isMobileLayout: boolean; showPieceInspectorModal: boolean; setShowPieceInspectorModal: Dispatch<SetStateAction<boolean>>
@@ -173,6 +178,7 @@ export function buildEditorOverlayProps({
   handleGenerateSpiral,
   handleGenerateGoldenGuides,
   handleGenerateWhiteSilverGuides,
+  handleMirrorSelectionAcrossAxis,
   showWizardModal,
   setShowWizardModal,
   handleGenerateWizardPattern,
@@ -241,6 +247,10 @@ export function buildEditorOverlayProps({
   setGridBackgroundMode,
   showLengthAdjustModal,
   setShowLengthAdjustModal,
+  showDimensionInspectorModal,
+  setShowDimensionInspectorModal,
+  dimensionLines,
+  setDimensionLines,
   shapes,
   selectedShapeIdSet,
   setShapes,
@@ -327,6 +337,8 @@ export function buildEditorOverlayProps({
         onGenerateSpiral: handleGenerateSpiral,
         onGenerateGoldenGuides: handleGenerateGoldenGuides,
         onGenerateWhiteSilverGuides: handleGenerateWhiteSilverGuides,
+        onMirrorSelectionAcrossAxis: handleMirrorSelectionAcrossAxis,
+        selectedShapeCount: selectedShapeIdSet.size,
         defaultLayerId: activeLayerId,
         defaultLineTypeId: activeLineTypeId,
       },
@@ -621,6 +633,21 @@ export function buildEditorOverlayProps({
         printCalibrationYPercent,
         onChangePrintCalibrationXPercent: setPrintCalibrationXPercent,
         onChangePrintCalibrationYPercent: setPrintCalibrationYPercent,
+        onOpenDimensionInspector: () => setShowDimensionInspectorModal(true),
+      },
+      dimensionInspectorModalProps: {
+        open: showDimensionInspectorModal,
+        dimensions: dimensionLines,
+        onClose: () => setShowDimensionInspectorModal(false),
+        onUpdateDimension: (id: string, patch: Partial<import('../cad/cad-types').DimensionLine>) => {
+          setDimensionLines((previous) =>
+            previous.map((dim) => (dim.id === id ? { ...dim, ...patch } : dim)),
+          )
+        },
+        onDeleteDimension: (id: string) => {
+          setDimensionLines((previous) => previous.filter((dim) => dim.id !== id))
+          setStatus('Deleted dimension line')
+        },
       },
       lengthAdjustModalProps: {
         open: showLengthAdjustModal,

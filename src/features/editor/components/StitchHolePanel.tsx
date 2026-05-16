@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import type { StitchHoleDefaults } from '../cad/cad-types'
+import type { StitchHoleDefaults, StitchHoleRenderShape } from '../cad/cad-types'
 import type { StitchAutoPitchSettings } from '../editor-types'
 import {
   createBuiltinPrickingIronCatalog,
@@ -51,6 +51,7 @@ type StitchHolePanelProps = {
   onToggleSequenceLabels: () => void
   onCountSelected: () => void
   onDeleteOnSelected: () => void
+  onChangeShapeOnSelected: (renderShape: StitchHoleRenderShape) => void
   onClearAll: () => void
   selectedShapeCount: number
   selectedHoleCount: number
@@ -93,6 +94,7 @@ export function StitchHolePanel({
   onToggleSequenceLabels,
   onCountSelected,
   onDeleteOnSelected,
+  onChangeShapeOnSelected,
   onClearAll,
   selectedShapeCount,
   selectedHoleCount,
@@ -507,6 +509,29 @@ export function StitchHolePanel({
       <button onClick={onDeleteOnSelected} disabled={selectedHoleCount === 0}>
         Delete Selected
       </button>
+      <label className="stitch-pitch-inline">
+        <span>Change Shape</span>
+        <select
+          className="line-type-select"
+          value=""
+          disabled={selectedHoleCount === 0}
+          onChange={(event) => {
+            const value = event.target.value as StitchHoleRenderShape | ''
+            if (value === '') return
+            onChangeShapeOnSelected(value)
+            event.currentTarget.value = ''
+          }}
+        >
+          <option value="" disabled>
+            Apply to selected…
+          </option>
+          <option value="round">Round</option>
+          <option value="slit">Slit</option>
+          <option value="diamond">Diamond</option>
+          <option value="french">French</option>
+          <option value="flat">Flat</option>
+        </select>
+      </label>
 
       <label className="stitch-pitch-inline">
         <span>Default Auto</span>

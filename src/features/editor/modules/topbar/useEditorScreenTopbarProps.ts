@@ -43,6 +43,7 @@ export function useEditorScreenTopbarProps({
     setShowBackdropModal,
     setShowOptionsModal,
     setShowLengthAdjustModal,
+    setShowDimensionInspectorModal,
     setShowMoveCopyDistanceModal,
     setMoveCopyDistanceMode,
   } = uiState
@@ -142,6 +143,7 @@ export function useEditorScreenTopbarProps({
     handleFixStitchHoleOrderFromSelected,
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
+    handleChangeStitchHoleShapeOnSelectedShapes,
     handleClearAllStitchHoles,
   } = stitchActions
   const {
@@ -187,6 +189,7 @@ export function useEditorScreenTopbarProps({
     setShowBackdropModal,
     setShowOptionsModal,
     setShowLengthAdjustModal,
+    setShowDimensionInspectorModal,
     handleEditSelectedLineAngle,
     handleDeleteDuplicates,
     handleSplitIntoN,
@@ -260,6 +263,7 @@ export function useEditorScreenTopbarProps({
     handleFixStitchHoleOrderFromSelected,
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
+    handleChangeStitchHoleShapeOnSelectedShapes,
     handleClearAllStitchHoles,
     stitchHolesLength: stitchHoles.length,
     hasSelectedStitchHole: selectedStitchHole !== null,

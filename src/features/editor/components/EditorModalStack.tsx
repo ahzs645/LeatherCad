@@ -76,6 +76,9 @@ const OptionsModal = lazy(() =>
 const LengthAdjustModal = lazy(() =>
   import('./LengthAdjustModal').then((mod) => ({ default: mod.LengthAdjustModal })),
 )
+const DimensionInspectorModal = lazy(() =>
+  import('./DimensionInspectorModal').then((mod) => ({ default: mod.DimensionInspectorModal })),
+)
 
 type EditorModalStackProps = {
   lineTypePaletteProps: ComponentProps<typeof LineTypePalette>
@@ -104,6 +107,7 @@ type EditorModalStackProps = {
   fontListModalProps?: ComponentProps<typeof FontListModal>
   optionsModalProps?: ComponentProps<typeof OptionsModal>
   lengthAdjustModalProps?: ComponentProps<typeof LengthAdjustModal>
+  dimensionInspectorModalProps?: ComponentProps<typeof DimensionInspectorModal>
 }
 
 export function EditorModalStack({
@@ -133,6 +137,7 @@ export function EditorModalStack({
   fontListModalProps,
   optionsModalProps,
   lengthAdjustModalProps,
+  dimensionInspectorModalProps,
 }: EditorModalStackProps) {
   return (
     <>
@@ -261,6 +266,11 @@ export function EditorModalStack({
             key={`length-${lengthAdjustModalProps.open}-${lengthAdjustModalProps.currentLengthMm}`}
             {...lengthAdjustModalProps}
           />
+        </Suspense>
+      )}
+      {dimensionInspectorModalProps?.open && (
+        <Suspense fallback={null}>
+          <DimensionInspectorModal {...dimensionInspectorModalProps} />
         </Suspense>
       )}
     </>

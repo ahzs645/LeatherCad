@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LineType, Shape, StitchHoleDefaults } from '../cad/cad-types'
 import {
+  changeStitchHoleShapesOnShapes,
   clearTerminalStitchHole,
   createPrickingIronStitchHoles,
   findNearestStitchAnchor,
@@ -10,6 +11,7 @@ import {
   parseStitchHole,
   setTerminalStitchHole,
 } from './stitch-hole-ops'
+import type { StitchHole } from '../cad/cad-types'
 
 const lineTypesById: Record<string, LineType> = {
   cut: {
@@ -213,5 +215,58 @@ describe('terminal stitch markers', () => {
 
     expect(normalized.find((hole) => hole.id === 'h1')?.sequence).toBe(0)
     expect(normalized.find((hole) => hole.id === 'h2')?.sequence).toBe(1)
+  })
+})
+
+describe('changeStitchHoleShapesOnShapes', () => {
+  const baseHoles: StitchHole[] = [
+    {
+      id: 'h1',
+      shapeId: 'shape-a',
+      point: { x: 0, y: 0 },
+      angleDeg: 0,
+      holeType: 'round',
+      renderShape: 'round',
+      sequence: 0,
+    },
+    {
+      id: 'h2',
+      shapeId: 'shape-a',
+      point: { x: 10, y: 0 },
+      angleDeg: 0,
+      holeType: 'round',
+      renderShape: 'round',
+      sequence: 1,
+    },
+    {
+      id: 'h3',
+      shapeId: 'shape-b',
+      point: { x: 0, y: 10 },
+      angleDeg: 0,
+      holeType: 'round',
+      renderShape: 'round',
+      sequence: 0,
+    },
+  ]
+
+  it('applies the new renderShape only to holes whose shape is in the selection', () => {
+    const next = changeStitchHoleShapesOnShapes(baseHoles, new Set(['shape-a']), 'diamond')
+    const onA = next.filter((hole) => hole.shapeId === 'shape-a')
+    const onB = next.filter((hole) => hole.shapeId === 'shape-b')
+    expect(onA.every((hole) => hole.renderShape === 'diamond')).toBe(true)
+    expect(onA.every((hole) => hole.holeType === 'slit')).toBe(true)
+    expect(onB[0].renderShape).toBe('round')
+    expect(onB[0].holeType).toBe('round')
+  })
+
+  it('returns input unchanged when no shapes are selected', () => {
+    const next = changeStitchHoleShapesOnShapes(baseHoles, new Set(), 'diamond')
+    expect(next).toBe(baseHoles)
+  })
+
+  it('maps round renderShape back to round holeType', () => {
+    const slitFirst = changeStitchHoleShapesOnShapes(baseHoles, new Set(['shape-a']), 'flat')
+    const restored = changeStitchHoleShapesOnShapes(slitFirst, new Set(['shape-a']), 'round')
+    expect(restored.filter((hole) => hole.shapeId === 'shape-a').every((hole) => hole.holeType === 'round')).toBe(true)
   })
 })

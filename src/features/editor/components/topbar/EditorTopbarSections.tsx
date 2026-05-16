@@ -201,6 +201,7 @@ export function StitchSection({
   onToggleStitchSequenceLabels,
   onCountStitchHolesOnSelectedShapes,
   onDeleteStitchHolesOnSelectedShapes,
+  onChangeStitchHoleShapeOnSelectedShapes,
   onClearAllStitchHoles,
   selectedShapeCount,
   selectedHoleCount,
@@ -234,6 +235,7 @@ export function StitchSection({
         onToggleSequenceLabels={onToggleStitchSequenceLabels}
         onCountSelected={onCountStitchHolesOnSelectedShapes}
         onDeleteOnSelected={onDeleteStitchHolesOnSelectedShapes}
+        onChangeShapeOnSelected={onChangeStitchHoleShapeOnSelectedShapes}
         onClearAll={onClearAllStitchHoles}
         selectedShapeCount={selectedShapeCount}
         selectedHoleCount={selectedHoleCount}

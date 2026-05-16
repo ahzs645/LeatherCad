@@ -5,8 +5,10 @@ import type {
   LineType,
   Shape,
   StitchHole,
+  StitchHoleRenderShape,
 } from '../cad/cad-types'
 import {
+  changeStitchHoleShapesOnShapes,
   deleteStitchHolesForShapes,
   fixStitchHoleOrderFromHole,
   generateEvenlySpacedStitchHoles,
@@ -197,6 +199,24 @@ export function useStitchActions(params: UseStitchActionsParams) {
     setStatus(`Deleted ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'} on selected shapes`)
   }
 
+  const handleChangeStitchHoleShapeOnSelectedShapes = (renderShape: StitchHoleRenderShape) => {
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes first to change stitch hole shape')
+      return
+    }
+    if (selectedStitchHoleCount === 0) {
+      setStatus('Selected shapes do not contain stitch holes')
+      return
+    }
+
+    setStitchHoles((previous) =>
+      changeStitchHoleShapesOnShapes(previous, selectedShapeIdSet, renderShape),
+    )
+    setStatus(
+      `Changed ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'} to ${renderShape}`,
+    )
+  }
+
   const handleClearAllStitchHoles = () => {
     if (stitchHoles.length === 0) {
       setStatus('No stitch holes to clear')
@@ -385,6 +405,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
   return {
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
+    handleChangeStitchHoleShapeOnSelectedShapes,
     handleClearAllStitchHoles,
     handleAutoPlacePreferredPitchStitchHoles,
     handleAutoPlaceFixedPitchStitchHoles,

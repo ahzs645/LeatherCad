@@ -5,6 +5,7 @@ import {
   flipSelection,
   makeLineAxisAligned,
   makeSelectedLinesAxisAligned,
+  mirrorSelectionAcrossAxis,
   reverseSelectedPaths,
   reverseShapePath,
   rotateSelectionAround,
@@ -64,6 +65,48 @@ describe('flipSelection', () => {
     expect(a.type === 'line' && a.start.y).toBe(20)
     expect(a.type === 'line' && a.end.y).toBe(0)
     expect(a.type === 'line' && a.start.x).toBe(5)
+  })
+})
+
+describe('mirrorSelectionAcrossAxis', () => {
+  it('mirrors across horizontal axis (angle 0) through origin', () => {
+    const shapes: Shape[] = [lineShape('a', 1, 2, 3, 4)]
+    const out = mirrorSelectionAcrossAxis(shapes, new Set(['a']), { x: 0, y: 0 }, 0)
+    const a = out[0]
+    if (a.type !== 'line') throw new Error('expected line')
+    expect(a.start.x).toBeCloseTo(1, 6)
+    expect(a.start.y).toBeCloseTo(-2, 6)
+    expect(a.end.x).toBeCloseTo(3, 6)
+    expect(a.end.y).toBeCloseTo(-4, 6)
+  })
+
+  it('mirrors across vertical axis (angle 90) through origin', () => {
+    const shapes: Shape[] = [lineShape('a', 1, 2, 3, 4)]
+    const out = mirrorSelectionAcrossAxis(shapes, new Set(['a']), { x: 0, y: 0 }, 90)
+    const a = out[0]
+    if (a.type !== 'line') throw new Error('expected line')
+    expect(a.start.x).toBeCloseTo(-1, 6)
+    expect(a.start.y).toBeCloseTo(2, 6)
+    expect(a.end.x).toBeCloseTo(-3, 6)
+    expect(a.end.y).toBeCloseTo(4, 6)
+  })
+
+  it('mirroring twice is identity (within float epsilon)', () => {
+    const shapes: Shape[] = [lineShape('a', 7, 3, 11, 5)]
+    const once = mirrorSelectionAcrossAxis(shapes, new Set(['a']), { x: 2, y: 1 }, 37)
+    const twice = mirrorSelectionAcrossAxis(once, new Set(['a']), { x: 2, y: 1 }, 37)
+    const a = twice[0]
+    if (a.type !== 'line') throw new Error('expected line')
+    expect(a.start.x).toBeCloseTo(7, 4)
+    expect(a.start.y).toBeCloseTo(3, 4)
+    expect(a.end.x).toBeCloseTo(11, 4)
+    expect(a.end.y).toBeCloseTo(5, 4)
+  })
+
+  it('leaves non-selected shapes untouched', () => {
+    const shapes: Shape[] = [lineShape('a', 1, 1, 2, 2), lineShape('b', 5, 5, 6, 6)]
+    const out = mirrorSelectionAcrossAxis(shapes, new Set(['a']), { x: 0, y: 0 }, 0)
+    expect(out[1]).toBe(shapes[1])
   })
 })
 

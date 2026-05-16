@@ -29,8 +29,9 @@
       "sourceAppFilename": "prickingirons.lccp",
       "sourceAppStorageKey": "LeathercraftCAD_PrickingIronGroups",
       "sourceAppCollectionKey": "pricking_iron_groups",
-      "status": "source-key-json-import-export-supported-real-native-fixture-still-needed",
-      "reason": "Protect grouped/system/custom pricking iron preset migration."
+      "status": "source-shaped-fixture-checked-in",
+      "repoPath": "docs/fixtures/source-app-parity/prickingirons.lccp",
+      "reason": "Protect grouped/system/custom pricking iron preset migration. Fixture uses source-shaped LeathercraftCAD_PrickingIronGroups envelope and is verified by pricking-iron-ops.test.ts."
     },
     {
       "kind": "generator-output",

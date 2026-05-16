@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createBuiltinPrickingIronCatalog,
@@ -11,6 +14,12 @@ import {
   SOURCE_APP_PRICKING_IRON_COLLECTION_KEY,
   SOURCE_APP_PRICKING_IRON_GROUPS_KEY,
 } from './pricking-iron-ops'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const REPO_PRICKING_IRON_FIXTURE = resolve(
+  __dirname,
+  '../../../../docs/fixtures/source-app-parity/prickingirons.lccp',
+)
 
 const STORAGE_KEY = 'test-pricking-irons'
 const LEGACY_STORAGE_KEY = 'leathercraft-custom-pricking-irons-v1'
@@ -240,6 +249,36 @@ describe('pricking-iron-ops', () => {
       heightMm: 3.5,
       tiltDeg: 12,
       inverted: true,
+    })
+  })
+
+  it('parses the checked-in source-shaped prickingirons.lccp fixture', () => {
+    const raw = readFileSync(REPO_PRICKING_IRON_FIXTURE, 'utf8')
+    const parsed = parsePrickingIronLccp(raw)
+
+    expect(parsed.showFiveMmGuide).toBe(true)
+    expect(parsed.groups.map((group) => group.name)).toEqual(
+      expect.arrayContaining(['Builtin Round', 'Diamond', 'French', 'Flat']),
+    )
+
+    const diamond3 = parsed.presets.find((preset) => preset.id === 'iron-diamond-3mm')
+    expect(diamond3).toBeDefined()
+    expect(diamond3).toMatchObject({
+      name: 'Diamond 3.0mm',
+      shape: 'diamond',
+      pitchMm: 3,
+      widthMm: 1,
+      heightMm: 2.5,
+      tiltDeg: 45,
+    })
+
+    const flat5 = parsed.presets.find((preset) => preset.id === 'iron-flat-5mm')
+    expect(flat5).toBeDefined()
+    expect(flat5).toMatchObject({
+      shape: 'flat',
+      pitchMm: 5,
+      widthMm: 0,
+      heightMm: 3.5,
     })
   })
 

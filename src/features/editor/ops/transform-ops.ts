@@ -138,6 +138,38 @@ export function flipSelection(
 }
 
 /**
+ * Mirror selected shapes across an arbitrary line through `pivot` at `axisAngleDeg`.
+ * Matches the source app's `actMirrorMandalaItem` action — useful for mirroring across a
+ * mandala radial spoke at any angle (not just horizontal/vertical).
+ */
+export function mirrorSelectionAcrossAxis(
+  shapes: Shape[],
+  selectedShapeIds: Set<string>,
+  pivot: Point,
+  axisAngleDeg: number,
+): Shape[] {
+  if (selectedShapeIds.size === 0) {
+    return shapes
+  }
+  const rad = (axisAngleDeg * Math.PI) / 180
+  const cos2 = Math.cos(2 * rad)
+  const sin2 = Math.sin(2 * rad)
+  return shapes.map((shape) => {
+    if (!selectedShapeIds.has(shape.id)) {
+      return shape
+    }
+    return mapShapePoints(shape, (point) => {
+      const dx = point.x - pivot.x
+      const dy = point.y - pivot.y
+      return {
+        x: pivot.x + dx * cos2 + dy * sin2,
+        y: pivot.y + dx * sin2 - dy * cos2,
+      }
+    })
+  })
+}
+
+/**
  * Reverse a path's point ordering. For line/bezier/text: swap start and end.
  * For arc: swap start/end (mid is unchanged — still lies on the curve).
  */

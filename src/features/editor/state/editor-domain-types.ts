@@ -145,6 +145,7 @@ export type EditorUIState = {
   gridBackgroundMode: 'theme' | 'light' | 'dark'
   showLengthAdjustModal: boolean
   showOptionsModal: boolean
+  showDimensionInspectorModal: boolean
   leatherSimTextureRotationDeg: number
   exportIncludeText: boolean
   exportIncludeTemplateMetadata: boolean

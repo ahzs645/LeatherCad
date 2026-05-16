@@ -93,6 +93,7 @@ export type UseEditorTopbarPropsParams = {
   handleFixStitchHoleOrderFromSelected: (reverse: boolean) => void
   handleCountStitchHolesOnSelectedShapes: () => void
   handleDeleteStitchHolesOnSelectedShapes: () => void
+  handleChangeStitchHoleShapeOnSelectedShapes: (renderShape: import('../cad/cad-types').StitchHoleRenderShape) => void
   handleClearAllStitchHoles: () => void
   stitchHolesLength: number
   hasSelectedStitchHole: boolean
@@ -211,6 +212,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     handleFixStitchHoleOrderFromSelected,
     handleCountStitchHolesOnSelectedShapes,
     handleDeleteStitchHolesOnSelectedShapes,
+    handleChangeStitchHoleShapeOnSelectedShapes,
     handleClearAllStitchHoles,
     stitchHolesLength,
     hasSelectedStitchHole,
@@ -505,6 +507,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     onToggleStitchSequenceLabels: () => setShowStitchSequenceLabels((previous) => !previous),
     onCountStitchHolesOnSelectedShapes: handleCountStitchHolesOnSelectedShapes,
     onDeleteStitchHolesOnSelectedShapes: handleDeleteStitchHolesOnSelectedShapes,
+    onChangeStitchHoleShapeOnSelectedShapes: handleChangeStitchHoleShapeOnSelectedShapes,
     onClearAllStitchHoles: handleClearAllStitchHoles,
     selectedHoleCount: selectedStitchHoleCount,
     stitchHoleCount: stitchHolesLength,

@@ -153,6 +153,7 @@ export type EditorTopbarProps = {
   onToggleStitchSequenceLabels: () => void
   onCountStitchHolesOnSelectedShapes: () => void
   onDeleteStitchHolesOnSelectedShapes: () => void
+  onChangeStitchHoleShapeOnSelectedShapes: (renderShape: import('../../cad/cad-types').StitchHoleRenderShape) => void
   onClearAllStitchHoles: () => void
   selectedHoleCount: number
   stitchHoleCount: number
