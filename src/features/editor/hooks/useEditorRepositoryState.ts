@@ -4,7 +4,9 @@ import {
   hasTemplateRepositoryStorageInLocalDb,
   loadTemplateRepositoryFromLocalDb,
   loadTemplateRepository,
+  loadTemplateRepositoryFolders,
   type TemplateRepositoryEntry,
+  type TemplateRepositoryFolder,
 } from '../templates/template-repository'
 import { createBuiltinTemplateRepository } from '../templates/template-builtins'
 import {
@@ -23,6 +25,10 @@ export function useEditorRepositoryState() {
     return createBuiltinTemplateRepository()
   })
   const [selectedTemplateEntryId, setSelectedTemplateEntryId] = useState<string | null>(null)
+  const [templateRepositoryFolders, setTemplateRepositoryFolders] = useState<TemplateRepositoryFolder[]>(() =>
+    loadTemplateRepositoryFolders(),
+  )
+  const [selectedTemplateFolderId, setSelectedTemplateFolderId] = useState<string | null>(null)
   const [catalogRepository, setCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadCatalogRepository())
   const [bundledCatalogRepository] = useState<CatalogRepositoryShop[]>(() => loadBundledCatalogRepository())
   const [selectedCatalogShopId, setSelectedCatalogShopId] = useState<string | null>(
@@ -62,6 +68,8 @@ export function useEditorRepositoryState() {
   return {
     templateRepository, setTemplateRepository,
     selectedTemplateEntryId, setSelectedTemplateEntryId,
+    templateRepositoryFolders, setTemplateRepositoryFolders,
+    selectedTemplateFolderId, setSelectedTemplateFolderId,
     catalogRepository, setCatalogRepository,
     bundledCatalogRepository,
     selectedCatalogShopId, setSelectedCatalogShopId,

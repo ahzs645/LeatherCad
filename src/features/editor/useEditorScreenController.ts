@@ -3,6 +3,7 @@ import { STITCH_LINE_TYPE_ID } from './cad/line-types'
 import { checkForNewerVersion } from './version-check'
 import type { EditorScreenShellActions } from './editorScreenShellTypes'
 import { saveCatalogRepository } from './templates/catalog-repository'
+import { saveTemplateRepositoryFolders } from './templates/template-repository'
 
 import { detectOutlines, type OutlineChain } from './ops/outline-detection'
 import type { ResolvedThemeMode } from './editor-types'
@@ -160,6 +161,8 @@ export function useEditorScreenController() {
   const {
     templateRepository, setTemplateRepository,
     selectedTemplateEntryId, setSelectedTemplateEntryId,
+    templateRepositoryFolders, setTemplateRepositoryFolders,
+    selectedTemplateFolderId, setSelectedTemplateFolderId,
     catalogRepository, setCatalogRepository,
     bundledCatalogRepository,
     selectedCatalogShopId, setSelectedCatalogShopId,
@@ -547,6 +550,8 @@ export function useEditorScreenController() {
   } = documentCommands
   const templateActions = useTemplateActions({
     templateRepository,
+    templateRepositoryFolders,
+    selectedTemplateFolderId,
     catalogRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
@@ -562,6 +567,8 @@ export function useEditorScreenController() {
     selectedShapeIdSet,
     clearDraft,
     setTemplateRepository,
+    setTemplateRepositoryFolders,
+    setSelectedTemplateFolderId,
     setCatalogRepository,
     setSelectedTemplateEntryId,
     setSelectedCatalogShopId,
@@ -605,6 +612,13 @@ export function useEditorScreenController() {
     }
     saveCatalogRepository(catalogRepository)
   }, [catalogRepository, localDbHydrated])
+
+  useEffect(() => {
+    if (!localDbHydrated) {
+      return
+    }
+    saveTemplateRepositoryFolders(templateRepositoryFolders)
+  }, [localDbHydrated, templateRepositoryFolders])
 
   const tracingActions = useTracingActions({
     setTracingOverlays,

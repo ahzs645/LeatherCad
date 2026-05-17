@@ -264,4 +264,20 @@ describe('convexHull / buildBoundaryLines', () => {
       expect(boundary[i].end).toEqual(next.start)
     }
   })
+
+  it('expands the boundary outward when a positive margin is provided', () => {
+    const shapes: Shape[] = [
+      makeLine('a', 0, 0, 10, 0),
+      makeLine('b', 10, 0, 10, 10),
+      makeLine('c', 10, 10, 0, 10),
+      makeLine('d', 0, 10, 0, 0),
+    ]
+    const boundary = buildBoundaryLines(shapes, { layerId: 'layer-1', lineTypeId: 'cut', marginMm: 2 })
+    const points = boundary.flatMap((line) => [line.start, line.end])
+
+    expect(Math.min(...points.map((point) => point.x))).toBeLessThan(0)
+    expect(Math.min(...points.map((point) => point.y))).toBeLessThan(0)
+    expect(Math.max(...points.map((point) => point.x))).toBeGreaterThan(10)
+    expect(Math.max(...points.map((point) => point.y))).toBeGreaterThan(10)
+  })
 })

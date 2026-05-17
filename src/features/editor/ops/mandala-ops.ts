@@ -9,6 +9,8 @@ export type MandalaSettings = {
   relativeDiameterPercent: number
   includeCircleTemplate: boolean
   includeDivisionLines: boolean
+  rotationDeg?: number
+  noIntersectionCalc?: boolean
 }
 
 export type GoldenSpiralParams = {

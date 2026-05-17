@@ -146,6 +146,7 @@ export function useEditorScreenOverlay({
     setAutoHideSidebar,
     loadDemoOnStartup,
     setLoadDemoOnStartup,
+    setShowHelpModal,
   } = panelState
   const setForceFitLastPrickAndSync = (value: boolean) => {
     setForceFitLastPrick(value)
@@ -156,8 +157,11 @@ export function useEditorScreenOverlay({
   }
   const {
     selectedTemplateEntryId,
+    templateRepositoryFolders,
+    selectedTemplateFolderId,
     selectedCatalogShopId,
     setSelectedTemplateEntryId,
+    setSelectedTemplateFolderId,
     setSelectedCatalogShopId,
   } = repositoryState
   const { activeLayerId } = layerState
@@ -290,6 +294,9 @@ export function useEditorScreenOverlay({
     handleGenerateSpiral,
     handleGenerateGoldenGuides,
     handleGenerateWhiteSilverGuides,
+    handleUseSelectionAsMandalaCenter,
+    handleGenerateMandalaIntersections,
+    handleClearMandalaIntersections,
     handleGenerateWizardPattern,
     handleGenerateLetterStamp,
   } = creationController
@@ -306,6 +313,10 @@ export function useEditorScreenOverlay({
     handleExportCatalogShop,
     handleMoveTemplateEntry,
     handleSortTemplates,
+    handleCreateTemplateFolder,
+    handleRenameTemplateFolder,
+    handleDeleteTemplateFolder,
+    handleMoveTemplateToFolder,
     handleFlipTemplate,
     handleMoveCatalogShop,
     handleSortCatalogShops,
@@ -377,11 +388,14 @@ export function useEditorScreenOverlay({
       activeExportRoleCount,
       handleResetExportOptions,
       templateRepository: repositoryState.templateRepository,
+      templateRepositoryFolders,
       catalogRepository: mergedCatalogRepository,
       selectedTemplateEntryId,
       selectedTemplateEntry,
+      selectedTemplateFolderId,
       selectedCatalogShopId,
       setSelectedTemplateEntryId,
+      setSelectedTemplateFolderId,
       setSelectedCatalogShopId,
       handleSaveTemplateToRepository,
       handleExportTemplateRepository,
@@ -394,6 +408,10 @@ export function useEditorScreenOverlay({
       handleDeleteTemplateFromRepository,
       handleMoveTemplateEntry,
       handleSortTemplates,
+      handleCreateTemplateFolder,
+      handleRenameTemplateFolder,
+      handleDeleteTemplateFolder,
+      handleMoveTemplateToFolder,
       handleFlipTemplate,
       handleDeleteCatalogShop,
       handleExportCatalogShop,
@@ -474,6 +492,10 @@ export function useEditorScreenOverlay({
       handleGenerateGoldenGuides,
       handleGenerateWhiteSilverGuides,
       handleMirrorSelectionAcrossAxis,
+      handleUseSelectionAsMandalaCenter,
+      handleGenerateMandalaIntersections,
+      handleClearMandalaIntersections,
+      setShowHelpModal,
       showWizardModal,
       setShowWizardModal,
       handleGenerateWizardPattern,

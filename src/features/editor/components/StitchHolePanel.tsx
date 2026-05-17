@@ -105,6 +105,13 @@ export function StitchHolePanel({
   const [customCatalog, setCustomCatalog] = useState<PrickingIronCatalog>(() => loadCustomPrickingIronCatalog())
   const [pendingPrickingIronId, setPendingPrickingIronId] = useState<string | null>(null)
   const [draftBladeCount, setDraftBladeCount] = useState(2)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [draftGroupName, setDraftGroupName] = useState(`Custom Group ${customCatalog.groups.length + 1}`)
+  const [draftPresetName, setDraftPresetName] = useState(holeDefaults.presetName ?? 'Custom Iron')
+  const [draftPresetGroupId, setDraftPresetGroupId] = useState<string>('')
+  const [draftPresetShape, setDraftPresetShape] = useState<StitchHoleRenderShape>(
+    holeDefaults.renderShape ?? (holeDefaults.holeType === 'round' ? 'round' : 'diamond'),
+  )
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const selectedPrickingIronId = pendingPrickingIronId ?? holeDefaults.presetId ?? builtinCatalog.presets[0]?.id ?? ''
 
@@ -162,7 +169,7 @@ export function StitchHolePanel({
   }
 
   const handleCreateGroup = () => {
-    const name = window.prompt('Pricking iron group name', `Custom Group ${customCatalog.groups.length + 1}`)?.trim()
+    const name = draftGroupName.trim()
     if (!name) {
       return
     }
@@ -173,16 +180,14 @@ export function StitchHolePanel({
       presets: customCatalog.presets,
       showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
+    setDraftGroupName(`Custom Group ${customCatalog.groups.length + 2}`)
+    setDraftPresetGroupId(nextGroup.id)
   }
 
   const handleSaveCurrentPreset = () => {
     const availableGroups = customCatalog.groups.length > 0 ? customCatalog.groups : [createDefaultCustomPrickingIronGroup(0)]
     const defaultGroup = availableGroups[0]
-    const promptMessage = [
-      'Target custom group ID:',
-      ...availableGroups.map((group) => `${group.id} = ${group.name}`),
-    ].join('\n')
-    const groupInput = window.prompt(promptMessage, defaultGroup.id)?.trim()
+    const groupInput = (draftPresetGroupId || defaultGroup.id).trim()
     if (!groupInput) {
       return
     }
@@ -193,16 +198,11 @@ export function StitchHolePanel({
       nextGroups = [...customCatalog.groups, created]
     }
 
-    const name = window.prompt('Pricking iron preset name', `${holeDefaults.presetName ?? 'Custom'} ${customCatalog.presets.length + 1}`)?.trim()
+    const name = draftPresetName.trim()
     if (!name) {
       return
     }
-
-    const shapeInput = window.prompt(
-      'Shape: diamond / french / flat / round',
-      holeDefaults.renderShape === 'round' ? 'round' : holeDefaults.renderShape ?? 'diamond',
-    )
-    const shape = parsePrickingIronShape(shapeInput?.trim().toLowerCase())
+    const shape = parsePrickingIronShape(draftPresetShape)
 
     const preset = createCustomPrickingIron({
       groupId: groupInput,
@@ -222,13 +222,14 @@ export function StitchHolePanel({
     })
     setPendingPrickingIronId(null)
     onUpdateHoleDefaults(prickingIronPresetToDefaults(preset))
+    setDraftPresetName(`${name} Copy`)
   }
 
   const handleRenameCustomGroup = () => {
     if (!selectedCustomGroup) {
       return
     }
-    const name = window.prompt('Pricking iron group name', selectedCustomGroup.name)?.trim()
+    const name = draftGroupName.trim()
     if (!name) {
       return
     }
@@ -239,6 +240,7 @@ export function StitchHolePanel({
       presets: customCatalog.presets,
       showFiveMmGuide: customCatalog.showFiveMmGuide,
     })
+    setDraftGroupName(name)
   }
 
   const handleDeleteCustomGroup = () => {
@@ -357,25 +359,8 @@ export function StitchHolePanel({
       <button onClick={applyPrickingIron} disabled={!selectedPrickingIron}>
         Apply Iron
       </button>
-      <button onClick={handleCreateGroup}>New Group</button>
-      <button onClick={handleRenameCustomGroup} disabled={!selectedCustomGroup}>
-        Rename Group
-      </button>
-      <button onClick={() => handleMoveCustomGroup(-1)} disabled={!selectedCustomGroup || orderedCustomGroupIds[0] === selectedCustomGroup.id}>
-        Group Up
-      </button>
-      <button
-        onClick={() => handleMoveCustomGroup(1)}
-        disabled={!selectedCustomGroup || orderedCustomGroupIds[orderedCustomGroupIds.length - 1] === selectedCustomGroup.id}
-      >
-        Group Down
-      </button>
-      <button onClick={handleDeleteCustomGroup} disabled={!selectedCustomGroup}>
-        Delete Group
-      </button>
-      <button onClick={handleSaveCurrentPreset}>Save Preset</button>
-      <button onClick={handleDeleteCustomPreset} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
-        Delete Preset
+      <button onClick={() => setEditorOpen((previous) => !previous)}>
+        {editorOpen ? 'Hide Iron Editor' : 'Iron Editor'}
       </button>
       <button onClick={() => importInputRef.current?.click()}>Import .lccp</button>
       <button onClick={handleExportPrickingLibrary}>Export .lccp</button>
@@ -386,6 +371,83 @@ export function StitchHolePanel({
         style={{ display: 'none' }}
         onChange={(event) => void handleImportPrickingLibrary(event.target.files?.[0] ?? null)}
       />
+
+      {editorOpen && (
+        <div className="pricking-editor-panel">
+          <label className="stitch-pitch-inline">
+            <span>Group Name</span>
+            <input
+              type="text"
+              value={draftGroupName}
+              onChange={(event) => setDraftGroupName(event.target.value)}
+            />
+          </label>
+          <button onClick={handleCreateGroup} disabled={draftGroupName.trim().length === 0}>
+            New Group
+          </button>
+          <button onClick={handleRenameCustomGroup} disabled={!selectedCustomGroup || draftGroupName.trim().length === 0}>
+            Rename Group
+          </button>
+          <button onClick={() => handleMoveCustomGroup(-1)} disabled={!selectedCustomGroup || orderedCustomGroupIds[0] === selectedCustomGroup.id}>
+            Group Up
+          </button>
+          <button
+            onClick={() => handleMoveCustomGroup(1)}
+            disabled={!selectedCustomGroup || orderedCustomGroupIds[orderedCustomGroupIds.length - 1] === selectedCustomGroup.id}
+          >
+            Group Down
+          </button>
+          <button onClick={handleDeleteCustomGroup} disabled={!selectedCustomGroup}>
+            Delete Group
+          </button>
+          <label className="stitch-pitch-inline">
+            <span>Preset Group</span>
+            <select
+              className="line-type-select"
+              value={draftPresetGroupId || customCatalog.groups[0]?.id || ''}
+              onChange={(event) => setDraftPresetGroupId(event.target.value)}
+            >
+              {customCatalog.groups.length === 0 ? (
+                <option value="">Create a group first</option>
+              ) : (
+                customCatalog.groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          <label className="stitch-pitch-inline">
+            <span>Preset Name</span>
+            <input
+              type="text"
+              value={draftPresetName}
+              onChange={(event) => setDraftPresetName(event.target.value)}
+            />
+          </label>
+          <label className="stitch-pitch-inline">
+            <span>Preset Shape</span>
+            <select
+              className="line-type-select"
+              value={draftPresetShape}
+              onChange={(event) => setDraftPresetShape(event.target.value as StitchHoleRenderShape)}
+            >
+              <option value="round">Round</option>
+              <option value="slit">Slit</option>
+              <option value="diamond">Diamond</option>
+              <option value="french">French</option>
+              <option value="flat">Flat</option>
+            </select>
+          </label>
+          <button onClick={handleSaveCurrentPreset} disabled={draftPresetName.trim().length === 0}>
+            Save Preset
+          </button>
+          <button onClick={handleDeleteCustomPreset} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
+            Delete Preset
+          </button>
+        </div>
+      )}
 
       <label className="stitch-pitch-inline">
         <span>Blades</span>

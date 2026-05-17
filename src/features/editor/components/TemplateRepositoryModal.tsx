@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   TemplateRepositoryEntry,
+  TemplateRepositoryFolder,
   TemplateRepositoryMoveDirection,
   TemplateRepositorySortKey,
 } from '../templates/template-repository'
@@ -25,12 +26,15 @@ type TemplateRepositoryModalProps = {
   open: boolean
   onClose: () => void
   templateRepository: TemplateRepositoryEntry[]
+  templateRepositoryFolders: TemplateRepositoryFolder[]
   catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntryId: string | null
   selectedTemplateEntry: TemplateRepositoryEntry | null
+  selectedTemplateFolderId: string | null
   selectedCatalogShopId: string | null
   selectedPresetId: string
   onSelectTemplateEntry: (entryId: string) => void
+  onSelectTemplateFolder: (folderId: string | null) => void
   onSelectCatalogShop: (shopId: string) => void
   onSelectPreset: (presetId: string) => void
   onSaveTemplate: () => void
@@ -46,6 +50,10 @@ type TemplateRepositoryModalProps = {
   onDeleteTemplate: (entryId: string) => void
   onMoveTemplate: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   onSortTemplates: (sortKey: TemplateRepositorySortKey) => void
+  onCreateTemplateFolder: () => void
+  onRenameTemplateFolder: (folderId: string) => void
+  onDeleteTemplateFolder: (folderId: string) => void
+  onMoveTemplateToFolder: (entryId: string, folderId: string | null) => void
   onDeleteCatalogShop: (shopId: string) => void
   onMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
   onSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
@@ -81,12 +89,15 @@ export function TemplateRepositoryModal({
   open,
   onClose,
   templateRepository,
+  templateRepositoryFolders,
   catalogRepository,
   selectedTemplateEntryId,
   selectedTemplateEntry,
+  selectedTemplateFolderId,
   selectedCatalogShopId,
   selectedPresetId,
   onSelectTemplateEntry,
+  onSelectTemplateFolder,
   onSelectCatalogShop,
   onSelectPreset,
   onSaveTemplate,
@@ -102,6 +113,10 @@ export function TemplateRepositoryModal({
   onDeleteTemplate,
   onMoveTemplate,
   onSortTemplates,
+  onCreateTemplateFolder,
+  onRenameTemplateFolder,
+  onDeleteTemplateFolder,
+  onMoveTemplateToFolder,
   onDeleteCatalogShop,
   onMoveCatalogShop,
   onSortCatalogShops,
@@ -120,6 +135,13 @@ export function TemplateRepositoryModal({
   const catalogPreviewImageObjectUrlsRef = useRef<Set<string>>(new Set())
   const catalogPreviewImagePendingRef = useRef<Set<string>>(new Set())
   const selectedCatalogShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
+  const selectedTemplateFolder =
+    selectedTemplateFolderId === null
+      ? null
+      : templateRepositoryFolders.find((folder) => folder.id === selectedTemplateFolderId) ?? null
+  const filteredTemplateRepository = templateRepository.filter(
+    (entry) => (entry.parentFolderId ?? null) === selectedTemplateFolderId,
+  )
   const selectedCatalogShopGroupCount =
     selectedCatalogShop === null
       ? 0
@@ -294,13 +316,60 @@ export function TemplateRepositoryModal({
               <button onClick={() => onSortTemplates('updated')} disabled={templateRepository.length < 2}>
                 Sort Newest
               </button>
+              <button onClick={onCreateTemplateFolder}>New Folder</button>
+              <button
+                onClick={() => {
+                  if (selectedTemplateFolderId) {
+                    onRenameTemplateFolder(selectedTemplateFolderId)
+                  }
+                }}
+                disabled={!selectedTemplateFolderId}
+              >
+                Rename Folder
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedTemplateFolderId) {
+                    onDeleteTemplateFolder(selectedTemplateFolderId)
+                  }
+                }}
+                disabled={!selectedTemplateFolderId}
+              >
+                Delete Folder
+              </button>
             </div>
 
-            <div className="template-list">
+            <div className="template-folder-layout">
+              <div className="template-folder-tree" role="tree" aria-label="Template folders">
+                <button
+                  type="button"
+                  className={`template-folder-item${selectedTemplateFolderId === null ? ' active' : ''}`}
+                  onClick={() => onSelectTemplateFolder(null)}
+                >
+                  Repository Root
+                  <span>{templateRepository.filter((entry) => (entry.parentFolderId ?? null) === null).length}</span>
+                </button>
+                {templateRepositoryFolders.map((folder) => (
+                  <button
+                    key={folder.id}
+                    type="button"
+                    className={`template-folder-item${selectedTemplateFolderId === folder.id ? ' active' : ''}`}
+                    onClick={() => onSelectTemplateFolder(folder.id)}
+                  >
+                    {folder.name}
+                    <span>{templateRepository.filter((entry) => (entry.parentFolderId ?? null) === folder.id).length}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="template-list">
               {templateRepository.length === 0 ? (
                 <p className="hint">No templates saved yet.</p>
+              ) : filteredTemplateRepository.length === 0 ? (
+                <p className="hint">
+                  No templates in {selectedTemplateFolder ? `"${selectedTemplateFolder.name}"` : 'the repository root'}.
+                </p>
               ) : (
-                templateRepository.map((entry) => (
+                filteredTemplateRepository.map((entry) => (
                   <label key={entry.id} className="template-item">
                     <input
                       type="radio"
@@ -315,6 +384,7 @@ export function TemplateRepositoryModal({
                   </label>
                 ))
               )}
+              </div>
             </div>
 
             <div className="line-type-modal-actions">
@@ -338,6 +408,26 @@ export function TemplateRepositoryModal({
               >
                 Move Down
               </button>
+              <label className="field-row template-folder-move">
+                <span>Move to folder</span>
+                <select
+                  value={selectedTemplateEntry?.parentFolderId ?? ''}
+                  disabled={!selectedTemplateEntry}
+                  onChange={(event) => {
+                    if (!selectedTemplateEntry) {
+                      return
+                    }
+                    onMoveTemplateToFolder(selectedTemplateEntry.id, event.target.value || null)
+                  }}
+                >
+                  <option value="">Repository Root</option>
+                  {templateRepositoryFolders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button onClick={onLoadAsDocument} disabled={!selectedTemplateEntry}>
                 Load as Document
               </button>

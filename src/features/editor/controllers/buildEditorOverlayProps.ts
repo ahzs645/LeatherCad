@@ -63,6 +63,10 @@ export type BuildEditorOverlayPropsParams = {
   handleGenerateGoldenGuides: MandalaModalProps['onGenerateGoldenGuides']
   handleGenerateWhiteSilverGuides: MandalaModalProps['onGenerateWhiteSilverGuides']
   handleMirrorSelectionAcrossAxis: (axisAngleDeg: number) => void
+  handleUseSelectionAsMandalaCenter: MandalaModalProps['onUseSelectionAsCenter']
+  handleGenerateMandalaIntersections: NonNullable<MandalaModalProps['onGenerateIntersections']>
+  handleClearMandalaIntersections: NonNullable<MandalaModalProps['onClearIntersections']>
+  setShowHelpModal: Dispatch<SetStateAction<boolean>>
   showWizardModal: boolean
   setShowWizardModal: Dispatch<SetStateAction<boolean>>
   handleGenerateWizardPattern: WizardModalProps['onGenerate']
@@ -188,6 +192,10 @@ export function buildEditorOverlayProps({
   handleGenerateGoldenGuides,
   handleGenerateWhiteSilverGuides,
   handleMirrorSelectionAcrossAxis,
+  handleUseSelectionAsMandalaCenter,
+  handleGenerateMandalaIntersections,
+  handleClearMandalaIntersections,
+  setShowHelpModal,
   showWizardModal,
   setShowWizardModal,
   handleGenerateWizardPattern,
@@ -354,6 +362,10 @@ export function buildEditorOverlayProps({
         onGenerateGoldenGuides: handleGenerateGoldenGuides,
         onGenerateWhiteSilverGuides: handleGenerateWhiteSilverGuides,
         onMirrorSelectionAcrossAxis: handleMirrorSelectionAcrossAxis,
+        onUseSelectionAsCenter: handleUseSelectionAsMandalaCenter,
+        onGenerateIntersections: handleGenerateMandalaIntersections,
+        onClearIntersections: handleClearMandalaIntersections,
+        onOpenHelp: () => setShowHelpModal(true),
         selectedShapeCount: selectedShapeIdSet.size,
         defaultLayerId: activeLayerId,
         defaultLineTypeId: activeLineTypeId,
@@ -433,6 +445,12 @@ export function buildEditorOverlayProps({
           )
           return textShapes.length === 1 ? textShapes[0].sweepDeg : null
         })(),
+        selectedTextTrackingMm: (() => {
+          const textShapes = shapes.filter(
+            (shape): shape is TextShape => shape.type === 'text' && selectedShapeIdSet.has(shape.id),
+          )
+          return textShapes.length === 1 ? textShapes[0].trackingMm ?? 0 : null
+        })(),
         onApplyLineGeometry: (lengthMm, angleDeg) => {
           const lines = shapes.filter(
             (shape): shape is LineShape => shape.type === 'line' && selectedShapeIdSet.has(shape.id),
@@ -476,7 +494,7 @@ export function buildEditorOverlayProps({
           setShowChangeShapeSizeModal(false)
           setStatus(`Updated arc to ${radiusMm.toFixed(2)}mm radius at ${Math.abs(sweepDeg).toFixed(1)} deg`)
         },
-        onApplyTextGeometry: (radiusMm, sweepDeg) => {
+        onApplyTextGeometry: (radiusMm, sweepDeg, trackingMm) => {
           const textShapes = shapes.filter(
             (shape): shape is TextShape => shape.type === 'text' && selectedShapeIdSet.has(shape.id),
           )
@@ -484,21 +502,22 @@ export function buildEditorOverlayProps({
             setStatus('Select exactly one text shape to edit text curve')
             return
           }
-          if (!Number.isFinite(radiusMm) || radiusMm <= 0 || !Number.isFinite(sweepDeg)) {
-            setStatus('Text curve values must be valid')
+          if (!Number.isFinite(radiusMm) || radiusMm <= 0 || !Number.isFinite(sweepDeg) || !Number.isFinite(trackingMm)) {
+            setStatus('Text geometry values must be valid')
             return
           }
           const targetId = textShapes[0].id
           const safeSweepDeg = Math.min(1080, Math.max(-1080, sweepDeg))
+          const safeTrackingMm = Math.min(100, Math.max(-20, trackingMm))
           setShapes((previous) =>
             previous.map((shape) =>
               shape.id === targetId && shape.type === 'text'
-                ? { ...shape, radiusMm: Math.max(0.1, radiusMm), sweepDeg: safeSweepDeg }
+                ? { ...shape, radiusMm: Math.max(0.1, radiusMm), sweepDeg: safeSweepDeg, trackingMm: safeTrackingMm }
                 : shape,
             ),
           )
           setShowChangeShapeSizeModal(false)
-          setStatus(`Updated text curve to ${radiusMm.toFixed(2)}mm radius`)
+          setStatus(`Updated text curve and tracking (${safeTrackingMm.toFixed(2)}mm)`)
         },
       },
       moveCopyDistanceModalProps: {

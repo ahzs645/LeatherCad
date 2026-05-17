@@ -14,7 +14,8 @@ type ChangeShapeSizeModalProps = {
   onApplyArcGeometry?: (radiusMm: number, sweepDeg: number) => void
   selectedTextRadiusMm?: number | null
   selectedTextSweepDeg?: number | null
-  onApplyTextGeometry?: (radiusMm: number, sweepDeg: number) => void
+  selectedTextTrackingMm?: number | null
+  onApplyTextGeometry?: (radiusMm: number, sweepDeg: number, trackingMm: number) => void
 }
 
 export function ChangeShapeSizeModal({
@@ -31,6 +32,7 @@ export function ChangeShapeSizeModal({
   onApplyArcGeometry,
   selectedTextRadiusMm,
   selectedTextSweepDeg,
+  selectedTextTrackingMm,
   onApplyTextGeometry,
 }: ChangeShapeSizeModalProps) {
   const [newWidth, setNewWidth] = useState(currentWidth)
@@ -42,6 +44,7 @@ export function ChangeShapeSizeModal({
   const [arcSweepDeg, setArcSweepDeg] = useState(selectedArcSweepDeg ?? 0)
   const [textRadiusMm, setTextRadiusMm] = useState(selectedTextRadiusMm ?? 0)
   const [textSweepDeg, setTextSweepDeg] = useState(selectedTextSweepDeg ?? 0)
+  const [textTrackingMm, setTextTrackingMm] = useState(selectedTextTrackingMm ?? 0)
 
   if (!open) {
     return null
@@ -82,10 +85,10 @@ export function ChangeShapeSizeModal({
   }
 
   function handleApplyTextGeometry() {
-    if (!onApplyTextGeometry || !Number.isFinite(textRadiusMm) || !Number.isFinite(textSweepDeg)) {
+    if (!onApplyTextGeometry || !Number.isFinite(textRadiusMm) || !Number.isFinite(textSweepDeg) || !Number.isFinite(textTrackingMm)) {
       return
     }
-    onApplyTextGeometry(textRadiusMm, textSweepDeg)
+    onApplyTextGeometry(textRadiusMm, textSweepDeg, textTrackingMm)
   }
 
   const showLineGeometry = onApplyLineGeometry && selectedLineLengthMm !== null && selectedLineLengthMm !== undefined
@@ -219,9 +222,23 @@ export function ChangeShapeSizeModal({
                 onChange={(e) => setTextSweepDeg(Number(e.target.value))}
               />
             </label>
+            <label className="field-row">
+              <span>Tracking (mm)</span>
+              <input
+                type="number"
+                min={-20}
+                max={100}
+                step={0.1}
+                value={textTrackingMm}
+                onChange={(e) => setTextTrackingMm(Number(e.target.value))}
+              />
+            </label>
             <div className="button-row">
-              <button onClick={handleApplyTextGeometry} disabled={textRadiusMm <= 0 || !Number.isFinite(textSweepDeg)}>
-                Apply Text Curve
+              <button
+                onClick={handleApplyTextGeometry}
+                disabled={textRadiusMm <= 0 || !Number.isFinite(textSweepDeg) || !Number.isFinite(textTrackingMm)}
+              >
+                Apply Text
               </button>
             </div>
           </>

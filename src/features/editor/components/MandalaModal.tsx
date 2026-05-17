@@ -11,6 +11,10 @@ type MandalaModalProps = {
   onGenerateGoldenGuides: (center: { x: number; y: number }, size: number) => void
   onGenerateWhiteSilverGuides: (center: { x: number; y: number }, size: number) => void
   onMirrorSelectionAcrossAxis?: (axisAngleDeg: number) => void
+  onUseSelectionAsCenter?: () => { x: number; y: number } | null
+  onGenerateIntersections?: () => void
+  onClearIntersections?: () => void
+  onOpenHelp?: () => void
   selectedShapeCount?: number
   defaultLayerId: string
   defaultLineTypeId: string
@@ -24,6 +28,10 @@ export function MandalaModal({
   onGenerateGoldenGuides,
   onGenerateWhiteSilverGuides,
   onMirrorSelectionAcrossAxis,
+  onUseSelectionAsCenter,
+  onGenerateIntersections,
+  onClearIntersections,
+  onOpenHelp,
   selectedShapeCount = 0,
   defaultLayerId,
   defaultLineTypeId,
@@ -40,6 +48,8 @@ export function MandalaModal({
   const [relativeDiameterPercent, setRelativeDiameterPercent] = useState(100)
   const [includeCircleTemplate, setIncludeCircleTemplate] = useState(true)
   const [includeDivisionLines, setIncludeDivisionLines] = useState(true)
+  const [rotationDeg, setRotationDeg] = useState(0)
+  const [noIntersectionCalc, setNoIntersectionCalc] = useState(false)
 
   // Golden Spiral state
   const [spiralCenterX, setSpiralCenterX] = useState(0)
@@ -65,7 +75,20 @@ export function MandalaModal({
       relativeDiameterPercent,
       includeCircleTemplate,
       includeDivisionLines,
+      rotationDeg,
+      noIntersectionCalc,
     })
+  }
+
+  function applySelectionCenter() {
+    const center = onUseSelectionAsCenter?.()
+    if (!center) return
+    setRadialCenterX(center.x)
+    setRadialCenterY(center.y)
+    setSpiralCenterX(center.x)
+    setSpiralCenterY(center.y)
+    setGoldenCenterX(center.x)
+    setGoldenCenterY(center.y)
   }
 
   function handleGenerateSpiral() {
@@ -128,6 +151,7 @@ export function MandalaModal({
           >
             Mirror Item
           </button>
+          {onOpenHelp && <button onClick={onOpenHelp}>Help</button>}
         </div>
 
         {activeTab === 'radial' && (
@@ -177,6 +201,16 @@ export function MandalaModal({
             </label>
 
             <label className="field-row">
+              <span>Rotation (°)</span>
+              <input
+                type="number"
+                step={1}
+                value={rotationDeg}
+                onChange={(e) => setRotationDeg(Number(e.target.value))}
+              />
+            </label>
+
+            <label className="field-row">
               <span>Relative diameter (%)</span>
               <input
                 type="number"
@@ -214,6 +248,27 @@ export function MandalaModal({
               />
               <span>Division lines</span>
             </label>
+
+            <label className="layer-toggle-item">
+              <input
+                type="checkbox"
+                checked={noIntersectionCalc}
+                onChange={(e) => setNoIntersectionCalc(e.target.checked)}
+              />
+              <span>No intersection calculation</span>
+            </label>
+
+            <div className="button-row">
+              <button onClick={applySelectionCenter} disabled={!onUseSelectionAsCenter || selectedShapeCount === 0}>
+                Set Center From Selection
+              </button>
+              <button onClick={onGenerateIntersections} disabled={noIntersectionCalc || !onGenerateIntersections}>
+                Calc Intersections
+              </button>
+              <button onClick={onClearIntersections} disabled={!onClearIntersections}>
+                Clear Intersections
+              </button>
+            </div>
 
             <div className="modal-actions">
               <button onClick={onClose}>Cancel</button>

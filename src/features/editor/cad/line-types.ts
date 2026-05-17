@@ -171,7 +171,7 @@ const BASE_LINE_TYPES: LineType[] = [
   },
   {
     id: STITCH_PINK_DASHED_LINE_TYPE_ID,
-    name: '0 - Pink Dashed',
+    name: '10 - Pink Dashed',
     role: 'stitch',
     style: 'dashed',
     color: '#f9a8d4',

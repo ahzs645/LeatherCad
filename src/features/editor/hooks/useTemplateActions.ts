@@ -12,14 +12,19 @@ import type {
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import {
   createTemplateFromDoc,
+  createTemplateFolder,
+  deleteTemplateFolder,
   flipTemplateEntryShapes,
   insertTemplateDocIntoCurrent,
+  moveTemplateEntryToFolder,
   moveTemplateRepositoryEntry,
   parseTemplateRepositoryImport,
+  renameTemplateFolder,
   serializeTemplateRepository,
   sortTemplateRepository,
   type TemplateRepositoryMoveDirection,
   type TemplateRepositoryEntry,
+  type TemplateRepositoryFolder,
   type TemplateRepositorySortKey,
 } from '../templates/template-repository'
 import {
@@ -43,9 +48,11 @@ import { downloadFile } from '../editor-utils'
 
 type UseTemplateActionsParams = {
   templateRepository: TemplateRepositoryEntry[]
+  templateRepositoryFolders: TemplateRepositoryFolder[]
   catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntry: TemplateRepositoryEntry | null
   selectedTemplateEntryId: string | null
+  selectedTemplateFolderId: string | null
   selectedCatalogShopId: string | null
   buildCurrentDocFile: () => DocFile
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
@@ -58,6 +65,8 @@ type UseTemplateActionsParams = {
   selectedShapeIdSet: Set<string>
   clearDraft: () => void
   setTemplateRepository: Dispatch<SetStateAction<TemplateRepositoryEntry[]>>
+  setTemplateRepositoryFolders: Dispatch<SetStateAction<TemplateRepositoryFolder[]>>
+  setSelectedTemplateFolderId: Dispatch<SetStateAction<string | null>>
   setCatalogRepository: Dispatch<SetStateAction<CatalogRepositoryShop[]>>
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
   setSelectedCatalogShopId: Dispatch<SetStateAction<string | null>>
@@ -78,9 +87,11 @@ const TEMPLATE_GROUP_ANNOTATION_PREFIX = 'Template: '
 export function useTemplateActions(params: UseTemplateActionsParams) {
   const {
     templateRepository,
+    templateRepositoryFolders,
     catalogRepository,
     selectedTemplateEntry,
     selectedTemplateEntryId,
+    selectedTemplateFolderId,
     selectedCatalogShopId,
     buildCurrentDocFile,
     applyLoadedDocument,
@@ -93,6 +104,8 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     selectedShapeIdSet,
     clearDraft,
     setTemplateRepository,
+    setTemplateRepositoryFolders,
+    setSelectedTemplateFolderId,
     setCatalogRepository,
     setSelectedTemplateEntryId,
     setSelectedCatalogShopId,
@@ -130,7 +143,8 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
       inputName,
       shapesWithFill === doc.objects ? doc : { ...doc, objects: shapesWithFill },
     )
-    setTemplateRepository((previous) => [entry, ...previous])
+    const entryInFolder = { ...entry, parentFolderId: selectedTemplateFolderId }
+    setTemplateRepository((previous) => [entryInFolder, ...previous])
     setSelectedTemplateEntryId(entry.id)
     setStatus(
       fillColor
@@ -155,6 +169,52 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
   const handleSortTemplates = (sortKey: TemplateRepositorySortKey) => {
     setTemplateRepository((previous) => sortTemplateRepository(previous, sortKey))
     setStatus(sortKey === 'name' ? 'Templates sorted by name' : 'Templates sorted by update time')
+  }
+
+  const handleCreateTemplateFolder = () => {
+    const name = window.prompt('Folder name', `Folder ${templateRepositoryFolders.length + 1}`)?.trim()
+    if (!name) {
+      return
+    }
+    const folder = createTemplateFolder(name, selectedTemplateFolderId)
+    setTemplateRepositoryFolders((previous) => [...previous, folder])
+    setSelectedTemplateFolderId(folder.id)
+    setStatus(`Created folder "${folder.name}"`)
+  }
+
+  const handleRenameTemplateFolder = (folderId: string) => {
+    const folder = templateRepositoryFolders.find((entry) => entry.id === folderId)
+    if (!folder) {
+      setStatus('Select a folder to rename')
+      return
+    }
+    const name = window.prompt('Folder name', folder.name)?.trim()
+    if (!name) {
+      return
+    }
+    setTemplateRepositoryFolders((previous) => renameTemplateFolder(previous, folderId, name))
+    setStatus(`Renamed folder to "${name}"`)
+  }
+
+  const handleDeleteTemplateFolder = (folderId: string) => {
+    const folder = templateRepositoryFolders.find((entry) => entry.id === folderId)
+    if (!folder) {
+      setStatus('Select a folder to delete')
+      return
+    }
+    if (!window.confirm(`Delete folder "${folder.name}"? Templates in it will move to the repository root.`)) {
+      return
+    }
+    const result = deleteTemplateFolder(templateRepositoryFolders, templateRepository, folderId)
+    setTemplateRepositoryFolders(result.folders)
+    setTemplateRepository(result.entries)
+    setSelectedTemplateFolderId((previous) => (previous === folderId ? null : previous))
+    setStatus(`Deleted folder "${folder.name}"`)
+  }
+
+  const handleMoveTemplateToFolder = (entryId: string, folderId: string | null) => {
+    setTemplateRepository((previous) => moveTemplateEntryToFolder(previous, entryId, folderId))
+    setStatus(folderId ? 'Template moved to folder' : 'Template moved to repository root')
   }
 
   const handleFlipTemplate = (entryId: string, axis: 'horizontal' | 'vertical') => {
@@ -397,6 +457,10 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleDeleteTemplateFromRepository,
     handleMoveTemplateEntry,
     handleSortTemplates,
+    handleCreateTemplateFolder,
+    handleRenameTemplateFolder,
+    handleDeleteTemplateFolder,
+    handleMoveTemplateToFolder,
     handleFlipTemplate,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,

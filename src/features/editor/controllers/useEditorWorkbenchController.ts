@@ -68,6 +68,12 @@ type UseEditorWorkbenchControllerParams = {
   handleMoveSelectionByDistance: () => void
   handleRotateSelection: (degrees: number) => void
   handleScaleSelection: (factor: number) => void
+  handleOpenSpecifyRotationModal: () => void
+  handleOpenSpecifyScaleModal: (axis: 'both' | 'vertical' | 'horizontal') => void
+  handleSetAsRotationCenter: () => void
+  handleClearRotationCenter: () => void
+  handleSetAsSnapPoint: () => void
+  handleClearSnapPoint: () => void
   handleCreatePatternPieceFromSelection: () => void
   openSelectedPatternPieceInspector: () => void
   handleApplySeamAllowanceToSelection: () => void
@@ -83,7 +89,10 @@ type UseEditorWorkbenchControllerParams = {
   handleExportSvg: () => void
   handleExportPdf: () => void
   handleExportDxf: () => void
+  setShowExportModal: React.Dispatch<React.SetStateAction<boolean>>
+  setShowExportOptionsModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowPrintPreviewModal: React.Dispatch<React.SetStateAction<boolean>>
+  setShowOptionsModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowLocalProjectsModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowTemplateRepositoryModal: React.Dispatch<React.SetStateAction<boolean>>
   setShowTracingModal: React.Dispatch<React.SetStateAction<boolean>>
@@ -158,6 +167,12 @@ export function useEditorWorkbenchController({
   handleMoveSelectionByDistance,
   handleRotateSelection,
   handleScaleSelection,
+  handleOpenSpecifyRotationModal,
+  handleOpenSpecifyScaleModal,
+  handleSetAsRotationCenter,
+  handleClearRotationCenter,
+  handleSetAsSnapPoint,
+  handleClearSnapPoint,
   handleCreatePatternPieceFromSelection,
   openSelectedPatternPieceInspector,
   handleApplySeamAllowanceToSelection,
@@ -173,7 +188,10 @@ export function useEditorWorkbenchController({
   handleExportSvg,
   handleExportPdf,
   handleExportDxf,
+  setShowExportModal,
+  setShowExportOptionsModal,
   setShowPrintPreviewModal,
+  setShowOptionsModal,
   setShowLocalProjectsModal,
   setShowTemplateRepositoryModal,
   setShowTracingModal,
@@ -276,6 +294,9 @@ export function useEditorWorkbenchController({
       case 'help':
         setShowHelpModal(true)
         break
+      case 'options':
+        setShowOptionsModal(true)
+        break
       default:
         break
     }
@@ -322,12 +343,56 @@ export function useEditorWorkbenchController({
       case 'move-distance':
         handleMoveSelectionByDistance()
         break
+      case 'rotate-ccw-5':
+        handleRotateSelection(-5)
+        break
+      case 'rotate-ccw-1':
+        handleRotateSelection(-1)
+        break
+      case 'rotate-cw-1':
+        handleRotateSelection(1)
+        break
+      case 'rotate-cw-5':
       case 'rotate':
       case 'rotate-5':
         handleRotateSelection(5)
         break
+      case 'specify-rotation':
+        handleOpenSpecifyRotationModal()
+        break
+      case 'scale-down-5':
+        handleScaleSelection(0.95)
+        break
+      case 'scale-down-1':
+        handleScaleSelection(0.99)
+        break
+      case 'scale-up-1':
+        handleScaleSelection(1.01)
+        break
+      case 'scale-up-5':
       case 'scale-up':
         handleScaleSelection(1.05)
+        break
+      case 'specify-scale':
+        handleOpenSpecifyScaleModal('both')
+        break
+      case 'specify-scale-x':
+        handleOpenSpecifyScaleModal('horizontal')
+        break
+      case 'specify-scale-y':
+        handleOpenSpecifyScaleModal('vertical')
+        break
+      case 'set-rotation-pivot':
+        handleSetAsRotationCenter()
+        break
+      case 'clear-rotation-pivot':
+        handleClearRotationCenter()
+        break
+      case 'set-snap-point':
+        handleSetAsSnapPoint()
+        break
+      case 'clear-snap-point':
+        handleClearSnapPoint()
         break
       case 'create-piece':
         handleCreatePatternPieceFromSelection()
@@ -372,6 +437,12 @@ export function useEditorWorkbenchController({
       case 'import-svg':
         svgInputRef.current?.click()
         break
+      case 'export-center':
+        setShowExportModal(true)
+        break
+      case 'export-options':
+        setShowExportOptionsModal(true)
+        break
       case 'export-svg':
         handleExportSvg()
         break
@@ -383,6 +454,9 @@ export function useEditorWorkbenchController({
         break
       case 'print-preview':
         setShowPrintPreviewModal(true)
+        break
+      case 'options':
+        setShowOptionsModal(true)
         break
       case 'template-repository':
         setShowTemplateRepositoryModal(true)

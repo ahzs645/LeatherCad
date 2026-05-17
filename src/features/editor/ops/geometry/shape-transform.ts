@@ -297,6 +297,13 @@ export function buildBoundaryLines(
     // outward normal of its two adjacent hull edges (sufficient for convex
     // polygons since interior angles are <= 180°).
     const n = hull.length
+    let signedArea = 0
+    for (let i = 0; i < n; i++) {
+      const a = hull[i]
+      const b = hull[(i + 1) % n]
+      signedArea += a.x * b.y - b.x * a.y
+    }
+    const normalSign = signedArea >= 0 ? 1 : -1
     const offsetVertices: Point[] = []
     for (let i = 0; i < n; i++) {
       const prev = hull[(i - 1 + n) % n]
@@ -306,11 +313,10 @@ export function buildBoundaryLines(
       const e1y = curr.y - prev.y
       const e2x = next.x - curr.x
       const e2y = next.y - curr.y
-      // Outward normal for a CCW hull: rotate edge +90° (perpendicular).
-      const n1x = -e1y
-      const n1y = e1x
-      const n2x = -e2y
-      const n2y = e2x
+      const n1x = normalSign * e1y
+      const n1y = normalSign * -e1x
+      const n2x = normalSign * e2y
+      const n2y = normalSign * -e2x
       const len1 = Math.hypot(n1x, n1y) || 1
       const len2 = Math.hypot(n2x, n2y) || 1
       const avgX = n1x / len1 + n2x / len2

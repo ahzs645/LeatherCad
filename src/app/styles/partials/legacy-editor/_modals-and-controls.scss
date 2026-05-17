@@ -252,6 +252,70 @@
   padding: 8px;
 }
 
+.template-folder-layout {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.template-folder-tree {
+  display: grid;
+  gap: 6px;
+  max-height: 36vh;
+  overflow: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.template-folder-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface-input);
+  color: var(--app-text);
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.template-folder-item.active {
+  border-color: var(--accent-border);
+  background: var(--surface-panel-strong);
+}
+
+.template-folder-item span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.template-folder-move {
+  min-width: 220px;
+}
+
+.pricking-editor-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--surface-panel);
+}
+
+.pricking-editor-panel .stitch-pitch-inline {
+  width: 100%;
+}
+
+.pricking-editor-panel input,
+.pricking-editor-panel select {
+  min-width: 0;
+}
+
 .pattern-toggle-grid {
   display: grid;
   gap: 8px;

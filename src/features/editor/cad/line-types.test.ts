@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
+  LINE_TYPE_PALETTE_SLOT_COUNT,
   createDefaultLineTypes,
   normalizeLineTypes,
   parseLineType,
@@ -12,9 +13,29 @@ describe('line type metadata', () => {
   it('adds stroke and print defaults to the base palette', () => {
     const lineTypes = createDefaultLineTypes()
 
-    expect(lineTypes).not.toHaveLength(0)
+    expect(lineTypes).toHaveLength(LINE_TYPE_PALETTE_SLOT_COUNT)
     expect(lineTypes.every((lineType) => lineType.strokeWidthMm === DEFAULT_LINE_TYPE_STROKE_WIDTH_MM)).toBe(true)
     expect(lineTypes.every((lineType) => lineType.ignoreInPrint === false)).toBe(true)
+  })
+
+  it('preserves source-app slots 1-10 and fills slots 11-40 as custom entries', () => {
+    const lineTypes = createDefaultLineTypes()
+
+    expect(lineTypes.slice(0, 10).map((lineType) => lineType.name)).toEqual([
+      '1 - Cyan Solid',
+      '2 - Green Solid',
+      '3 - White Solid',
+      '4 - Yellow Dashed',
+      '5 - Magenta Dotted',
+      '6 - White Dash Dot Dot',
+      '7 - Gray Dotted',
+      '8 - Orange Solid',
+      '9 - Red Dashed',
+      '10 - Pink Dashed',
+    ])
+    expect(lineTypes.slice(10)).toHaveLength(30)
+    expect(lineTypes[10]).toMatchObject({ id: 'type-extra-11', name: '11 - Custom', role: 'cut', style: 'solid' })
+    expect(lineTypes[39]).toMatchObject({ id: 'type-extra-40', name: '40 - Custom', role: 'cut', style: 'solid' })
   })
 
   it('parses and clamps stroke width metadata from documents', () => {

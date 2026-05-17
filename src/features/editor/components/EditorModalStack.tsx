@@ -224,7 +224,7 @@ export function EditorModalStack({
       {changeShapeSizeModalProps?.open && (
         <Suspense fallback={null}>
           <ChangeShapeSizeModal
-            key={`${changeShapeSizeModalProps.currentWidth}-${changeShapeSizeModalProps.currentHeight}-${changeShapeSizeModalProps.selectedLineLengthMm ?? 'none'}-${changeShapeSizeModalProps.selectedLineAngleDeg ?? 'none'}-${changeShapeSizeModalProps.selectedArcRadiusMm ?? 'none'}-${changeShapeSizeModalProps.selectedArcSweepDeg ?? 'none'}-${changeShapeSizeModalProps.selectedTextRadiusMm ?? 'none'}-${changeShapeSizeModalProps.selectedTextSweepDeg ?? 'none'}`}
+            key={`${changeShapeSizeModalProps.currentWidth}-${changeShapeSizeModalProps.currentHeight}-${changeShapeSizeModalProps.selectedLineLengthMm ?? 'none'}-${changeShapeSizeModalProps.selectedLineAngleDeg ?? 'none'}-${changeShapeSizeModalProps.selectedArcRadiusMm ?? 'none'}-${changeShapeSizeModalProps.selectedArcSweepDeg ?? 'none'}-${changeShapeSizeModalProps.selectedTextRadiusMm ?? 'none'}-${changeShapeSizeModalProps.selectedTextSweepDeg ?? 'none'}-${changeShapeSizeModalProps.selectedTextTrackingMm ?? 'none'}`}
             {...changeShapeSizeModalProps}
           />
         </Suspense>

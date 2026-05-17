@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { DocFile } from '../cad/cad-types'
 import {
+  createTemplateFolder,
+  deleteTemplateFolder,
+  moveTemplateEntryToFolder,
   moveTemplateRepositoryEntry,
+  renameTemplateFolder,
   sortTemplateRepository,
   type TemplateRepositoryEntry,
 } from './template-repository'
@@ -72,5 +76,33 @@ describe('template repository ordering', () => {
       'apron',
     ])
     expect(entries.map((item) => item.id)).toEqual(['wallet', 'strap', 'apron'])
+  })
+})
+
+describe('template repository folders', () => {
+  it('moves templates between root and folders', () => {
+    const entries = [entry('wallet', 'Wallet', '2026-01-03T00:00:00.000Z')]
+
+    const inFolder = moveTemplateEntryToFolder(entries, 'wallet', 'folder-1')
+    expect(inFolder[0].parentFolderId).toBe('folder-1')
+    expect(entries[0].parentFolderId).toBeUndefined()
+
+    const atRoot = moveTemplateEntryToFolder(inFolder, 'wallet', null)
+    expect(atRoot[0].parentFolderId).toBeNull()
+  })
+
+  it('renames folders and promotes deleted folder contents to root', () => {
+    const folder = { ...createTemplateFolder('Cases'), id: 'folder-1' }
+    const child = { ...createTemplateFolder('Nested', 'folder-1'), id: 'folder-2' }
+    const folders = renameTemplateFolder([folder, child], 'folder-1', 'Wallets')
+    expect(folders[0].name).toBe('Wallets')
+
+    const entries = [
+      { ...entry('wallet', 'Wallet', '2026-01-03T00:00:00.000Z'), parentFolderId: 'folder-1' },
+      { ...entry('strap', 'Strap', '2026-01-04T00:00:00.000Z'), parentFolderId: 'folder-2' },
+    ]
+    const result = deleteTemplateFolder(folders, entries, 'folder-1')
+    expect(result.folders).toHaveLength(0)
+    expect(result.entries.map((item) => item.parentFolderId)).toEqual([null, null])
   })
 })

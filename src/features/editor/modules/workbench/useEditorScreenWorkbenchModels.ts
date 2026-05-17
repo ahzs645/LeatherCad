@@ -103,6 +103,7 @@ export function useEditorScreenWorkbenchModels({
     setShowPrecisionModal,
     setShowMoveCopyDistanceModal,
     setMoveCopyDistanceMode,
+    setShowOptionsModal,
   } = uiState
   const { selectedShapeIds, setSelectedShapeIds } = selectionState
   const {
@@ -112,6 +113,8 @@ export function useEditorScreenWorkbenchModels({
     setShowTemplateRepositoryModal,
     setShowLocalProjectsModal,
     setShowPrintPreviewModal,
+    setShowExportModal,
+    setShowExportOptionsModal,
   } = panelState
   const {
     layers,
@@ -206,6 +209,14 @@ export function useEditorScreenWorkbenchModels({
     handleRotateSelection,
     handleScaleSelection,
   } = selectionActions
+  const {
+    handleOpenSpecifyRotationModal,
+    handleOpenSpecifyScaleModal,
+    handleSetAsRotationCenter,
+    handleClearRotationCenter,
+    handleSetAsSnapPoint,
+    handleClearSnapPoint,
+  } = actions.transformActions
   const {
     handleShowAllLayers,
     handleHideOtherLayers,
@@ -340,6 +351,12 @@ export function useEditorScreenWorkbenchModels({
     handleMoveSelectionByDistance: handleOpenMoveDistanceModal,
     handleRotateSelection,
     handleScaleSelection,
+    handleOpenSpecifyRotationModal,
+    handleOpenSpecifyScaleModal,
+    handleSetAsRotationCenter,
+    handleClearRotationCenter,
+    handleSetAsSnapPoint,
+    handleClearSnapPoint,
     handleCreatePatternPieceFromSelection,
     openSelectedPatternPieceInspector,
     handleApplySeamAllowanceToSelection,
@@ -355,7 +372,10 @@ export function useEditorScreenWorkbenchModels({
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
+    setShowExportModal,
+    setShowExportOptionsModal,
     setShowPrintPreviewModal,
+    setShowOptionsModal,
     setShowLocalProjectsModal,
     setShowTemplateRepositoryModal,
     setShowTracingModal,

@@ -14,6 +14,8 @@ export function resolveQuickActionIcon(action: Pick<QuickAction, 'id' | 'icon'>)
       return 'redo'
     case 'help':
       return 'help'
+    case 'options':
+      return 'settings'
     default:
       return 'settings'
   }
@@ -49,10 +51,28 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
       return 'delete'
     case 'move-distance':
       return 'move'
+    case 'rotate-ccw-5':
+    case 'rotate-ccw-1':
+    case 'rotate-cw-1':
+    case 'rotate-cw-5':
     case 'rotate-5':
+    case 'specify-rotation':
       return 'rotate'
+    case 'scale-down-5':
+    case 'scale-down-1':
+    case 'scale-up-1':
     case 'scale-up':
+    case 'scale-up-5':
+    case 'specify-scale':
+    case 'specify-scale-x':
+    case 'specify-scale-y':
       return 'scale'
+    case 'set-rotation-pivot':
+    case 'set-snap-point':
+      return 'inspect'
+    case 'clear-rotation-pivot':
+    case 'clear-snap-point':
+      return 'clear'
     case 'create-piece':
       return 'piece'
     case 'open-piece':
@@ -80,6 +100,10 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
       return 'open'
     case 'import-svg':
       return 'import'
+    case 'export-center':
+      return 'export'
+    case 'export-options':
+      return 'export-options'
     case 'export-svg':
       return 'svg'
     case 'export-pdf':

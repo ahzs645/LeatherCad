@@ -3,7 +3,7 @@ import type { HardwareMarker, Layer, Shape, SketchGroup, TracingOverlay } from '
 import { DEFAULT_BACK_LAYER_COLOR, DEFAULT_FRONT_LAYER_COLOR } from '../editor-constants'
 import { normalizeHexColor } from '../editor-utils'
 import { EditorModalStack } from '../components/EditorModalStack'
-import type { TemplateRepositoryEntry, TemplateRepositoryMoveDirection, TemplateRepositorySortKey } from '../templates/template-repository'
+import type { TemplateRepositoryEntry, TemplateRepositoryFolder, TemplateRepositoryMoveDirection, TemplateRepositorySortKey } from '../templates/template-repository'
 import type { CatalogGroupPatch, CatalogItemPatch, CatalogRepositoryMoveDirection, CatalogRepositoryShop, CatalogRepositorySortKey, CatalogShopPatch } from '../templates/catalog-repository'
 import type { PrintPlan } from '../preview/print-preview'
 import { useEditorDocumentActions, useEditorDocumentSelector } from '../state/providers/EditorDocumentStateProvider'
@@ -46,11 +46,14 @@ export type UseEditorModalStackPropsParams = {
   activeExportRoleCount: number
   handleResetExportOptions: () => void
   templateRepository: TemplateRepositoryEntry[]
+  templateRepositoryFolders: TemplateRepositoryFolder[]
   catalogRepository: CatalogRepositoryShop[]
   selectedTemplateEntryId: string | null
   selectedTemplateEntry: TemplateRepositoryEntry | null
+  selectedTemplateFolderId: string | null
   selectedCatalogShopId: string | null
   setSelectedTemplateEntryId: Dispatch<SetStateAction<string | null>>
+  setSelectedTemplateFolderId: Dispatch<SetStateAction<string | null>>
   setSelectedCatalogShopId: Dispatch<SetStateAction<string | null>>
   handleSaveTemplateToRepository: () => void
   handleExportTemplateRepository: () => void
@@ -63,6 +66,10 @@ export type UseEditorModalStackPropsParams = {
   handleDeleteTemplateFromRepository: (entryId: string) => void
   handleMoveTemplateEntry: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   handleSortTemplates: (sortKey: TemplateRepositorySortKey) => void
+  handleCreateTemplateFolder: () => void
+  handleRenameTemplateFolder: (folderId: string) => void
+  handleDeleteTemplateFolder: (folderId: string) => void
+  handleMoveTemplateToFolder: (entryId: string, folderId: string | null) => void
   handleFlipTemplate: (entryId: string, axis: 'horizontal' | 'vertical') => void
   handleDeleteCatalogShop: (shopId: string) => void
   handleExportCatalogShop: (shopId: string) => void
@@ -154,11 +161,14 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     activeExportRoleCount,
     handleResetExportOptions,
     templateRepository,
+    templateRepositoryFolders,
     catalogRepository,
     selectedTemplateEntryId,
     selectedTemplateEntry,
+    selectedTemplateFolderId,
     selectedCatalogShopId,
     setSelectedTemplateEntryId,
+    setSelectedTemplateFolderId,
     setSelectedCatalogShopId,
     handleSaveTemplateToRepository,
     handleExportTemplateRepository,
@@ -171,6 +181,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleDeleteTemplateFromRepository,
     handleMoveTemplateEntry,
     handleSortTemplates,
+    handleCreateTemplateFolder,
+    handleRenameTemplateFolder,
+    handleDeleteTemplateFolder,
+    handleMoveTemplateToFolder,
     handleFlipTemplate,
     handleDeleteCatalogShop,
     handleExportCatalogShop,
@@ -559,12 +573,15 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       open: showTemplateRepositoryModal,
       onClose: () => setShowTemplateRepositoryModal(false),
       templateRepository,
+      templateRepositoryFolders,
       catalogRepository,
       selectedTemplateEntryId,
       selectedTemplateEntry,
+      selectedTemplateFolderId,
       selectedCatalogShopId,
       selectedPresetId,
       onSelectTemplateEntry: setSelectedTemplateEntryId,
+      onSelectTemplateFolder: setSelectedTemplateFolderId,
       onSelectCatalogShop: setSelectedCatalogShopId,
       onSelectPreset: setSelectedPresetId,
       onSaveTemplate: handleSaveTemplateToRepository,
@@ -579,6 +596,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onDeleteTemplate: handleDeleteTemplateFromRepository,
       onMoveTemplate: handleMoveTemplateEntry,
       onSortTemplates: handleSortTemplates,
+      onCreateTemplateFolder: handleCreateTemplateFolder,
+      onRenameTemplateFolder: handleRenameTemplateFolder,
+      onDeleteTemplateFolder: handleDeleteTemplateFolder,
+      onMoveTemplateToFolder: handleMoveTemplateToFolder,
       onFlipTemplate: handleFlipTemplate,
       onDeleteCatalogShop: handleDeleteCatalogShop,
       onMoveCatalogShop: handleMoveCatalogShop,

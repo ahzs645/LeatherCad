@@ -13,6 +13,8 @@ import type { GoldenSpiralParams, MandalaSettings } from '../ops/mandala-ops'
 import type { LetterStampParams } from '../ops/letter-stamp-ops'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import type { Shape, StitchHole, TextTransformMode } from '../cad/cad-types'
+import { uid } from '../cad/cad-geometry'
+import { getSelectionCenter } from '../ops/shape-selection-ops'
 import {
   clearTerminalStitchHole,
   getTerminalStitchHoleIdForShape,
@@ -20,6 +22,30 @@ import {
 } from '../ops/stitch-hole-ops'
 import { simulateStitches, type StitchSimulatorSettings } from '../ops/stitch-simulator-ops'
 import { saveBoxStitchHelperSettings } from '../ops/box-stitch-settings'
+
+function rotateShapeWithSameId(shape: Shape, center: { x: number; y: number }, angleDeg: number): Shape {
+  const rad = (angleDeg * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const rotate = (point: { x: number; y: number }) => {
+    const dx = point.x - center.x
+    const dy = point.y - center.y
+    return {
+      x: center.x + dx * cos - dy * sin,
+      y: center.y + dx * sin + dy * cos,
+    }
+  }
+  if (shape.type === 'line') {
+    return { ...shape, start: rotate(shape.start), end: rotate(shape.end) }
+  }
+  if (shape.type === 'arc') {
+    return { ...shape, start: rotate(shape.start), mid: rotate(shape.mid), end: rotate(shape.end) }
+  }
+  if (shape.type === 'bezier') {
+    return { ...shape, start: rotate(shape.start), control: rotate(shape.control), end: rotate(shape.end) }
+  }
+  return { ...shape, start: rotate(shape.start), end: rotate(shape.end) }
+}
 
 type UseEditorCreationControllerParams = {
   shapes: Shape[]
@@ -233,6 +259,7 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
     void import('../ops/mandala-ops')
       .then(({ generateMandalaCircleTemplate, generateMandalaDivisionLines, generateRadialCopies }) => {
         const guideRadius = settings.radius * Math.max(0.01, settings.relativeDiameterPercent / 100)
+        const rotationDeg = settings.rotationDeg ?? 0
         const guides = [
           ...(settings.includeCircleTemplate
             ? generateMandalaCircleTemplate(settings.center, guideRadius, activeLayerId, activeLineTypeId)
@@ -240,11 +267,15 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
           ...(settings.includeDivisionLines
             ? generateMandalaDivisionLines(settings.center, guideRadius, settings.segmentCount, activeLayerId, activeLineTypeId)
             : []),
-        ]
+        ].map((shape) => ({ ...shape, groupId: 'mandala-guide' }))
+        const rotatedGuides =
+          Math.abs(rotationDeg) > 1e-8
+            ? guides.map((shape) => rotateShapeWithSameId(shape, settings.center, rotationDeg))
+            : guides
         const copies = generateRadialCopies(selectedShapes, settings)
-        setShapes((prev) => [...prev, ...guides, ...copies])
+        setShapes((prev) => [...prev, ...rotatedGuides, ...copies])
         setShowMandalaModal(false)
-        setStatus(`Generated ${copies.length} radial copies with ${guides.length} guides`)
+        setStatus(`Generated ${copies.length} radial copies with ${rotatedGuides.length} guides`)
       })
       .catch(() => {
         setStatus('Mandala tools failed to load')
@@ -288,6 +319,65 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
       .catch(() => {
         setStatus('White-silver ratio tools failed to load')
       })
+  }
+
+  const handleUseSelectionAsMandalaCenter = () => {
+    const center = getSelectionCenter(shapes, selectedShapeIdSet)
+    if (!center) {
+      setStatus('Select one or more shapes to set the mandala center')
+      return null
+    }
+    setStatus(`Mandala center set to (${center.x.toFixed(2)}, ${center.y.toFixed(2)})mm`)
+    return center
+  }
+
+  const handleGenerateMandalaIntersections = () => {
+    void import('../ops/pattern-ops')
+      .then(({ computeMandalaIntersectionCandidates }) => {
+        const points = computeMandalaIntersectionCandidates(shapes)
+        if (points.length === 0) {
+          setStatus('No mandala intersections found')
+          return
+        }
+        const size = 2
+        const markerShapes = points.flatMap((point) => [
+          {
+            id: uid(),
+            type: 'line' as const,
+            layerId: activeLayerId,
+            lineTypeId: activeLineTypeId,
+            groupId: 'mandala-intersections',
+            start: { x: point.x - size, y: point.y },
+            end: { x: point.x + size, y: point.y },
+          },
+          {
+            id: uid(),
+            type: 'line' as const,
+            layerId: activeLayerId,
+            lineTypeId: activeLineTypeId,
+            groupId: 'mandala-intersections',
+            start: { x: point.x, y: point.y - size },
+            end: { x: point.x, y: point.y + size },
+          },
+        ])
+        setShapes((previous) => [...previous, ...markerShapes])
+        setStatus(`Generated ${points.length} mandala intersection marker${points.length === 1 ? '' : 's'}`)
+      })
+      .catch(() => {
+        setStatus('Mandala intersection tools failed to load')
+      })
+  }
+
+  const handleClearMandalaIntersections = () => {
+    setShapes((previous) => {
+      const next = previous.filter((shape) => shape.groupId !== 'mandala-intersections')
+      setStatus(
+        next.length === previous.length
+          ? 'No mandala intersection markers to clear'
+          : `Cleared ${previous.length - next.length} mandala intersection marker shapes`,
+      )
+      return next
+    })
   }
 
   const handleGenerateWizardPattern = (
@@ -366,6 +456,9 @@ export function useEditorCreationController(params: UseEditorCreationControllerP
     handleGenerateSpiral,
     handleGenerateGoldenGuides,
     handleGenerateWhiteSilverGuides,
+    handleUseSelectionAsMandalaCenter,
+    handleGenerateMandalaIntersections,
+    handleClearMandalaIntersections,
     handleGenerateWizardPattern,
     handleGenerateLetterStamp,
   }

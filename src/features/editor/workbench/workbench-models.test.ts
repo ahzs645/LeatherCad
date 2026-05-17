@@ -185,6 +185,7 @@ describe('buildQuickActions', () => {
       { id: 'save-json', label: 'Save', icon: 'save' },
       { id: 'undo', label: 'Undo', icon: 'undo', disabled: true },
       { id: 'redo', label: 'Redo', icon: 'redo', disabled: false },
+      { id: 'options', label: 'Options', icon: 'settings' },
       { id: 'help', label: 'Help', icon: 'help' },
     ])
   })
