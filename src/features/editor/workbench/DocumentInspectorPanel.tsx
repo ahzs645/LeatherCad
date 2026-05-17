@@ -203,6 +203,14 @@ export function DocumentInspectorPanel({
             <span>Midpoints</span>
           </label>
           <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={snapSettings.quarterPoints ?? false}
+              onChange={(event) => onUpdateSnapSettings({ quarterPoints: event.target.checked })}
+            />
+            <span>Quarter points (1/4 &amp; 3/4)</span>
+          </label>
+          <label className="layer-toggle-item">
             <input type="checkbox" checked={snapSettings.guides} onChange={(event) => onUpdateSnapSettings({ guides: event.target.checked })} />
             <span>Guides</span>
           </label>

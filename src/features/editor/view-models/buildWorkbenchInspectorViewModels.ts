@@ -34,6 +34,7 @@ type BuildSelectionInspectorPropsInput = {
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
   handleAlignSelectionToGrid: () => void
   handleCreateOffsetGeometryFromSelection: () => void
+  handleConvertSelectionToPaintedPart: () => void
   handleOpenBoxStitchHelperModal: () => void
   handleBevelSelectedCorner: () => void
   handleRoundSelectedCorner: () => void
@@ -67,6 +68,7 @@ export function buildSelectionInspectorProps({
   handleAlignSelection,
   handleAlignSelectionToGrid,
   handleCreateOffsetGeometryFromSelection,
+  handleConvertSelectionToPaintedPart,
   handleOpenBoxStitchHelperModal,
   handleBevelSelectedCorner,
   handleRoundSelectedCorner,
@@ -101,6 +103,7 @@ export function buildSelectionInspectorProps({
     onAlignBoth: () => handleAlignSelection('both'),
     onAlignToGrid: handleAlignSelectionToGrid,
     onCreateOffset: handleCreateOffsetGeometryFromSelection,
+    onConvertSelectionToPaintedPart: handleConvertSelectionToPaintedPart,
     onCreateBoxStitch: handleOpenBoxStitchHelperModal,
     onBevelCorner: handleBevelSelectedCorner,
     onRoundCorner: handleRoundSelectedCorner,

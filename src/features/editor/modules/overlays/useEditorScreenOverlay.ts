@@ -142,6 +142,10 @@ export function useEditorScreenOverlay({
     setPrintCalibrationXPercent,
     printCalibrationYPercent,
     setPrintCalibrationYPercent,
+    autoHideSidebar,
+    setAutoHideSidebar,
+    loadDemoOnStartup,
+    setLoadDemoOnStartup,
   } = panelState
   const setForceFitLastPrickAndSync = (value: boolean) => {
     setForceFitLastPrick(value)
@@ -302,6 +306,7 @@ export function useEditorScreenOverlay({
     handleExportCatalogShop,
     handleMoveTemplateEntry,
     handleSortTemplates,
+    handleFlipTemplate,
     handleMoveCatalogShop,
     handleSortCatalogShops,
     handleUpdateCatalogShop,
@@ -389,6 +394,7 @@ export function useEditorScreenOverlay({
       handleDeleteTemplateFromRepository,
       handleMoveTemplateEntry,
       handleSortTemplates,
+      handleFlipTemplate,
       handleDeleteCatalogShop,
       handleExportCatalogShop,
       handleMoveCatalogShop,
@@ -540,6 +546,10 @@ export function useEditorScreenOverlay({
       setPrintCalibrationXPercent,
       printCalibrationYPercent,
       setPrintCalibrationYPercent,
+      autoHideSidebar,
+      setAutoHideSidebar,
+      loadDemoOnStartup,
+      setLoadDemoOnStartup,
       showLengthAdjustModal,
       setShowLengthAdjustModal,
       showDimensionInspectorModal,

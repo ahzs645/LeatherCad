@@ -18,6 +18,66 @@ export const STITCH_PINK_DASHED_LINE_TYPE_ID = 'type-stitch-pink-dashed'
 export const DEFAULT_ACTIVE_LINE_TYPE_ID = CUT_LINE_TYPE_ID
 export const DEFAULT_LINE_TYPE_STROKE_WIDTH_MM = 0.8
 
+// Source-app v2.0.7 expanded the palette from 10 to 40 slots. Indices 1–10 keep their
+// historical labels; 11–40 are generic role-cut/style-solid placeholders that the user
+// can rename/recolor like the originals.
+export const LINE_TYPE_PALETTE_SLOT_COUNT = 40
+
+function extraLineTypeId(slot: number) {
+  return `type-extra-${String(slot).padStart(2, '0')}`
+}
+
+const EXTRA_PALETTE_HUES = [
+  '#34d399',
+  '#60a5fa',
+  '#a78bfa',
+  '#fb7185',
+  '#facc15',
+  '#fbbf24',
+  '#4ade80',
+  '#38bdf8',
+  '#c084fc',
+  '#f472b6',
+  '#fda4af',
+  '#fcd34d',
+  '#86efac',
+  '#7dd3fc',
+  '#a5b4fc',
+  '#fda4af',
+  '#fde68a',
+  '#bbf7d0',
+  '#bae6fd',
+  '#c4b5fd',
+  '#f5d0fe',
+  '#fed7aa',
+  '#fef08a',
+  '#bef264',
+  '#67e8f9',
+  '#93c5fd',
+  '#d8b4fe',
+  '#f0abfc',
+  '#fb923c',
+  '#fcd34d',
+]
+
+function buildExtraLineTypes(): LineType[] {
+  const extras: LineType[] = []
+  for (let slot = 11; slot <= LINE_TYPE_PALETTE_SLOT_COUNT; slot += 1) {
+    const color = EXTRA_PALETTE_HUES[(slot - 11) % EXTRA_PALETTE_HUES.length]
+    extras.push({
+      id: extraLineTypeId(slot),
+      name: `${slot} - Custom`,
+      role: 'cut',
+      style: 'solid',
+      color,
+      visible: true,
+      strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
+      ignoreInPrint: false,
+    })
+  }
+  return extras
+}
+
 const BASE_LINE_TYPES: LineType[] = [
   {
     id: CUT_LINE_TYPE_ID,
@@ -119,6 +179,7 @@ const BASE_LINE_TYPES: LineType[] = [
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
   },
+  ...buildExtraLineTypes(),
 ]
 
 function cloneLineType(lineType: LineType): LineType {

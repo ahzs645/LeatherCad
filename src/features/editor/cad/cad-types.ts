@@ -117,6 +117,8 @@ export type TextShape = {
   transform: TextTransformMode
   radiusMm: number
   sweepDeg: number
+  /** Extra space inserted between glyphs (mm). Source-app v2.1.7 "Tracking". */
+  trackingMm?: number
 }
 
 export type Shape = LineShape | ArcShape | BezierShape | TextShape
@@ -485,6 +487,7 @@ export type SnapSettings = {
   gridStep: number
   endpoints: boolean
   midpoints: boolean
+  quarterPoints: boolean
   guides: boolean
   hardware: boolean
 }

@@ -279,6 +279,7 @@ export function useEditorScreenWorkbenchModels({
     handleLineSymmetry,
     handleMakeBezierCpSymmetric,
     handleToggleBezierOffsetLines,
+    handleConvertSelectionToPaintedPart,
   } = geometryActions
   const {
     handleApplyTextDefaultsToSelection,
@@ -395,6 +396,7 @@ export function useEditorScreenWorkbenchModels({
     handleAlignSelection,
     handleAlignSelectionToGrid,
     handleCreateOffsetGeometryFromSelection,
+    handleConvertSelectionToPaintedPart: () => handleConvertSelectionToPaintedPart(),
     handleOpenBoxStitchHelperModal,
     handleBevelSelectedCorner,
     handleRoundSelectedCorner,

@@ -272,11 +272,13 @@ export function convexHull(points: Point[]): Point[] {
 
 /**
  * Build a boundary polyline (as N connected LineShapes) around all sample
- * points from the supplied shapes. Uses a convex hull by default.
+ * points from the supplied shapes. Uses a convex hull by default. When
+ * `marginMm` is positive, the hull is offset outward by that distance
+ * (source-app v1.3.7 "specify a margin when drawing boundary").
  */
 export function buildBoundaryLines(
   shapes: Shape[],
-  props: { layerId: string; lineTypeId: string; groupId?: string },
+  props: { layerId: string; lineTypeId: string; groupId?: string; marginMm?: number },
   samplesPerShape = 24,
 ): LineShape[] {
   const points: Point[] = []
@@ -287,10 +289,45 @@ export function buildBoundaryLines(
   }
   const hull = convexHull(points)
   if (hull.length < 2) return []
+
+  const margin = typeof props.marginMm === 'number' && Number.isFinite(props.marginMm) ? props.marginMm : 0
+  let outline = hull
+  if (margin > 0) {
+    // Approximate an outward offset by pushing each vertex along the average
+    // outward normal of its two adjacent hull edges (sufficient for convex
+    // polygons since interior angles are <= 180°).
+    const n = hull.length
+    const offsetVertices: Point[] = []
+    for (let i = 0; i < n; i++) {
+      const prev = hull[(i - 1 + n) % n]
+      const curr = hull[i]
+      const next = hull[(i + 1) % n]
+      const e1x = curr.x - prev.x
+      const e1y = curr.y - prev.y
+      const e2x = next.x - curr.x
+      const e2y = next.y - curr.y
+      // Outward normal for a CCW hull: rotate edge +90° (perpendicular).
+      const n1x = -e1y
+      const n1y = e1x
+      const n2x = -e2y
+      const n2y = e2x
+      const len1 = Math.hypot(n1x, n1y) || 1
+      const len2 = Math.hypot(n2x, n2y) || 1
+      const avgX = n1x / len1 + n2x / len2
+      const avgY = n1y / len1 + n2y / len2
+      const avgLen = Math.hypot(avgX, avgY) || 1
+      offsetVertices.push({
+        x: curr.x + (avgX / avgLen) * margin,
+        y: curr.y + (avgY / avgLen) * margin,
+      })
+    }
+    outline = offsetVertices
+  }
+
   const lines: LineShape[] = []
-  for (let i = 0; i < hull.length; i++) {
-    const a = hull[i]
-    const b = hull[(i + 1) % hull.length]
+  for (let i = 0; i < outline.length; i++) {
+    const a = outline[i]
+    const b = outline[(i + 1) % outline.length]
     lines.push({
       id: uid(),
       type: 'line',

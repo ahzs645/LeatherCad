@@ -126,6 +126,10 @@ export type BuildEditorOverlayPropsParams = {
   setPrintCalibrationXPercent: (value: number) => void
   printCalibrationYPercent: number
   setPrintCalibrationYPercent: (value: number) => void
+  autoHideSidebar: boolean
+  setAutoHideSidebar: (value: boolean) => void
+  loadDemoOnStartup: boolean
+  setLoadDemoOnStartup: (value: boolean) => void
   showLengthAdjustModal: boolean; setShowLengthAdjustModal: Dispatch<SetStateAction<boolean>>
   showDimensionInspectorModal: boolean
   setShowDimensionInspectorModal: Dispatch<SetStateAction<boolean>>
@@ -252,6 +256,10 @@ export function buildEditorOverlayProps({
   setPrintCalibrationXPercent,
   printCalibrationYPercent,
   setPrintCalibrationYPercent,
+  autoHideSidebar,
+  setAutoHideSidebar,
+  loadDemoOnStartup,
+  setLoadDemoOnStartup,
   setGridBackgroundMode,
   showLengthAdjustModal,
   setShowLengthAdjustModal,
@@ -651,6 +659,10 @@ export function buildEditorOverlayProps({
         printCalibrationYPercent,
         onChangePrintCalibrationXPercent: setPrintCalibrationXPercent,
         onChangePrintCalibrationYPercent: setPrintCalibrationYPercent,
+        autoHideSidebar,
+        loadDemoOnStartup,
+        onChangeAutoHideSidebar: setAutoHideSidebar,
+        onChangeLoadDemoOnStartup: setLoadDemoOnStartup,
         onOpenDimensionInspector: () => setShowDimensionInspectorModal(true),
       },
       dimensionInspectorModalProps: {

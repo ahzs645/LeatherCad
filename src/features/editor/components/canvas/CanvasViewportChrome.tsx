@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { formatDisplayDistance, type DisplayUnit } from '../../ops/unit-ops'
 import { pointInBounds, type Bounds } from './canvas-geometry'
 
@@ -69,6 +70,9 @@ export function CanvasViewportChrome({
   detailPadding,
 }: CanvasViewportChromeProps) {
   const viewportScale = Math.max(viewport?.scale ?? 1, 0.0001)
+  // Local drag preview so the on-canvas tracing move generates one undo entry
+  // (committed at pointer-up) instead of one per pointer-move (source v2.8.3).
+  const [tracingDrag, setTracingDrag] = useState<{ overlayId: string; offsetX: number; offsetY: number } | null>(null)
   const rulerTickStep = niceCeil(RULER_TICK_TARGET_SPACING_PX / viewportScale)
   const rulerLabelStep = niceCeil(RULER_LABEL_TARGET_SPACING_PX / viewportScale)
   const xRulerTickValues = showCanvasRuler ? buildRulerTickValues(viewBounds.minX, viewBounds.maxX, rulerTickStep) : []
@@ -220,7 +224,11 @@ export function CanvasViewportChrome({
           .filter((overlay) => overlay.visible)
           .map((overlay) => {
             const scale = Number(overlay.scale.toFixed(4))
-            const transform = `translate(${Math.round(overlay.offsetX * 1000) / 1000} ${Math.round(overlay.offsetY * 1000) / 1000}) rotate(${Math.round(
+            const liveOffsetX =
+              tracingDrag && tracingDrag.overlayId === overlay.id ? tracingDrag.offsetX : overlay.offsetX
+            const liveOffsetY =
+              tracingDrag && tracingDrag.overlayId === overlay.id ? tracingDrag.offsetY : overlay.offsetY
+            const transform = `translate(${Math.round(liveOffsetX * 1000) / 1000} ${Math.round(liveOffsetY * 1000) / 1000}) rotate(${Math.round(
               overlay.rotationDeg * 1000,
             ) / 1000}) scale(${scale})`
             const x = Math.round((-overlay.width / 2) * 1000) / 1000
@@ -247,15 +255,26 @@ export function CanvasViewportChrome({
                         } catch {
                           // ignore
                         }
+                        let finalOffsetX = startOffsetX
+                        let finalOffsetY = startOffsetY
                         const onMove = (moveEvent: PointerEvent) => {
                           const dx = (moveEvent.clientX - startClientX) / viewportScale
                           const dy = (moveEvent.clientY - startClientY) / viewportScale
-                          onTracingOverlayOffset?.(overlay.id, startOffsetX + dx, startOffsetY + dy)
+                          finalOffsetX = startOffsetX + dx
+                          finalOffsetY = startOffsetY + dy
+                          setTracingDrag({ overlayId: overlay.id, offsetX: finalOffsetX, offsetY: finalOffsetY })
                         }
                         const onUp = () => {
                           window.removeEventListener('pointermove', onMove)
                           window.removeEventListener('pointerup', onUp)
                           window.removeEventListener('pointercancel', onUp)
+                          setTracingDrag(null)
+                          if (
+                            Math.abs(finalOffsetX - startOffsetX) > 1e-4 ||
+                            Math.abs(finalOffsetY - startOffsetY) > 1e-4
+                          ) {
+                            onTracingOverlayOffset?.(overlay.id, finalOffsetX, finalOffsetY)
+                          }
                         }
                         window.addEventListener('pointermove', onMove)
                         window.addEventListener('pointerup', onUp)

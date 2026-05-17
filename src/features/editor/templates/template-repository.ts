@@ -22,11 +22,167 @@ export type TemplateRepositoryEntry = {
   name: string
   createdAt: string
   updatedAt: string
+  /** Optional parent folder id. `null` (or undefined) means root. Source v1.6.3 tree layout. */
+  parentFolderId?: string | null
   doc: DocFile
+}
+
+export type TemplateRepositoryFolder = {
+  id: string
+  name: string
+  parentFolderId: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export type TemplateRepositorySortKey = 'name' | 'updated'
 export type TemplateRepositoryMoveDirection = 'up' | 'down'
+
+const TEMPLATE_REPOSITORY_FOLDERS_STORAGE_KEY = 'leathercraft-template-repository-folders-v1'
+
+function parseTemplateFolder(candidate: unknown): TemplateRepositoryFolder | null {
+  if (typeof candidate !== 'object' || candidate === null) return null
+  const maybe = candidate as Partial<TemplateRepositoryFolder>
+  if (typeof maybe.id !== 'string' || typeof maybe.name !== 'string') return null
+  return {
+    id: maybe.id,
+    name: maybe.name,
+    parentFolderId: typeof maybe.parentFolderId === 'string' ? maybe.parentFolderId : null,
+    createdAt: typeof maybe.createdAt === 'string' ? maybe.createdAt : new Date().toISOString(),
+    updatedAt: typeof maybe.updatedAt === 'string' ? maybe.updatedAt : new Date().toISOString(),
+  }
+}
+
+export function loadTemplateRepositoryFolders(): TemplateRepositoryFolder[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = safeLocalStorageGet(TEMPLATE_REPOSITORY_FOLDERS_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown[]
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(parseTemplateFolder).filter((folder): folder is TemplateRepositoryFolder => folder !== null)
+  } catch {
+    return []
+  }
+}
+
+export function saveTemplateRepositoryFolders(folders: TemplateRepositoryFolder[]) {
+  if (typeof window === 'undefined') return
+  safeLocalStorageSet(TEMPLATE_REPOSITORY_FOLDERS_STORAGE_KEY, JSON.stringify(folders))
+}
+
+export function createTemplateFolder(name: string, parentFolderId: string | null = null): TemplateRepositoryFolder {
+  const now = new Date().toISOString()
+  return {
+    id: uid(),
+    name: name.trim() || 'Folder',
+    parentFolderId,
+    createdAt: now,
+    updatedAt: now,
+  }
+}
+
+export function moveTemplateEntryToFolder(
+  entries: TemplateRepositoryEntry[],
+  entryId: string,
+  parentFolderId: string | null,
+) {
+  return entries.map((entry) =>
+    entry.id === entryId
+      ? { ...entry, parentFolderId, updatedAt: new Date().toISOString() }
+      : entry,
+  )
+}
+
+export function deleteTemplateFolder(
+  folders: TemplateRepositoryFolder[],
+  entries: TemplateRepositoryEntry[],
+  folderId: string,
+): { folders: TemplateRepositoryFolder[]; entries: TemplateRepositoryEntry[] } {
+  // Promote descendants to root (simpler than recursive delete; users can re-organise).
+  const removedIds = new Set<string>([folderId])
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const folder of folders) {
+      if (folder.parentFolderId && removedIds.has(folder.parentFolderId) && !removedIds.has(folder.id)) {
+        removedIds.add(folder.id)
+        changed = true
+      }
+    }
+  }
+  return {
+    folders: folders.filter((folder) => !removedIds.has(folder.id)),
+    entries: entries.map((entry) =>
+      entry.parentFolderId && removedIds.has(entry.parentFolderId)
+        ? { ...entry, parentFolderId: null }
+        : entry,
+    ),
+  }
+}
+
+export function renameTemplateFolder(
+  folders: TemplateRepositoryFolder[],
+  folderId: string,
+  nextName: string,
+): TemplateRepositoryFolder[] {
+  const safeName = nextName.trim() || 'Folder'
+  return folders.map((folder) =>
+    folder.id === folderId ? { ...folder, name: safeName, updatedAt: new Date().toISOString() } : folder,
+  )
+}
+
+function flipPoint(point: { x: number; y: number }, axis: 'horizontal' | 'vertical') {
+  return axis === 'horizontal' ? { x: -point.x, y: point.y } : { x: point.x, y: -point.y }
+}
+
+function flipShape(shape: Shape, axis: 'horizontal' | 'vertical'): Shape {
+  if (shape.type === 'arc') {
+    return {
+      ...shape,
+      start: flipPoint(shape.start, axis),
+      mid: flipPoint(shape.mid, axis),
+      end: flipPoint(shape.end, axis),
+    }
+  }
+  if (shape.type === 'bezier') {
+    return {
+      ...shape,
+      start: flipPoint(shape.start, axis),
+      control: flipPoint(shape.control, axis),
+      end: flipPoint(shape.end, axis),
+    }
+  }
+  return {
+    ...shape,
+    start: flipPoint(shape.start, axis),
+    end: flipPoint(shape.end, axis),
+  }
+}
+
+export function flipTemplateEntryShapes(
+  entry: TemplateRepositoryEntry,
+  axis: 'horizontal' | 'vertical',
+): TemplateRepositoryEntry {
+  const flippedDoc: DocFile = {
+    ...cloneDoc(entry.doc),
+    objects: entry.doc.objects.map((shape) => flipShape(shape, axis)),
+    foldLines: (entry.doc.foldLines ?? []).map((foldLine) => ({
+      ...foldLine,
+      start: flipPoint(foldLine.start, axis),
+      end: flipPoint(foldLine.end, axis),
+    })),
+    stitchHoles: (entry.doc.stitchHoles ?? []).map((hole) => ({
+      ...hole,
+      point: flipPoint(hole.point, axis),
+    })),
+  }
+  return {
+    ...entry,
+    updatedAt: new Date().toISOString(),
+    doc: flippedDoc,
+  }
+}
 
 function cloneDoc(doc: DocFile): DocFile {
   if (typeof structuredClone === 'function') {
@@ -54,6 +210,7 @@ function parseTemplateEntry(candidate: unknown): TemplateRepositoryEntry | null 
     name: maybe.name,
     createdAt: maybe.createdAt,
     updatedAt: maybe.updatedAt,
+    parentFolderId: typeof maybe.parentFolderId === 'string' ? maybe.parentFolderId : null,
     doc: cloneDoc(maybe.doc),
   }
 }

@@ -264,6 +264,69 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   }
 
   // ---------------------------------------------------------------------------
+  // handleSmoothBezierJointAtControl — invoked by a double-click on a bezier's
+  // control-point handle. Looks at both endpoints of the source bezier and:
+  //   - if an adjacent bezier shares one of the endpoints, mirror that bezier's
+  //     CP through the shared joint so the curves meet smoothly (source v1.7.0)
+  //   - if instead only a straight line is connected, rotate the line endpoint
+  //     so it lies on the line through the joint and the source bezier's CP,
+  //     same length as the line (source v2.8.3)
+  // ---------------------------------------------------------------------------
+
+  const handleSmoothBezierJointAtControl = (bezierId: string) => {
+    const target = shapes.find((entry): entry is BezierShape => entry.id === bezierId && entry.type === 'bezier')
+    if (!target) {
+      return
+    }
+    const tolerance = 1e-6
+    const tryEndpoint = (endpoint: 'start' | 'end') => {
+      const joint = endpoint === 'start' ? target.start : target.end
+      for (const other of shapes) {
+        if (other.id === target.id) continue
+        if (other.type !== 'bezier' && other.type !== 'line') continue
+        const otherStartShared = distance(other.start, joint) < tolerance
+        const otherEndShared = distance(other.end, joint) < tolerance
+        if (!otherStartShared && !otherEndShared) continue
+        if (other.type === 'bezier') {
+          const sharedSide: 'start' | 'end' = otherStartShared ? 'start' : 'end'
+          const updated = makeBezierCpSymmetric(target, other, sharedSide)
+          setShapes((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+          setStatus('Smoothed bezier joint (adjacent bezier CP set symmetric)')
+          return true
+        }
+        // Connected straight line: rotate its non-joint endpoint along the joint
+        // through the source bezier's control point, keeping its current length.
+        const lineOther = other
+        const farEndpointKey: 'start' | 'end' = otherStartShared ? 'end' : 'start'
+        const farPoint = farEndpointKey === 'start' ? lineOther.start : lineOther.end
+        const lineLength = distance(joint, farPoint)
+        if (lineLength < tolerance) return false
+        const cpDirX = joint.x - target.control.x
+        const cpDirY = joint.y - target.control.y
+        const cpDirLen = Math.hypot(cpDirX, cpDirY)
+        if (cpDirLen < tolerance) return false
+        const ux = cpDirX / cpDirLen
+        const uy = cpDirY / cpDirLen
+        const rotated: Point = { x: joint.x + ux * lineLength, y: joint.y + uy * lineLength }
+        setShapes((prev) =>
+          prev.map((shape) => {
+            if (shape.id !== lineOther.id) return shape
+            return farEndpointKey === 'start'
+              ? { ...shape, start: rotated }
+              : { ...shape, end: rotated }
+          }),
+        )
+        setStatus('Smoothed bezier joint (line rotated to bezier handle axis)')
+        return true
+      }
+      return false
+    }
+    if (!tryEndpoint('start') && !tryEndpoint('end')) {
+      setStatus('No adjacent bezier or line found at this bezier endpoint')
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // handleExtendOrTrimLines
   // ---------------------------------------------------------------------------
 
@@ -604,18 +667,63 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   }
 
   // ---------------------------------------------------------------------------
+  // handleConvertSelectionToPaintedPart
+  //   Source-app v2.0.7: "When converting selected shapes into a template
+  //   object, closed portions will be converted to a template path object
+  //   filled with the selected color." We treat the active line type's color
+  //   as the fill color and tag each closed shape in the selection.
+  // ---------------------------------------------------------------------------
+
+  const handleConvertSelectionToPaintedPart = (fillColor?: string) => {
+    const selected = getSelectedShapes()
+    if (selected.length === 0) {
+      setStatus('Select one or more closed shapes to convert to painted parts')
+      return
+    }
+    const tolerance = 1e-3
+    const isClosed = (shape: Shape) => {
+      const start = shape.start
+      const end = shape.end
+      return Math.hypot(start.x - end.x, start.y - end.y) < tolerance
+    }
+    const targets = selected.filter((shape) => shape.type !== 'text' && isClosed(shape))
+    if (targets.length === 0) {
+      setStatus('Selection has no closed shapes (start ≈ end) to paint')
+      return
+    }
+    const color = fillColor && /^#[0-9a-fA-F]{6}$/.test(fillColor) ? fillColor.toLowerCase() : undefined
+    setShapes((previous) =>
+      previous.map((shape) => {
+        if (!targets.some((target) => target.id === shape.id)) return shape
+        return { ...shape, fillColor: color }
+      }),
+    )
+    setStatus(`Painted ${targets.length} shape${targets.length === 1 ? '' : 's'} as template fill`)
+  }
+
+  // ---------------------------------------------------------------------------
   // handleDrawBoundaryAroundSelection
   // ---------------------------------------------------------------------------
 
-  const handleDrawBoundaryAroundSelection = () => {
+  const handleDrawBoundaryAroundSelection = (marginMm?: number) => {
     const selected = getSelectedShapes()
     if (selected.length === 0) {
       setStatus('Select one or more shapes to draw a boundary around')
       return
     }
+    let resolvedMargin = typeof marginMm === 'number' && Number.isFinite(marginMm) ? marginMm : NaN
+    if (Number.isNaN(resolvedMargin) && typeof window !== 'undefined') {
+      const raw = window.prompt('Boundary margin (mm)?', '0')
+      if (raw === null) return
+      const parsed = Number.parseFloat(raw)
+      resolvedMargin = Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+    } else if (Number.isNaN(resolvedMargin)) {
+      resolvedMargin = 0
+    }
     const boundary = buildBoundaryLines(selected, {
       layerId: activeLayerId,
       lineTypeId: activeLineTypeId,
+      marginMm: resolvedMargin,
     })
     if (boundary.length === 0) {
       setStatus('Could not compute a boundary from the selection')
@@ -623,7 +731,11 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     }
     setShapes((prev) => [...prev, ...boundary])
     setSelectedShapeIds(boundary.map((line) => line.id))
-    setStatus(`Drew boundary with ${boundary.length} segments`)
+    setStatus(
+      resolvedMargin > 0
+        ? `Drew boundary with ${boundary.length} segments (margin ${resolvedMargin}mm)`
+        : `Drew boundary with ${boundary.length} segments`,
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -635,6 +747,7 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     handleMakeBezierCpFlat,
     handleMakeBezierCpSameLength,
     handleMakeBezierCpSymmetric,
+    handleSmoothBezierJointAtControl,
     handleExtendOrTrimLines,
     handleMirrorShapes,
     handleToggleBezierOffsetLines,
@@ -648,6 +761,7 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     handleFilletSelectedCorner,
     handleDistanceMarkSelectedPath,
     handleConvertSelectionToPath,
+    handleConvertSelectionToPaintedPart,
     handleNotchSelectedShape,
   }
 }

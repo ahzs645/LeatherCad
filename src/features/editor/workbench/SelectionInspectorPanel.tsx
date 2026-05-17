@@ -15,6 +15,7 @@ export type SelectionInspectorPanelProps = {
   onAlignBoth: () => void
   onAlignToGrid: () => void
   onCreateOffset: () => void
+  onConvertSelectionToPaintedPart?: () => void
   onCreateBoxStitch: () => void
   onBevelCorner: () => void
   onRoundCorner: () => void
@@ -59,6 +60,7 @@ export function SelectionInspectorPanel({
   onAlignBoth,
   onAlignToGrid,
   onCreateOffset,
+  onConvertSelectionToPaintedPart,
   onCreateBoxStitch,
   onBevelCorner,
   onRoundCorner,
@@ -112,6 +114,13 @@ export function SelectionInspectorPanel({
           <button onClick={onAlignBoth} disabled={selectedShapeCount < 2}>Align XY</button>
           <button onClick={onAlignToGrid} disabled={selectedShapeCount === 0}>Grid</button>
           <button onClick={onCreateOffset} disabled={selectedShapeCount === 0}>Offset</button>
+          <button
+            onClick={onConvertSelectionToPaintedPart}
+            disabled={selectedShapeCount === 0 || !onConvertSelectionToPaintedPart}
+            title="Mark closed shapes as painted/filled template parts"
+          >
+            Paint Closed Parts
+          </button>
           <button onClick={onCreateBoxStitch} disabled={selectedShapeCount === 0}>Box Stitch Helper</button>
           <button onClick={onBevelCorner} disabled={lineCount < 2}>Bevel</button>
           <button onClick={onRoundCorner} disabled={lineCount < 2}>Round</button>

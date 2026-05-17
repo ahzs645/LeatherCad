@@ -34,6 +34,7 @@ export function TracingModal({
 }: TracingModalProps) {
   const dragStateRef = useRef<DragState | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [livePreview, setLivePreview] = useState<{ overlayId: string; offsetX: number; offsetY: number } | null>(null)
   if (!open) {
     return null
   }
@@ -62,7 +63,11 @@ export function TracingModal({
     }
     const dx = event.clientX - dragState.startClientX
     const dy = event.clientY - dragState.startClientY
-    onUpdateTracingOverlay(activeTracingOverlay.id, {
+    // Stage the move in local state during the drag so we generate one history
+    // entry on pointer-up instead of one per frame (source v2.8.3 wraps the
+    // whole move/scale gesture into a single undoable operation).
+    setLivePreview({
+      overlayId: activeTracingOverlay.id,
       offsetX: Math.round(dragState.startOffsetX + dx),
       offsetY: Math.round(dragState.startOffsetY + dy),
     })
@@ -72,6 +77,13 @@ export function TracingModal({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
+    if (livePreview && activeTracingOverlay && livePreview.overlayId === activeTracingOverlay.id) {
+      onUpdateTracingOverlay(activeTracingOverlay.id, {
+        offsetX: livePreview.offsetX,
+        offsetY: livePreview.offsetY,
+      })
+    }
+    setLivePreview(null)
     dragStateRef.current = null
     setIsDragging(false)
   }

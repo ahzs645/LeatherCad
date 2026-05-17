@@ -1,4 +1,4 @@
-import type { Dispatch, PointerEvent as ReactPointerEvent, RefObject, SetStateAction } from 'react'
+import { useMemo, type Dispatch, type PointerEvent as ReactPointerEvent, type RefObject, type SetStateAction } from 'react'
 import type {
   DimensionLine,
   FoldLine,
@@ -15,7 +15,7 @@ import type {
   StitchHole,
   Viewport,
 } from '../cad/cad-types'
-import { snapPointToContext } from '../ops/pattern-ops'
+import { computeMandalaIntersectionCandidates, snapPointToContext } from '../ops/pattern-ops'
 import type { ToolRuntime } from '../tools/tool-types'
 import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
@@ -172,6 +172,11 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     }
   }
 
+  const mandalaIntersections = useMemo(
+    () => computeMandalaIntersectionCandidates(snapShapes),
+    [snapShapes],
+  )
+
   const getSnappedPoint = (point: Point) =>
     snapPointToContext(point, snapSettings, {
       shapes: snapShapes,
@@ -179,6 +184,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       hardwareMarkers: visibleHardwareMarkers,
       viewportScale: viewport.scale,
       customSnapPoints: customSnapPoint ? [customSnapPoint] : undefined,
+      mandalaIntersections: mandalaIntersections.length > 0 ? mandalaIntersections : undefined,
       draftAnchor: draftPoints.length > 0 ? draftPoints[0] : undefined,
     })
 

@@ -231,10 +231,14 @@ export function renderTextShape(shape: TextShape, options: RenderTextShapeOption
   const scale = options.viewportScale && options.viewportScale > 0 ? options.viewportScale : 1
   const fontSize = resolveAdaptiveTextFontSize(normalized.fontSizeMm, scale)
   const haloStrokeWidth = round(Math.max(0.8, 3 / scale))
+  const trackingMm = typeof normalized.trackingMm === 'number' && Number.isFinite(normalized.trackingMm)
+    ? normalized.trackingMm
+    : 0
   const textStyle: React.CSSProperties = {
     fill: options.color,
     fontFamily: normalized.fontFamily,
     fontSize: `${fontSize}px`,
+    letterSpacing: trackingMm !== 0 ? `${trackingMm}` : undefined,
     opacity: options.opacity,
     paintOrder: 'stroke',
     stroke: '#f8fafc',

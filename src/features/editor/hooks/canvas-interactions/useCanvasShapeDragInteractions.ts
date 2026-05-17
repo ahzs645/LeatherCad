@@ -1,5 +1,6 @@
 import { useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react'
-import type { Point, Shape } from '../../cad/cad-types'
+import type { BezierShape, Point, Shape } from '../../cad/cad-types'
+import { distance as pointDistance } from '../../cad/cad-geometry'
 import type {
   CanvasInteractionPreview,
   HandleDragState,
@@ -304,14 +305,47 @@ export function useCanvasShapeDragInteractions({
           originalPoint &&
           (Math.abs(originalPoint.x - preview.point.x) > 1e-4 || Math.abs(originalPoint.y - preview.point.y) > 1e-4)
         ) {
+          // Shift+drag on a bezier CP also mirrors the move into the adjacent
+          // jointed bezier's CP so the joint stays smooth (source-app v1.7.0).
+          const isBezierCpJointSync =
+            event.shiftKey && targetShape.type === 'bezier' && handleDragState.pointKey === 'control'
+          let jointSyncPatch:
+            | { shapeId: string; nextControl: Point }
+            | null = null
+          if (isBezierCpJointSync && targetShape.type === 'bezier') {
+            const targetBezier: BezierShape = targetShape
+            const tolerance = 1e-6
+            for (const candidate of Object.values(shapesById)) {
+              if (!candidate || candidate.id === targetBezier.id) continue
+              if (candidate.type !== 'bezier') continue
+              const matchStart =
+                pointDistance(candidate.start, targetBezier.start) < tolerance ||
+                pointDistance(candidate.start, targetBezier.end) < tolerance
+              const matchEnd =
+                pointDistance(candidate.end, targetBezier.start) < tolerance ||
+                pointDistance(candidate.end, targetBezier.end) < tolerance
+              if (!matchStart && !matchEnd) continue
+              const joint = matchStart ? candidate.start : candidate.end
+              const nextControl: Point = {
+                x: 2 * joint.x - preview.point.x,
+                y: 2 * joint.y - preview.point.y,
+              }
+              jointSyncPatch = { shapeId: candidate.id, nextControl }
+              break
+            }
+          }
           setShapes((previous) =>
-            previous.map((shape) =>
-              shape.id === handleDragState.shapeId
-                ? withUpdatedHandlePoint(shape, handleDragState.pointKey, preview.point)
-                : shape,
-            ),
+            previous.map((shape) => {
+              if (shape.id === handleDragState.shapeId) {
+                return withUpdatedHandlePoint(shape, handleDragState.pointKey, preview.point)
+              }
+              if (jointSyncPatch && shape.id === jointSyncPatch.shapeId && shape.type === 'bezier') {
+                return { ...shape, control: jointSyncPatch.nextControl }
+              }
+              return shape
+            }),
           )
-          setStatus('Updated shape handle')
+          setStatus(jointSyncPatch ? 'Updated handle (joint symmetric)' : 'Updated shape handle')
         }
       }
       handleDragRef.current = null

@@ -63,6 +63,7 @@ export type UseEditorModalStackPropsParams = {
   handleDeleteTemplateFromRepository: (entryId: string) => void
   handleMoveTemplateEntry: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   handleSortTemplates: (sortKey: TemplateRepositorySortKey) => void
+  handleFlipTemplate: (entryId: string, axis: 'horizontal' | 'vertical') => void
   handleDeleteCatalogShop: (shopId: string) => void
   handleExportCatalogShop: (shopId: string) => void
   handleMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
@@ -170,6 +171,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleDeleteTemplateFromRepository,
     handleMoveTemplateEntry,
     handleSortTemplates,
+    handleFlipTemplate,
     handleDeleteCatalogShop,
     handleExportCatalogShop,
     handleMoveCatalogShop,
@@ -286,6 +288,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     printMarginMm,
     printSelectedOnly,
     printRulerInside,
+    printRulerAnchorTileIndex,
     printInColor,
     printStitchAsDots,
     printLineThicknessScalePercent,
@@ -328,6 +331,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     printMarginMm: state.printMarginMm,
     printSelectedOnly: state.printSelectedOnly,
     printRulerInside: state.printRulerInside,
+    printRulerAnchorTileIndex: state.printRulerAnchorTileIndex,
     printInColor: state.printInColor,
     printStitchAsDots: state.printStitchAsDots,
     printLineThicknessScalePercent: state.printLineThicknessScalePercent,
@@ -371,6 +375,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setPrintMarginMm,
     setPrintSelectedOnly,
     setPrintRulerInside,
+    setPrintRulerAnchorTileIndex,
     setPrintInColor,
     setPrintStitchAsDots,
     setPrintLineThicknessScalePercent,
@@ -574,6 +579,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onDeleteTemplate: handleDeleteTemplateFromRepository,
       onMoveTemplate: handleMoveTemplateEntry,
       onSortTemplates: handleSortTemplates,
+      onFlipTemplate: handleFlipTemplate,
       onDeleteCatalogShop: handleDeleteCatalogShop,
       onMoveCatalogShop: handleMoveCatalogShop,
       onSortCatalogShops: handleSortCatalogShops,
@@ -709,6 +715,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onSetPrintSelectedOnly: setPrintSelectedOnly,
       printRulerInside,
       onSetPrintRulerInside: setPrintRulerInside,
+      printRulerAnchorTileIndex,
+      onSetPrintRulerAnchorTileIndex: setPrintRulerAnchorTileIndex,
       printInColor,
       onSetPrintInColor: setPrintInColor,
       printStitchAsDots,

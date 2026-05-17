@@ -28,6 +28,7 @@ type CanvasShapeLayerProps = {
     shapeId: string,
     pointKey: HandlePointKey,
   ) => void
+  onShapeHandleDoubleClick?: (shapeId: string, pointKey: HandlePointKey) => void
   renderableFoldLines: FoldLine[]
   renderablePieceGrainlineSegments: Array<{ pieceId: string; start: import('../../cad/cad-types').Point; end: import('../../cad/cad-types').Point }>
   renderablePieceNotchLines: Array<{ id: string; pieceId: string; start: import('../../cad/cad-types').Point; end: import('../../cad/cad-types').Point; showOnSeam: boolean }>
@@ -51,6 +52,7 @@ export function CanvasShapeLayer({
   previewShapes,
   showShapeHandles,
   onShapeHandlePointerDown,
+  onShapeHandleDoubleClick,
   renderableFoldLines,
   renderablePieceGrainlineSegments,
   renderablePieceNotchLines,
@@ -131,6 +133,7 @@ export function CanvasShapeLayer({
                   r={2.3}
                   className="shape-handle"
                   onPointerDown={(event) => onShapeHandlePointerDown(event, shape.id, entry.key)}
+                  onDoubleClick={() => onShapeHandleDoubleClick?.(shape.id, entry.key)}
                 />
               )),
             )}
@@ -145,6 +148,7 @@ export function CanvasShapeLayer({
                   r={2.3}
                   className="shape-handle shape-handle-preview"
                   onPointerDown={(event) => onShapeHandlePointerDown(event, shape.id, entry.key)}
+                  onDoubleClick={() => onShapeHandleDoubleClick?.(shape.id, entry.key)}
                 />
               )),
             )}

@@ -267,9 +267,13 @@ export function WizardModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose} aria-label="Pattern Wizard">
+    <div className="modal-overlay" onClick={onClose} aria-label="Bonus Features">
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Pattern Wizard</h3>
+        <h3>Bonus Features</h3>
+        <p className="hint">
+          Pattern generators for the bonus pack: watch straps, pass cases, boxes, jigsaws, dice cups,
+          and caps. (Letter Stamp is launched separately from the Text ribbon.)
+        </p>
 
         <div className="button-row">
           {WIZARD_TABS.map((tab) => (

@@ -22,6 +22,7 @@ export const DEFAULT_SNAP_SETTINGS: SnapSettings = {
   gridStep: 10,
   endpoints: true,
   midpoints: true,
+  quarterPoints: false,
   guides: true,
   hardware: true,
 }

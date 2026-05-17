@@ -24,6 +24,8 @@ type PrintPreviewModalProps = {
   onSetPrintSelectedOnly: (enabled: boolean) => void
   printRulerInside: boolean
   onSetPrintRulerInside: (enabled: boolean) => void
+  printRulerAnchorTileIndex: number | null
+  onSetPrintRulerAnchorTileIndex: (tileIndex: number | null) => void
   printInColor: boolean
   onSetPrintInColor: (enabled: boolean) => void
   printStitchAsDots: boolean
@@ -62,6 +64,8 @@ export function PrintPreviewModal({
   onSetPrintSelectedOnly,
   printRulerInside,
   onSetPrintRulerInside,
+  printRulerAnchorTileIndex,
+  onSetPrintRulerAnchorTileIndex,
   printInColor,
   onSetPrintInColor,
   printStitchAsDots,
@@ -256,6 +260,31 @@ export function PrintPreviewModal({
               Coverage: {printPlan.contentWidthMm} x {printPlan.contentHeightMm} mm
             </div>
             <div>Pages: {printPlan.tiles.length}</div>
+            {printRulerInside && printPlan.tiles.length > 1 && (
+              <div className="print-preview-tile-grid">
+                <span className="hint">Anchor the 100mm XY ruler on which page?</span>
+                <div className="print-preview-tile-grid-cells">
+                  <button
+                    type="button"
+                    className={printRulerAnchorTileIndex === null ? 'active' : ''}
+                    onClick={() => onSetPrintRulerAnchorTileIndex(null)}
+                  >
+                    Auto
+                  </button>
+                  {printPlan.tiles.map((_, tileIndex) => (
+                    <button
+                      key={tileIndex}
+                      type="button"
+                      className={printRulerAnchorTileIndex === tileIndex ? 'active' : ''}
+                      onClick={() => onSetPrintRulerAnchorTileIndex(tileIndex)}
+                      title={`Place the ruler on tile ${tileIndex + 1}`}
+                    >
+                      Page {tileIndex + 1}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               Active DPI: {activeDpiX} x {activeDpiY}
             </div>

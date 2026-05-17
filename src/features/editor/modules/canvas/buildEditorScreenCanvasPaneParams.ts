@@ -105,6 +105,7 @@ export function buildEditorScreenCanvasPaneParams({
     handleMakeBezierCpFlat,
     handleMakeBezierCpSameLength,
     handleMakeBezierCpSymmetric,
+    handleSmoothBezierJointAtControl,
   } = geometryActions
   const {
     stitchSimulatorResult,
@@ -168,6 +169,10 @@ export function buildEditorScreenCanvasPaneParams({
     displayLayerColorsById,
     onShapePointerDown: handleShapePointerDown,
     onShapeHandlePointerDown: handleShapeHandlePointerDown,
+    onShapeHandleDoubleClick: (shapeId: string, pointKey: 'start' | 'mid' | 'control' | 'end') => {
+      if (pointKey !== 'control') return
+      handleSmoothBezierJointAtControl(shapeId)
+    },
     tool,
     visibleStitchHoles: workspaceStitchHoles,
     selectedStitchHoleId,

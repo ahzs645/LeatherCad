@@ -105,6 +105,7 @@ export type EditorCanvasPaneProps = {
     shapeId: string,
     pointKey: 'start' | 'mid' | 'control' | 'end',
   ) => void
+  onShapeHandleDoubleClick?: (shapeId: string, pointKey: 'start' | 'mid' | 'control' | 'end') => void
   showShapeHandles: boolean
   visibleStitchHoles: StitchHole[]
   selectedStitchHoleId: string | null
@@ -181,6 +182,7 @@ export function EditorCanvasPane({
   displayLayerColorsById,
   onShapePointerDown,
   onShapeHandlePointerDown,
+  onShapeHandleDoubleClick,
   showShapeHandles,
   visibleStitchHoles,
   selectedStitchHoleId,
@@ -460,6 +462,7 @@ export function EditorCanvasPane({
             previewShapes={previewShapes}
             showShapeHandles={showShapeHandles}
             onShapeHandlePointerDown={onShapeHandlePointerDown}
+            onShapeHandleDoubleClick={onShapeHandleDoubleClick}
             renderableFoldLines={renderableFoldLines}
             renderablePieceGrainlineSegments={renderablePieceGrainlineSegments}
             renderablePieceNotchLines={renderablePieceNotchLines}

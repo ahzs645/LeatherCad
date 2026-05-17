@@ -58,15 +58,17 @@ export function measureTextWidthMm(
   text: string,
   fontSizeMm: number,
   fontUrl?: string,
+  trackingMm = 0,
 ): number {
+  const extraTracking = trackingMm * Math.max(0, text.length - 1)
   if (!fontUrl) {
     // Fallback estimation
-    return Math.max(fontSizeMm * 0.8, text.length * fontSizeMm * 0.62)
+    return Math.max(fontSizeMm * 0.8, text.length * fontSizeMm * 0.62) + extraTracking
   }
 
   const font = fontCache.get(fontUrl)
   if (!font) {
-    return Math.max(fontSizeMm * 0.8, text.length * fontSizeMm * 0.62)
+    return Math.max(fontSizeMm * 0.8, text.length * fontSizeMm * 0.62) + extraTracking
   }
 
   const unitsPerEm = font.unitsPerEm
@@ -87,7 +89,7 @@ export function measureTextWidthMm(
     }
   }
 
-  return totalWidth
+  return totalWidth + extraTracking
 }
 
 // ---------------------------------------------------------------------------

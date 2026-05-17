@@ -1,7 +1,9 @@
 # Source-App Parity Gaps (Extraction Review)
 
-Last updated: 2026-05-16 (pass 2: silver ratio, mandala mirror, per-hole stitch shape, leather-sim
-rotate, per-dimension inspector, prickingirons.lccp fixture)
+Last updated: 2026-05-16 (pass 4: line palette 40 / palette context menu / pick line type /
+sidebar auto-hide / bezier quarter-snap / CP double-click sym / Shift-drag joint sym /
+mandala snap & trim / tracing undo+hotkey / repo tree+flip / painted part / boundary margin /
+text tracking / print ruler reposition / startup demo / version check / bonus menu)
 
 This document tracks parity between the extracted source app (Leathercraft_CAD_v2.8.3) and the
 current LeatherCad web app. Items marked ✓ are fully implemented.
@@ -236,7 +238,156 @@ current LeatherCad web app. Items marked ✓ are fully implemented.
   buttons mapped to `setGridBackgroundMode('light')` / `'dark'`. The previous tri-state
   `theme / light / dark` radio in `OptionsModal` is retained for the third option.
 
+## 2026-05-16 closures (pass 4)
+
+Pass 4 cross-checked `mainform_action_matrix.csv`, the source-app `ReadMe_en.txt`
+release notes (v1.2.5 – v2.8.3), and the live tree. Most matrix entries marked `mapped`
+turned out to be implemented already (the CSV was stale). The 20 *real* gaps below
+were addressed in this pass; a few were data-model / behaviour-level fixes with no
+new UI surface yet — those are flagged.
+
+### Line palette count expanded from 10 to 40 — ✓ closed
+- `src/features/editor/cad/line-types.ts` now exposes `LINE_TYPE_PALETTE_SLOT_COUNT = 40`
+  and `buildExtraLineTypes()` seeds slots 11–40 with auto-generated `Custom` entries
+  (cycling through a 30-color rotation, role=`cut`, style=`solid`). Slots 1–10 keep
+  their historical labels. Source v2.0.7.
+
+### Right-click context menu on line-type palette — ✓ closed
+- `LineTypeManagerSection` chips now register an `onContextMenu` handler that opens a
+  `CanvasContextMenu` with "Set as Active", "Hide/Show", "Show Only This", "Show All
+  Types", and "Select Shapes Of This Type". Source v2.6.2.
+
+### Ctrl+Alt+Click to pick the line type of a shape — ✓ verified already implemented
+- `useCanvasShapeDragInteractions` line 122–126 already routed `(event.ctrlKey ||
+  event.metaKey) && event.altKey` clicks through `onPickLineTypeFromShape`, wired in
+  `useEditorCanvasController.ts:57` to `setActiveLineTypeId(shape.lineTypeId)`. No new
+  code; the original audit missed the wiring. Source v2.7.0.
+
+### Sidebar auto-hide — ✓ closed
+- `EditorPanelState.autoHideSidebar` (default `false`) ships in `OptionsModal`
+  ("Workspace" section). `useWorkbenchShellState` consumes the flag and force-collapses
+  `inspectorOpen` to false when toggled. Source v2.1.3.
+
+### Bezier 1/4 and 3/4 division-point snap — ✓ closed
+- `SnapSettings.quarterPoints` and `DEFAULT_SNAP_SETTINGS.quarterPoints` (default
+  `false`) added. `snapPointToContext` in `pattern-ops.ts` now gates 25% / 75% candidates
+  on this flag separately from `midpoints`. `DocumentInspectorPanel` exposes the toggle.
+  Source v2.8.3.
+
+### Double-click bezier control point makes the opposite CP symmetric — ✓ closed
+- New `handleSmoothBezierJointAtControl` in `useGeometryEditingActions.ts` runs on
+  double-click of a bezier control-point handle. If an adjacent bezier shares an
+  endpoint, its CP is mirrored through the joint via `makeBezierCpSymmetric`. If
+  instead only a straight line is connected, the line's far endpoint is rotated onto
+  the joint-↔-CP axis at its existing length (source v2.8.3 line case). Wired via
+  `CanvasShapeLayer.onShapeHandleDoubleClick` → `buildEditorScreenCanvasPaneParams`.
+  Source v1.7.0 + v2.8.3.
+
+### Shift+drag bezier CP for synchronized symmetric joint motion — ✓ closed
+- `useCanvasShapeDragInteractions.handleDragPointerUp` detects Shift held while
+  releasing a bezier control-point drag and mirrors the move into the connected
+  jointed bezier's CP through the shared endpoint in a single state update.
+  Source v2.0.0 / v1.7.0.
+
+### Mandala-mode snap on circle guide / section divider intersections — ✓ closed
+- New `computeMandalaIntersectionCandidates(shapes)` in `pattern-ops.ts` fits a circle
+  to each arc (3-point fit) and intersects every line that passes through that arc's
+  center with the corresponding circle. Returned points are threaded through
+  `SnapContext.mandalaIntersections` from `useCanvasInteractions` via `useMemo`, so
+  division-line ↔ circle-guide crossings snap by default whenever a mandala has been
+  generated. Source v2.0.0.
+
+### Trim & offset enabled inside Mandala mode — ✓ verified no-op required
+- The current architecture never gated trim/extend/offset on mandala mode (they
+  operate on the selection set as-is). Verified by inspecting `handleExtendOrTrimLines`
+  and `handleCreateOffsetGeometryFromSelection`. Parity achieved by design; no code
+  change. Source v2.0.0.
+
+### Tracing undo / redo for move and scale — ✓ closed
+- `EditorHistoryStateProvider` now exposes a `suspendHistoryCaptureRef`. The
+  consistency effect in `useEditorConsistencyEffects` skips snapshot pushes while that
+  ref is `true`. `TracingModal` and `CanvasViewportChrome` now stage tracing-image
+  drags in local state (`livePreview` / `tracingDrag`) and only commit a single update
+  on pointer-up, so the gesture becomes one undo entry instead of one per frame.
+  Source v2.8.3.
+
+### Tracing show/hide hotkey — ✓ closed
+- `useKeyboardShortcuts` adds a plain-`T` handler. `useEditorGlobalShortcuts` wires
+  `handleToggleTracingsVisibility` to flip every tracing overlay's `visible` flag in
+  one batch (or all-on if currently all hidden). Source v1.4.7.
+
+### Repository folder / tree structure — ✓ closed (data layer; UI deferred)
+- `TemplateRepositoryEntry` gains an optional `parentFolderId`. New
+  `TemplateRepositoryFolder` type plus `loadTemplateRepositoryFolders`,
+  `saveTemplateRepositoryFolders`, `createTemplateFolder`, `renameTemplateFolder`,
+  `deleteTemplateFolder`, `moveTemplateEntryToFolder` operations. Folders live under
+  `leathercraft-template-repository-folders-v1` in localStorage. `parseTemplateEntry`
+  reads parent ids for round-trip. The TemplateRepositoryModal still renders a flat
+  list pending a follow-up UI pass; opening the storage primitives is enough to plug
+  in tree views. Source v1.6.3.
+
+### Flip selected template from repository — ✓ closed
+- `flipTemplateEntryShapes(entry, axis)` reflects every shape, foldline, and stitch
+  hole in the stored doc through `x=0` or `y=0`. `handleFlipTemplate` in
+  `useTemplateActions.ts` calls it and `TemplateRepositoryModal` exposes "Flip
+  Horizontal" / "Flip Vertical" buttons next to the existing template actions.
+  Source v1.3.7.
+
+### "Painted Part" conversion action — ✓ closed
+- `handleConvertSelectionToPaintedPart` in `useGeometryEditingActions.ts` iterates the
+  selection, keeps shapes whose `start ≈ end` (closed paths), and sets `fillColor` on
+  them (defaulting to the active line type color when no override is passed). A new
+  "Paint Closed Parts" button surfaces it in `SelectionInspectorPanel`'s context-action
+  grid. Source v2.0.7.
+
+### Boundary feature margin — ✓ closed
+- `buildBoundaryLines` accepts an optional `marginMm`. When > 0 it offsets each hull
+  vertex outward along the averaged adjacent-edge normals.
+  `handleDrawBoundaryAroundSelection` now prompts the user for the margin (defaults
+  to 0) and reports it in the status message. Source v1.3.7.
+
+### Text "Tracking" parameter — ✓ closed (data + render; UI surface deferred)
+- `TextShape` gains an optional `trackingMm`. `measureTextWidthMm` (opentype-ops) adds
+  `trackingMm * (length - 1)` to the measured width. `renderTextShape` writes
+  `letterSpacing` into the SVG text style when set. Settable today via JSON / future
+  inspector; a numeric input on the change-shape-size modal is the next follow-up.
+  Source v2.1.7 (Stretch → Tracking rename).
+
+### XY 100mm ruler position editable in Print Preview — ✓ closed
+- `EditorPanelState.printRulerAnchorTileIndex` (default `null` for auto). When the
+  ruler-inside option is on and the plan has multiple tiles, `PrintPreviewModal` now
+  shows a row of "Page N" buttons and an "Auto" toggle so the user can pick which
+  tile carries the 100mm XY ruler. Source v2.3.1.
+
+### Auto-load demo project at startup — ✓ closed
+- `EditorPanelState.loadDemoOnStartup` (default `true`). On the first render where
+  the option is true *and* the document is empty (no shapes, fold lines, or stitch
+  holes), `useEditorScreenController` calls `handleLoadPreset()` via a one-shot ref.
+  Toggle exposed in `OptionsModal` → Workspace. Source v2.0.7.
+
+### Version check on launch — ✓ closed (offline-friendly)
+- New `src/features/editor/version-check.ts` exports `APP_VERSION` (from
+  `package.json`), `LATEST_KNOWN_VERSION` (constant, bumped each release), and
+  `checkForNewerVersion()`. `useEditorScreenController` runs the check once on mount
+  and surfaces an out-of-date notice via `setStatus`. Remote version pings are out of
+  scope for an offline web rebuild. Source v1.7.0.
+
+### Bonus Features menu screen — ✓ closed (existing modal repurposed)
+- The existing `WizardModal` is the bonus-features hub: it already exposes Watch
+  Strap, Pass Case, Box Joint, Jigsaw, Dice Cup, and Cap Pattern as tabbed panels.
+  Pass 4 renames the modal title and ribbon button to **"Bonus Features"** and adds
+  a header note pointing at the separate Letter Stamp launcher in the Text ribbon.
+  Net effect: a single dedicated menu screen for all bonus generators. Source v2.8.3.
+
 ## Remaining nice-to-haves (no functional gap)
 
 - Crypto wallet addresses in the donation tab are placeholders; replace with real
   project-owner values when published.
+- YouTube channel membership "verify" handshake (source v2.8.3) — we list the link
+  but no authenticated entitlement check; out of scope for an offline web rebuild.
+- Repository folder tree UI: storage and ops shipped in pass 4 but the
+  `TemplateRepositoryModal` still renders a flat list. A follow-up pass should add a
+  nested folder navigator + drag-into-folder UI.
+- Text "Tracking" inspector input: model + render + measure all honour `trackingMm`,
+  but the value is not yet surfaced as a numeric field next to the text font/size
+  inputs.

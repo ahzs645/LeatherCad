@@ -119,7 +119,7 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     currentSnapshot,
     currentSnapshotSignature,
   } = params
-  const { applyingHistoryRef, lastSnapshotRef, lastSnapshotSignatureRef } = useEditorHistoryRefs()
+  const { applyingHistoryRef, lastSnapshotRef, lastSnapshotSignatureRef, suspendHistoryCaptureRef } = useEditorHistoryRefs()
   const { setHistoryState, setOpHistory } = useEditorHistoryActions()
 
   useEffect(() => {
@@ -498,6 +498,12 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
       return
     }
 
+    if (suspendHistoryCaptureRef.current) {
+      // A drag/scale gesture is in progress — defer the snapshot push until
+      // the gesture releases so the whole gesture becomes one undo entry.
+      return
+    }
+
     const prevSnapshot = lastSnapshotRef.current
     setHistoryState((previousHistory) =>
       pushHistorySnapshot(previousHistory, prevSnapshot, HISTORY_LIMIT),
@@ -518,5 +524,6 @@ export function useEditorConsistencyEffects(params: UseEditorConsistencyEffectsP
     lastSnapshotSignatureRef,
     setHistoryState,
     setOpHistory,
+    suspendHistoryCaptureRef,
   ])
 }

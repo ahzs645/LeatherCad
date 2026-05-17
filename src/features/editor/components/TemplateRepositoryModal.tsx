@@ -42,6 +42,7 @@ type TemplateRepositoryModalProps = {
   onLoadAsDocument: () => void
   onInsertIntoDocument: () => void
   onSeparateIntoShapes: () => void
+  onFlipTemplate?: (entryId: string, axis: 'horizontal' | 'vertical') => void
   onDeleteTemplate: (entryId: string) => void
   onMoveTemplate: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   onSortTemplates: (sortKey: TemplateRepositorySortKey) => void
@@ -97,6 +98,7 @@ export function TemplateRepositoryModal({
   onLoadAsDocument,
   onInsertIntoDocument,
   onSeparateIntoShapes,
+  onFlipTemplate,
   onDeleteTemplate,
   onMoveTemplate,
   onSortTemplates,
@@ -344,6 +346,28 @@ export function TemplateRepositoryModal({
               </button>
               <button onClick={onSeparateIntoShapes} title="Explode an inserted template into individual shapes">
                 Separate Template Into Shapes
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedTemplateEntry && onFlipTemplate) {
+                    onFlipTemplate(selectedTemplateEntry.id, 'horizontal')
+                  }
+                }}
+                disabled={!selectedTemplateEntry || !onFlipTemplate}
+                title="Mirror this template's shapes left↔right"
+              >
+                Flip Horizontal
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedTemplateEntry && onFlipTemplate) {
+                    onFlipTemplate(selectedTemplateEntry.id, 'vertical')
+                  }
+                }}
+                disabled={!selectedTemplateEntry || !onFlipTemplate}
+                title="Mirror this template's shapes top↔bottom"
+              >
+                Flip Vertical
               </button>
               <button
                 onClick={() => {

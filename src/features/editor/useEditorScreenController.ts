@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { STITCH_LINE_TYPE_ID } from './cad/line-types'
+import { checkForNewerVersion } from './version-check'
 import type { EditorScreenShellActions } from './editorScreenShellTypes'
 import { saveCatalogRepository } from './templates/catalog-repository'
 
@@ -216,6 +217,7 @@ export function useEditorScreenController() {
   const workbenchShellState = useWorkbenchShellState({
     enabled: !isMobileLayout,
     secondaryPreviewMode,
+    autoHideSidebar: panelState.autoHideSidebar,
   })
   const {
     effectiveLayout,
@@ -687,6 +689,7 @@ export function useEditorScreenController() {
     setShowCanvasRuler,
     setShowBezierOffsetLines,
     setShowGrid,
+    setTracingOverlays,
     setActiveTool,
     handleRotateSelection,
     setShapes,
@@ -795,6 +798,28 @@ export function useEditorScreenController() {
     buildDoc: () => buildCurrentDocFile(),
     setStatus,
   })
+
+  // Auto-load the demo project on first launch when the option is enabled
+  // (source-app v2.0.7 default-on, toggleable in Options).
+  const demoAutoLoadedRef = useRef(false)
+  useEffect(() => {
+    if (demoAutoLoadedRef.current) return
+    if (!panelState.loadDemoOnStartup) return
+    if (shapes.length > 0 || foldLines.length > 0 || stitchHoles.length > 0) return
+    demoAutoLoadedRef.current = true
+    void handleLoadPreset()
+  }, [panelState.loadDemoOnStartup, shapes.length, foldLines.length, stitchHoles.length, handleLoadPreset])
+
+  // Surface a one-shot status banner if a newer build is bundled (source v1.7.0).
+  const versionCheckRanRef = useRef(false)
+  useEffect(() => {
+    if (versionCheckRanRef.current) return
+    versionCheckRanRef.current = true
+    const result = checkForNewerVersion()
+    if (result.isOutdated) {
+      setStatus(`A newer LeatherCad release is available (${result.latest}). You are running ${result.current}.`)
+    }
+  }, [setStatus])
 
   // Leather-sim ↔ stitch-sim coupling: when leather-sim turns on, auto-open the
   // stitch simulator (source-app v2.5.6 behavior).

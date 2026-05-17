@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { LineType, LineTypeRole, LineTypeStyle } from '../cad/cad-types'
 import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
+import { CanvasContextMenu, type ContextMenuItem } from './CanvasContextMenu'
 
 type LineTypeManagerSectionProps = {
   activeLineType: LineType | null
@@ -53,6 +55,45 @@ export function LineTypeManagerSection({
   onUpdateActiveLineTypeStyle,
   onUpdateActiveLineTypeStrokeWidthMm,
 }: LineTypeManagerSectionProps) {
+  const [contextMenu, setContextMenu] = useState<{ lineTypeId: string; x: number; y: number } | null>(null)
+
+  const contextTarget = contextMenu ? lineTypes.find((entry) => entry.id === contextMenu.lineTypeId) ?? null : null
+  const contextItems: ContextMenuItem[] = contextTarget
+    ? [
+        {
+          id: 'set-active',
+          label: `Set as Active (${contextTarget.name})`,
+          onSelect: () => onSetActiveLineTypeId(contextTarget.id),
+        },
+        {
+          id: 'toggle-visibility',
+          label: contextTarget.visible ? 'Hide' : 'Show',
+          onSelect: () => onToggleLineTypeVisibility(contextTarget.id),
+        },
+        {
+          id: 'show-only',
+          label: 'Show Only This',
+          onSelect: () => {
+            onSetActiveLineTypeId(contextTarget.id)
+            onIsolateActiveType()
+          },
+        },
+        {
+          id: 'show-all',
+          label: 'Show All Types',
+          onSelect: () => onShowAllTypes(),
+        },
+        {
+          id: 'select-shapes',
+          label: 'Select Shapes Of This Type',
+          onSelect: () => {
+            onSetActiveLineTypeId(contextTarget.id)
+            onSelectShapesByActiveType()
+          },
+        },
+      ]
+    : []
+
   return (
     <>
       <p className="hint">Select shapes on canvas with Move tool, then assign or inspect line types here.</p>
@@ -70,6 +111,10 @@ export function LineTypeManagerSection({
             key={lineType.id}
             className={`line-type-chip ${activeLineType?.id === lineType.id ? 'active' : ''}`}
             onClick={() => onSetActiveLineTypeId(lineType.id)}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              setContextMenu({ lineTypeId: lineType.id, x: event.clientX, y: event.clientY })
+            }}
           >
             <span className="line-type-chip-swatch" style={{ backgroundColor: lineType.color }} />
             <span className="line-type-chip-label">{lineType.name}</span>
@@ -79,6 +124,14 @@ export function LineTypeManagerSection({
           </button>
         ))}
       </div>
+
+      <CanvasContextMenu
+        open={contextMenu !== null}
+        x={contextMenu?.x ?? 0}
+        y={contextMenu?.y ?? 0}
+        items={contextItems}
+        onClose={() => setContextMenu(null)}
+      />
 
       {activeLineType && (
         <div className="line-type-edit-grid">

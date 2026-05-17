@@ -1,6 +1,55 @@
 /* Shared responsive overrides for editor and workbench layouts. */
 
+/* === Touch-device baseline === */
+@media (hover: none) and (pointer: coarse) {
+  /* Prevent iOS auto-zoom on focus by ensuring 16px+ inputs */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Bigger tap targets across all interactive controls */
+  button,
+  .button-like-file-input,
+  .tool-icon-button,
+  .desktop-ribbon-tabs button,
+  .workbench-ribbon-tabs button,
+  .workbench-mode-toggle button,
+  .view-mode-toggle button,
+  .side-panel-tabs button {
+    min-height: 40px;
+  }
+
+  /* Disable text selection on UI chrome so taps feel native */
+  .topbar,
+  .statusbar,
+  .workbench-header,
+  .workbench-ribbon,
+  .canvas-tool-rail,
+  .canvas-view-controls,
+  .canvas-tool-sidebar,
+  .desktop-ribbon-strip,
+  .legend-stack,
+  .modal-backdrop {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* === Tablet and small desktops (≤ 1100px) === */
 @media (max-width: 1100px) {
+  /* Workbench (desktop) shell becomes single column on tablets */
+  .app-shell-workbench .workbench-shell {
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  }
+
+  /* Inspector + tool rails fold away to leave room for canvas */
+  .app-shell-workbench .workbench-tool-rail {
+    display: none;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
   }
@@ -11,7 +60,7 @@
   }
 
   .workspace.mobile-split {
-    grid-template-rows: minmax(0, 1fr) minmax(250px, 40vh);
+    grid-template-rows: minmax(0, 1fr) minmax(220px, 38vh);
   }
 
   .canvas-pane {
@@ -24,6 +73,13 @@
     bottom: calc(8px + env(safe-area-inset-bottom));
     padding: 5px;
     gap: 5px;
+    flex-wrap: wrap;
+    max-width: calc(100vw - 16px);
+  }
+
+  .canvas-view-controls button {
+    min-width: 36px;
+    padding: 6px 8px;
   }
 
   .canvas-stage {
@@ -46,6 +102,7 @@
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
   }
 
   .preset-controls button,
@@ -58,67 +115,173 @@
     display: none;
   }
 
+  /* Floating legend collapses to bottom-right */
   .legend-stack {
-    width: min(270px, 72vw);
+    width: min(280px, calc(100vw - 16px));
     right: 8px;
     bottom: calc(8px + env(safe-area-inset-bottom));
+    gap: 6px;
   }
 
   .legend-panel {
     padding: 8px;
-  }
-}
-
-@media (max-width: 800px) {
-  .layer-select {
-    min-width: 0;
     width: 100%;
   }
 
-  .line-type-select {
+  /* Modal containers respect safe-area on phones held in landscape */
+  .modal-backdrop,
+  .modal-overlay {
+    padding: 12px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+
+  .modal-content,
+  .layer-color-modal,
+  .help-modal,
+  .line-type-modal,
+  .pattern-tools-modal,
+  .export-options-modal,
+  .export-hub-modal,
+  .precision-modal,
+  .project-memo-modal,
+  .ai-builder-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90dvh;
+    border-radius: 14px 14px 14px 14px;
+    margin: 0 auto;
+  }
+
+  /* Sticky modal action row so it stays visible while scrolling */
+  .modal-actions,
+  .layer-color-modal-actions,
+  .line-type-modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface-modal);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+
+  /* Export grids and split layouts go single-column */
+  .export-hub-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Workbench inspector & tree slide into a mobile-friendly column flow */
+  .workbench-surface .canvas-pane {
+    border-radius: 0;
+    border: 0;
+  }
+
+  /* Three preview controls scroll within available space */
+  .three-preview-controls {
+    max-height: 38vh;
+  }
+
+  /* Settings dropdown gets wider hit targets */
+  .settings-dropdown {
+    min-width: 200px;
+    padding: 12px 14px;
+  }
+}
+
+/* === Phones (≤ 800px) === */
+@media (max-width: 800px) {
+  /* Make all selects span their container & boost min size */
+  .layer-select,
+  .line-type-select,
+  .preset-select,
+  .tool-select-mobile,
+  .action-select {
     min-width: 0;
     width: 100%;
   }
 
   .preset-select {
-    min-width: 130px;
+    min-width: 120px;
   }
 
+  /* Topbar padding gets tighter; gap stays comfortable for thumbs */
   .topbar-mobile {
     gap: 8px;
     padding: 8px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+
+  /* Re-flow the tool group into stacked rows on narrow screens */
+  .topbar-mobile .tool-group {
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: row;
+    grid-auto-rows: auto;
+    gap: 6px;
+  }
+
+  .topbar-mobile .tool-group > .tool-select-mobile {
+    grid-column: 1 / -1;
+  }
+
+  .topbar-mobile .tool-group > .mobile-view-inline-tabs {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .topbar-mobile .tool-group > .mobile-view-inline-tabs button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .topbar-mobile .tool-group > button {
+    min-height: 42px;
+  }
+
+  .topbar-mobile .mobile-help-toggle,
+  .topbar-mobile .mobile-menu-toggle {
+    justify-self: stretch;
+    width: 100%;
   }
 
   .tool-select-mobile {
-    min-width: 0;
-    font-size: 12px;
-    padding: 6px 8px;
+    font-size: 14px;
+    padding: 9px 10px;
   }
 
   .action-select {
-    font-size: 12px;
-    padding: 6px 8px;
+    font-size: 14px;
+    padding: 9px 10px;
   }
 
   .topbar-mobile .tool-group button,
   .topbar-mobile .mobile-view-inline-tabs button {
-    font-size: 12px;
-    padding: 6px 9px;
+    font-size: 13px;
+    padding: 9px 10px;
   }
 
   .topbar-mobile .tool-group .help-button {
     padding: 0;
-    font-size: 16px;
+    font-size: 18px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
   }
 
+  /* Hide the (already hidden) statusbar; keep .three-preview-controls compact */
   .statusbar {
     font-size: 11px;
   }
 
   .three-preview-controls {
-    max-height: 34vh;
+    max-height: 36vh;
+    padding: 10px;
+    gap: 10px;
   }
 
+  /* === Modals collapse to single column where multi-column was used === */
   .layer-color-range {
     grid-template-columns: 1fr;
   }
@@ -150,11 +313,255 @@
   }
 
   .catalog-split-shops-list {
-    max-height: 20vh;
+    max-height: 24vh;
   }
 
   .catalog-preview-item-list,
   .catalog-preview-detail {
-    max-height: 24vh;
+    max-height: 28vh;
+  }
+
+  /* Workbench final-fold table goes column on phones */
+  .workbench-final-fold-row {
+    grid-template-columns: minmax(60px, 1fr) minmax(100px, 2fr) 56px;
+  }
+
+  /* Precision modal input fills the row */
+  .precision-form input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .precision-modal-header h2 {
+    font-size: 15px;
+  }
+
+  /* AI builder textareas stay readable */
+  .ai-builder-textarea {
+    font-size: 13px;
+  }
+
+  .ai-builder-textarea-code {
+    min-height: 180px;
+    font-size: 12.5px;
+  }
+
+  .ai-builder-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Template + catalog list spacing */
+  .template-list {
+    max-height: 44vh;
+    padding: 8px;
+  }
+
+  /* Stitch pitch input becomes full-width */
+  .stitch-pitch-inline {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stitch-pitch-inline input {
+    width: 96px;
+  }
+
+  /* Modal-typography improvements */
+  .modal-content h2,
+  .layer-color-modal-header h2,
+  .line-type-modal-header h2,
+  .precision-modal-header h2,
+  .project-memo-modal-header h2 {
+    font-size: 16px;
+  }
+
+  /* Layer side panel: keep items finger-tappable */
+  .layer-side-item {
+    padding: 10px 12px;
+  }
+
+  .layer-side-name {
+    font-size: 14px;
+  }
+
+  .layer-side-toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Three preview header buttons */
+  .three-preview-header {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .preview-controls-toggle {
+    font-size: 13px;
+    padding: 8px 11px;
+  }
+
+  /* Side panel tabs span and grow vertically */
+  .side-panel-tabs button {
+    padding: 11px 12px;
+    font-size: 13px;
+  }
+
+  /* Layer color modal-list rows */
+  .layer-color-item {
+    padding-block: 4px;
+  }
+
+  /* Tracing preview spans full width */
+  .tracing-preview-panel {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .tracing-preview-meta {
+    text-align: left;
+  }
+
+  /* Modal field rows grow inputs to 100% */
+  .modal-content .field-row input,
+  .modal-content .field-row select,
+  .modal-content .field-row textarea {
+    width: 100%;
+  }
+
+  /* Print preview summary readable */
+  .print-preview-summary {
+    font-size: 13px;
+  }
+
+  /* Help/list modals get bigger line-height */
+  .help-list {
+    font-size: 14px;
+    gap: 10px;
+  }
+}
+
+/* === Very small phones (≤ 480px) === */
+@media (max-width: 480px) {
+  .modal-backdrop,
+  .modal-overlay {
+    padding: 8px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+
+  .modal-content,
+  .layer-color-modal,
+  .help-modal,
+  .line-type-modal,
+  .pattern-tools-modal,
+  .export-options-modal,
+  .export-hub-modal,
+  .precision-modal,
+  .project-memo-modal,
+  .ai-builder-modal {
+    max-height: 94dvh;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  /* Topbar reduces brand mode label */
+  .desktop-ribbon-mode {
+    display: none;
+  }
+
+  /* AI builder summary collapses to 1 column */
+  .ai-builder-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Workbench fold table goes single column */
+  .workbench-final-fold-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .workbench-final-fold-row output {
+    text-align: left;
+  }
+
+  .workbench-final-fold-row select {
+    grid-column: 1 / -1;
+  }
+
+  /* Pattern toggle grid stays 1 column */
+  .pattern-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Legend smaller still */
+  .legend-stack {
+    width: min(240px, calc(100vw - 12px));
+  }
+
+  /* Better hit target for floating canvas controls */
+  .canvas-view-controls button {
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  /* Modal action buttons span full row */
+  .modal-actions button {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Smaller font for log-style content */
+  .precision-log {
+    max-height: 30vh;
+    overflow: auto;
+  }
+
+  /* Template/Library cards on tiny screens */
+  .template-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .template-item-meta {
+    grid-column: 1;
+  }
+}
+
+/* === Landscape phones === */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+  /* Trim vertical space when keyboard or landscape limits height */
+  .modal-content,
+  .layer-color-modal,
+  .help-modal,
+  .line-type-modal,
+  .pattern-tools-modal,
+  .export-options-modal,
+  .export-hub-modal,
+  .precision-modal,
+  .project-memo-modal,
+  .ai-builder-modal {
+    max-height: 96dvh;
+  }
+
+  .three-preview-controls {
+    max-height: 50vh;
+  }
+
+  .topbar-mobile {
+    padding: 6px 8px;
+  }
+
+  .canvas-view-controls {
+    bottom: calc(4px + env(safe-area-inset-bottom));
+  }
+}
+
+/* === High-DPI canvas crispness === */
+@media (max-width: 1100px) {
+  .canvas svg {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
 }

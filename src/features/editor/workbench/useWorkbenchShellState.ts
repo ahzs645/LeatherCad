@@ -119,10 +119,11 @@ export function clampDockLayoutState(
 type UseWorkbenchShellStateParams = {
   enabled: boolean
   secondaryPreviewMode: SecondaryPreviewMode
+  autoHideSidebar?: boolean
 }
 
 export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
-  const { enabled, secondaryPreviewMode } = params
+  const { enabled, secondaryPreviewMode, autoHideSidebar = false } = params
   const shellRef = useRef<HTMLElement | null>(null)
   const [shellWidth, setShellWidth] = useState(0)
   const [dockLayout, setDockLayout] = useState<DockLayoutState>(() => readStoredLayout())
@@ -151,9 +152,14 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
     return () => observer.disconnect()
   }, [enabled])
 
+  const layoutForAutoHide: DockLayoutState = useMemo(
+    () => (autoHideSidebar && dockLayout.inspectorOpen ? { ...dockLayout, inspectorOpen: false } : dockLayout),
+    [autoHideSidebar, dockLayout],
+  )
+
   const effectiveLayout = useMemo(
-    () => clampDockLayoutState(dockLayout, shellWidth, showPeek),
-    [dockLayout, shellWidth, showPeek],
+    () => clampDockLayoutState(layoutForAutoHide, shellWidth, showPeek),
+    [layoutForAutoHide, shellWidth, showPeek],
   )
 
   useEffect(() => {

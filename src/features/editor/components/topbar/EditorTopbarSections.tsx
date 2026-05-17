@@ -555,7 +555,7 @@ export function FileSection({
               <button onClick={onCloseProject}>Close Project…</button>
               <button onClick={onAddBackdrop}>Add Backdrop</button>
               <button onClick={onOpenFontListModal}>Fonts…</button>
-              <button onClick={onOpenSecretFeatures}>Secret Features…</button>
+              <button onClick={onOpenSecretFeatures}>Bonus Features…</button>
               <button onClick={onOpenOptionsModal}>Options…</button>
               <button onClick={onImportTranslation}>Load Translation…</button>
               <button onClick={onStampSimulator} disabled={selectedShapeCount === 0}>

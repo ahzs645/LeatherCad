@@ -19,6 +19,8 @@ type OptionsModalProps = {
   boxStitchHelperSettings: BoxStitchHelperSettings
   printCalibrationXPercent: number
   printCalibrationYPercent: number
+  autoHideSidebar: boolean
+  loadDemoOnStartup: boolean
   onChangeAutoSaveEnabled: (value: boolean) => void
   onChangeReverseZoomDirection: (value: boolean) => void
   onChangeIncrementalSelection: (value: boolean) => void
@@ -33,6 +35,8 @@ type OptionsModalProps = {
   onChangeBoxStitchHelperSettings: (next: BoxStitchHelperSettings) => void
   onChangePrintCalibrationXPercent: (value: number) => void
   onChangePrintCalibrationYPercent: (value: number) => void
+  onChangeAutoHideSidebar: (value: boolean) => void
+  onChangeLoadDemoOnStartup: (value: boolean) => void
   onOpenDimensionInspector?: () => void
   onClose: () => void
 }
@@ -67,6 +71,10 @@ export function OptionsModal({
   printCalibrationYPercent,
   onChangePrintCalibrationXPercent,
   onChangePrintCalibrationYPercent,
+  autoHideSidebar,
+  loadDemoOnStartup,
+  onChangeAutoHideSidebar,
+  onChangeLoadDemoOnStartup,
   onOpenDimensionInspector,
   onClose,
 }: OptionsModalProps) {
@@ -125,6 +133,26 @@ export function OptionsModal({
               onChange={(e) => onChangeAutoSaveEnabled(e.target.checked)}
             />
             <span>Periodically snapshot the current project to browser storage</span>
+          </label>
+        </section>
+
+        <section className="help-section">
+          <h4>Workspace</h4>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={autoHideSidebar}
+              onChange={(e) => onChangeAutoHideSidebar(e.target.checked)}
+            />
+            <span>Auto-hide the inspector sidebar to widen the workspace</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={loadDemoOnStartup}
+              onChange={(e) => onChangeLoadDemoOnStartup(e.target.checked)}
+            />
+            <span>Load the demo project at startup</span>
           </label>
         </section>
 

@@ -21,6 +21,8 @@ type EditorHistoryRefs = {
   lastSnapshotRef: React.MutableRefObject<EditorSnapshot | null>
   lastSnapshotSignatureRef: React.MutableRefObject<string | null>
   applyingHistoryRef: React.MutableRefObject<boolean>
+  /** When true, snapshot pushes are coalesced (last-known signature still tracked but no history entries). */
+  suspendHistoryCaptureRef: React.MutableRefObject<boolean>
 }
 
 type EditorHistoryStateApi = EditorHistoryState & EditorHistoryActions & EditorHistoryRefs
@@ -35,6 +37,7 @@ export function EditorHistoryStateProvider({ children }: { children: ReactNode }
   const lastSnapshotRef = useRef<EditorSnapshot | null>(null)
   const lastSnapshotSignatureRef = useRef<string | null>(null)
   const applyingHistoryRef = useRef(false)
+  const suspendHistoryCaptureRef = useRef(false)
 
   const state = useMemo(
     () => ({
@@ -55,6 +58,7 @@ export function EditorHistoryStateProvider({ children }: { children: ReactNode }
       lastSnapshotRef,
       lastSnapshotSignatureRef,
       applyingHistoryRef,
+      suspendHistoryCaptureRef,
     }),
     [],
   )

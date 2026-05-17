@@ -16,6 +16,7 @@ type UseKeyboardShortcutsParams = {
   handleToggleCanvasRuler: () => void
   handleHideBezierOffsetGuides: () => void
   handleToggleGrid: () => void
+  handleToggleTracingsVisibility: () => void
   handleBackToSelectMode: () => void
   handleRotateSelectionBy: (angleDeg: number) => void
 }
@@ -35,6 +36,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleToggleCanvasRuler,
     handleHideBezierOffsetGuides,
     handleToggleGrid,
+    handleToggleTracingsVisibility,
     handleBackToSelectMode,
     handleRotateSelectionBy,
   } = params
@@ -77,6 +79,11 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
           if ((event.key === 'g' || event.key === 'G') && !event.shiftKey) {
             event.preventDefault()
             handleToggleGrid()
+            return
+          }
+          if ((event.key === 't' || event.key === 'T') && !event.shiftKey) {
+            event.preventDefault()
+            handleToggleTracingsVisibility()
             return
           }
           if ((event.key === 'v' || event.key === 'V') && !event.shiftKey) {
@@ -192,6 +199,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleToggleCanvasRuler,
     handleHideBezierOffsetGuides,
     handleToggleGrid,
+    handleToggleTracingsVisibility,
     handleBackToSelectMode,
     handleRotateSelectionBy,
   ])

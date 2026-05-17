@@ -12,6 +12,7 @@ import type {
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import {
   createTemplateFromDoc,
+  flipTemplateEntryShapes,
   insertTemplateDocIntoCurrent,
   moveTemplateRepositoryEntry,
   parseTemplateRepositoryImport,
@@ -154,6 +155,13 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
   const handleSortTemplates = (sortKey: TemplateRepositorySortKey) => {
     setTemplateRepository((previous) => sortTemplateRepository(previous, sortKey))
     setStatus(sortKey === 'name' ? 'Templates sorted by name' : 'Templates sorted by update time')
+  }
+
+  const handleFlipTemplate = (entryId: string, axis: 'horizontal' | 'vertical') => {
+    setTemplateRepository((previous) =>
+      previous.map((entry) => (entry.id === entryId ? flipTemplateEntryShapes(entry, axis) : entry)),
+    )
+    setStatus(`Template flipped ${axis === 'horizontal' ? 'horizontally' : 'vertically'}`)
   }
 
   const handleLoadTemplateAsDocument = () => {
@@ -389,6 +397,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleDeleteTemplateFromRepository,
     handleMoveTemplateEntry,
     handleSortTemplates,
+    handleFlipTemplate,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleSeparateTemplateIntoShapes,

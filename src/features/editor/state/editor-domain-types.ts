@@ -210,6 +210,9 @@ export type EditorPanelState = {
   customHardwareSpacingMm: number
   dimensionDefaults: DimensionDefaults
   forceFitLastPrick: boolean
+  autoHideSidebar: boolean
+  loadDemoOnStartup: boolean
+  printRulerAnchorTileIndex: number | null
 }
 
 export type DimensionDefaults = {

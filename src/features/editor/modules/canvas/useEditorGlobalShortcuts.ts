@@ -18,6 +18,7 @@ type UseEditorGlobalShortcutsParams = {
   setShowCanvasRuler: Dispatch<SetStateAction<boolean>>
   setShowBezierOffsetLines: Dispatch<SetStateAction<boolean>>
   setShowGrid: Dispatch<SetStateAction<boolean>>
+  setTracingOverlays: Dispatch<SetStateAction<import('../../cad/cad-types').TracingOverlay[]>>
   setActiveTool: (tool: Tool) => void
   handleRotateSelection: (angleDeg: number) => void
   setShapes: Dispatch<SetStateAction<Shape[]>>
@@ -40,6 +41,7 @@ export function useEditorGlobalShortcuts({
   setShowCanvasRuler,
   setShowBezierOffsetLines,
   setShowGrid,
+  setTracingOverlays,
   setActiveTool,
   handleRotateSelection,
   setShapes,
@@ -68,6 +70,15 @@ export function useEditorGlobalShortcuts({
     },
     handleToggleGrid: () => {
       setShowGrid((previous) => !previous)
+    },
+    handleToggleTracingsVisibility: () => {
+      setTracingOverlays((previous) => {
+        if (previous.length === 0) return previous
+        const anyVisible = previous.some((overlay) => overlay.visible)
+        const next = previous.map((overlay) => ({ ...overlay, visible: !anyVisible }))
+        return next
+      })
+      setStatus('Toggled tracing visibility')
     },
     handleBackToSelectMode: () => {
       setActiveTool('pan')

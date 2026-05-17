@@ -600,6 +600,8 @@ export function parseSnapSettings(value: unknown): SnapSettings | null {
         : DEFAULT_SNAP_SETTINGS.gridStep,
     endpoints: typeof candidate.endpoints === 'boolean' ? candidate.endpoints : DEFAULT_SNAP_SETTINGS.endpoints,
     midpoints: typeof candidate.midpoints === 'boolean' ? candidate.midpoints : DEFAULT_SNAP_SETTINGS.midpoints,
+    quarterPoints:
+      typeof candidate.quarterPoints === 'boolean' ? candidate.quarterPoints : DEFAULT_SNAP_SETTINGS.quarterPoints,
     guides: typeof candidate.guides === 'boolean' ? candidate.guides : DEFAULT_SNAP_SETTINGS.guides,
     hardware: typeof candidate.hardware === 'boolean' ? candidate.hardware : DEFAULT_SNAP_SETTINGS.hardware,
   }

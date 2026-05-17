@@ -58,6 +58,9 @@ const initialEditorPanelState: EditorPanelState = {
     textReverse: false,
   },
   forceFitLastPrick: false,
+  autoHideSidebar: false,
+  loadDemoOnStartup: true,
+  printRulerAnchorTileIndex: null,
 }
 
 function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<EditorPanelState>>) {
@@ -150,6 +153,12 @@ function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<E
       dispatch({ type: 'dimensionDefaults', value }),
     setForceFitLastPrick: (value: React.SetStateAction<EditorPanelState['forceFitLastPrick']>) =>
       dispatch({ type: 'forceFitLastPrick', value }),
+    setAutoHideSidebar: (value: React.SetStateAction<EditorPanelState['autoHideSidebar']>) =>
+      dispatch({ type: 'autoHideSidebar', value }),
+    setLoadDemoOnStartup: (value: React.SetStateAction<EditorPanelState['loadDemoOnStartup']>) =>
+      dispatch({ type: 'loadDemoOnStartup', value }),
+    setPrintRulerAnchorTileIndex: (value: React.SetStateAction<EditorPanelState['printRulerAnchorTileIndex']>) =>
+      dispatch({ type: 'printRulerAnchorTileIndex', value }),
   }
 }
 

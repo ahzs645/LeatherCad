@@ -23,8 +23,71 @@ export type SnapContext = {
   hardwareMarkers: HardwareMarker[]
   viewportScale: number
   customSnapPoints?: Point[]
+  mandalaIntersections?: Point[]
   /** Draft anchor — when set, tangent-to-circle snap candidates are computed relative to it. */
   draftAnchor?: Point
+}
+
+/**
+ * Derive Mandala-style intersection candidates: where a straight line that
+ * passes through an arc's center crosses that arc's underlying circle. Mirrors
+ * source-app v2.0.0 behaviour: division-line ↔ circle-guide intersections
+ * become snap points. The math also works for any radial line through any arc.
+ */
+export function computeMandalaIntersectionCandidates(shapes: Shape[]): Point[] {
+  const TOLERANCE_MM = 0.5
+  const arcs: Array<{ center: Point; radius: number }> = []
+  for (const shape of shapes) {
+    if (shape.type !== 'arc') continue
+    const circle = circleThroughThreePoints(shape.start, shape.mid, shape.end)
+    if (!circle) continue
+    arcs.push(circle)
+  }
+  if (arcs.length === 0) return []
+  const candidates: Point[] = []
+  for (const shape of shapes) {
+    if (shape.type !== 'line') continue
+    const dx = shape.end.x - shape.start.x
+    const dy = shape.end.y - shape.start.y
+    const lineLen = Math.hypot(dx, dy)
+    if (lineLen < 1e-6) continue
+    const ux = dx / lineLen
+    const uy = dy / lineLen
+    for (const { center, radius } of arcs) {
+      const t =
+        ((center.x - shape.start.x) * dx + (center.y - shape.start.y) * dy) / (lineLen * lineLen)
+      const projX = shape.start.x + t * dx
+      const projY = shape.start.y + t * dy
+      const distToLine = Math.hypot(projX - center.x, projY - center.y)
+      if (distToLine > TOLERANCE_MM) continue
+      candidates.push({
+        x: round(center.x + ux * radius),
+        y: round(center.y + uy * radius),
+      })
+      candidates.push({
+        x: round(center.x - ux * radius),
+        y: round(center.y - uy * radius),
+      })
+    }
+  }
+  return candidates
+}
+
+function circleThroughThreePoints(p1: Point, p2: Point, p3: Point): { center: Point; radius: number } | null {
+  const ax = p2.x - p1.x
+  const ay = p2.y - p1.y
+  const bx = p3.x - p1.x
+  const by = p3.y - p1.y
+  const d = 2 * (ax * by - ay * bx)
+  if (Math.abs(d) < 1e-9) return null
+  const ax2ay2 = ax * ax + ay * ay
+  const bx2by2 = bx * bx + by * by
+  const ux = (by * ax2ay2 - ay * bx2by2) / d
+  const uy = (ax * bx2by2 - bx * ax2ay2) / d
+  return {
+    center: { x: p1.x + ux, y: p1.y + uy },
+    radius: Math.hypot(ux, uy),
+  }
 }
 
 export type SnapResult = {
@@ -296,42 +359,52 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
     }
   }
 
-  if (settings.midpoints) {
+  if (settings.midpoints || settings.quarterPoints) {
     for (const shape of context.shapes) {
       if (shape.type === 'line') {
         const mid = {
           x: (shape.start.x + shape.end.x) / 2,
           y: (shape.start.y + shape.end.y) / 2,
         }
-        registerCandidate(mid, 'midpoint')
-        registerCandidate(
-          { x: (shape.start.x + mid.x) / 2, y: (shape.start.y + mid.y) / 2 },
-          'quarter',
-        )
-        registerCandidate(
-          { x: (shape.end.x + mid.x) / 2, y: (shape.end.y + mid.y) / 2 },
-          'quarter',
-        )
-      } else if (shape.type === 'arc') {
-        registerCandidate(shape.mid, 'midpoint')
-      } else if (shape.type === 'bezier') {
-        const t25 = {
-          x: 0.5625 * shape.start.x + 0.375 * shape.control.x + 0.0625 * shape.end.x,
-          y: 0.5625 * shape.start.y + 0.375 * shape.control.y + 0.0625 * shape.end.y,
+        if (settings.midpoints) {
+          registerCandidate(mid, 'midpoint')
         }
+        if (settings.quarterPoints) {
+          registerCandidate(
+            { x: (shape.start.x + mid.x) / 2, y: (shape.start.y + mid.y) / 2 },
+            'quarter',
+          )
+          registerCandidate(
+            { x: (shape.end.x + mid.x) / 2, y: (shape.end.y + mid.y) / 2 },
+            'quarter',
+          )
+        }
+      } else if (shape.type === 'arc') {
+        if (settings.midpoints) {
+          registerCandidate(shape.mid, 'midpoint')
+        }
+      } else if (shape.type === 'bezier') {
         const t50 = {
           x: 0.25 * shape.start.x + 0.5 * shape.control.x + 0.25 * shape.end.x,
           y: 0.25 * shape.start.y + 0.5 * shape.control.y + 0.25 * shape.end.y,
         }
-        const t75 = {
-          x: 0.0625 * shape.start.x + 0.375 * shape.control.x + 0.5625 * shape.end.x,
-          y: 0.0625 * shape.start.y + 0.375 * shape.control.y + 0.5625 * shape.end.y,
+        if (settings.midpoints) {
+          registerCandidate(t50, 'midpoint')
+          registerCandidate(shape.control, 'control')
         }
-        registerCandidate(t50, 'midpoint')
-        registerCandidate(t25, 'quarter')
-        registerCandidate(t75, 'quarter')
-        registerCandidate(shape.control, 'control')
-      } else {
+        if (settings.quarterPoints) {
+          const t25 = {
+            x: 0.5625 * shape.start.x + 0.375 * shape.control.x + 0.0625 * shape.end.x,
+            y: 0.5625 * shape.start.y + 0.375 * shape.control.y + 0.0625 * shape.end.y,
+          }
+          const t75 = {
+            x: 0.0625 * shape.start.x + 0.375 * shape.control.x + 0.5625 * shape.end.x,
+            y: 0.0625 * shape.start.y + 0.375 * shape.control.y + 0.5625 * shape.end.y,
+          }
+          registerCandidate(t25, 'quarter')
+          registerCandidate(t75, 'quarter')
+        }
+      } else if (settings.midpoints) {
         registerCandidate(
           {
             x: (shape.start.x + shape.end.x) / 2,
@@ -358,6 +431,12 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
   if (context.customSnapPoints) {
     for (const custom of context.customSnapPoints) {
       registerCandidate(custom, 'custom')
+    }
+  }
+
+  if (context.mandalaIntersections) {
+    for (const candidate of context.mandalaIntersections) {
+      registerCandidate(candidate, 'mandala')
     }
   }
 
