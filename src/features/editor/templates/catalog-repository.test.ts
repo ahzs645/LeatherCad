@@ -220,17 +220,14 @@ describe('source catalog fixtures', () => {
     }
   })
 
-  it('keeps the copied source backImage.tiff fixture byte-identical to the extracted asset', () => {
+  it('keeps the copied source backImage.tiff fixture byte-identical to the checked-in source asset', () => {
     const imagePath = join(process.cwd(), 'public/assets/source-app/backImage.tiff')
-    const sourceImagePath = '/Users/ahmadjalil/Downloads/leather-making/extracted-app/Leathercraft_CAD_v2.8.3_macOS_ARM/.resource/backImage.tiff'
     expect(existsSync(imagePath)).toBe(true)
-    expect(existsSync(sourceImagePath)).toBe(true)
     const bytes = readFileSync(imagePath)
-    const sourceBytes = readFileSync(sourceImagePath)
     expect(bytes.byteLength).toBeGreaterThan(1000)
-    expect(bytes.byteLength).toBe(sourceBytes.byteLength)
+    expect(bytes.byteLength).toBe(3585884)
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(
-      createHash('sha256').update(sourceBytes).digest('hex'),
+      'fb10976e87b18e37b65dbae450a51a958ee1c71e8aa4f5f5c1536eda06d37a53',
     )
     expect(
       (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a) ||
