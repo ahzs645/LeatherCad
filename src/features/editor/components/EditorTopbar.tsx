@@ -3,6 +3,7 @@ import { DesktopRibbonStrip } from './topbar/DesktopRibbonStrip'
 import {
   FileSection,
   LayerSection,
+  LeatherCatalogSection,
   LineTypeSection,
   MobileOptionsTabs,
   StitchSection,
@@ -50,6 +51,10 @@ export function EditorTopbar(props: EditorTopbarProps) {
         {showStitchSection && <StitchSection {...props} />}
 
         {showLayerSection && <LayerSection {...props} />}
+
+        {showFileSection && props.catalogRepository.length > 0 ? (
+          <LeatherCatalogSection {...props} />
+        ) : null}
 
         {showFileSection && <FileSection {...props} />}
       </div>

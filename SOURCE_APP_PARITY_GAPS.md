@@ -499,6 +499,47 @@ controls that lacked parity. All ten were implemented in pass 6.
   per arc as `tangent-circle` snap candidates. Surfaced in `OptionsModal` →
   Tangent-circle mode with a step input.
 
+## 2026-05-17 closures (pass 7 — hotkeys + sub-form mining)
+
+Pass 7 mined release-note hotkeys and form sub-controls (pricking iron sub-form,
+catalog item editor, mandala options, backdrop, leather simulator). 12 items
+closed.
+
+### Hotkeys (4)
+
+- **F5** — toggle dimension annotation visibility (source v1.1.0). Wired in
+  `useKeyboardShortcuts.ts`.
+- **F6** — toggle stitching simulator modal (source v1.2.5).
+- **+ / -** — adjust simulator thread thickness by ±0.1 mm (source v1.2.5).
+- **=** — cycle even/odd stitch parity visibility in the simulator (source v1.2.5).
+
+### Settings & overlays (5)
+
+- **`chkFillOnChange`** — auto-paint newly-closed shapes with their line-type
+  color. Implemented as an effect in `useEditorAutomationEffects`.
+- **`chkDrawEdges`** — overlay closed-outline chains in red dashed strokes for
+  cut visualization. Renders in `EditorCanvasPane`.
+- **`chkDrawFirstPos`** — mark each stitch chain's first hole with a green ring.
+- **Stitching mode radio (`rbSetNumOfHoles` / `rbAutoPitchAdjust` / `rbFixedPitch`)**
+  — new 3-way radio in `StitchHolePanel`. `AutoPitchMode` widened to include
+  `'set-num'`; preferred-pitch handler prompts for hole count in that mode.
+- **`nbNumDividingCenter`** — center-line tool now produces N evenly-spaced
+  parallel lines via new `buildCenterLinesBetween`. Surfaced in OptionsModal.
+
+### Configurable defaults (2)
+
+- **`nbMarkingDistance`** — distance-marking prompt defaults seeded from
+  `markingDistanceMm` preference (continuous and bulk prompts both use it).
+- **`edMandala_circle_template`** — MandalaModal shows a "Template name" input
+  when "Circle template" is on; value persists via preferences.
+
+### Ribbon section (1)
+
+- **Leather shop / brand / item selectors** — new compact `LeatherCatalogSection`
+  in the topbar (cmbLeatherShop / cmbLeatherBrand / lbLeatherItems). Shows
+  shop, brand, item dropdowns from the catalog repository plus an "Open in
+  Repository…" button. Mounts when at least one catalog shop is loaded.
+
 ## Remaining nice-to-haves (no functional gap)
 
 - Crypto wallet addresses in the donation tab are placeholders; replace with real

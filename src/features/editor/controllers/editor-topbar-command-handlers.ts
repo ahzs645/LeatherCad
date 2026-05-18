@@ -73,6 +73,7 @@ export type CreateEditorTopbarCommandHandlersParams = {
   continuousDistanceMarking?: boolean
   notchAngleDeg?: number
   notchDepthMm?: number
+  markingDistanceMm?: number
 }
 
 export function createEditorTopbarCommandHandlers({
@@ -124,6 +125,7 @@ export function createEditorTopbarCommandHandlers({
   continuousDistanceMarking = false,
   notchAngleDeg = 60,
   notchDepthMm = 3,
+  markingDistanceMm = 10,
 }: CreateEditorTopbarCommandHandlersParams) {
   return {
     handleEditSelectedLineAnglePrompt: () => {
@@ -284,7 +286,7 @@ export function createEditorTopbarCommandHandlers({
         const placeOne = () => {
           const raw = window.prompt(
             'Distance in mm from the start of the selected path (blank to stop):',
-            '10',
+            markingDistanceMm.toFixed(2),
           )
           if (raw === null || raw.trim() === '') {
             setStatus('Continuous distance marking ended')
@@ -303,7 +305,7 @@ export function createEditorTopbarCommandHandlers({
       }
       const raw = window.prompt(
         'Distance(s) in mm from the start of the selected path (comma-separated):',
-        '10, 30',
+        `${markingDistanceMm.toFixed(2)}, ${(markingDistanceMm * 3).toFixed(2)}`,
       )
       if (raw === null) {
         setStatus('Distance marking cancelled')

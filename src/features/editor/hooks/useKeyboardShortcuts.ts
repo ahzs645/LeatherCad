@@ -22,6 +22,10 @@ type UseKeyboardShortcutsParams = {
   handleExtendOrTrimLines: () => void
   handlePanViewport: (dxScreenPx: number, dyScreenPx: number) => void
   reverseGridScrollDirection: boolean
+  handleToggleDimensionAnnotations: () => void
+  handleToggleStitchSimulator: () => void
+  handleAdjustThreadThickness: (delta: number) => void
+  handleToggleStitchParity: () => void
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -45,6 +49,10 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleExtendOrTrimLines,
     handlePanViewport,
     reverseGridScrollDirection,
+    handleToggleDimensionAnnotations,
+    handleToggleStitchSimulator,
+    handleAdjustThreadThickness,
+    handleToggleStitchParity,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
@@ -63,6 +71,36 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
       const isTypingContext = targetEl?.tagName === 'INPUT' || targetEl?.tagName === 'TEXTAREA'
 
       if (!isMeta) {
+        if (!isTypingContext) {
+          // Source-app function-key + symbol-key shortcuts.
+          if (event.key === 'F5') {
+            event.preventDefault()
+            handleToggleDimensionAnnotations()
+            return
+          }
+          if (event.key === 'F6') {
+            event.preventDefault()
+            handleToggleStitchSimulator()
+            return
+          }
+          if (event.key === '+' || event.key === '=') {
+            // '=' shares the same physical key as '+'; reserve plain '=' for
+            // the parity toggle (source-app v1.2.5) when no Shift is held.
+            if (event.key === '+' || event.shiftKey) {
+              event.preventDefault()
+              handleAdjustThreadThickness(1)
+              return
+            }
+            event.preventDefault()
+            handleToggleStitchParity()
+            return
+          }
+          if (event.key === '-' || event.key === '_') {
+            event.preventDefault()
+            handleAdjustThreadThickness(-1)
+            return
+          }
+        }
         if (event.key === 'Delete' || event.key === 'Backspace') {
           if (!isTypingContext) {
             event.preventDefault()
@@ -240,5 +278,9 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleExtendOrTrimLines,
     handlePanViewport,
     reverseGridScrollDirection,
+    handleToggleDimensionAnnotations,
+    handleToggleStitchSimulator,
+    handleAdjustThreadThickness,
+    handleToggleStitchParity,
   ])
 }

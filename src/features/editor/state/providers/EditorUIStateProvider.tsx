@@ -75,6 +75,12 @@ const initialEditorUIState: EditorUIState = {
   pinSideBar: loadEditorPreferences().pinSideBar,
   highlightActiveLayer: loadEditorPreferences().highlightActiveLayer,
   printIntoMargin: loadEditorPreferences().printIntoMargin,
+  fillOnChange: loadEditorPreferences().fillOnChange,
+  drawEdges: loadEditorPreferences().drawEdges,
+  drawFirstPos: loadEditorPreferences().drawFirstPos,
+  centerLineDivisions: loadEditorPreferences().centerLineDivisions,
+  markingDistanceMm: loadEditorPreferences().markingDistanceMm,
+  mandalaCircleTemplateName: loadEditorPreferences().mandalaCircleTemplateName,
   notchAngleDeg: loadEditorPreferences().notchAngleDeg,
   notchDepthMm: loadEditorPreferences().notchDepthMm,
   dimensionLineTypeId: loadEditorPreferences().dimensionLineTypeId,
@@ -220,6 +226,18 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'highlightActiveLayer', value }),
     setPrintIntoMargin: (value: React.SetStateAction<EditorUIState['printIntoMargin']>) =>
       dispatch({ type: 'printIntoMargin', value }),
+    setFillOnChange: (value: React.SetStateAction<EditorUIState['fillOnChange']>) =>
+      dispatch({ type: 'fillOnChange', value }),
+    setDrawEdges: (value: React.SetStateAction<EditorUIState['drawEdges']>) =>
+      dispatch({ type: 'drawEdges', value }),
+    setDrawFirstPos: (value: React.SetStateAction<EditorUIState['drawFirstPos']>) =>
+      dispatch({ type: 'drawFirstPos', value }),
+    setCenterLineDivisions: (value: React.SetStateAction<EditorUIState['centerLineDivisions']>) =>
+      dispatch({ type: 'centerLineDivisions', value }),
+    setMarkingDistanceMm: (value: React.SetStateAction<EditorUIState['markingDistanceMm']>) =>
+      dispatch({ type: 'markingDistanceMm', value }),
+    setMandalaCircleTemplateName: (value: React.SetStateAction<EditorUIState['mandalaCircleTemplateName']>) =>
+      dispatch({ type: 'mandalaCircleTemplateName', value }),
     setNotchAngleDeg: (value: React.SetStateAction<EditorUIState['notchAngleDeg']>) =>
       dispatch({ type: 'notchAngleDeg', value }),
     setNotchDepthMm: (value: React.SetStateAction<EditorUIState['notchDepthMm']>) =>

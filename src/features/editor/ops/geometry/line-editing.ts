@@ -257,6 +257,45 @@ export function buildCenterLineBetween(
   }
 }
 
+/**
+ * Source `nbNumDividingCenter` — produce N evenly-spaced parallel lines
+ * connecting matched lengthwise interpolation points between the two shapes.
+ * `divisions === 1` reproduces the single midline.
+ */
+export function buildCenterLinesBetween(
+  first: Shape,
+  second: Shape,
+  divisions: number,
+  props: { layerId: string; lineTypeId: string; groupId?: string },
+): LineShape[] {
+  const safeDivisions = Math.max(1, Math.round(divisions))
+  if (safeDivisions === 1) {
+    return [buildCenterLineBetween(first, second, props)]
+  }
+  const lines: LineShape[] = []
+  for (let index = 0; index < safeDivisions; index += 1) {
+    const t = (index + 1) / (safeDivisions + 1)
+    const start = {
+      x: round(first.start.x * (1 - t) + first.end.x * t),
+      y: round(first.start.y * (1 - t) + first.end.y * t),
+    }
+    const end = {
+      x: round(second.start.x * (1 - t) + second.end.x * t),
+      y: round(second.start.y * (1 - t) + second.end.y * t),
+    }
+    lines.push({
+      id: uid(),
+      type: 'line',
+      layerId: props.layerId,
+      lineTypeId: props.lineTypeId,
+      groupId: props.groupId,
+      start,
+      end,
+    })
+  }
+  return lines
+}
+
 // ---------------------------------------------------------------------------
 // Edit line angle (actEditLineAngle)
 // ---------------------------------------------------------------------------

@@ -35,7 +35,7 @@ export type ThemeMode = ResolvedThemeMode | 'system'
 export type LegendMode = 'layer' | 'stack'
 export type DxfVersion = 'r12' | 'r14'
 export type StitchHoleExportRenderMode = 'native' | 'dots' | 'single-lines'
-export type AutoPitchMode = 'fixed' | 'variable'
+export type AutoPitchMode = 'fixed' | 'variable' | 'set-num'
 export type StitchAutoPitchSettings = {
   defaultMode: AutoPitchMode
   forceFitLastHole: boolean

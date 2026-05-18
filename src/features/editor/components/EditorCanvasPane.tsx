@@ -133,6 +133,10 @@ export type EditorCanvasPaneProps = {
   outlineChains: import('../ops/outline-detection').OutlineChain[]
   /** When non-null, off-layer shapes are dimmed (source `chkHighlightActiveLayer`). */
   highlightActiveLayerId?: string | null
+  /** Source `chkDrawEdges` — overlay closed-outline chains for cut visualization. */
+  drawEdges?: boolean
+  /** Source `chkDrawFirstPos` — mark each stitch chain's first hole with a ring. */
+  drawFirstPos?: boolean
 }
 
 const ESTIMATED_CANVAS_WIDTH_PX = 2600
@@ -211,6 +215,8 @@ export function EditorCanvasPane({
   stackLegendEntries,
   outlineChains,
   highlightActiveLayerId,
+  drawEdges = false,
+  drawFirstPos = false,
 }: EditorCanvasPaneProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
   const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
@@ -489,6 +495,48 @@ export function EditorCanvasPane({
             normalizeTextShape={normalizeTextShape as (shape: TextShape) => TextShape}
             textBaselineAngleDeg={textBaselineAngleDeg as (shape: TextShape) => number}
           />
+
+          {drawEdges && renderableOutlineChains.length > 0 ? (
+            <g className="canvas-draw-edges-layer" pointerEvents="none">
+              {renderableOutlineChains.map((chain, index) => (
+                <polygon
+                  key={`draw-edge-${index}`}
+                  points={chain.polygon.map((p) => `${p.x},${p.y}`).join(' ')}
+                  fill="none"
+                  stroke="#ef4444"
+                  strokeWidth={1.4 / Math.max(viewport.scale, 0.1)}
+                  strokeDasharray={`${4 / Math.max(viewport.scale, 0.1)} ${2 / Math.max(viewport.scale, 0.1)}`}
+                  opacity={0.85}
+                />
+              ))}
+            </g>
+          ) : null}
+
+          {drawFirstPos && renderableStitchHoles.length > 0 ? (
+            <g className="canvas-first-pos-markers" pointerEvents="none">
+              {(() => {
+                const firstByChain = new Map<string, (typeof renderableStitchHoles)[number]>()
+                for (const hole of renderableStitchHoles) {
+                  const chainKey = hole.chainId ?? hole.shapeId
+                  const current = firstByChain.get(chainKey)
+                  if (!current || hole.sequence < current.sequence) {
+                    firstByChain.set(chainKey, hole)
+                  }
+                }
+                return Array.from(firstByChain.values()).map((hole) => (
+                  <circle
+                    key={`first-pos-${hole.id}`}
+                    cx={hole.point.x}
+                    cy={hole.point.y}
+                    r={2.4 / Math.max(viewport.scale, 0.1)}
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth={0.6 / Math.max(viewport.scale, 0.1)}
+                  />
+                ))
+              })()}
+            </g>
+          ) : null}
 
           <CanvasStitchLayer
             renderableStitchHoles={renderableStitchHoles}

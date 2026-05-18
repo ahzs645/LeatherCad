@@ -26,6 +26,9 @@ type UseEditorGlobalShortcutsParams = {
   reverseGridScrollDirection: boolean
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStatus: (message: string) => void
+  setShowAnnotations: Dispatch<SetStateAction<boolean>>
+  setShowStitchSimulatorModal: Dispatch<SetStateAction<boolean>>
+  setStitchSimulatorSettings: Dispatch<SetStateAction<import('../../ops/stitch-simulator-ops').StitchSimulatorSettings>>
 }
 
 export function useEditorGlobalShortcuts({
@@ -52,6 +55,9 @@ export function useEditorGlobalShortcuts({
   reverseGridScrollDirection,
   setShapes,
   setStatus,
+  setShowAnnotations,
+  setShowStitchSimulatorModal,
+  setStitchSimulatorSettings,
 }: UseEditorGlobalShortcutsParams) {
   useEditorGlobalBindings({
     handleDeleteSelection,
@@ -104,6 +110,31 @@ export function useEditorGlobalShortcuts({
       }))
     },
     reverseGridScrollDirection,
+    handleToggleDimensionAnnotations: () => {
+      setShowAnnotations((previous) => !previous)
+      setStatus('Toggled dimension annotations')
+    },
+    handleToggleStitchSimulator: () => {
+      setShowStitchSimulatorModal((previous) => !previous)
+    },
+    handleAdjustThreadThickness: (delta: number) => {
+      setStitchSimulatorSettings((previous) => ({
+        ...previous,
+        threadWidthMm: Math.max(0.1, Math.min(10, previous.threadWidthMm + delta * 0.1)),
+      }))
+    },
+    handleToggleStitchParity: () => {
+      setStitchSimulatorSettings((previous) => {
+        // Cycle: both → even-only → odd-only → both
+        if (previous.showEvenStitches && previous.showOddStitches) {
+          return { ...previous, showOddStitches: false }
+        }
+        if (previous.showEvenStitches && !previous.showOddStitches) {
+          return { ...previous, showEvenStitches: false, showOddStitches: true }
+        }
+        return { ...previous, showEvenStitches: true, showOddStitches: true }
+      })
+    },
     handleNudgeSelection: (dxMm: number, dyMm: number) => {
       if (selectedShapeIdSet.size === 0) return
       setShapes((previous) =>

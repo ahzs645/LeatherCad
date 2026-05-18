@@ -12,6 +12,12 @@ export type EditorPreferences = {
   pinSideBar: boolean
   highlightActiveLayer: boolean
   printIntoMargin: boolean
+  fillOnChange: boolean
+  drawEdges: boolean
+  drawFirstPos: boolean
+  centerLineDivisions: number
+  markingDistanceMm: number
+  mandalaCircleTemplateName: string
   notchAngleDeg: number
   notchDepthMm: number
   dimensionLineTypeId: string | null
@@ -38,6 +44,12 @@ export function getDefaultEditorPreferences(): EditorPreferences {
     pinSideBar: false,
     highlightActiveLayer: false,
     printIntoMargin: false,
+    fillOnChange: false,
+    drawEdges: false,
+    drawFirstPos: false,
+    centerLineDivisions: 2,
+    markingDistanceMm: 10,
+    mandalaCircleTemplateName: 'Mandala Section',
     notchAngleDeg: 60,
     notchDepthMm: 3,
     dimensionLineTypeId: null,
@@ -75,6 +87,25 @@ export function loadEditorPreferences(): EditorPreferences {
       pinSideBar: parsed.pinSideBar === true,
       highlightActiveLayer: parsed.highlightActiveLayer === true,
       printIntoMargin: parsed.printIntoMargin === true,
+      fillOnChange: parsed.fillOnChange === true,
+      drawEdges: parsed.drawEdges === true,
+      drawFirstPos: parsed.drawFirstPos === true,
+      centerLineDivisions:
+        typeof parsed.centerLineDivisions === 'number' &&
+        Number.isFinite(parsed.centerLineDivisions) &&
+        parsed.centerLineDivisions >= 1
+          ? Math.min(64, Math.round(parsed.centerLineDivisions))
+          : defaults.centerLineDivisions,
+      markingDistanceMm:
+        typeof parsed.markingDistanceMm === 'number' &&
+        Number.isFinite(parsed.markingDistanceMm) &&
+        parsed.markingDistanceMm > 0
+          ? parsed.markingDistanceMm
+          : defaults.markingDistanceMm,
+      mandalaCircleTemplateName:
+        typeof parsed.mandalaCircleTemplateName === 'string' && parsed.mandalaCircleTemplateName.trim().length > 0
+          ? parsed.mandalaCircleTemplateName
+          : defaults.mandalaCircleTemplateName,
       notchAngleDeg:
         typeof parsed.notchAngleDeg === 'number' && Number.isFinite(parsed.notchAngleDeg)
           ? Math.max(5, Math.min(170, parsed.notchAngleDeg))

@@ -278,6 +278,20 @@ export function useStitchActions(params: UseStitchActionsParams) {
       handleAutoPlaceVariablePitchStitchHoles()
       return
     }
+    if (stitchAutoPitchSettings.defaultMode === 'set-num') {
+      const input = window.prompt('Number of evenly-spaced holes (≥ 2)?', '8')
+      if (input === null) {
+        setStatus('Even auto-placement cancelled')
+        return
+      }
+      const count = Number.parseInt(input.trim(), 10)
+      if (!Number.isFinite(count) || count < 2) {
+        setStatus('Hole count must be an integer ≥ 2')
+        return
+      }
+      handleAutoPlaceEvenlySpacedStitchHoles(count)
+      return
+    }
     handleAutoPlaceFixedPitchStitchHoles()
   }
 

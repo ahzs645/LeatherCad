@@ -126,6 +126,8 @@ export function useEditorScreenShells(params: UseEditorScreenShellsParams) {
     highlightActiveLayerId: params.uiState.highlightActiveLayer
       ? params.layerState.activeLayerId ?? null
       : null,
+    drawEdges: params.uiState.drawEdges,
+    drawFirstPos: params.uiState.drawFirstPos,
   })
   const { mobileShell, desktopShell } = useEditorWorkbenchProps({
     workspaceRef,

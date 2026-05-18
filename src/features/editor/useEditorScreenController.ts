@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { STITCH_LINE_TYPE_ID } from './cad/line-types'
 import { checkForNewerVersion } from './version-check'
 import type { EditorScreenShellActions } from './editorScreenShellTypes'
@@ -693,6 +693,9 @@ export function useEditorScreenController() {
   })
 
   const handleExtendOrTrimLinesRef = useRef<() => void>(() => {})
+  const setStitchSimulatorSettingsRef = useRef<Dispatch<SetStateAction<StitchSimulatorSettings>>>(
+    () => undefined,
+  )
   useEditorGlobalShortcuts({
     handleDeleteSelection,
     handleUndo,
@@ -717,6 +720,9 @@ export function useEditorScreenController() {
     reverseGridScrollDirection,
     setShapes,
     setStatus,
+    setShowAnnotations,
+    setShowStitchSimulatorModal,
+    setStitchSimulatorSettings: (value) => setStitchSimulatorSettingsRef.current(value),
   })
 
   useEditorAutomationEffects({
@@ -724,6 +730,9 @@ export function useEditorScreenController() {
     autoConstraintSettings,
     constraintSuggestions,
     setConstraintSuggestions,
+    fillOnChange: uiState.fillOnChange,
+    lineTypesById,
+    setShapes,
   })
 
   const canvasController = useEditorCanvasController({
@@ -944,6 +953,7 @@ export function useEditorScreenController() {
   const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
     loadStitchSimulatorSettings(),
   )
+  setStitchSimulatorSettingsRef.current = setStitchSimulatorSettings
   useEffect(() => {
     if (!leatherSimEnabled || stitchSimulatorSettings.showSimulatorPattern) {
       return

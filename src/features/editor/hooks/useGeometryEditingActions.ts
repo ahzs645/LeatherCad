@@ -3,7 +3,7 @@ import type { Shape, BezierShape, ArcShape, LineShape, Point } from '../cad/cad-
 import { distance, uid } from '../cad/cad-geometry'
 import {
   buildBoundaryLines,
-  buildCenterLineBetween,
+  buildCenterLinesBetween,
   buildDistanceMarks,
   buildNotchOnShape,
   convertArcToBezier,
@@ -513,19 +513,23 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   // handleCenterLineBetweenSelection
   // ---------------------------------------------------------------------------
 
-  const handleCenterLineBetweenSelection = () => {
+  const handleCenterLineBetweenSelection = (divisions = 1) => {
     const selected = getSelectedShapes()
     if (selected.length !== 2) {
       setStatus('Select exactly two shapes to build a center line')
       return
     }
-    const newLine = buildCenterLineBetween(selected[0], selected[1], {
+    const lines = buildCenterLinesBetween(selected[0], selected[1], divisions, {
       layerId: activeLayerId,
       lineTypeId: activeLineTypeId,
     })
-    setShapes((prev) => [...prev, newLine])
-    setSelectedShapeIds([newLine.id])
-    setStatus('Drew center line between selected shapes')
+    setShapes((prev) => [...prev, ...lines])
+    setSelectedShapeIds(lines.map((line: LineShape) => line.id))
+    setStatus(
+      lines.length === 1
+        ? 'Drew center line between selected shapes'
+        : `Drew ${lines.length} center lines between selected shapes`,
+    )
   }
 
   // ---------------------------------------------------------------------------

@@ -200,6 +200,9 @@ export type EditorTopbarProps = {
   onOpenLocalProjectsModal: () => void
   onOpenPatternToolsModal: () => void
   onOpenTemplateRepositoryModal: () => void
+  catalogRepository: import('../../templates/catalog-repository').CatalogRepositoryShop[]
+  selectedCatalogShopId: string | null
+  onSelectCatalogShop: (shopId: string) => void
   onOpenTracingImport: () => void
   onOpenTracingModal: () => void
   hasTracingOverlays: boolean

@@ -25,6 +25,7 @@ export function useEditorScreenTopbarProps({
   derivedState,
   actions,
   layout,
+  repositoryState,
 }: UseEditorScreenTopbarPropsParams) {
   const {
     shapes,
@@ -67,6 +68,7 @@ export function useEditorScreenTopbarProps({
     continuousDistanceMarking,
     notchAngleDeg,
     notchDepthMm,
+    markingDistanceMm,
   } = uiState
   const {
     selectedShapeIds,
@@ -241,6 +243,7 @@ export function useEditorScreenTopbarProps({
     continuousDistanceMarking,
     notchAngleDeg,
     notchDepthMm,
+    markingDistanceMm,
     topbarClassName: layout.topbarClassName,
     selectedShapeCount,
     selectedStitchHoleCount,
@@ -281,6 +284,9 @@ export function useEditorScreenTopbarProps({
     hasCustomSnapPoint: customSnapPoint !== null,
     handleLineSymmetry,
     handleCenterLineBetweenSelection,
+    catalogRepository: repositoryState.catalogRepository,
+    selectedCatalogShopId: repositoryState.selectedCatalogShopId,
+    onSelectCatalogShop: repositoryState.setSelectedCatalogShopId,
     handleDrawBoundaryAroundSelection,
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,

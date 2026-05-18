@@ -20,7 +20,13 @@ export function buildEditorScreenCanvasPaneParams({
   stitchSimulatorSettings,
   actions,
   highlightActiveLayerId,
-}: UseEditorScreenShellsParams & { highlightActiveLayerId?: string | null }) {
+  drawEdges,
+  drawFirstPos,
+}: UseEditorScreenShellsParams & {
+  highlightActiveLayerId?: string | null
+  drawEdges?: boolean
+  drawFirstPos?: boolean
+}) {
   const {
     shapes,
     lineTypes,
@@ -199,5 +205,7 @@ export function buildEditorScreenCanvasPaneParams({
     stackLegendEntries,
     outlineChains,
     highlightActiveLayerId,
+    drawEdges,
+    drawFirstPos,
   })
 }

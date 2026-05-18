@@ -18,6 +18,8 @@ type MandalaModalProps = {
   selectedShapeCount?: number
   defaultLayerId: string
   defaultLineTypeId: string
+  circleTemplateName?: string
+  onChangeCircleTemplateName?: (value: string) => void
 }
 
 export function MandalaModal({
@@ -35,6 +37,8 @@ export function MandalaModal({
   selectedShapeCount = 0,
   defaultLayerId,
   defaultLineTypeId,
+  circleTemplateName = 'Mandala Section',
+  onChangeCircleTemplateName,
 }: MandalaModalProps) {
   const [activeTab, setActiveTab] = useState<MandalaTab>('radial')
   const [mirrorAxisAngleDeg, setMirrorAxisAngleDeg] = useState(0)
@@ -239,6 +243,16 @@ export function MandalaModal({
               />
               <span>Circle template</span>
             </label>
+            {includeCircleTemplate ? (
+              <label className="field-row">
+                <span>Template name</span>
+                <input
+                  type="text"
+                  value={circleTemplateName}
+                  onChange={(event) => onChangeCircleTemplateName?.(event.target.value)}
+                />
+              </label>
+            ) : null}
 
             <label className="layer-toggle-item">
               <input

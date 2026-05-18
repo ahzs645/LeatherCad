@@ -595,21 +595,22 @@ export function StitchHolePanel({
         </select>
       </label>
 
-      <label className="stitch-pitch-inline">
-        <span>Default Auto</span>
-        <select
-          className="line-type-select"
-          value={autoPitchSettings.defaultMode}
-          onChange={(event) =>
-            onUpdateAutoPitchSettings({
-              defaultMode: event.target.value as StitchAutoPitchSettings['defaultMode'],
-            })
-          }
-        >
-          <option value="fixed">Fixed</option>
-          <option value="variable">Variable</option>
-        </select>
-      </label>
+      <fieldset className="stitch-pitch-mode-radio">
+        <legend>Default Auto-Pitch Mode</legend>
+        {(['fixed', 'variable', 'set-num'] as const).map((mode) => (
+          <label key={mode} className="layer-toggle-item">
+            <input
+              type="radio"
+              name="auto-pitch-default-mode"
+              checked={autoPitchSettings.defaultMode === mode}
+              onChange={() => onUpdateAutoPitchSettings({ defaultMode: mode })}
+            />
+            <span>
+              {mode === 'fixed' ? 'Fixed pitch' : mode === 'variable' ? 'Variable pitch' : 'Set number of holes'}
+            </span>
+          </label>
+        ))}
+      </fieldset>
       <label className="stitch-pitch-inline">
         <span>Pitch</span>
         <input
@@ -698,7 +699,11 @@ export function StitchHolePanel({
       )}
 
       <button onClick={onAutoPlacePreferredPitch} disabled={selectedShapeCount === 0}>
-        Auto {autoPitchSettings.defaultMode === 'variable' ? 'Variable' : 'Fixed'}
+        Auto {autoPitchSettings.defaultMode === 'variable'
+          ? 'Variable'
+          : autoPitchSettings.defaultMode === 'set-num'
+            ? 'Set Num'
+            : 'Fixed'}
       </button>
       <button onClick={onAutoPlaceFixedPitch} disabled={selectedShapeCount === 0}>
         Auto Fixed

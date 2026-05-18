@@ -14,6 +14,12 @@ type OptionsModalProps = {
   continuousDistanceMarking: boolean
   reduceOneBlade: boolean
   highlightActiveLayer: boolean
+  fillOnChange: boolean
+  drawEdges: boolean
+  drawFirstPos: boolean
+  centerLineDivisions: number
+  markingDistanceMm: number
+  mandalaCircleTemplateName: string
   notchAngleDeg: number
   notchDepthMm: number
   relativeAngleStepDeg: number
@@ -47,6 +53,12 @@ type OptionsModalProps = {
   onChangeContinuousDistanceMarking: (value: boolean) => void
   onChangeReduceOneBlade: (value: boolean) => void
   onChangeHighlightActiveLayer: (value: boolean) => void
+  onChangeFillOnChange: (value: boolean) => void
+  onChangeDrawEdges: (value: boolean) => void
+  onChangeDrawFirstPos: (value: boolean) => void
+  onChangeCenterLineDivisions: (value: number) => void
+  onChangeMarkingDistanceMm: (value: number) => void
+  onChangeMandalaCircleTemplateName: (value: string) => void
   onChangeNotchAngleDeg: (value: number) => void
   onChangeNotchDepthMm: (value: number) => void
   onChangeRelativeAngleStepDeg: (value: number) => void
@@ -84,6 +96,12 @@ export function OptionsModal({
   continuousDistanceMarking,
   reduceOneBlade,
   highlightActiveLayer,
+  fillOnChange,
+  drawEdges,
+  drawFirstPos,
+  centerLineDivisions,
+  markingDistanceMm,
+  mandalaCircleTemplateName,
   notchAngleDeg,
   notchDepthMm,
   relativeAngleStepDeg,
@@ -103,6 +121,12 @@ export function OptionsModal({
   onChangeContinuousDistanceMarking,
   onChangeReduceOneBlade,
   onChangeHighlightActiveLayer,
+  onChangeFillOnChange,
+  onChangeDrawEdges,
+  onChangeDrawFirstPos,
+  onChangeCenterLineDivisions,
+  onChangeMarkingDistanceMm,
+  onChangeMandalaCircleTemplateName,
   onChangeNotchAngleDeg,
   onChangeNotchDepthMm,
   onChangeRelativeAngleStepDeg,
@@ -271,6 +295,61 @@ export function OptionsModal({
               onChange={(e) => onChangeHighlightActiveLayer(e.target.checked)}
             />
             <span>Highlight shapes on the active layer</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={fillOnChange}
+              onChange={(e) => onChangeFillOnChange(e.target.checked)}
+            />
+            <span>Auto-fill newly-closed shapes with their line-type color</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={drawEdges}
+              onChange={(e) => onChangeDrawEdges(e.target.checked)}
+            />
+            <span>Overlay cut-edge outlines (red dashed)</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={drawFirstPos}
+              onChange={(e) => onChangeDrawFirstPos(e.target.checked)}
+            />
+            <span>Mark the first stitch hole of each chain</span>
+          </label>
+          <label className="field-row">
+            <span>Center-line divisions</span>
+            <input
+              type="number"
+              min={1}
+              max={64}
+              step={1}
+              value={centerLineDivisions}
+              onChange={(event) =>
+                onChangeCenterLineDivisions(Math.max(1, Math.min(64, Math.round(Number(event.target.value) || 2))))
+              }
+            />
+          </label>
+          <label className="field-row">
+            <span>Default marking distance (mm)</span>
+            <input
+              type="number"
+              min={0.1}
+              step={0.5}
+              value={markingDistanceMm}
+              onChange={(event) => onChangeMarkingDistanceMm(Math.max(0.1, Number(event.target.value) || 10))}
+            />
+          </label>
+          <label className="field-row">
+            <span>Mandala circle template name</span>
+            <input
+              type="text"
+              value={mandalaCircleTemplateName}
+              onChange={(event) => onChangeMandalaCircleTemplateName(event.target.value)}
+            />
           </label>
         </section>
 

@@ -144,6 +144,12 @@ export type EditorUIState = {
   pinSideBar: boolean
   highlightActiveLayer: boolean
   printIntoMargin: boolean
+  fillOnChange: boolean
+  drawEdges: boolean
+  drawFirstPos: boolean
+  centerLineDivisions: number
+  markingDistanceMm: number
+  mandalaCircleTemplateName: string
   notchAngleDeg: number
   notchDepthMm: number
   dimensionLineTypeId: string | null

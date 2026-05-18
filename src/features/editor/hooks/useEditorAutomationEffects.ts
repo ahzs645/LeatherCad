@@ -1,5 +1,5 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
-import type { Shape } from '../cad/cad-types'
+import type { LineType, Shape } from '../cad/cad-types'
 import type { AutoConstraintSettings, ConstraintSuggestion } from '../ops/auto-constraint-ops'
 
 type UseEditorAutomationEffectsParams = {
@@ -7,6 +7,9 @@ type UseEditorAutomationEffectsParams = {
   autoConstraintSettings: AutoConstraintSettings
   constraintSuggestions: ConstraintSuggestion[]
   setConstraintSuggestions: Dispatch<SetStateAction<ConstraintSuggestion[]>>
+  fillOnChange?: boolean
+  lineTypesById?: Record<string, LineType | undefined>
+  setShapes?: Dispatch<SetStateAction<Shape[]>>
 }
 
 export function useEditorAutomationEffects({
@@ -14,7 +17,38 @@ export function useEditorAutomationEffects({
   autoConstraintSettings,
   constraintSuggestions,
   setConstraintSuggestions,
+  fillOnChange = false,
+  lineTypesById,
+  setShapes,
 }: UseEditorAutomationEffectsParams) {
+  // Source `chkFillOnChange` — when on, auto-paint newly-closed shapes with
+  // their line-type color. Tolerance: start ≈ end within 1 µm.
+  useEffect(() => {
+    if (!fillOnChange || !setShapes || !lineTypesById) return
+    const tolerance = 1e-3
+    const isClosed = (shape: Shape) =>
+      Math.hypot(shape.start.x - shape.end.x, shape.start.y - shape.end.y) < tolerance
+    const candidates = shapes.filter(
+      (shape) =>
+        shape.type !== 'text' &&
+        shape.type !== 'line' &&
+        isClosed(shape) &&
+        !('fillColor' in shape && shape.fillColor),
+    )
+    if (candidates.length === 0) return
+    const updates = new Map<string, string>()
+    for (const candidate of candidates) {
+      const color = lineTypesById[candidate.lineTypeId]?.color
+      if (color) updates.set(candidate.id, color)
+    }
+    if (updates.size === 0) return
+    setShapes((previous) =>
+      previous.map((shape) => {
+        const color = updates.get(shape.id)
+        return color ? { ...shape, fillColor: color } : shape
+      }),
+    )
+  }, [fillOnChange, lineTypesById, setShapes, shapes])
   const prevShapeCountRef = useRef(0)
 
   useEffect(() => {

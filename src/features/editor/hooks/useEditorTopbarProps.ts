@@ -48,7 +48,11 @@ export type UseEditorTopbarPropsParams = {
   hasCustomRotationPivot: boolean
   hasCustomSnapPoint: boolean
   handleLineSymmetry: () => void
-  handleCenterLineBetweenSelection: () => void
+  handleCenterLineBetweenSelection: (divisions?: number) => void
+  centerLineDivisions?: number
+  catalogRepository: import('../templates/catalog-repository').CatalogRepositoryShop[]
+  selectedCatalogShopId: string | null
+  onSelectCatalogShop: (shopId: string) => void
   handleEditSelectedLineAnglePrompt: () => void
   handleDeleteDuplicatesSelection: () => void
   handleSplitIntoNPrompt: () => void
@@ -168,6 +172,10 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     hasCustomSnapPoint,
     handleLineSymmetry,
     handleCenterLineBetweenSelection,
+    centerLineDivisions = 1,
+    catalogRepository,
+    selectedCatalogShopId,
+    onSelectCatalogShop,
     handleEditSelectedLineAnglePrompt,
     handleDeleteDuplicatesSelection,
     handleSplitIntoNPrompt,
@@ -362,6 +370,9 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     isMobileLayout,
     desktopRibbonTab,
     onDesktopRibbonTabChange: setDesktopRibbonTab,
+    catalogRepository,
+    selectedCatalogShopId,
+    onSelectCatalogShop,
     selectedShapeCount,
     selectedStitchHoleCount,
     showThreePreview,
@@ -447,7 +458,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Compon
     hasCustomRotationPivot,
     hasCustomSnapPoint,
     onLineSymmetry: () => handleLineSymmetry(),
-    onCenterLineBetweenSelection: handleCenterLineBetweenSelection,
+    onCenterLineBetweenSelection: () => handleCenterLineBetweenSelection(centerLineDivisions),
     onEditSelectedLineAngle: handleEditSelectedLineAnglePrompt,
     onDeleteDuplicates: handleDeleteDuplicatesSelection,
     onSplitIntoN: handleSplitIntoNPrompt,

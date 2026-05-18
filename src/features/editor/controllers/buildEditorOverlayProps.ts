@@ -141,6 +141,18 @@ export type BuildEditorOverlayPropsParams = {
   dimensionLineTypeId: string | null
   setDimensionLineTypeId: Dispatch<SetStateAction<string | null>>
   optionsLineTypes: import('../cad/cad-types').LineType[]
+  fillOnChange: boolean
+  setFillOnChange: Dispatch<SetStateAction<boolean>>
+  drawEdges: boolean
+  setDrawEdges: Dispatch<SetStateAction<boolean>>
+  drawFirstPos: boolean
+  setDrawFirstPos: Dispatch<SetStateAction<boolean>>
+  centerLineDivisions: number
+  setCenterLineDivisions: Dispatch<SetStateAction<number>>
+  markingDistanceMm: number
+  setMarkingDistanceMm: Dispatch<SetStateAction<number>>
+  mandalaCircleTemplateName: string
+  setMandalaCircleTemplateName: Dispatch<SetStateAction<string>>
   setExportIncludeText: Dispatch<SetStateAction<boolean>>
   setExportIncludeTemplateMetadata: Dispatch<SetStateAction<boolean>>
   leatherSimTextureRotationDeg: number
@@ -306,6 +318,18 @@ export function buildEditorOverlayProps({
   dimensionLineTypeId,
   setDimensionLineTypeId,
   optionsLineTypes,
+  fillOnChange,
+  setFillOnChange,
+  drawEdges,
+  setDrawEdges,
+  drawFirstPos,
+  setDrawFirstPos,
+  centerLineDivisions,
+  setCenterLineDivisions,
+  markingDistanceMm,
+  setMarkingDistanceMm,
+  mandalaCircleTemplateName,
+  setMandalaCircleTemplateName,
   setExportIncludeText,
   setExportIncludeTemplateMetadata,
   leatherSimTextureRotationDeg,
@@ -429,6 +453,11 @@ export function buildEditorOverlayProps({
         selectedShapeCount: selectedShapeIdSet.size,
         defaultLayerId: activeLayerId,
         defaultLineTypeId: activeLineTypeId,
+        circleTemplateName: mandalaCircleTemplateName,
+        onChangeCircleTemplateName: (value: string) => {
+          setMandalaCircleTemplateName(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), mandalaCircleTemplateName: value })
+        },
       },
       wizardModalProps: {
         open: showWizardModal,
@@ -822,6 +851,36 @@ export function buildEditorOverlayProps({
         onChangeDimensionLineTypeId: (value: string | null) => {
           setDimensionLineTypeId(value)
           saveEditorPreferences({ ...getDefaultEditorPreferences(), dimensionLineTypeId: value })
+        },
+        fillOnChange,
+        drawEdges,
+        drawFirstPos,
+        centerLineDivisions,
+        markingDistanceMm,
+        mandalaCircleTemplateName,
+        onChangeFillOnChange: (value: boolean) => {
+          setFillOnChange(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), fillOnChange: value })
+        },
+        onChangeDrawEdges: (value: boolean) => {
+          setDrawEdges(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), drawEdges: value })
+        },
+        onChangeDrawFirstPos: (value: boolean) => {
+          setDrawFirstPos(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), drawFirstPos: value })
+        },
+        onChangeCenterLineDivisions: (value: number) => {
+          setCenterLineDivisions(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), centerLineDivisions: value })
+        },
+        onChangeMarkingDistanceMm: (value: number) => {
+          setMarkingDistanceMm(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), markingDistanceMm: value })
+        },
+        onChangeMandalaCircleTemplateName: (value: string) => {
+          setMandalaCircleTemplateName(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), mandalaCircleTemplateName: value })
         },
         translationEntryCount: Object.keys(translationMap ?? {}).length,
         onImportTranslationFile: () => translationInputRef.current?.click(),

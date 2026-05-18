@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { clamp } from '../../cad/cad-geometry'
 import { MOBILE_OPTIONS_TABS } from '../../editor-constants'
 import type {
@@ -445,6 +446,91 @@ export function LayerSection({
           </button>
         </>
       )}
+    </div>
+  )
+}
+
+export function LeatherCatalogSection({
+  catalogRepository,
+  selectedCatalogShopId,
+  onSelectCatalogShop,
+  onOpenTemplateRepositoryModal,
+}: Pick<EditorTopbarProps, 'catalogRepository' | 'selectedCatalogShopId' | 'onSelectCatalogShop' | 'onOpenTemplateRepositoryModal'>) {
+  const [groupId, setGroupId] = useState<string | null>(null)
+  const [itemId, setItemId] = useState<string | null>(null)
+  const selectedShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
+  const groups = selectedShop?.groups ?? []
+  const selectedGroup = groups.find((group) => group.id === groupId) ?? groups[0] ?? null
+  const items = selectedGroup?.items ?? []
+  const selectedItem = items.find((item) => item.id === itemId) ?? items[0] ?? null
+  return (
+    <div className="group leather-catalog-controls ribbon-section" data-section="Leather">
+      <label className="field-row">
+        <span>Shop</span>
+        <select
+          className="action-select"
+          value={selectedCatalogShopId ?? ''}
+          onChange={(event) => {
+            const id = event.target.value || null
+            onSelectCatalogShop(id ?? '')
+            setGroupId(null)
+            setItemId(null)
+          }}
+        >
+          <option value="">— pick a shop —</option>
+          {catalogRepository.map((shop) => (
+            <option key={shop.id} value={shop.id}>
+              {shop.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field-row">
+        <span>Brand</span>
+        <select
+          className="action-select"
+          value={selectedGroup?.id ?? ''}
+          disabled={groups.length === 0}
+          onChange={(event) => {
+            setGroupId(event.target.value || null)
+            setItemId(null)
+          }}
+        >
+          <option value="">— pick a brand —</option>
+          {groups.map((group) => (
+            <option key={group.id} value={group.id}>
+              {group.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field-row">
+        <span>Item</span>
+        <select
+          className="action-select"
+          value={selectedItem?.id ?? ''}
+          disabled={items.length === 0}
+          onChange={(event) => setItemId(event.target.value || null)}
+        >
+          <option value="">— pick an item —</option>
+          {items.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        type="button"
+        disabled={!selectedItem}
+        onClick={() => {
+          if (selectedShop) onSelectCatalogShop(selectedShop.id)
+          onOpenTemplateRepositoryModal()
+        }}
+        title="Open this item in the Template Repository → Catalog tab"
+      >
+        Open in Repository…
+      </button>
     </div>
   )
 }
