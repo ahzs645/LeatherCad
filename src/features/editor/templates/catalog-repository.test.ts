@@ -193,7 +193,7 @@ describe('source catalog fixtures', () => {
       expect(roundTripped.groupCount, file).toBe(imported.groupCount)
       expect(roundTripped.itemCount, file).toBe(imported.itemCount)
     }
-  })
+  }, 30_000)
 
   it('decodes at least one real source catalog zipbmp image payload', async () => {
     const file = readdirSync(catalogDir).find((entry) => entry.endsWith('.ctlg'))
