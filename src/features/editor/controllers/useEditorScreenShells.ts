@@ -121,7 +121,12 @@ export function useEditorScreenShells(params: UseEditorScreenShellsParams) {
     workbenchProps,
     workbenchThreeWorkspaceProps,
   } = useEditorScreenWorkbenchModels(params)
-  const canvasPaneParams = buildEditorScreenCanvasPaneParams(params)
+  const canvasPaneParams = buildEditorScreenCanvasPaneParams({
+    ...params,
+    highlightActiveLayerId: params.uiState.highlightActiveLayer
+      ? params.layerState.activeLayerId ?? null
+      : null,
+  })
   const { mobileShell, desktopShell } = useEditorWorkbenchProps({
     workspaceRef,
     workspaceClassName,

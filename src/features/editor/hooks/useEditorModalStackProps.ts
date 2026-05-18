@@ -63,6 +63,7 @@ export type UseEditorModalStackPropsParams = {
   handleLoadTemplateAsDocument: () => void
   handleInsertTemplateIntoDocument: () => void
   handleSeparateTemplateIntoShapes: () => void
+  handleStampTemplateAlongSelectedShape: () => void
   handleDeleteTemplateFromRepository: (entryId: string) => void
   handleMoveTemplateEntry: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
   handleSortTemplates: (sortKey: TemplateRepositorySortKey) => void
@@ -178,6 +179,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleSeparateTemplateIntoShapes,
+    handleStampTemplateAlongSelectedShape,
     handleDeleteTemplateFromRepository,
     handleMoveTemplateEntry,
     handleSortTemplates,
@@ -293,6 +295,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showTracingModal,
     showPrintPreviewModal,
     printPaper,
+    printOrientation,
+    printIntoMargin,
     printScalePercent,
     printCalibrationXPercent,
     printCalibrationYPercent,
@@ -336,6 +340,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     showTracingModal: state.showTracingModal,
     showPrintPreviewModal: state.showPrintPreviewModal,
     printPaper: state.printPaper,
+    printOrientation: state.printOrientation,
+    printIntoMargin: state.printIntoMargin,
     printScalePercent: state.printScalePercent,
     printCalibrationXPercent: state.printCalibrationXPercent,
     printCalibrationYPercent: state.printCalibrationYPercent,
@@ -380,6 +386,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     setShowTracingModal,
     setShowPrintPreviewModal,
     setPrintPaper,
+    setPrintOrientation,
+    setPrintIntoMargin,
     setPrintScalePercent,
     setPrintCalibrationXPercent,
     setPrintCalibrationYPercent,
@@ -593,6 +601,7 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onLoadAsDocument: handleLoadTemplateAsDocument,
       onInsertIntoDocument: handleInsertTemplateIntoDocument,
       onSeparateIntoShapes: handleSeparateTemplateIntoShapes,
+      onStampAlongSelectedShape: handleStampTemplateAlongSelectedShape,
       onDeleteTemplate: handleDeleteTemplateFromRepository,
       onMoveTemplate: handleMoveTemplateEntry,
       onSortTemplates: handleSortTemplates,
@@ -718,6 +727,10 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onClose: () => setShowPrintPreviewModal(false),
       printPaper,
       onSetPrintPaper: setPrintPaper,
+      printOrientation,
+      onSetPrintOrientation: setPrintOrientation,
+      printIntoMargin,
+      onSetPrintIntoMargin: setPrintIntoMargin,
       printScalePercent,
       onSetPrintScalePercent: setPrintScalePercent,
       printCalibrationXPercent,

@@ -379,6 +379,126 @@ new UI surface yet — those are flagged.
   a header note pointing at the separate Letter Stamp launcher in the Text ribbon.
   Net effect: a single dedicated menu screen for all bonus generators. Source v2.8.3.
 
+## 2026-05-17 closures (pass 5 — release-notes mining)
+
+A fresh sweep of the source app's `ReadMe_en.txt` (v0.9.1 → v2.8.3, 477 lines)
+turned up eight items that were not flagged before. All eight were implemented
+in this pass.
+
+### Z hotkey to extend/trim selected lines (v2.3.1) — ✓ closed
+- Plain `Z` (no modifier) now triggers `handleExtendOrTrimLines` via
+  `useKeyboardShortcuts.ts`. Ctrl/Cmd+Z remains bound to undo (web convention).
+
+### Reverse grid-scroll-direction option (v1.4.0) — ✓ closed
+- `EditorPreferences.reverseGridScrollDirection` persisted alongside
+  `reverseZoomDirection`. Plain arrow keys pan the viewport; the option inverts
+  the pan direction. Surfaced in `OptionsModal` → Zoom & Scroll.
+
+### Print calibration portrait/landscape auto-flip (v1.5.5) — ✓ closed
+- `PrintPlan.orientation` (portrait/landscape) added; `buildPrintPlan` swaps
+  paper width/height when landscape. `print-output.ts` swaps calibration X/Y
+  during render in landscape mode so calibration entered in portrait still
+  applies. Orientation selector added to `PrintPreviewModal`.
+
+### Bezier endpoint drag moves nearest CP (v1.5.4) — ✓ closed
+- `useCanvasShapeDragInteractions.ts` commit step now translates the bezier's
+  `control` by the endpoint's drag delta unless Shift is held. Source rule:
+  Shift keeps the CP fixed.
+
+### Batch beveling by range-selection (v2.3.1) — ✓ closed
+- `filletAdjacentCorners` op in `corner-ops.ts` iterates every adjacent endpoint
+  pair across a multi-line selection. `handleFilletSelectedCorner` falls
+  through to it when more than two lines are selected, applying the same
+  radius to every chained corner in one shot.
+
+### Snap-point pruning at zoom-out (v2.4.2) — ✓ closed
+- `snapPointToContext` in `pattern-ops.ts` suppresses dense candidates
+  (mid/quarter/control/tangent) below 0.5x zoom and drops endpoints of shapes
+  whose screen-space bounding box is under 8px below 0.2x zoom.
+
+### Distance-marking template stamp along curve (v2.0.0) — ✓ closed
+- New `stampTemplateAlongShape` op in `path-editing.ts` clones template shapes
+  along a host path at a user-chosen pitch, rotating each instance to the
+  host's local tangent. Exposed as "Stamp Along Selected Shape…" in
+  `TemplateRepositoryModal`. Selection must be exactly one host shape.
+
+### i18n / translation runtime (v0.9.13 onward) — ✓ closed
+- `TranslationMap` parser (TSV + JSON) and `loadTranslationMap` /
+  `saveTranslationMap` shipped earlier; pass 5 wires a `useTranslate` hook and
+  surfaces a "Language" section in `OptionsModal` with import and reset
+  controls plus a live entry-count readout. Components can adopt the hook
+  incrementally; without a loaded map the UI stays English.
+
+### Text "Tracking" inspector input — ✓ closed (was already shipped)
+- `ChangeShapeSizeModal.tsx:225-235` exposes a "Tracking (mm)" numeric field
+  (-20 to 100). Doc marker was stale.
+
+## 2026-05-17 closures (pass 6 — form-control inventory mining)
+
+After the pass-5 release-note sweep, an additional audit of the source app's
+form-control inventory (`rsrc_form_details.txt` — TfrmLeat, TfrmPreview,
+TfrmMoveOrCopy, TfrmOptions, TfrmEditPallet) turned up ten more user-facing
+controls that lacked parity. All ten were implemented in pass 6.
+
+### Continuous distance-marking (`chkContinuousDistanceMarking`) — ✓ closed
+- `OptionsModal` → Editing → "Continuous distance marking" toggle. When on,
+  `handleDistanceMarkSelectedPathPrompt` re-prompts after each placement
+  until the user enters a blank value or cancels.
+
+### Reduce one blade (`chkReduceOneBlade`) — ✓ closed
+- New `StitchHoleDefaults.reduceOneBlade` field. When the toggle is on,
+  `createPrickingIronStitchHoles` stamps `bladeCount - 1` holes per anchor.
+  Surfaced in `OptionsModal` → Editing.
+
+### Pin sidebar (`chkPinSideBar`) — ✓ closed
+- `useWorkbenchShellState` now accepts a `pinSideBar` flag that force-keeps
+  the inspector open (overrides auto-hide). Surfaced in `OptionsModal` →
+  Workspace alongside the existing auto-hide toggle.
+
+### Highlight active layer (`chkHighlightActiveLayer`) — ✓ closed
+- `CanvasShapeLayer` accepts a `highlightActiveLayerId` prop. When set, shapes
+  whose `layerId` differs render at ~0.35 opacity. Toggle surfaced in
+  `OptionsModal`. Wired via `buildEditorScreenCanvasPaneParams` /
+  `useEditorScreenShells`.
+
+### Print "into margin" (`chkPrintIntoMergin`) — ✓ closed
+- `EditorPanelState.printIntoMargin` (default `false`). When on,
+  `usePrintPreviewState` builds the plan with `marginMm = 0` so content can
+  render into the gutter. Toggle added to `PrintPreviewModal`; the Margin
+  field is disabled while the toggle is on.
+
+### Configurable Notch (Kama) angle / depth (`nbNotchAngle` / `nbNotchDepth`) — ✓ closed
+- `EditorPreferences.notchAngleDeg` (default 60°) and `notchDepthMm`
+  (default 3 mm). `handleNotchSelectedShapePrompt` uses these as the prompt
+  defaults; width auto-derives from `2·depth·tan(angle/2)` for the first
+  prompt suggestion. Surfaced in `OptionsModal` → Notch (Kama) defaults.
+
+### Line tool relative-angle constraint (`rbLineRelativeAngle`) — ✓ closed
+- 4th constraint mode added to `lineToolConstraint`. After each line is
+  created, `EditorUIState.lastLineAngleRad` records its heading. New lines
+  snap to `relativeAngleStepDeg` (default 15°) increments from that heading.
+  Surfaced in `OptionsModal` → Line tool constraint with a configurable
+  step input.
+
+### Dimension palette selector (`cmbDim_Pallet`) — ✓ closed
+- `EditorPreferences.dimensionLineTypeId` (default `null` → use active line
+  type). New dimensions created by the dimension tool use this id when set.
+  Surfaced in `OptionsModal` → Dimension defaults as a dropdown listing all
+  line types plus "Use active line type".
+
+### Arc drawing modes: radius / half-moon (`rbArc_R`, `rbArc_HalfMoonRatio`) — ✓ closed
+- `EditorPreferences.arcDrawMode` ('three-point' | 'radius' | 'half-moon')
+  with associated `arcRadiusMm` and `arcHalfMoonRatio` parameters. In
+  radius/half-moon modes the arc tool takes two clicks (start + end) and
+  derives the mid point by sagitta-from-radius or chord×ratio respectively.
+  Surfaced in `OptionsModal` → Arc tool with mode radios + numeric inputs.
+
+### Tangent-circle drawing mode (`chkTangentCircleMode`) — ✓ closed
+- `EditorUIState.tangentCircleMode` + `tangentCircleDispStep`. When on,
+  `snapPointToContext` scatters `dispStep` evenly-spaced perimeter points
+  per arc as `tangent-circle` snap candidates. Surfaced in `OptionsModal` →
+  Tangent-circle mode with a step input.
+
 ## Remaining nice-to-haves (no functional gap)
 
 - Crypto wallet addresses in the donation tab are placeholders; replace with real
@@ -386,8 +506,10 @@ new UI surface yet — those are flagged.
 - YouTube channel membership "verify" handshake (source v2.8.3) — we list the link
   but no authenticated entitlement check; out of scope for an offline web rebuild.
 - Repository folder tree UI: storage and ops shipped in pass 4 but the
-  `TemplateRepositoryModal` still renders a flat list. A follow-up pass should add a
-  nested folder navigator + drag-into-folder UI.
-- Text "Tracking" inspector input: model + render + measure all honour `trackingMm`,
-  but the value is not yet surfaced as a numeric field next to the text font/size
-  inputs.
+  `TemplateRepositoryModal` still renders folders as a flat row of buttons. A
+  follow-up pass should add nested-tree rendering plus drag-into-folder UX.
+- Translation coverage: infrastructure ships in pass 5, but UI strings are
+  still hard-coded English. Components need to migrate to `useTranslate` as
+  translation files become available.
+- Version check on launch is offline-only (compares to a hardcoded constant);
+  intentional for an offline web rebuild — no remote ping.

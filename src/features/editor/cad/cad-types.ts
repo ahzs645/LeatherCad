@@ -178,6 +178,8 @@ export type StitchHoleDefaults = {
   renderShape?: StitchHoleRenderShape
   pitchMm?: number
   numBlades?: number
+  /** Source-app `chkReduceOneBlade` — when true, drop one blade per stamp. */
+  reduceOneBlade?: boolean
   diameterMm?: number
   widthMm?: number
   heightMm?: number

@@ -103,3 +103,58 @@ export function filletCorner(
     },
   }
 }
+
+export type BatchFilletResult = {
+  trimmedLinesById: Map<string, LineShape>
+  arcs: ArcShape[]
+  appliedCornerCount: number
+}
+
+/**
+ * Source-app v2.3.1: "Supported batch beveling by range-selection." Walks every
+ * adjacent endpoint pair across the supplied lines, applying `filletCorner` to
+ * each in-place so a single chained selection can be rounded in one shot.
+ */
+export function filletAdjacentCorners(lines: LineShape[], radiusMm: number): BatchFilletResult {
+  const tolerance = 1e-3
+  const working = new Map<string, LineShape>(lines.map((line) => [line.id, { ...line }]))
+  const arcs: ArcShape[] = []
+  const consumedEndpoints = new Set<string>()
+  let appliedCornerCount = 0
+
+  const endpointKey = (lineId: string, end: 'start' | 'end') => `${lineId}:${end}`
+  const endpointsMatch = (p1: Point, p2: Point) => distance(p1, p2) < tolerance
+
+  const lineIds = Array.from(working.keys())
+  for (let i = 0; i < lineIds.length; i += 1) {
+    for (let j = i + 1; j < lineIds.length; j += 1) {
+      const lineA = working.get(lineIds[i])
+      const lineB = working.get(lineIds[j])
+      if (!lineA || !lineB) continue
+
+      const aEnds: Array<'start' | 'end'> = ['start', 'end']
+      const bEnds: Array<'start' | 'end'> = ['start', 'end']
+      let matched = false
+      for (const aEnd of aEnds) {
+        if (matched) break
+        if (consumedEndpoints.has(endpointKey(lineA.id, aEnd))) continue
+        for (const bEnd of bEnds) {
+          if (consumedEndpoints.has(endpointKey(lineB.id, bEnd))) continue
+          if (!endpointsMatch(lineA[aEnd], lineB[bEnd])) continue
+          const result = filletCorner(lineA, lineB, radiusMm)
+          if (!result) continue
+          working.set(lineA.id, result.trimmedA)
+          working.set(lineB.id, result.trimmedB)
+          arcs.push(result.arc)
+          appliedCornerCount += 1
+          consumedEndpoints.add(endpointKey(lineA.id, aEnd))
+          consumedEndpoints.add(endpointKey(lineB.id, bEnd))
+          matched = true
+          break
+        }
+      }
+    }
+  }
+
+  return { trimmedLinesById: working, arcs, appliedCornerCount }
+}

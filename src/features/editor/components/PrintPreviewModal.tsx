@@ -1,11 +1,20 @@
 import { clamp } from '../cad/cad-geometry'
-import { resolvePrintCalibrationDpi, type PrintPaper, type PrintPlan } from '../preview/print-preview'
+import {
+  resolvePrintCalibrationDpi,
+  type PrintOrientation,
+  type PrintPaper,
+  type PrintPlan,
+} from '../preview/print-preview'
 
 type PrintPreviewModalProps = {
   open: boolean
   onClose: () => void
   printPaper: PrintPaper
   onSetPrintPaper: (paper: PrintPaper) => void
+  printOrientation: PrintOrientation
+  onSetPrintOrientation: (orientation: PrintOrientation) => void
+  printIntoMargin: boolean
+  onSetPrintIntoMargin: (enabled: boolean) => void
   printScalePercent: number
   onSetPrintScalePercent: (scalePercent: number) => void
   printCalibrationXPercent: number
@@ -46,6 +55,10 @@ export function PrintPreviewModal({
   onClose,
   printPaper,
   onSetPrintPaper,
+  printOrientation,
+  onSetPrintOrientation,
+  printIntoMargin,
+  onSetPrintIntoMargin,
   printScalePercent,
   onSetPrintScalePercent,
   printCalibrationXPercent,
@@ -111,6 +124,17 @@ export function PrintPreviewModal({
             <select className="action-select" value={printPaper} onChange={(event) => onSetPrintPaper(event.target.value as PrintPaper)}>
               <option value="letter">Letter (216 x 279mm)</option>
               <option value="a4">A4 (210 x 297mm)</option>
+            </select>
+          </label>
+          <label className="field-row">
+            <span>Orientation</span>
+            <select
+              className="action-select"
+              value={printOrientation}
+              onChange={(event) => onSetPrintOrientation(event.target.value as PrintOrientation)}
+            >
+              <option value="portrait">Portrait</option>
+              <option value="landscape">Landscape (auto-flips calibration X/Y)</option>
             </select>
           </label>
           <label className="field-row">
@@ -206,8 +230,17 @@ export function PrintPreviewModal({
               max={30}
               step={0.5}
               value={printMarginMm}
+              disabled={printIntoMargin}
               onChange={(event) => onSetPrintMarginMm(clamp(Number(event.target.value) || 0, 0, 30))}
             />
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={printIntoMargin}
+              onChange={(event) => onSetPrintIntoMargin(event.target.checked)}
+            />
+            <span>Print into margin (treat the gutter as printable area)</span>
           </label>
         </div>
 

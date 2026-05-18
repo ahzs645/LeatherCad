@@ -10,6 +10,7 @@ import type {
   StitchHole,
 } from '../cad/cad-types'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
+import { shapeTotalArcLength, stampTemplateAlongShape } from '../ops/geometry/path-editing'
 import {
   createTemplateFromDoc,
   createTemplateFolder,
@@ -452,6 +453,73 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     setStatus('Catalog item updated')
   }
 
+  // Source v2.0.0 [Distance Marking] — stamp the selected repository template
+  // along the currently selected host shape at user-specified pitch, with each
+  // instance rotated to the host's tangent at the stamp location.
+  const handleStampTemplateAlongSelectedShape = () => {
+    if (!selectedTemplateEntry) {
+      setStatus('Select a template first')
+      return
+    }
+    if (selectedShapeIdSet.size !== 1) {
+      setStatus('Select exactly one host shape to stamp the template along')
+      return
+    }
+    const hostShape = shapes.find((shape) => selectedShapeIdSet.has(shape.id))
+    if (!hostShape) {
+      setStatus('Could not find the selected host shape')
+      return
+    }
+    if (hostShape.type === 'text') {
+      setStatus('Cannot stamp templates along a text shape')
+      return
+    }
+    const totalLength = shapeTotalArcLength(hostShape)
+    if (totalLength < 1e-6) {
+      setStatus('Selected host shape has zero length')
+      return
+    }
+    const pitchInput = window.prompt(
+      `Distance between stamps in mm (host length ${totalLength.toFixed(1)} mm)`,
+      '20',
+    )?.trim()
+    if (!pitchInput) return
+    const pitchMm = Number.parseFloat(pitchInput)
+    if (!Number.isFinite(pitchMm) || pitchMm <= 0) {
+      setStatus('Pitch must be a positive number')
+      return
+    }
+    const distances: number[] = []
+    for (let d = pitchMm; d <= totalLength + 1e-6; d += pitchMm) {
+      distances.push(d)
+    }
+    if (distances.length === 0) {
+      setStatus('Pitch larger than host shape length — no stamps placed')
+      return
+    }
+    const templateShapes = selectedTemplateEntry.doc.objects ?? []
+    if (templateShapes.length === 0) {
+      setStatus('Selected template has no shapes to stamp')
+      return
+    }
+    const targetLayerId = hostShape.layerId ?? layers[0]?.id ?? ''
+    const targetLineTypeId = hostShape.lineTypeId ?? lineTypes[0]?.id ?? ''
+    const stampGroupId = uid()
+    const stamped = stampTemplateAlongShape(hostShape, templateShapes, distances, {
+      layerId: targetLayerId,
+      lineTypeId: targetLineTypeId,
+      groupId: stampGroupId,
+    })
+    if (stamped.length === 0) {
+      setStatus('Could not stamp template along the selected shape')
+      return
+    }
+    setShapes((previous) => [...previous, ...stamped])
+    setStatus(
+      `Stamped "${selectedTemplateEntry.name}" ${distances.length} time${distances.length === 1 ? '' : 's'} along selected shape`,
+    )
+  }
+
   return {
     handleSaveTemplateToRepository,
     handleDeleteTemplateFromRepository,
@@ -465,6 +533,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
     handleSeparateTemplateIntoShapes,
+    handleStampTemplateAlongSelectedShape,
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
     handleImportCatalogFile,

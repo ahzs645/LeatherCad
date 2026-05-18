@@ -104,14 +104,43 @@ export type BuildEditorOverlayPropsParams = {
   setShowOptionsModal: Dispatch<SetStateAction<boolean>>
   autoSaveEnabled: boolean
   reverseZoomDirection: boolean
+  reverseGridScrollDirection: boolean
   incrementalSelection: boolean
   mentoriWithoutCtrl: boolean
   exportIncludeText: boolean
   exportIncludeTemplateMetadata: boolean
   setAutoSaveEnabled: Dispatch<SetStateAction<boolean>>
   setReverseZoomDirection: Dispatch<SetStateAction<boolean>>
+  setReverseGridScrollDirection: Dispatch<SetStateAction<boolean>>
   setIncrementalSelection: Dispatch<SetStateAction<boolean>>
   setMentoriWithoutCtrl: Dispatch<SetStateAction<boolean>>
+  pinSideBar: boolean
+  setPinSideBar: Dispatch<SetStateAction<boolean>>
+  continuousDistanceMarking: boolean
+  setContinuousDistanceMarking: Dispatch<SetStateAction<boolean>>
+  reduceOneBlade: boolean
+  setReduceOneBlade: Dispatch<SetStateAction<boolean>>
+  highlightActiveLayer: boolean
+  setHighlightActiveLayer: Dispatch<SetStateAction<boolean>>
+  notchAngleDeg: number
+  setNotchAngleDeg: Dispatch<SetStateAction<number>>
+  notchDepthMm: number
+  setNotchDepthMm: Dispatch<SetStateAction<number>>
+  relativeAngleStepDeg: number
+  setRelativeAngleStepDeg: Dispatch<SetStateAction<number>>
+  arcDrawMode: 'three-point' | 'radius' | 'half-moon'
+  setArcDrawMode: Dispatch<SetStateAction<'three-point' | 'radius' | 'half-moon'>>
+  arcRadiusMm: number
+  setArcRadiusMm: Dispatch<SetStateAction<number>>
+  arcHalfMoonRatio: number
+  setArcHalfMoonRatio: Dispatch<SetStateAction<number>>
+  tangentCircleMode: boolean
+  setTangentCircleMode: Dispatch<SetStateAction<boolean>>
+  tangentCircleDispStep: number
+  setTangentCircleDispStep: Dispatch<SetStateAction<number>>
+  dimensionLineTypeId: string | null
+  setDimensionLineTypeId: Dispatch<SetStateAction<string | null>>
+  optionsLineTypes: import('../cad/cad-types').LineType[]
   setExportIncludeText: Dispatch<SetStateAction<boolean>>
   setExportIncludeTemplateMetadata: Dispatch<SetStateAction<boolean>>
   leatherSimTextureRotationDeg: number
@@ -161,6 +190,7 @@ export type BuildEditorOverlayPropsParams = {
   handleImportTemplateRepositoryFile: ChangeEventHandler<HTMLInputElement>
   handleImportCatalogFile: ChangeEventHandler<HTMLInputElement>
   setTranslationMap: Dispatch<SetStateAction<Record<string, string>>>
+  translationMap: Record<string, string>
   fontInputRef: RefObject<HTMLInputElement | null>
   onFontInputChange: ChangeEventHandler<HTMLInputElement>
   setStatus: Dispatch<SetStateAction<string>>
@@ -239,14 +269,43 @@ export function buildEditorOverlayProps({
   setShowOptionsModal,
   autoSaveEnabled,
   reverseZoomDirection,
+  reverseGridScrollDirection,
   incrementalSelection,
   mentoriWithoutCtrl,
   exportIncludeText,
   exportIncludeTemplateMetadata,
   setAutoSaveEnabled,
   setReverseZoomDirection,
+  setReverseGridScrollDirection,
   setIncrementalSelection,
   setMentoriWithoutCtrl,
+  pinSideBar,
+  setPinSideBar,
+  continuousDistanceMarking,
+  setContinuousDistanceMarking,
+  reduceOneBlade,
+  setReduceOneBlade,
+  highlightActiveLayer,
+  setHighlightActiveLayer,
+  notchAngleDeg,
+  setNotchAngleDeg,
+  notchDepthMm,
+  setNotchDepthMm,
+  relativeAngleStepDeg,
+  setRelativeAngleStepDeg,
+  arcDrawMode,
+  setArcDrawMode,
+  arcRadiusMm,
+  setArcRadiusMm,
+  arcHalfMoonRatio,
+  setArcHalfMoonRatio,
+  tangentCircleMode,
+  setTangentCircleMode,
+  tangentCircleDispStep,
+  setTangentCircleDispStep,
+  dimensionLineTypeId,
+  setDimensionLineTypeId,
+  optionsLineTypes,
   setExportIncludeText,
   setExportIncludeTemplateMetadata,
   leatherSimTextureRotationDeg,
@@ -304,6 +363,7 @@ export function buildEditorOverlayProps({
   handleImportTemplateRepositoryFile,
   handleImportCatalogFile,
   setTranslationMap,
+  translationMap,
   fontInputRef,
   onFontInputChange,
   setStatus,
@@ -574,6 +634,7 @@ export function buildEditorOverlayProps({
         open: showOptionsModal,
         autoSaveEnabled,
         reverseZoomDirection,
+        reverseGridScrollDirection,
         incrementalSelection,
         mentoriWithoutCtrl,
         exportIncludeText,
@@ -588,6 +649,20 @@ export function buildEditorOverlayProps({
           saveEditorPreferences({
             ...getDefaultEditorPreferences(),
             reverseZoomDirection: value,
+            reverseGridScrollDirection,
+            incrementalSelection,
+            mentoriWithoutCtrl,
+            exportIncludeText,
+            exportIncludeTemplateMetadata,
+            leatherSimTextureRotationDeg,
+          })
+        },
+        onChangeReverseGridScrollDirection: (value: boolean) => {
+          setReverseGridScrollDirection(value)
+          saveEditorPreferences({
+            ...getDefaultEditorPreferences(),
+            reverseZoomDirection,
+            reverseGridScrollDirection: value,
             incrementalSelection,
             mentoriWithoutCtrl,
             exportIncludeText,
@@ -679,9 +754,82 @@ export function buildEditorOverlayProps({
         onChangePrintCalibrationXPercent: setPrintCalibrationXPercent,
         onChangePrintCalibrationYPercent: setPrintCalibrationYPercent,
         autoHideSidebar,
+        pinSideBar,
         loadDemoOnStartup,
         onChangeAutoHideSidebar: setAutoHideSidebar,
+        onChangePinSideBar: (value: boolean) => {
+          setPinSideBar(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), pinSideBar: value })
+        },
         onChangeLoadDemoOnStartup: setLoadDemoOnStartup,
+        continuousDistanceMarking,
+        reduceOneBlade,
+        highlightActiveLayer,
+        notchAngleDeg,
+        notchDepthMm,
+        relativeAngleStepDeg,
+        arcDrawMode,
+        arcRadiusMm,
+        arcHalfMoonRatio,
+        tangentCircleMode,
+        tangentCircleDispStep,
+        onChangeContinuousDistanceMarking: (value: boolean) => {
+          setContinuousDistanceMarking(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), continuousDistanceMarking: value })
+        },
+        onChangeReduceOneBlade: (value: boolean) => {
+          setReduceOneBlade(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), reduceOneBlade: value })
+        },
+        onChangeHighlightActiveLayer: (value: boolean) => {
+          setHighlightActiveLayer(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), highlightActiveLayer: value })
+        },
+        onChangeNotchAngleDeg: (value: number) => {
+          setNotchAngleDeg(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), notchAngleDeg: value })
+        },
+        onChangeNotchDepthMm: (value: number) => {
+          setNotchDepthMm(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), notchDepthMm: value })
+        },
+        onChangeRelativeAngleStepDeg: (value: number) => {
+          setRelativeAngleStepDeg(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), relativeAngleStepDeg: value })
+        },
+        onChangeArcDrawMode: (value: 'three-point' | 'radius' | 'half-moon') => {
+          setArcDrawMode(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), arcDrawMode: value })
+        },
+        onChangeArcRadiusMm: (value: number) => {
+          setArcRadiusMm(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), arcRadiusMm: value })
+        },
+        onChangeArcHalfMoonRatio: (value: number) => {
+          setArcHalfMoonRatio(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), arcHalfMoonRatio: value })
+        },
+        onChangeTangentCircleMode: (value: boolean) => {
+          setTangentCircleMode(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), tangentCircleMode: value })
+        },
+        onChangeTangentCircleDispStep: (value: number) => {
+          setTangentCircleDispStep(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), tangentCircleDispStep: value })
+        },
+        dimensionLineTypeId,
+        lineTypes: optionsLineTypes,
+        onChangeDimensionLineTypeId: (value: string | null) => {
+          setDimensionLineTypeId(value)
+          saveEditorPreferences({ ...getDefaultEditorPreferences(), dimensionLineTypeId: value })
+        },
+        translationEntryCount: Object.keys(translationMap ?? {}).length,
+        onImportTranslationFile: () => translationInputRef.current?.click(),
+        onResetTranslation: () => {
+          setTranslationMap({})
+          saveTranslationMap({})
+          setStatus('Reset translations to English')
+        },
         onOpenDimensionInspector: () => setShowDimensionInspectorModal(true),
       },
       dimensionInspectorModalProps: {

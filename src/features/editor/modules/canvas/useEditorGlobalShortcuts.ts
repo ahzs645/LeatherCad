@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { Point, Shape, Tool } from '../../cad/cad-types'
+import type { Point, Shape, Tool, Viewport } from '../../cad/cad-types'
 import { useEditorGlobalBindings } from '../../hooks/useEditorGlobalBindings'
 
 type UseEditorGlobalShortcutsParams = {
@@ -21,6 +21,9 @@ type UseEditorGlobalShortcutsParams = {
   setTracingOverlays: Dispatch<SetStateAction<import('../../cad/cad-types').TracingOverlay[]>>
   setActiveTool: (tool: Tool) => void
   handleRotateSelection: (angleDeg: number) => void
+  handleExtendOrTrimLines: () => void
+  setViewport: Dispatch<SetStateAction<Viewport>>
+  reverseGridScrollDirection: boolean
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setStatus: (message: string) => void
 }
@@ -44,6 +47,9 @@ export function useEditorGlobalShortcuts({
   setTracingOverlays,
   setActiveTool,
   handleRotateSelection,
+  handleExtendOrTrimLines,
+  setViewport,
+  reverseGridScrollDirection,
   setShapes,
   setStatus,
 }: UseEditorGlobalShortcutsParams) {
@@ -87,6 +93,17 @@ export function useEditorGlobalShortcuts({
       if (selectedShapeIdSet.size === 0) return
       handleRotateSelection(angleDeg)
     },
+    handleExtendOrTrimLines: () => {
+      handleExtendOrTrimLines()
+    },
+    handlePanViewport: (dxScreenPx: number, dyScreenPx: number) => {
+      setViewport((previous) => ({
+        ...previous,
+        x: previous.x + dxScreenPx,
+        y: previous.y + dyScreenPx,
+      }))
+    },
+    reverseGridScrollDirection,
     handleNudgeSelection: (dxMm: number, dyMm: number) => {
       if (selectedShapeIdSet.size === 0) return
       setShapes((previous) =>

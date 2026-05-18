@@ -64,6 +64,9 @@ export function useEditorScreenTopbarProps({
     setShowDimensionInspectorModal,
     setShowMoveCopyDistanceModal,
     setMoveCopyDistanceMode,
+    continuousDistanceMarking,
+    notchAngleDeg,
+    notchDepthMm,
   } = uiState
   const {
     selectedShapeIds,
@@ -235,6 +238,9 @@ export function useEditorScreenTopbarProps({
     handleDistanceMarkSelectedPath,
     handleConvertSelectionToPath,
     handleNotchSelectedShape,
+    continuousDistanceMarking,
+    notchAngleDeg,
+    notchDepthMm,
     topbarClassName: layout.topbarClassName,
     selectedShapeCount,
     selectedStitchHoleCount,

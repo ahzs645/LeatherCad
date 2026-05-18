@@ -43,7 +43,7 @@ import type {
 } from '../editor-types'
 import type { ClipboardPayload } from '../ops/shape-selection-ops'
 import type { DisplayUnit } from '../ops/unit-ops'
-import type { PrintPaper } from '../preview/print-preview'
+import type { PrintOrientation, PrintPaper } from '../preview/print-preview'
 import type { SecondaryPreviewMode, WorkbenchRibbonTab, WorkspaceMode } from '../workbench/workbench-types'
 
 export type EditorDocumentState = {
@@ -136,9 +136,26 @@ export type EditorUIState = {
   fontList: string[]
   autoSaveEnabled: boolean
   reverseZoomDirection: boolean
+  reverseGridScrollDirection: boolean
   incrementalSelection: boolean
   mentoriWithoutCtrl: boolean
-  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
+  continuousDistanceMarking: boolean
+  reduceOneBlade: boolean
+  pinSideBar: boolean
+  highlightActiveLayer: boolean
+  printIntoMargin: boolean
+  notchAngleDeg: number
+  notchDepthMm: number
+  dimensionLineTypeId: string | null
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical' | 'relative-angle'
+  relativeAngleStepDeg: number
+  /** Heading of the last drawn line (radians). Drives relative-angle snap. */
+  lastLineAngleRad: number | null
+  arcDrawMode: 'three-point' | 'radius' | 'half-moon'
+  arcRadiusMm: number
+  arcHalfMoonRatio: number
+  tangentCircleMode: boolean
+  tangentCircleDispStep: number
   leatherSimEnabled: boolean
   translationMap: Record<string, string>
   showGrid: boolean
@@ -186,6 +203,8 @@ export type EditorPanelState = {
   showTemplateRepositoryModal: boolean
   showLocalProjectsModal: boolean
   printPaper: PrintPaper
+  printOrientation: PrintOrientation
+  printIntoMargin: boolean
   printTileX: number
   printTileY: number
   printOverlapMm: number

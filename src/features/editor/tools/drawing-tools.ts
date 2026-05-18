@@ -1,4 +1,4 @@
-import type { ToolDefinition } from './tool-types'
+import type { ToolDefinition, ToolRuntime } from './tool-types'
 import { fitFreehandCurve, smoothPoints } from '../ops/freehand-ops'
 import { parseNumber, parseVector } from './tool-command-utils'
 import {
@@ -13,6 +13,39 @@ import {
   uid,
   withWritableShapeTarget,
 } from './tool-helpers'
+import type { Point } from '../cad/cad-types'
+
+/**
+ * Apply the active line-tool constraint to a candidate endpoint. Source app
+ * supports four modes: free, horizontal-only, vertical-only, and relative-angle
+ * (snap to N° steps from the last-drawn line's heading).
+ */
+function applyLineConstraint(start: Point, candidate: Point, runtime: ToolRuntime): Point {
+  if (runtime.lineToolConstraint === 'horizontal') {
+    return { x: candidate.x, y: start.y }
+  }
+  if (runtime.lineToolConstraint === 'vertical') {
+    return { x: start.x, y: candidate.y }
+  }
+  if (runtime.lineToolConstraint === 'relative-angle') {
+    const baseAngle = runtime.lastLineAngleRad ?? 0
+    const stepDeg = Math.max(1, runtime.relativeAngleStepDeg || 15)
+    const stepRad = (stepDeg * Math.PI) / 180
+    const dx = candidate.x - start.x
+    const dy = candidate.y - start.y
+    const radius = Math.hypot(dx, dy)
+    if (radius < 1e-6) return candidate
+    const currentAngle = Math.atan2(dy, dx)
+    const delta = currentAngle - baseAngle
+    const snapped = Math.round(delta / stepRad) * stepRad
+    const finalAngle = baseAngle + snapped
+    return {
+      x: start.x + radius * Math.cos(finalAngle),
+      y: start.y + radius * Math.sin(finalAngle),
+    }
+  }
+  return candidate
+}
 
 export const drawingToolDefinitions = {
   line: {
@@ -29,12 +62,7 @@ export const drawingToolDefinitions = {
       }
 
       const start = runtime.draftPoints[0]
-      const constrainedEnd =
-        runtime.lineToolConstraint === 'horizontal'
-          ? { x: point.x, y: start.y }
-          : runtime.lineToolConstraint === 'vertical'
-            ? { x: start.x, y: point.y }
-            : point
+      const constrainedEnd = applyLineConstraint(start, point, runtime)
       if (distance(start, constrainedEnd) < MIN_SHAPE_DISTANCE) {
         runtime.setStatus('Line ignored: start and end overlap')
         runtime.clearDraft()
@@ -42,6 +70,7 @@ export const drawingToolDefinitions = {
       }
 
       addLineShape(runtime, start, constrainedEnd)
+      runtime.setLastLineAngleRad?.(Math.atan2(constrainedEnd.y - start.y, constrainedEnd.x - start.x))
       pickToolPoint(runtime, constrainedEnd)
       runtime.clearDraft()
       runtime.setStatus('Line created')
@@ -254,6 +283,59 @@ export const drawingToolDefinitions = {
   arc: {
     onPointerDown(point, runtime) {
       if (!withWritableShapeTarget(runtime)) {
+        return
+      }
+
+      const mode = runtime.arcDrawMode ?? 'three-point'
+      // Two-click modes (radius / half-moon) take start + end then compute mid.
+      if (mode === 'radius' || mode === 'half-moon') {
+        if (runtime.draftPoints.length === 0) {
+          runtime.setDraftPoints([point])
+          pickToolPoint(runtime, point)
+          runtime.setStatus(`Arc (${mode}): pick end point`)
+          return
+        }
+        const start = runtime.draftPoints[0]
+        const end = point
+        const dx = end.x - start.x
+        const dy = end.y - start.y
+        const chord = Math.hypot(dx, dy)
+        if (chord < MIN_SHAPE_DISTANCE) {
+          runtime.setStatus('Arc ignored: chord too short')
+          runtime.clearDraft()
+          return
+        }
+        const midX = (start.x + end.x) / 2
+        const midY = (start.y + end.y) / 2
+        const nx = -dy / chord
+        const ny = dx / chord
+        let height: number
+        if (mode === 'radius') {
+          const radius = Math.max(chord / 2 + 0.01, runtime.arcRadiusMm ?? chord)
+          // h = R - sqrt(R^2 - (chord/2)^2) — sagitta for a circular arc.
+          const halfChord = chord / 2
+          height = radius - Math.sqrt(Math.max(0, radius * radius - halfChord * halfChord))
+        } else {
+          // half-moon: height = chord * ratio (interpreted as height/chord)
+          height = chord * (runtime.arcHalfMoonRatio ?? 0.5)
+        }
+        const mid = { x: midX + nx * height, y: midY + ny * height }
+        runtime.setShapes((previous) => [
+          ...previous,
+          {
+            id: uid(),
+            type: 'arc',
+            layerId: runtime.activeLayerId,
+            lineTypeId: runtime.activeLineTypeId,
+            groupId: runtime.activeSketchGroup?.id,
+            start,
+            mid,
+            end,
+          },
+        ])
+        pickToolPoint(runtime, end)
+        runtime.clearDraft()
+        runtime.setStatus(`Arc created (${mode})`)
         return
       }
 

@@ -19,7 +19,8 @@ export function buildEditorScreenCanvasPaneParams({
   outlineChains,
   stitchSimulatorSettings,
   actions,
-}: UseEditorScreenShellsParams) {
+  highlightActiveLayerId,
+}: UseEditorScreenShellsParams & { highlightActiveLayerId?: string | null }) {
   const {
     shapes,
     lineTypes,
@@ -197,5 +198,6 @@ export function buildEditorScreenCanvasPaneParams({
     fallbackLayerStroke,
     stackLegendEntries,
     outlineChains,
+    highlightActiveLayerId,
   })
 }

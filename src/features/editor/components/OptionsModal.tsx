@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
+import type { LineType } from '../cad/cad-types'
 import type { StitchAutoPitchSettings } from '../editor-types'
 import type { DimensionDefaults } from '../state/editor-domain-types'
 
@@ -7,11 +8,25 @@ type OptionsModalProps = {
   open: boolean
   autoSaveEnabled: boolean
   reverseZoomDirection: boolean
+  reverseGridScrollDirection: boolean
   incrementalSelection: boolean
   mentoriWithoutCtrl: boolean
+  continuousDistanceMarking: boolean
+  reduceOneBlade: boolean
+  highlightActiveLayer: boolean
+  notchAngleDeg: number
+  notchDepthMm: number
+  relativeAngleStepDeg: number
+  arcDrawMode: 'three-point' | 'radius' | 'half-moon'
+  arcRadiusMm: number
+  arcHalfMoonRatio: number
+  tangentCircleMode: boolean
+  tangentCircleDispStep: number
+  dimensionLineTypeId: string | null
+  lineTypes: LineType[]
   exportIncludeText: boolean
   exportIncludeTemplateMetadata: boolean
-  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical' | 'relative-angle'
   gridBackgroundMode: 'theme' | 'light' | 'dark'
   dimensionDefaults: DimensionDefaults
   forceFitLastPrick: boolean
@@ -20,14 +35,31 @@ type OptionsModalProps = {
   printCalibrationXPercent: number
   printCalibrationYPercent: number
   autoHideSidebar: boolean
+  pinSideBar: boolean
   loadDemoOnStartup: boolean
+  translationEntryCount: number
+  onImportTranslationFile: () => void
+  onResetTranslation: () => void
   onChangeAutoSaveEnabled: (value: boolean) => void
   onChangeReverseZoomDirection: (value: boolean) => void
+  onChangeReverseGridScrollDirection: (value: boolean) => void
   onChangeIncrementalSelection: (value: boolean) => void
+  onChangeContinuousDistanceMarking: (value: boolean) => void
+  onChangeReduceOneBlade: (value: boolean) => void
+  onChangeHighlightActiveLayer: (value: boolean) => void
+  onChangeNotchAngleDeg: (value: number) => void
+  onChangeNotchDepthMm: (value: number) => void
+  onChangeRelativeAngleStepDeg: (value: number) => void
+  onChangeArcDrawMode: (value: 'three-point' | 'radius' | 'half-moon') => void
+  onChangeArcRadiusMm: (value: number) => void
+  onChangeArcHalfMoonRatio: (value: number) => void
+  onChangeTangentCircleMode: (value: boolean) => void
+  onChangeTangentCircleDispStep: (value: number) => void
+  onChangeDimensionLineTypeId: (value: string | null) => void
   onChangeMentoriWithoutCtrl: (value: boolean) => void
   onChangeExportIncludeText: (value: boolean) => void
   onChangeExportIncludeTemplateMetadata: (value: boolean) => void
-  onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical') => void
+  onChangeLineToolConstraint: (value: 'none' | 'horizontal' | 'vertical' | 'relative-angle') => void
   onChangeGridBackgroundMode: (value: 'theme' | 'light' | 'dark') => void
   onChangeDimensionDefaults: (next: DimensionDefaults) => void
   onChangeForceFitLastPrick: (value: boolean) => void
@@ -36,6 +68,7 @@ type OptionsModalProps = {
   onChangePrintCalibrationXPercent: (value: number) => void
   onChangePrintCalibrationYPercent: (value: number) => void
   onChangeAutoHideSidebar: (value: boolean) => void
+  onChangePinSideBar: (value: boolean) => void
   onChangeLoadDemoOnStartup: (value: boolean) => void
   onOpenDimensionInspector?: () => void
   onClose: () => void
@@ -45,13 +78,40 @@ export function OptionsModal({
   open,
   autoSaveEnabled,
   reverseZoomDirection,
+  reverseGridScrollDirection,
   incrementalSelection,
   mentoriWithoutCtrl,
+  continuousDistanceMarking,
+  reduceOneBlade,
+  highlightActiveLayer,
+  notchAngleDeg,
+  notchDepthMm,
+  relativeAngleStepDeg,
+  arcDrawMode,
+  arcRadiusMm,
+  arcHalfMoonRatio,
+  tangentCircleMode,
+  tangentCircleDispStep,
+  dimensionLineTypeId,
+  lineTypes,
   exportIncludeText,
   exportIncludeTemplateMetadata,
   onChangeAutoSaveEnabled,
   onChangeReverseZoomDirection,
+  onChangeReverseGridScrollDirection,
   onChangeIncrementalSelection,
+  onChangeContinuousDistanceMarking,
+  onChangeReduceOneBlade,
+  onChangeHighlightActiveLayer,
+  onChangeNotchAngleDeg,
+  onChangeNotchDepthMm,
+  onChangeRelativeAngleStepDeg,
+  onChangeArcDrawMode,
+  onChangeArcRadiusMm,
+  onChangeArcHalfMoonRatio,
+  onChangeTangentCircleMode,
+  onChangeTangentCircleDispStep,
+  onChangeDimensionLineTypeId,
   onChangeMentoriWithoutCtrl,
   onChangeExportIncludeText,
   onChangeExportIncludeTemplateMetadata,
@@ -72,8 +132,13 @@ export function OptionsModal({
   onChangePrintCalibrationXPercent,
   onChangePrintCalibrationYPercent,
   autoHideSidebar,
+  pinSideBar,
   loadDemoOnStartup,
+  translationEntryCount,
+  onImportTranslationFile,
+  onResetTranslation,
   onChangeAutoHideSidebar,
+  onChangePinSideBar,
   onChangeLoadDemoOnStartup,
   onOpenDimensionInspector,
   onClose,
@@ -142,9 +207,18 @@ export function OptionsModal({
             <input
               type="checkbox"
               checked={autoHideSidebar}
+              disabled={pinSideBar}
               onChange={(e) => onChangeAutoHideSidebar(e.target.checked)}
             />
             <span>Auto-hide the inspector sidebar to widen the workspace</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={pinSideBar}
+              onChange={(e) => onChangePinSideBar(e.target.checked)}
+            />
+            <span>Pin sidebar (force-keep the inspector open)</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -174,11 +248,60 @@ export function OptionsModal({
             />
             <span>Chamfer (mentori) acts without holding Ctrl</span>
           </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={continuousDistanceMarking}
+              onChange={(e) => onChangeContinuousDistanceMarking(e.target.checked)}
+            />
+            <span>Continuous distance marking (prompt loops until cancelled)</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={reduceOneBlade}
+              onChange={(e) => onChangeReduceOneBlade(e.target.checked)}
+            />
+            <span>Reduce pricking-iron blade count by one (end-of-stitch helper)</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={highlightActiveLayer}
+              onChange={(e) => onChangeHighlightActiveLayer(e.target.checked)}
+            />
+            <span>Highlight shapes on the active layer</span>
+          </label>
+        </section>
+
+        <section className="help-section">
+          <h4>Notch (Kama) defaults</h4>
+          <label className="field-row">
+            <span>Notch depth (mm)</span>
+            <input
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={notchDepthMm}
+              onChange={(event) => onChangeNotchDepthMm(Math.max(0.1, Number(event.target.value) || 1))}
+            />
+          </label>
+          <label className="field-row">
+            <span>Notch angle (°)</span>
+            <input
+              type="number"
+              min={5}
+              max={170}
+              step={1}
+              value={notchAngleDeg}
+              onChange={(event) => onChangeNotchAngleDeg(Math.max(5, Math.min(170, Number(event.target.value) || 60)))}
+            />
+          </label>
         </section>
 
         <section className="help-section">
           <h4>Line tool constraint</h4>
-          {(['none', 'horizontal', 'vertical'] as const).map((mode) => (
+          {(['none', 'horizontal', 'vertical', 'relative-angle'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
               <input
                 type="radio"
@@ -186,9 +309,105 @@ export function OptionsModal({
                 checked={lineToolConstraint === mode}
                 onChange={() => onChangeLineToolConstraint(mode)}
               />
-              <span>{mode === 'none' ? 'Free' : mode === 'horizontal' ? 'Horizontal only' : 'Vertical only'}</span>
+              <span>
+                {mode === 'none'
+                  ? 'Free'
+                  : mode === 'horizontal'
+                    ? 'Horizontal only'
+                    : mode === 'vertical'
+                      ? 'Vertical only'
+                      : 'Relative angle to last line (snaps to N° steps)'}
+              </span>
             </label>
           ))}
+          {lineToolConstraint === 'relative-angle' ? (
+            <label className="field-row">
+              <span>Angle step (°)</span>
+              <input
+                type="number"
+                min={1}
+                max={180}
+                step={1}
+                value={relativeAngleStepDeg}
+                onChange={(event) => onChangeRelativeAngleStepDeg(Math.max(1, Math.min(180, Number(event.target.value) || 15)))}
+              />
+            </label>
+          ) : null}
+        </section>
+
+        <section className="help-section">
+          <h4>Arc tool</h4>
+          {(['three-point', 'radius', 'half-moon'] as const).map((mode) => (
+            <label className="layer-toggle-item" key={mode}>
+              <input
+                type="radio"
+                name="arc-draw-mode"
+                checked={arcDrawMode === mode}
+                onChange={() => onChangeArcDrawMode(mode)}
+              />
+              <span>
+                {mode === 'three-point'
+                  ? '3-point (click start, mid, end)'
+                  : mode === 'radius'
+                    ? 'Radius (click start + end, fixed radius)'
+                    : 'Half-moon ratio (click start + end, ratio of chord)'}
+              </span>
+            </label>
+          ))}
+          {arcDrawMode === 'radius' ? (
+            <label className="field-row">
+              <span>Arc radius (mm)</span>
+              <input
+                type="number"
+                min={0.5}
+                step={0.5}
+                value={arcRadiusMm}
+                onChange={(event) => onChangeArcRadiusMm(Math.max(0.5, Number(event.target.value) || 20))}
+              />
+            </label>
+          ) : null}
+          {arcDrawMode === 'half-moon' ? (
+            <label className="field-row">
+              <span>Half-moon ratio (height / chord)</span>
+              <input
+                type="number"
+                min={0.05}
+                max={5}
+                step={0.05}
+                value={arcHalfMoonRatio}
+                onChange={(event) =>
+                  onChangeArcHalfMoonRatio(Math.max(0.05, Math.min(5, Number(event.target.value) || 0.5)))
+                }
+              />
+            </label>
+          ) : null}
+        </section>
+
+        <section className="help-section">
+          <h4>Tangent-circle mode</h4>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={tangentCircleMode}
+              onChange={(e) => onChangeTangentCircleMode(e.target.checked)}
+            />
+            <span>Bias drawing toward circle-tangent contact points</span>
+          </label>
+          {tangentCircleMode ? (
+            <label className="field-row">
+              <span>Display step (segments per circle)</span>
+              <input
+                type="number"
+                min={2}
+                max={64}
+                step={1}
+                value={tangentCircleDispStep}
+                onChange={(event) =>
+                  onChangeTangentCircleDispStep(Math.max(2, Math.min(64, Math.round(Number(event.target.value) || 6))))
+                }
+              />
+            </label>
+          ) : null}
         </section>
 
         <section className="help-section">
@@ -207,6 +426,23 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
+          <h4>Language</h4>
+          <p className="hint">
+            {translationEntryCount > 0
+              ? `${translationEntryCount} translation entries loaded.`
+              : 'Using built-in English. Import a TSV or JSON translation file to switch language.'}
+          </p>
+          <div className="line-type-modal-actions">
+            <button type="button" onClick={onImportTranslationFile}>
+              Import Translation File…
+            </button>
+            <button type="button" onClick={onResetTranslation} disabled={translationEntryCount === 0}>
+              Reset to English
+            </button>
+          </div>
+        </section>
+
+        <section className="help-section">
           <h4>Zoom &amp; Scroll</h4>
           <label className="layer-toggle-item">
             <input
@@ -215,6 +451,14 @@ export function OptionsModal({
               onChange={(e) => onChangeReverseZoomDirection(e.target.checked)}
             />
             <span>Reverse wheel-zoom direction</span>
+          </label>
+          <label className="layer-toggle-item">
+            <input
+              type="checkbox"
+              checked={reverseGridScrollDirection}
+              onChange={(e) => onChangeReverseGridScrollDirection(e.target.checked)}
+            />
+            <span>Reverse arrow-key pan direction</span>
           </label>
         </section>
 
@@ -240,6 +484,21 @@ export function OptionsModal({
 
         <section className="help-section">
           <h4>Dimension defaults</h4>
+          <label className="field-row">
+            <span>Line palette for new dimensions</span>
+            <select
+              className="action-select"
+              value={dimensionLineTypeId ?? ''}
+              onChange={(event) => onChangeDimensionLineTypeId(event.target.value || null)}
+            >
+              <option value="">Use active line type</option>
+              {lineTypes.map((lineType) => (
+                <option key={lineType.id} value={lineType.id}>
+                  {lineType.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="layer-toggle-item">
             <input
               type="checkbox"

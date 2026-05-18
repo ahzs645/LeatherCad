@@ -67,9 +67,25 @@ const initialEditorUIState: EditorUIState = {
   fontList: loadFontList(),
   autoSaveEnabled: loadAutoSaveEnabled(),
   reverseZoomDirection: loadEditorPreferences().reverseZoomDirection,
+  reverseGridScrollDirection: loadEditorPreferences().reverseGridScrollDirection,
   incrementalSelection: loadEditorPreferences().incrementalSelection,
   mentoriWithoutCtrl: loadEditorPreferences().mentoriWithoutCtrl,
+  continuousDistanceMarking: loadEditorPreferences().continuousDistanceMarking,
+  reduceOneBlade: loadEditorPreferences().reduceOneBlade,
+  pinSideBar: loadEditorPreferences().pinSideBar,
+  highlightActiveLayer: loadEditorPreferences().highlightActiveLayer,
+  printIntoMargin: loadEditorPreferences().printIntoMargin,
+  notchAngleDeg: loadEditorPreferences().notchAngleDeg,
+  notchDepthMm: loadEditorPreferences().notchDepthMm,
+  dimensionLineTypeId: loadEditorPreferences().dimensionLineTypeId,
   lineToolConstraint: loadEditorPreferences().lineToolConstraint,
+  relativeAngleStepDeg: loadEditorPreferences().relativeAngleStepDeg,
+  lastLineAngleRad: null,
+  arcDrawMode: loadEditorPreferences().arcDrawMode,
+  arcRadiusMm: loadEditorPreferences().arcRadiusMm,
+  arcHalfMoonRatio: loadEditorPreferences().arcHalfMoonRatio,
+  tangentCircleMode: loadEditorPreferences().tangentCircleMode,
+  tangentCircleDispStep: loadEditorPreferences().tangentCircleDispStep,
   leatherSimEnabled: false,
   translationMap: loadTranslationMap(),
   showGrid: true,
@@ -188,12 +204,44 @@ function createEditorUIStateActions(dispatch: React.Dispatch<PropertyAction<Edit
       dispatch({ type: 'autoSaveEnabled', value }),
     setReverseZoomDirection: (value: React.SetStateAction<EditorUIState['reverseZoomDirection']>) =>
       dispatch({ type: 'reverseZoomDirection', value }),
+    setReverseGridScrollDirection: (value: React.SetStateAction<EditorUIState['reverseGridScrollDirection']>) =>
+      dispatch({ type: 'reverseGridScrollDirection', value }),
     setIncrementalSelection: (value: React.SetStateAction<EditorUIState['incrementalSelection']>) =>
       dispatch({ type: 'incrementalSelection', value }),
     setMentoriWithoutCtrl: (value: React.SetStateAction<EditorUIState['mentoriWithoutCtrl']>) =>
       dispatch({ type: 'mentoriWithoutCtrl', value }),
+    setContinuousDistanceMarking: (value: React.SetStateAction<EditorUIState['continuousDistanceMarking']>) =>
+      dispatch({ type: 'continuousDistanceMarking', value }),
+    setReduceOneBlade: (value: React.SetStateAction<EditorUIState['reduceOneBlade']>) =>
+      dispatch({ type: 'reduceOneBlade', value }),
+    setPinSideBar: (value: React.SetStateAction<EditorUIState['pinSideBar']>) =>
+      dispatch({ type: 'pinSideBar', value }),
+    setHighlightActiveLayer: (value: React.SetStateAction<EditorUIState['highlightActiveLayer']>) =>
+      dispatch({ type: 'highlightActiveLayer', value }),
+    setPrintIntoMargin: (value: React.SetStateAction<EditorUIState['printIntoMargin']>) =>
+      dispatch({ type: 'printIntoMargin', value }),
+    setNotchAngleDeg: (value: React.SetStateAction<EditorUIState['notchAngleDeg']>) =>
+      dispatch({ type: 'notchAngleDeg', value }),
+    setNotchDepthMm: (value: React.SetStateAction<EditorUIState['notchDepthMm']>) =>
+      dispatch({ type: 'notchDepthMm', value }),
+    setDimensionLineTypeId: (value: React.SetStateAction<EditorUIState['dimensionLineTypeId']>) =>
+      dispatch({ type: 'dimensionLineTypeId', value }),
     setLineToolConstraint: (value: React.SetStateAction<EditorUIState['lineToolConstraint']>) =>
       dispatch({ type: 'lineToolConstraint', value }),
+    setRelativeAngleStepDeg: (value: React.SetStateAction<EditorUIState['relativeAngleStepDeg']>) =>
+      dispatch({ type: 'relativeAngleStepDeg', value }),
+    setLastLineAngleRad: (value: React.SetStateAction<EditorUIState['lastLineAngleRad']>) =>
+      dispatch({ type: 'lastLineAngleRad', value }),
+    setArcDrawMode: (value: React.SetStateAction<EditorUIState['arcDrawMode']>) =>
+      dispatch({ type: 'arcDrawMode', value }),
+    setArcRadiusMm: (value: React.SetStateAction<EditorUIState['arcRadiusMm']>) =>
+      dispatch({ type: 'arcRadiusMm', value }),
+    setArcHalfMoonRatio: (value: React.SetStateAction<EditorUIState['arcHalfMoonRatio']>) =>
+      dispatch({ type: 'arcHalfMoonRatio', value }),
+    setTangentCircleMode: (value: React.SetStateAction<EditorUIState['tangentCircleMode']>) =>
+      dispatch({ type: 'tangentCircleMode', value }),
+    setTangentCircleDispStep: (value: React.SetStateAction<EditorUIState['tangentCircleDispStep']>) =>
+      dispatch({ type: 'tangentCircleDispStep', value }),
     setLeatherSimEnabled: (value: React.SetStateAction<EditorUIState['leatherSimEnabled']>) =>
       dispatch({ type: 'leatherSimEnabled', value }),
     setTranslationMap: (value: React.SetStateAction<EditorUIState['translationMap']>) =>

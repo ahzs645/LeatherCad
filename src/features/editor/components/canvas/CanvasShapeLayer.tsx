@@ -20,6 +20,8 @@ type CanvasShapeLayerProps = {
   sketchWorkspaceMode: SketchWorkspaceMode
   resolveShapeStrokeColor: (shape: Shape) => string
   shapeStrokeOpacity: number
+  /** When set, shapes whose layerId differs are dimmed to emphasise the active layer. */
+  highlightActiveLayerId?: string | null
   onShapePointerDown: (event: PointerEvent<SVGElement>, shapeId: string) => void
   previewShapes: Shape[]
   showShapeHandles: boolean
@@ -48,6 +50,7 @@ export function CanvasShapeLayer({
   sketchWorkspaceMode,
   resolveShapeStrokeColor,
   shapeStrokeOpacity,
+  highlightActiveLayerId,
   onShapePointerDown,
   previewShapes,
   showShapeHandles,
@@ -103,12 +106,23 @@ export function CanvasShapeLayer({
             ? `${isSelected ? 'annotation-label text-shape text-shape-selected' : 'annotation-label text-shape'}${isPreviewSource ? ' shape-preview-source' : ''}`
             : `${isSelected ? 'shape-line shape-selected' : 'shape-line'}${isPreviewSource ? ' shape-preview-source' : ''}`
 
+          // Source v? `chkHighlightActiveLayer` — dim shapes on other layers.
+          const isOffActiveLayer =
+            highlightActiveLayerId !== undefined &&
+            highlightActiveLayerId !== null &&
+            shape.layerId !== highlightActiveLayerId
+          const dimmedOpacity = Math.min(shapeStrokeOpacity, 0.35)
+          const effectiveOpacity = isPreviewSource
+            ? Math.min(shapeStrokeOpacity, 0.2)
+            : isOffActiveLayer
+              ? dimmedOpacity
+              : shapeStrokeOpacity
           return renderCanvasShape(shape, {
             key: shape.id,
             className,
             color: layerStroke,
             strokeDasharray,
-            opacity: isPreviewSource ? Math.min(shapeStrokeOpacity, 0.2) : shapeStrokeOpacity,
+            opacity: effectiveOpacity,
             interactive: true,
             onShapePointerDown,
             buildTextGlyphPlacements,

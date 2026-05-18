@@ -141,6 +141,10 @@ export function useEditorScreenController() {
     setSpecifyScaleModalAxis,
     autoSaveEnabled,
     reverseZoomDirection,
+    reverseGridScrollDirection,
+    relativeAngleStepDeg,
+    reduceOneBlade,
+    tangentCircleMode,
     incrementalSelection,
     lineToolConstraint,
     leatherSimEnabled,
@@ -221,6 +225,7 @@ export function useEditorScreenController() {
     enabled: !isMobileLayout,
     secondaryPreviewMode,
     autoHideSidebar: panelState.autoHideSidebar,
+    pinSideBar: uiState.pinSideBar,
   })
   const {
     effectiveLayout,
@@ -687,6 +692,7 @@ export function useEditorScreenController() {
     currentSnapshotSignature,
   })
 
+  const handleExtendOrTrimLinesRef = useRef<() => void>(() => {})
   useEditorGlobalShortcuts({
     handleDeleteSelection,
     handleUndo,
@@ -706,6 +712,9 @@ export function useEditorScreenController() {
     setTracingOverlays,
     setActiveTool,
     handleRotateSelection,
+    handleExtendOrTrimLines: () => handleExtendOrTrimLinesRef.current(),
+    setViewport,
+    reverseGridScrollDirection,
     setShapes,
     setStatus,
   })
@@ -732,6 +741,16 @@ export function useEditorScreenController() {
     reverseZoomDirection,
     incrementalSelection,
     lineToolConstraint,
+    relativeAngleStepDeg,
+    lastLineAngleRad: uiState.lastLineAngleRad,
+    setLastLineAngleRad: uiState.setLastLineAngleRad,
+    reduceOneBlade,
+    tangentCircleMode,
+    dimensionLineTypeId: uiState.dimensionLineTypeId,
+    arcDrawMode: uiState.arcDrawMode,
+    arcRadiusMm: uiState.arcRadiusMm,
+    arcHalfMoonRatio: uiState.arcHalfMoonRatio,
+    tangentCircleDispStep: uiState.tangentCircleDispStep,
     stitchTargetShapes: workspaceEditableShapes,
     visibleHardwareMarkers: workspaceHardwareMarkers,
     lineTypesById,
@@ -1103,6 +1122,7 @@ export function useEditorScreenController() {
     showBezierOffsetLines,
     setShowBezierOffsetLines,
   })
+  handleExtendOrTrimLinesRef.current = geometryActions.handleExtendOrTrimLines
   const creationController = useEditorCreationController({
     shapes,
     setShapes,

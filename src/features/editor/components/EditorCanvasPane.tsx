@@ -131,6 +131,8 @@ export type EditorCanvasPaneProps = {
   fallbackLayerStroke: string
   stackLegendEntries: StackLegendEntry[]
   outlineChains: import('../ops/outline-detection').OutlineChain[]
+  /** When non-null, off-layer shapes are dimmed (source `chkHighlightActiveLayer`). */
+  highlightActiveLayerId?: string | null
 }
 
 const ESTIMATED_CANVAS_WIDTH_PX = 2600
@@ -208,6 +210,7 @@ export function EditorCanvasPane({
   fallbackLayerStroke,
   stackLegendEntries,
   outlineChains,
+  highlightActiveLayerId,
 }: EditorCanvasPaneProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
   const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
@@ -458,6 +461,7 @@ export function EditorCanvasPane({
             sketchWorkspaceMode={sketchWorkspaceMode}
             resolveShapeStrokeColor={resolveShapeStrokeColor}
             shapeStrokeOpacity={shapeStrokeOpacity}
+            highlightActiveLayerId={highlightActiveLayerId}
             onShapePointerDown={onShapePointerDown}
             previewShapes={previewShapes}
             showShapeHandles={showShapeHandles}

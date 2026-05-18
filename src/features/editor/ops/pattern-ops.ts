@@ -26,6 +26,10 @@ export type SnapContext = {
   mandalaIntersections?: Point[]
   /** Draft anchor — when set, tangent-to-circle snap candidates are computed relative to it. */
   draftAnchor?: Point
+  /** Source-app `chkTangentCircleMode` — emit perimeter samples per circle for tangent-snap. */
+  tangentCircleMode?: boolean
+  /** How many evenly-spaced tangent points to sample per circle when the mode is on. */
+  tangentCircleDispStep?: number
 }
 
 /**
@@ -332,7 +336,37 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
   }
 
   let best = { point, distance: Number.POSITIVE_INFINITY, reason: null as string | null }
-  const threshold = SNAP_PIXEL_THRESHOLD / Math.max(0.1, context.viewportScale)
+  const safeScale = Math.max(0.1, context.viewportScale)
+  const threshold = SNAP_PIXEL_THRESHOLD / safeScale
+
+  // Source-app v2.4.2: "Reduced the number of snap points when zoomed out,
+  // making small shapes easier to view and manipulate." Below ~0.5x zoom we
+  // suppress dense candidates (mid/quarter/control/tangent) and below ~0.2x
+  // we also drop endpoints of shapes whose screen-space size is too small to
+  // be usefully picked.
+  const suppressDenseCandidates = safeScale < 0.5
+  const aggressiveSmallShapeFilter = safeScale < 0.2
+  const minScreenSizePx = 8
+  const shapeIsTooSmall = (shape: Shape): boolean => {
+    if (!aggressiveSmallShapeFilter) return false
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    const considerPoint = (p: Point) => {
+      if (p.x < minX) minX = p.x
+      if (p.y < minY) minY = p.y
+      if (p.x > maxX) maxX = p.x
+      if (p.y > maxY) maxY = p.y
+    }
+    considerPoint(shape.start)
+    considerPoint(shape.end)
+    if (shape.type === 'arc') considerPoint(shape.mid)
+    if (shape.type === 'bezier') considerPoint(shape.control)
+    const widthScreen = (maxX - minX) * safeScale
+    const heightScreen = (maxY - minY) * safeScale
+    return Math.max(widthScreen, heightScreen) < minScreenSizePx
+  }
 
   const registerCandidate = (candidate: Point, reason: string) => {
     const nextDistance = distance(point, candidate)
@@ -354,13 +388,15 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
 
   if (settings.endpoints) {
     for (const shape of context.shapes) {
+      if (shapeIsTooSmall(shape)) continue
       registerCandidate(shape.start, 'endpoint')
       registerCandidate(shape.end, 'endpoint')
     }
   }
 
-  if (settings.midpoints || settings.quarterPoints) {
+  if (!suppressDenseCandidates && (settings.midpoints || settings.quarterPoints)) {
     for (const shape of context.shapes) {
+      if (shapeIsTooSmall(shape)) continue
       if (shape.type === 'line') {
         const mid = {
           x: (shape.start.x + shape.end.x) / 2,
@@ -440,7 +476,29 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
     }
   }
 
-  if (settings.endpoints && context.draftAnchor) {
+  // Source `chkTangentCircleMode` — when on, scatter perimeter samples around
+  // every arc as snap candidates so the line/circle tool naturally lands on
+  // common tangent positions.
+  if (!suppressDenseCandidates && context.tangentCircleMode) {
+    const dispStep = Math.max(2, Math.min(64, context.tangentCircleDispStep ?? 6))
+    for (const shape of context.shapes) {
+      if (shape.type !== 'arc') continue
+      const circle = circleFromArc(shape)
+      if (!circle) continue
+      for (let index = 0; index < dispStep; index += 1) {
+        const theta = (index / dispStep) * Math.PI * 2
+        registerCandidate(
+          {
+            x: circle.center.x + circle.radius * Math.cos(theta),
+            y: circle.center.y + circle.radius * Math.sin(theta),
+          },
+          'tangent-circle',
+        )
+      }
+    }
+  }
+
+  if (!suppressDenseCandidates && settings.endpoints && context.draftAnchor) {
     const anchor = context.draftAnchor
     for (const shape of context.shapes) {
       if (shape.type !== 'arc') continue

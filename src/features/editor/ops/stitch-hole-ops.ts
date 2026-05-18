@@ -293,7 +293,9 @@ export function createPrickingIronStitchHoles(
   defaults: StitchHoleDefaults,
   sequenceStart = 0,
 ): StitchHole[] {
-  const bladeCount = Math.max(1, Math.round(defaults.numBlades ?? 1))
+  const rawBladeCount = Math.max(1, Math.round(defaults.numBlades ?? 1))
+  // Source v? `chkReduceOneBlade` — end-of-stitch helper: stamp one fewer hole.
+  const bladeCount = defaults.reduceOneBlade ? Math.max(1, rawBladeCount - 1) : rawBladeCount
   const pitchMm = Math.max(0.2, defaults.pitchMm ?? 0)
   if (bladeCount <= 1 || pitchMm <= 0) {
     return [{ ...createStitchHole(anchor, defaults), sequence: sequenceStart }]

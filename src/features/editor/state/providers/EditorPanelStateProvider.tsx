@@ -27,6 +27,8 @@ const initialEditorPanelState: EditorPanelState = {
   showTemplateRepositoryModal: false,
   showLocalProjectsModal: false,
   printPaper: 'letter',
+  printOrientation: 'portrait',
+  printIntoMargin: false,
   printTileX: 1,
   printTileY: 1,
   printOverlapMm: 4,
@@ -103,6 +105,10 @@ function createEditorPanelStateActions(dispatch: React.Dispatch<PropertyAction<E
       dispatch({ type: 'showLocalProjectsModal', value }),
     setPrintPaper: (value: React.SetStateAction<EditorPanelState['printPaper']>) =>
       dispatch({ type: 'printPaper', value }),
+    setPrintOrientation: (value: React.SetStateAction<EditorPanelState['printOrientation']>) =>
+      dispatch({ type: 'printOrientation', value }),
+    setPrintIntoMargin: (value: React.SetStateAction<EditorPanelState['printIntoMargin']>) =>
+      dispatch({ type: 'printIntoMargin', value }),
     setPrintTileX: (value: React.SetStateAction<EditorPanelState['printTileX']>) =>
       dispatch({ type: 'printTileX', value }),
     setPrintTileY: (value: React.SetStateAction<EditorPanelState['printTileY']>) =>

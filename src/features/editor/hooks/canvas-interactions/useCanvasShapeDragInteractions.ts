@@ -334,10 +334,30 @@ export function useCanvasShapeDragInteractions({
               break
             }
           }
+          // Source v1.5.4: when dragging a bezier endpoint without Shift, the
+          // nearest control point follows by the same delta. Shift held keeps
+          // the control point fixed.
+          const isBezierEndpointFollow =
+            !event.shiftKey &&
+            targetShape.type === 'bezier' &&
+            (handleDragState.pointKey === 'start' || handleDragState.pointKey === 'end')
+          const followDelta = isBezierEndpointFollow
+            ? { dx: preview.point.x - originalPoint.x, dy: preview.point.y - originalPoint.y }
+            : null
           setShapes((previous) =>
             previous.map((shape) => {
               if (shape.id === handleDragState.shapeId) {
-                return withUpdatedHandlePoint(shape, handleDragState.pointKey, preview.point)
+                let next = withUpdatedHandlePoint(shape, handleDragState.pointKey, preview.point)
+                if (followDelta && next.type === 'bezier') {
+                  next = {
+                    ...next,
+                    control: {
+                      x: next.control.x + followDelta.dx,
+                      y: next.control.y + followDelta.dy,
+                    },
+                  }
+                }
+                return next
               }
               if (jointSyncPatch && shape.id === jointSyncPatch.shapeId && shape.type === 'bezier') {
                 return { ...shape, control: jointSyncPatch.nextControl }
@@ -345,7 +365,13 @@ export function useCanvasShapeDragInteractions({
               return shape
             }),
           )
-          setStatus(jointSyncPatch ? 'Updated handle (joint symmetric)' : 'Updated shape handle')
+          setStatus(
+            jointSyncPatch
+              ? 'Updated handle (joint symmetric)'
+              : followDelta
+                ? 'Updated bezier endpoint (CP followed)'
+                : 'Updated shape handle',
+          )
         }
       }
       handleDragRef.current = null

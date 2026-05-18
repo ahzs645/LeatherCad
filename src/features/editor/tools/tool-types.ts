@@ -30,7 +30,13 @@ export type ToolRuntime = {
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
   viewportScale: number
-  lineToolConstraint: 'none' | 'horizontal' | 'vertical'
+  lineToolConstraint: 'none' | 'horizontal' | 'vertical' | 'relative-angle'
+  relativeAngleStepDeg: number
+  lastLineAngleRad: number | null
+  tangentCircleMode: boolean
+  arcDrawMode?: 'three-point' | 'radius' | 'half-moon'
+  arcRadiusMm?: number
+  arcHalfMoonRatio?: number
   stitchHoleDefaults: StitchHoleDefaults
   hardwarePreset: HardwareKind
   customHardwareDiameterMm: number
@@ -50,6 +56,7 @@ export type ToolRuntime = {
   pieceNotches: PieceNotch[]
   seamConnections: SeamConnection[]
   dimensionDefaults: DimensionDefaults
+  dimensionLineTypeId?: string | null
   setDraftPoints: (updater: Point[] | ((previous: Point[]) => Point[])) => void
   clearDraft: () => void
   setStatus: (status: string) => void
@@ -64,6 +71,7 @@ export type ToolRuntime = {
   setDimensionLines: (updater: DimensionLine[] | ((previous: DimensionLine[]) => DimensionLine[])) => void
   ensureActiveLayerWritable: () => boolean
   ensureActiveLineTypeWritable: () => boolean
+  setLastLineAngleRad?: (value: number | null) => void
   toolSession: EditorToolSession
 }
 

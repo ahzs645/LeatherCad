@@ -19,6 +19,9 @@ type UseKeyboardShortcutsParams = {
   handleToggleTracingsVisibility: () => void
   handleBackToSelectMode: () => void
   handleRotateSelectionBy: (angleDeg: number) => void
+  handleExtendOrTrimLines: () => void
+  handlePanViewport: (dxScreenPx: number, dyScreenPx: number) => void
+  reverseGridScrollDirection: boolean
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -39,6 +42,9 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleToggleTracingsVisibility,
     handleBackToSelectMode,
     handleRotateSelectionBy,
+    handleExtendOrTrimLines,
+    handlePanViewport,
+    reverseGridScrollDirection,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
@@ -89,6 +95,35 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
           if ((event.key === 'v' || event.key === 'V') && !event.shiftKey) {
             event.preventDefault()
             handleBackToSelectMode()
+            return
+          }
+          if ((event.key === 'z' || event.key === 'Z') && !event.shiftKey) {
+            event.preventDefault()
+            handleExtendOrTrimLines()
+            return
+          }
+          // Plain arrow keys pan the canvas viewport (source-app v1.4.0).
+          // Reversal sign matches the `reverseGridScrollDirection` option.
+          const panSign = reverseGridScrollDirection ? -1 : 1
+          const panStepPx = 40 * panSign
+          if (event.key === 'ArrowLeft') {
+            event.preventDefault()
+            handlePanViewport(panStepPx, 0)
+            return
+          }
+          if (event.key === 'ArrowRight') {
+            event.preventDefault()
+            handlePanViewport(-panStepPx, 0)
+            return
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault()
+            handlePanViewport(0, panStepPx)
+            return
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault()
+            handlePanViewport(0, -panStepPx)
             return
           }
           // Rotation hotkeys: [ = CCW 1, ] = CW 1, { = CCW 5, } = CW 5
@@ -202,5 +237,8 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleToggleTracingsVisibility,
     handleBackToSelectMode,
     handleRotateSelectionBy,
+    handleExtendOrTrimLines,
+    handlePanViewport,
+    reverseGridScrollDirection,
   ])
 }

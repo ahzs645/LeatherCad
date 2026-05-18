@@ -46,6 +46,7 @@ type TemplateRepositoryModalProps = {
   onLoadAsDocument: () => void
   onInsertIntoDocument: () => void
   onSeparateIntoShapes: () => void
+  onStampAlongSelectedShape?: () => void
   onFlipTemplate?: (entryId: string, axis: 'horizontal' | 'vertical') => void
   onDeleteTemplate: (entryId: string) => void
   onMoveTemplate: (entryId: string, direction: TemplateRepositoryMoveDirection) => void
@@ -109,6 +110,7 @@ export function TemplateRepositoryModal({
   onLoadAsDocument,
   onInsertIntoDocument,
   onSeparateIntoShapes,
+  onStampAlongSelectedShape,
   onFlipTemplate,
   onDeleteTemplate,
   onMoveTemplate,
@@ -437,6 +439,15 @@ export function TemplateRepositoryModal({
               <button onClick={onSeparateIntoShapes} title="Explode an inserted template into individual shapes">
                 Separate Template Into Shapes
               </button>
+              {onStampAlongSelectedShape ? (
+                <button
+                  onClick={onStampAlongSelectedShape}
+                  disabled={!selectedTemplateEntry}
+                  title="Stamp this template along the currently selected host shape, rotating each copy to the local tangent"
+                >
+                  Stamp Along Selected Shape…
+                </button>
+              ) : null}
               <button
                 onClick={() => {
                   if (selectedTemplateEntry && onFlipTemplate) {

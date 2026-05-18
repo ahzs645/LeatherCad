@@ -120,10 +120,12 @@ type UseWorkbenchShellStateParams = {
   enabled: boolean
   secondaryPreviewMode: SecondaryPreviewMode
   autoHideSidebar?: boolean
+  /** Source-app `chkPinSideBar` — when true, force inspector to stay open. */
+  pinSideBar?: boolean
 }
 
 export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
-  const { enabled, secondaryPreviewMode, autoHideSidebar = false } = params
+  const { enabled, secondaryPreviewMode, autoHideSidebar = false, pinSideBar = false } = params
   const shellRef = useRef<HTMLElement | null>(null)
   const [shellWidth, setShellWidth] = useState(0)
   const [dockLayout, setDockLayout] = useState<DockLayoutState>(() => readStoredLayout())
@@ -152,10 +154,15 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
     return () => observer.disconnect()
   }, [enabled])
 
-  const layoutForAutoHide: DockLayoutState = useMemo(
-    () => (autoHideSidebar && dockLayout.inspectorOpen ? { ...dockLayout, inspectorOpen: false } : dockLayout),
-    [autoHideSidebar, dockLayout],
-  )
+  const layoutForAutoHide: DockLayoutState = useMemo(() => {
+    if (pinSideBar && !dockLayout.inspectorOpen) {
+      return { ...dockLayout, inspectorOpen: true }
+    }
+    if (autoHideSidebar && !pinSideBar && dockLayout.inspectorOpen) {
+      return { ...dockLayout, inspectorOpen: false }
+    }
+    return dockLayout
+  }, [autoHideSidebar, pinSideBar, dockLayout])
 
   const effectiveLayout = useMemo(
     () => clampDockLayoutState(layoutForAutoHide, shellWidth, showPeek),

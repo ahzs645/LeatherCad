@@ -70,6 +70,9 @@ export type CreateEditorTopbarCommandHandlersParams = {
   handleDistanceMarkSelectedPath: (distancesMm: number[]) => void
   handleConvertSelectionToPath: (copy: boolean) => void
   handleNotchSelectedShape: (depthMm: number, widthMm: number) => void
+  continuousDistanceMarking?: boolean
+  notchAngleDeg?: number
+  notchDepthMm?: number
 }
 
 export function createEditorTopbarCommandHandlers({
@@ -118,6 +121,9 @@ export function createEditorTopbarCommandHandlers({
   handleDistanceMarkSelectedPath,
   handleConvertSelectionToPath,
   handleNotchSelectedShape,
+  continuousDistanceMarking = false,
+  notchAngleDeg = 60,
+  notchDepthMm = 3,
 }: CreateEditorTopbarCommandHandlersParams) {
   return {
     handleEditSelectedLineAnglePrompt: () => {
@@ -272,6 +278,29 @@ export function createEditorTopbarCommandHandlers({
       handleFilletSelectedCorner(radius)
     },
     handleDistanceMarkSelectedPathPrompt: () => {
+      if (continuousDistanceMarking) {
+        // Source v? continuous-mode workflow — re-prompt after each placement
+        // until the user cancels. Keeps the selected path active throughout.
+        const placeOne = () => {
+          const raw = window.prompt(
+            'Distance in mm from the start of the selected path (blank to stop):',
+            '10',
+          )
+          if (raw === null || raw.trim() === '') {
+            setStatus('Continuous distance marking ended')
+            return
+          }
+          const value = Number(raw.trim())
+          if (!Number.isFinite(value) || value < 0) {
+            setStatus('Invalid distance — continuous marking ended')
+            return
+          }
+          handleDistanceMarkSelectedPath([value])
+          placeOne()
+        }
+        placeOne()
+        return
+      }
       const raw = window.prompt(
         'Distance(s) in mm from the start of the selected path (comma-separated):',
         '10, 30',
@@ -293,12 +322,15 @@ export function createEditorTopbarCommandHandlers({
     handleConvertSelectionToPath: () => handleConvertSelectionToPath(false),
     handleConvertACopyToPath: () => handleConvertSelectionToPath(true),
     handleNotchSelectedShapePrompt: () => {
-      const depthRaw = window.prompt('Notch depth (mm)?', '3')
+      // Defaults come from Options → Notch (Kama) defaults so the user can
+      // configure depth + angle once and accept on each invocation.
+      const defaultWidth = 2 * notchDepthMm * Math.tan((notchAngleDeg * Math.PI) / 360)
+      const depthRaw = window.prompt('Notch depth (mm)?', notchDepthMm.toFixed(2))
       if (depthRaw === null) {
         setStatus('Notch cancelled')
         return
       }
-      const widthRaw = window.prompt('Notch width (mm)?', '2')
+      const widthRaw = window.prompt('Notch width (mm)?', defaultWidth.toFixed(2))
       if (widthRaw === null) {
         setStatus('Notch cancelled')
         return

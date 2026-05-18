@@ -43,6 +43,8 @@ export function usePrintPreviewState({
   const {
     printSelectedOnly,
     printPaper,
+    printOrientation,
+    printIntoMargin,
     printMarginMm,
     printOverlapMm,
     printTileX,
@@ -58,6 +60,8 @@ export function usePrintPreviewState({
   } = useEditorPanelSelector((state) => ({
     printSelectedOnly: state.printSelectedOnly,
     printPaper: state.printPaper,
+    printOrientation: state.printOrientation,
+    printIntoMargin: state.printIntoMargin,
     printMarginMm: state.printMarginMm,
     printOverlapMm: state.printOverlapMm,
     printTileX: state.printTileX,
@@ -113,17 +117,30 @@ export function usePrintPreviewState({
     [printableShapes, printableAnnotationShapes, lineTypesById, printShowIgnoredLineTypes],
   )
 
+  // Source `chkPrintIntoMergin` — when enabled, treat printable area as the
+  // full paper so content can render into what was previously the gutter.
+  const effectivePrintMarginMm = printIntoMargin ? 0 : printMarginMm
   const printOutputPlan = useMemo(
     () =>
       buildPrintPlan(printOutputShapes, {
         paper: printPaper,
-        marginMm: printMarginMm,
+        orientation: printOrientation,
+        marginMm: effectivePrintMarginMm,
         overlapMm: printOverlapMm,
         tileX: printTileX,
         tileY: printTileY,
         scalePercent: printScalePercent,
       }),
-    [printOutputShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
+    [
+      printOutputShapes,
+      printPaper,
+      printOrientation,
+      effectivePrintMarginMm,
+      printOverlapMm,
+      printTileX,
+      printTileY,
+      printScalePercent,
+    ],
   )
 
   const printableLineTypesById = useMemo(

@@ -41,7 +41,17 @@ export type UseCanvasInteractionsParams = {
   customSnapPoint: Point | null
   reverseZoomDirection?: boolean
   incrementalSelection?: boolean
-  lineToolConstraint?: 'none' | 'horizontal' | 'vertical'
+  lineToolConstraint?: 'none' | 'horizontal' | 'vertical' | 'relative-angle'
+  relativeAngleStepDeg?: number
+  lastLineAngleRad?: number | null
+  reduceOneBlade?: boolean
+  tangentCircleMode?: boolean
+  tangentCircleDispStep?: number
+  dimensionLineTypeId?: string | null
+  arcDrawMode?: 'three-point' | 'radius' | 'half-moon'
+  arcRadiusMm?: number
+  arcHalfMoonRatio?: number
+  setLastLineAngleRad?: (value: number | null) => void
   onWheelRotateSelection?: (deltaDeg: number) => void
   onWheelScaleSelection?: (factor: number) => void
   onWheelAdjustThickness?: (deltaSteps: number) => void
@@ -94,6 +104,16 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     reverseZoomDirection,
     incrementalSelection,
     lineToolConstraint = 'none',
+    relativeAngleStepDeg = 15,
+    lastLineAngleRad = null,
+    reduceOneBlade = false,
+    tangentCircleMode = false,
+    tangentCircleDispStep = 12,
+    dimensionLineTypeId = null,
+    arcDrawMode = 'three-point',
+    arcRadiusMm = 20,
+    arcHalfMoonRatio = 0.5,
+    setLastLineAngleRad,
     onWheelRotateSelection,
     onWheelScaleSelection,
     onWheelAdjustThickness,
@@ -186,6 +206,8 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       customSnapPoints: customSnapPoint ? [customSnapPoint] : undefined,
       mandalaIntersections: mandalaIntersections.length > 0 ? mandalaIntersections : undefined,
       draftAnchor: draftPoints.length > 0 ? draftPoints[0] : undefined,
+      tangentCircleMode,
+      tangentCircleDispStep,
     })
 
   const { handleZoomStep, handleResetView, handleFitView } = useCanvasViewportControls({
@@ -253,7 +275,17 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       activeSketchGroup,
       viewportScale: viewport.scale,
       lineToolConstraint,
-      stitchHoleDefaults,
+      relativeAngleStepDeg,
+      lastLineAngleRad,
+      tangentCircleMode,
+      dimensionLineTypeId,
+      arcDrawMode,
+      arcRadiusMm,
+      arcHalfMoonRatio,
+      setLastLineAngleRad,
+      stitchHoleDefaults: reduceOneBlade
+        ? { ...stitchHoleDefaults, reduceOneBlade: true }
+        : stitchHoleDefaults,
       hardwarePreset,
       customHardwareDiameterMm,
       customHardwareSpacingMm,

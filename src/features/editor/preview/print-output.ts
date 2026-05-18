@@ -172,8 +172,12 @@ function rulerMarkup(tile: { minX: number; minY: number; width: number; height: 
 }
 
 function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][number]) {
-  const scaleX = Math.max(0.5, Math.min(2, options.calibrationXPercent / 100))
-  const scaleY = Math.max(0.5, Math.min(2, options.calibrationYPercent / 100))
+  // Source v1.5.5 — calibration is entered in portrait orientation; auto-swap when landscape.
+  const isLandscape = options.printPlan.orientation === 'landscape'
+  const effectiveCalibrationX = isLandscape ? options.calibrationYPercent : options.calibrationXPercent
+  const effectiveCalibrationY = isLandscape ? options.calibrationXPercent : options.calibrationYPercent
+  const scaleX = Math.max(0.5, Math.min(2, effectiveCalibrationX / 100))
+  const scaleY = Math.max(0.5, Math.min(2, effectiveCalibrationY / 100))
   const shiftX = tile.minX * (1 - scaleX)
   const shiftY = tile.minY * (1 - scaleY)
   const shapeMarkup = options.shapes

@@ -429,3 +429,114 @@ export function buildDistanceMarks(
 }
 
 export { shapeTotalArcLength }
+
+// ---------------------------------------------------------------------------
+// Source-app v2.0.0: "When stamping a template object in the repository using
+// distance marking feature, now it follows the angle of the curve or the line
+// at the location of stamp." stampTemplateAlongShape clones the given template
+// shapes at each `distanceMm` along the host path, rotating each copy by the
+// host's local tangent at that point.
+// ---------------------------------------------------------------------------
+
+type TemplateStampOptions = {
+  layerId: string
+  lineTypeId: string
+  /** Optional override for stamped-shape groupId. */
+  groupId?: string
+}
+
+function rotatePoint(point: Point, anchor: Point, cosTheta: number, sinTheta: number): Point {
+  const dx = point.x - anchor.x
+  const dy = point.y - anchor.y
+  return {
+    x: round(anchor.x + dx * cosTheta - dy * sinTheta),
+    y: round(anchor.y + dx * sinTheta + dy * cosTheta),
+  }
+}
+
+function translatePoint(point: Point, dx: number, dy: number): Point {
+  return { x: round(point.x + dx), y: round(point.y + dy) }
+}
+
+export function stampTemplateAlongShape(
+  hostShape: Shape,
+  templateShapes: Shape[],
+  distancesMm: number[],
+  options: TemplateStampOptions,
+): Shape[] {
+  if (hostShape.type === 'text') return []
+  if (templateShapes.length === 0) return []
+  const totalLength = shapeTotalArcLength(hostShape)
+  if (totalLength < 1e-6) return []
+
+  // Compute the template's centroid so the stamp aligns to the stamping point.
+  let centroidX = 0
+  let centroidY = 0
+  let count = 0
+  for (const shape of templateShapes) {
+    centroidX += (shape.start.x + shape.end.x) / 2
+    centroidY += (shape.start.y + shape.end.y) / 2
+    count += 1
+  }
+  if (count === 0) return []
+  const anchor: Point = { x: centroidX / count, y: centroidY / count }
+
+  const stamped: Shape[] = []
+  for (const distance of distancesMm) {
+    if (!Number.isFinite(distance) || distance < 0 || distance > totalLength + 1e-6) continue
+    const t = findTForArcLength(hostShape, distance)
+    const target = evaluateShapeAt(hostShape, t)
+    const tangent = shapeTangentAt(hostShape, t)
+    const cosTheta = tangent.x
+    const sinTheta = tangent.y
+    const dx = target.x - anchor.x
+    const dy = target.y - anchor.y
+    for (const template of templateShapes) {
+      if (template.type === 'text') continue
+      const cloneId = uid()
+      const transformPoint = (p: Point): Point => {
+        const rotated = rotatePoint(p, anchor, cosTheta, sinTheta)
+        return translatePoint(rotated, dx, dy)
+      }
+      if (template.type === 'line') {
+        stamped.push({
+          ...template,
+          id: cloneId,
+          layerId: options.layerId,
+          lineTypeId: options.lineTypeId,
+          groupId: options.groupId,
+          start: transformPoint(template.start),
+          end: transformPoint(template.end),
+        })
+        continue
+      }
+      if (template.type === 'arc') {
+        stamped.push({
+          ...template,
+          id: cloneId,
+          layerId: options.layerId,
+          lineTypeId: options.lineTypeId,
+          groupId: options.groupId,
+          start: transformPoint(template.start),
+          mid: transformPoint(template.mid),
+          end: transformPoint(template.end),
+        })
+        continue
+      }
+      if (template.type === 'bezier') {
+        stamped.push({
+          ...template,
+          id: cloneId,
+          layerId: options.layerId,
+          lineTypeId: options.lineTypeId,
+          groupId: options.groupId,
+          start: transformPoint(template.start),
+          control: transformPoint(template.control),
+          end: transformPoint(template.end),
+        })
+        continue
+      }
+    }
+  }
+  return stamped
+}

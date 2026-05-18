@@ -2,6 +2,7 @@ import type { Shape } from '../cad/cad-types'
 import { getBounds, round } from '../cad/cad-geometry'
 
 export type PrintPaper = 'letter' | 'a4'
+export type PrintOrientation = 'portrait' | 'landscape'
 
 export type PrintTile = {
   id: string
@@ -15,6 +16,7 @@ export type PrintTile = {
 
 export type PrintPlan = {
   paper: PrintPaper
+  orientation: PrintOrientation
   paperWidthMm: number
   paperHeightMm: number
   marginMm: number
@@ -49,6 +51,7 @@ export function buildPrintPlan(
   shapes: Shape[],
   options: {
     paper: PrintPaper
+    orientation?: PrintOrientation
     marginMm: number
     overlapMm: number
     tileX: number
@@ -66,7 +69,12 @@ export function buildPrintPlan(
   const safeScale = Math.max(1, options.scalePercent)
   const safeMargin = Math.max(0, options.marginMm)
   const safeOverlap = Math.max(0, options.overlapMm)
-  const paperSize = PAPER_SIZES_MM[options.paper]
+  const orientation: PrintOrientation = options.orientation ?? 'portrait'
+  const rawPaperSize = PAPER_SIZES_MM[options.paper]
+  const paperSize =
+    orientation === 'landscape'
+      ? { width: rawPaperSize.height, height: rawPaperSize.width }
+      : rawPaperSize
 
   const scaleFactor = safeScale / 100
   const contentWidthMm = Math.max(1, (paperSize.width - safeMargin * 2) * safeTileX - safeOverlap * (safeTileX - 1))
@@ -102,6 +110,7 @@ export function buildPrintPlan(
 
   return {
     paper: options.paper,
+    orientation,
     paperWidthMm: paperSize.width,
     paperHeightMm: paperSize.height,
     marginMm: safeMargin,

@@ -9,6 +9,7 @@ import {
   convertArcToBezier,
   convertShapeToPathBeziers,
   extendLineToShape,
+  filletAdjacentCorners,
   filletCorner,
   findNearestIntersection,
   makeBezierCpFlat,
@@ -642,28 +643,42 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   const handleFilletSelectedCorner = (radiusMm: number) => {
     const selected = getSelectedShapes()
     const lines = selected.filter((shape): shape is LineShape => shape.type === 'line')
-    if (lines.length !== 2) {
-      setStatus('Select exactly two lines to fillet their corner')
+    if (lines.length < 2) {
+      setStatus('Select at least two lines to fillet')
       return
     }
     if (!Number.isFinite(radiusMm) || radiusMm <= 0) {
       setStatus('Fillet radius must be positive')
       return
     }
-    const result = filletCorner(lines[0], lines[1], radiusMm)
-    if (!result) {
-      setStatus('Could not fillet: lines are parallel, non-intersecting, or too short')
+    if (lines.length === 2) {
+      const result = filletCorner(lines[0], lines[1], radiusMm)
+      if (!result) {
+        setStatus('Could not fillet: lines are parallel, non-intersecting, or too short')
+        return
+      }
+      setShapes((prev) => {
+        const next = prev.map((shape) => {
+          if (shape.id === result.trimmedA.id) return result.trimmedA
+          if (shape.id === result.trimmedB.id) return result.trimmedB
+          return shape
+        })
+        return [...next, result.arc]
+      })
+      setStatus(`Filleted corner with radius ${radiusMm.toFixed(2)}mm`)
+      return
+    }
+    // Source v2.3.1: batch beveling across a multi-line selection.
+    const batch = filletAdjacentCorners(lines, radiusMm)
+    if (batch.appliedCornerCount === 0) {
+      setStatus('No adjacent corners found in selection to fillet')
       return
     }
     setShapes((prev) => {
-      const next = prev.map((shape) => {
-        if (shape.id === result.trimmedA.id) return result.trimmedA
-        if (shape.id === result.trimmedB.id) return result.trimmedB
-        return shape
-      })
-      return [...next, result.arc]
+      const next = prev.map((shape) => batch.trimmedLinesById.get(shape.id) ?? shape)
+      return [...next, ...batch.arcs]
     })
-    setStatus(`Filleted corner with radius ${radiusMm.toFixed(2)}mm`)
+    setStatus(`Filleted ${batch.appliedCornerCount} corner${batch.appliedCornerCount === 1 ? '' : 's'} (r=${radiusMm.toFixed(2)}mm)`)
   }
 
   // ---------------------------------------------------------------------------

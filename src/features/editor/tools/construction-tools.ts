@@ -82,7 +82,7 @@ export const constructionToolDefinitions = {
           textInside: defaults.textInside,
           textReverse: defaults.textReverse,
           layerId: runtime.activeLayerId,
-          lineTypeId: runtime.activeLineTypeId,
+          lineTypeId: runtime.dimensionLineTypeId ?? runtime.activeLineTypeId,
         },
       ])
       pickToolPoint(runtime, point)
