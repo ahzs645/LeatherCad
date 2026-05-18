@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   TemplateRepositoryEntry,
   TemplateRepositoryFolder,
@@ -151,7 +151,7 @@ export function TemplateRepositoryModal({
         ? selectedCatalogShop.groupCount
         : selectedCatalogShop.groups.length
   const selectedCatalogShopItemCount = selectedCatalogShop === null ? 0 : getCatalogItemCount(selectedCatalogShop)
-  const catalogPreviewItems = useMemo<CatalogPreviewEntry[]>(() => {
+  const catalogPreviewItems: CatalogPreviewEntry[] = (() => {
     if (!selectedCatalogShop) {
       return []
     }
@@ -179,7 +179,7 @@ export function TemplateRepositoryModal({
       }
       return left.groupIndex - right.groupIndex || left.itemIndex - right.itemIndex
     })
-  }, [selectedCatalogShop, catalogItemSort])
+  })()
   const resolvedSelectedCatalogItemKey =
     selectedCatalogItemKey && catalogPreviewItems.some((entry) => entry.key === selectedCatalogItemKey)
       ? selectedCatalogItemKey

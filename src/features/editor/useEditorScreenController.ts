@@ -953,7 +953,9 @@ export function useEditorScreenController() {
   const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
     loadStitchSimulatorSettings(),
   )
-  setStitchSimulatorSettingsRef.current = setStitchSimulatorSettings
+  useEffect(() => {
+    setStitchSimulatorSettingsRef.current = setStitchSimulatorSettings
+  }, [setStitchSimulatorSettings])
   useEffect(() => {
     if (!leatherSimEnabled || stitchSimulatorSettings.showSimulatorPattern) {
       return
@@ -1132,7 +1134,9 @@ export function useEditorScreenController() {
     showBezierOffsetLines,
     setShowBezierOffsetLines,
   })
-  handleExtendOrTrimLinesRef.current = geometryActions.handleExtendOrTrimLines
+  useEffect(() => {
+    handleExtendOrTrimLinesRef.current = geometryActions.handleExtendOrTrimLines
+  }, [geometryActions.handleExtendOrTrimLines])
   const creationController = useEditorCreationController({
     shapes,
     setShapes,

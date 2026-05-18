@@ -4,6 +4,14 @@ import { cleanupRender, click, renderForTest } from '../../../test/render'
 import type { Shape } from '../cad/cad-types'
 import { useGeometryEditingActions } from './useGeometryEditingActions'
 
+type RenderedShape = {
+  id: string
+  type: Shape['type']
+  startX: number | null
+  controlX: number | null
+  endX: number | null
+}
+
 let lastRender: ReturnType<typeof renderForTest> | null = null
 
 afterEach(() => {
@@ -73,7 +81,9 @@ describe('useGeometryEditingActions', () => {
     click(lastRender.container.querySelector('button'))
 
     const status = lastRender.container.querySelector('[data-testid="status"]')?.textContent
-    const shapes = JSON.parse(lastRender.container.querySelector('[data-testid="shapes"]')?.textContent ?? '[]')
+    const shapes = JSON.parse(
+      lastRender.container.querySelector('[data-testid="shapes"]')?.textContent ?? '[]',
+    ) as RenderedShape[]
 
     expect(status).toBe('Created 1 symmetric copy')
     expect(shapes).toHaveLength(3)
