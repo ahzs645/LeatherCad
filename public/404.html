@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"
+    />
+    <title>LeatherCad</title>
+    <script>
+      // GitHub Pages SPA fallback. The nested workbench routes (e.g.
+      // /LeatherCad/workbench/3d) return 404.html on direct hit; redirect
+      // back to the SPA root while preserving the original path so the
+      // route sync hook can resume in the right workspace mode.
+      (function () {
+        var segmentCount = 1
+        var location = window.location
+        var pathname = location.pathname
+        var search = location.search
+        var hash = location.hash
+        var segments = pathname.split('/').slice(1)
+        var baseSegments = segments.slice(0, segmentCount)
+        var routeSegments = segments.slice(segmentCount).filter(Boolean)
+        var basePrefix = '/' + baseSegments.join('/')
+        if (basePrefix.length > 1 && !basePrefix.endsWith('/')) {
+          basePrefix += '/'
+        }
+        var encodedRoute = routeSegments
+          .map(function (segment) {
+            return encodeURIComponent(segment).replace(/%2F/g, '/')
+          })
+          .join('/')
+        var sanitizedSearch = search
+          ? '&' + search.slice(1).replace(/&/g, '~and~')
+          : ''
+        var redirectSearch = '?redirectPath=/' + encodedRoute + sanitizedSearch
+        location.replace(basePrefix + redirectSearch + hash)
+      })()
+    </script>
+  </head>
+  <body>
+    <p>Redirecting…</p>
+  </body>
+</html>

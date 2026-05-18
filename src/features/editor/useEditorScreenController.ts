@@ -990,6 +990,11 @@ export function useEditorScreenController() {
         setStatus('Toggled stitching simulator')
         return
       }
+      // Scope the simulator nudge keys (+/-/=) to when the stitch simulator
+      // modal is open so they don't hijack +/- on the canvas in normal use.
+      if (!showStitchSimulatorModal) {
+        return
+      }
       if (event.key === '+' || event.key === '-') {
         event.preventDefault()
         const delta = event.key === '+' ? 0.1 : -0.1
@@ -1028,7 +1033,7 @@ export function useEditorScreenController() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setShowStitchSimulatorModal, setStatus])
+  }, [setShowStitchSimulatorModal, setStatus, showStitchSimulatorModal, setStitchSimulatorSettings])
   const [boxStitchHelperSettings, setBoxStitchHelperSettings] = useState<BoxStitchHelperSettings>(() =>
     loadBoxStitchHelperSettings(),
   )

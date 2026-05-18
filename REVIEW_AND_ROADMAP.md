@@ -1,5 +1,21 @@
 # LeatherCad Review & Roadmap
 
+> **Status: archived snapshot.** This file captures an early-2026 review and is
+> retained for historical context only. Several of the "P0 / P1" items below
+> have since been addressed in the codebase:
+>
+> - Test coverage now exists across `cad/`, `ops/`, `io/`, and the workbench
+>   shell. Vitest is wired into `npm test` and Playwright into `npm run test:e2e`.
+> - `EditorApp.tsx` has been broken up into `useEditorScreenController`,
+>   focused state providers, and per-feature hooks.
+> - `ErrorBoundary` wraps the canvas pane and other major UI areas (see
+>   `src/features/editor/components/ErrorBoundary.tsx` and its usages in
+>   `EditorDesktopShell` / `EditorMobileShell`).
+>
+> For the current, source-backed list of known interface gaps, see
+> [`SOURCE_APP_PARITY_GAPS.md`](./SOURCE_APP_PARITY_GAPS.md). Do not treat
+> the scores or "Glaring Issues" section below as the current state.
+
 ## Codebase Health Summary (March 2026)
 
 **Overall Score: 6/10** — Solid foundation needing testing and refactoring.
