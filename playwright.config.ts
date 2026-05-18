@@ -26,6 +26,23 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
       },
+      testIgnore: [/mobile-smoke\.spec\.ts$/, /tablet-smoke\.spec\.ts$/],
+    },
+    {
+      // Crosses the 1100px mobile breakpoint defined in the editor layout.
+      name: 'tablet',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1024, height: 768 },
+      },
+      testMatch: /tablet-smoke\.spec\.ts$/,
+    },
+    {
+      name: 'mobile',
+      use: {
+        ...devices['iPhone 13'],
+      },
+      testMatch: /mobile-smoke\.spec\.ts$/,
     },
   ],
 })

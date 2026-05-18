@@ -7,7 +7,9 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - 2D pattern editor with shapes, bezier curves, and text
 - Constraint solver for parametric dimensions
 - Pattern grading
-- Import/export: DXF, SVG, PDF, LCC, and JSON formats
+- Geometry import: JSON, LCC, and SVG
+- Tracing import (reference overlays only, not editable geometry): raster images and PDF
+- Export: SVG, PDF, DXF, JSON, and LCC
 - 3D preview via Three.js
 - Template and leather catalog management
 - Stitch hole rendering and cut line tools

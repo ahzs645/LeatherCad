@@ -552,7 +552,6 @@ export function FileSection({
   onOpenTemplateRepositoryModal,
   onOpenTracingModal,
   hasTracingOverlays,
-  onToggleThreePreview,
   onResetDocument,
   onCloseProject,
   onAddBackdrop,
@@ -576,10 +575,10 @@ export function FileSection({
             onChange={(event) => onSetMobileFileAction(event.target.value as MobileFileAction)}
           >
             <optgroup label="Inputs">
-              <option value="load-json">Load JSON</option>
+              <option value="load-json">Load JSON / LCC</option>
               <option value="import-svg">Import SVG</option>
               <option value="load-preset">Load Preset</option>
-              <option value="import-tracing">Import Tracing</option>
+              <option value="import-tracing">Import Image / PDF Tracing</option>
             </optgroup>
             <optgroup label="Exports">
               <option value="save-json">Save JSON</option>
@@ -614,10 +613,10 @@ export function FileSection({
           <div className="file-action-cluster" role="group" aria-label="Input actions">
             <span className="file-action-cluster-label">Inputs</span>
             <div className="file-action-row">
-              <button onClick={onOpenLoadJson}>Load JSON</button>
+              <button onClick={onOpenLoadJson}>Load JSON / LCC</button>
               <button onClick={onOpenImportSvg}>Import SVG</button>
               <button onClick={onLoadPreset}>Load Preset</button>
-              <button onClick={onOpenTracingImport}>Tracing</button>
+              <button onClick={onOpenTracingImport}>Import Tracing (Image / PDF)</button>
             </div>
           </div>
           <div className="file-action-cluster" role="group" aria-label="Export actions">
@@ -636,7 +635,6 @@ export function FileSection({
               <button onClick={onOpenTracingModal} disabled={!hasTracingOverlays}>
                 Tracing Controls
               </button>
-              <button onClick={onToggleThreePreview}>{showThreePreview ? 'Hide 3D' : 'Show 3D'}</button>
               <button onClick={onResetDocument}>Clear</button>
               <button onClick={onCloseProject}>Close Project…</button>
               <button onClick={onAddBackdrop}>Add Backdrop</button>

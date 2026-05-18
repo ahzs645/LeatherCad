@@ -154,11 +154,12 @@ export function WorkbenchHeader({
           ))}
         </div>
 
-        <div className="workbench-mode-toggle" role="tablist" aria-label="Workspace mode">
+        <div className="workbench-mode-toggle" role="group" aria-label="Workspace mode">
           <button
             type="button"
             className={workspaceMode === '2d' ? 'active' : ''}
             data-testid="workspace-mode-2d"
+            aria-pressed={workspaceMode === '2d'}
             onClick={() => onSetWorkspaceMode('2d')}
           >
             2D Draft
@@ -167,6 +168,7 @@ export function WorkbenchHeader({
             type="button"
             className={workspaceMode === '3d' ? 'active' : ''}
             data-testid="workspace-mode-3d"
+            aria-pressed={workspaceMode === '3d'}
             onClick={() => onSetWorkspaceMode('3d')}
           >
             3D Assembly

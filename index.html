@@ -13,6 +13,57 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>LeatherCad</title>
+    <script>
+      // Restore the original deep-link path after the GitHub Pages
+      // 404.html fallback (see public/404.html). When a nested SPA route
+      // such as /LeatherCad/workbench/3d is loaded directly, GitHub Pages
+      // serves 404.html which redirects to "?redirectPath=...", and this
+      // script rewrites history back to the original URL before React
+      // mounts so the route sync hook resolves the correct workspace.
+      (function () {
+        var location = window.location
+        var search = location.search
+        if (!search) return
+        var query = search.slice(1)
+        var params = query.split('&')
+        var redirectPath = null
+        var remaining = []
+        for (var i = 0; i < params.length; i += 1) {
+          var entry = params[i]
+          if (!entry) continue
+          var equalsIndex = entry.indexOf('=')
+          var key = equalsIndex >= 0 ? entry.slice(0, equalsIndex) : entry
+          var value = equalsIndex >= 0 ? entry.slice(equalsIndex + 1) : ''
+          if (key === 'redirectPath') {
+            redirectPath = value
+          } else {
+            remaining.push(entry)
+          }
+        }
+        if (redirectPath === null) return
+        try {
+          var basePath = location.pathname
+          if (basePath.length > 1 && basePath.endsWith('/')) {
+            basePath = basePath.slice(0, -1)
+          }
+          var decodedPath = decodeURIComponent(redirectPath)
+          if (decodedPath && decodedPath.charAt(0) !== '/') {
+            decodedPath = '/' + decodedPath
+          }
+          var restoredSearch = ''
+          if (remaining.length > 0) {
+            restoredSearch = '?' + remaining.join('&').replace(/~and~/g, '&')
+          }
+          window.history.replaceState(
+            null,
+            '',
+            basePath + decodedPath + restoredSearch + location.hash,
+          )
+        } catch (error) {
+          // Swallow restoration failures so the app still boots at the root.
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { WorkbenchInspectorTab, WorkspaceMode } from './workbench-types'
 
 function normalizePath(path: string) {
@@ -42,6 +42,13 @@ export function useWorkbenchRouteSync({
   activeInspectorTab,
   setActiveInspectorTab,
 }: UseWorkbenchRouteSyncParams) {
+  // Tracks the last workspaceMode this hook has reconciled with the URL.
+  // On the very first commit, URL → state is the source of truth, so the
+  // state → URL effect must wait one render before pushing a path. Without
+  // this, a deep link to /workbench/3d would be overwritten with "/" by the
+  // initial state → URL run before the URL → state setter takes effect.
+  const lastReconciledModeRef = useRef<WorkspaceMode | null>(null)
+
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') {
       return
@@ -69,15 +76,17 @@ export function useWorkbenchRouteSync({
       return
     }
 
-    const url = new URL(window.location.href)
-    const nextPath = buildWorkbenchWorkspacePath(workspaceMode)
-    const routeMode = resolveWorkbenchWorkspaceMode(url.pathname)
-    if (routeMode !== workspaceMode) {
-      return
-    }
-    if (normalizePath(url.pathname) !== normalizePath(nextPath)) {
-      url.pathname = nextPath
-      window.history.pushState(null, '', url.toString())
+    const isInitialRun = lastReconciledModeRef.current === null
+    const modeChanged = lastReconciledModeRef.current !== workspaceMode
+    lastReconciledModeRef.current = workspaceMode
+
+    if (!isInitialRun && modeChanged) {
+      const url = new URL(window.location.href)
+      const nextPath = buildWorkbenchWorkspacePath(workspaceMode)
+      if (normalizePath(url.pathname) !== normalizePath(nextPath)) {
+        url.pathname = nextPath
+        window.history.pushState(null, '', url.toString())
+      }
     }
 
     setSecondaryPreviewMode((previous) =>
