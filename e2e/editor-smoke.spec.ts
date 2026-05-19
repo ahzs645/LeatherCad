@@ -138,10 +138,30 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
 })
 
 test('drawn closed outlines can become shaped pieces from the interface', async ({ page }) => {
-  await page.goto('/')
+  const token = 'playwright-piece-seed'
+  const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
+  const emptyDocument = {
+    ...buildSeedDocument(),
+    documentName: 'E2E Piece Draft',
+    objects: [],
+  }
+
+  await page.addInitScript(
+    ({ key, rawDocument }) => {
+      localStorage.setItem(key, rawDocument)
+    },
+    {
+      key: storageKey,
+      rawDocument: JSON.stringify(emptyDocument),
+    },
+  )
+
+  await page.goto(`/?openDoc=${token}`)
 
   const ribbonTabs = page.getByRole('tablist', { name: 'Workbench ribbon tabs' })
   await expect(ribbonTabs).toBeVisible()
+  await expect(page.getByText('E2E Piece Draft')).toBeVisible()
+  await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(0)
 
   const canvas = page.locator('svg.canvas')
   await page.getByRole('button', { name: 'Rect' }).click()
