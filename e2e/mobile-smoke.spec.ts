@@ -1,6 +1,6 @@
 import { devices, expect, test } from '@playwright/test'
 
-test.use({ ...devices['iPhone 13'] })
+test.use({ ...devices['iPhone 13'], defaultBrowserType: 'chromium' })
 
 test('mobile shell renders with topbar, canvas, and tool selector', async ({ page }) => {
   await page.goto('/')

@@ -844,8 +844,17 @@ export function useEditorScreenController() {
   // Auto-load the demo project on first launch when the option is enabled
   // (source-app v2.0.7 default-on, toggleable in Options).
   const demoAutoLoadedRef = useRef(false)
+  const launchedWithDocumentTransferRef = useRef(
+    typeof window !== 'undefined' &&
+      (new URL(window.location.href).searchParams.has('openDoc') ||
+        new URL(window.location.href).searchParams.has('openLocalDoc')),
+  )
   useEffect(() => {
     if (demoAutoLoadedRef.current) return
+    if (launchedWithDocumentTransferRef.current) {
+      demoAutoLoadedRef.current = true
+      return
+    }
     if (!panelState.loadDemoOnStartup) return
     if (shapes.length > 0 || foldLines.length > 0 || stitchHoles.length > 0) return
     demoAutoLoadedRef.current = true

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
 
@@ -67,8 +67,16 @@ function buildSeedDocument() {
   }
 }
 
-test('terminal stitch editing and extracted curve box stitch flow work in the desktop UI', async ({ page }) => {
-  const token = 'playwright-stitch-seed'
+function buildEmptyDocument() {
+  return {
+    ...buildSeedDocument(),
+    documentName: 'E2E Empty Draft',
+    objects: [],
+    stitchAlwaysShapeIds: [],
+  }
+}
+
+async function openSeedDocument(page: Page, token: string, document: ReturnType<typeof buildSeedDocument>) {
   const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
 
   await page.addInitScript(
@@ -77,11 +85,17 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
     },
     {
       key: storageKey,
-      rawDocument: JSON.stringify(buildSeedDocument()),
+      rawDocument: JSON.stringify(document),
     },
   )
 
   await page.goto(`/?openDoc=${token}`)
+  await expect(page.getByText(document.documentName)).toBeVisible()
+}
+
+test('terminal stitch editing and extracted curve box stitch flow work in the desktop UI', async ({ page }) => {
+  const token = 'playwright-stitch-seed'
+  await openSeedDocument(page, token, buildSeedDocument())
 
   const ribbonTabs = page.getByRole('tablist', { name: 'Workbench ribbon tabs' })
   await expect(ribbonTabs).toBeVisible()
@@ -138,34 +152,18 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
 })
 
 test('drawn closed outlines can become shaped pieces from the interface', async ({ page }) => {
-  const token = 'playwright-piece-seed'
-  const storageKey = `${OPEN_DOC_TRANSFER_PREFIX}${token}`
-  const emptyDocument = {
-    ...buildSeedDocument(),
-    documentName: 'E2E Piece Draft',
-    objects: [],
-  }
-
-  await page.addInitScript(
-    ({ key, rawDocument }) => {
-      localStorage.setItem(key, rawDocument)
-    },
-    {
-      key: storageKey,
-      rawDocument: JSON.stringify(emptyDocument),
-    },
-  )
-
-  await page.goto(`/?openDoc=${token}`)
+  const token = 'playwright-empty-piece-seed'
+  await openSeedDocument(page, token, buildEmptyDocument())
 
   const ribbonTabs = page.getByRole('tablist', { name: 'Workbench ribbon tabs' })
   await expect(ribbonTabs).toBeVisible()
-  await expect(page.getByText('E2E Piece Draft')).toBeVisible()
   await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(0)
 
   const canvas = page.locator('svg.canvas')
-  await page.getByRole('button', { name: 'Rect' }).click()
+  await page.getByRole('button', { name: 'Rect', exact: true }).click()
+  await expect(page.getByText('Tool Rectangle')).toBeVisible()
   await canvas.click({ position: { x: 140, y: 140 } })
+  await page.waitForTimeout(0)
   await canvas.click({ position: { x: 280, y: 250 } })
 
   const canvasShapeLines = page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')
