@@ -1,5 +1,6 @@
 import { BUNDLED_CATALOG_SUMMARIES } from './catalog-builtins'
 import { BUNDLED_CATALOG_RAW_BY_FILENAME } from './catalog-bundled-raw'
+import { uid } from '../cad/cad-geometry'
 import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
 import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
@@ -467,6 +468,275 @@ export function getCatalogItemCount(shop: CatalogRepositoryShop): number {
     return shop.itemCount
   }
   return shop.groups.reduce((count, group) => count + group.items.length, 0)
+}
+
+function recountCatalogShop(shop: CatalogRepositoryShop): CatalogRepositoryShop {
+  return {
+    ...shop,
+    groupCount: shop.groups.length,
+    itemCount: shop.groups.reduce((count, group) => count + group.items.length, 0),
+  }
+}
+
+function createEmptyCatalogItem(name: string): CatalogRepositoryItem {
+  const id = uid()
+  return {
+    id,
+    name: name.trim() || 'New Item',
+    guid: id,
+    category: '',
+    unitPrice: '',
+    unitStr: '',
+    url: '',
+    memo: '',
+    hasImage: false,
+    imageDpi: null,
+    imageScalePercent: 100,
+    imageRulerLengthMm: null,
+    imageRotationDeg: 0,
+    imageCropMode: 'original',
+  }
+}
+
+export function createCatalogShop(name: string): CatalogRepositoryShop {
+  const shopId = uid()
+  const groupId = uid()
+  return recountCatalogShop({
+    id: shopId,
+    name: name.trim() || 'New Shop',
+    guid: shopId,
+    url: '',
+    memo: '',
+    shopVersion: 1,
+    metaVersion: '1',
+    sourceFileName: `${slugifyId(name.trim() || 'new-shop') || 'new-shop'}.ctlg`,
+    importedAt: new Date().toISOString(),
+    groups: [
+      {
+        id: groupId,
+        name: 'Default Group',
+        guid: groupId,
+        url: '',
+        memo: '',
+        items: [createEmptyCatalogItem('New Item')],
+      },
+    ],
+  })
+}
+
+export function addCatalogGroup(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  name: string,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    const groupId = uid()
+    return recountCatalogShop({
+      ...shop,
+      groups: [
+        ...shop.groups,
+        {
+          id: groupId,
+          name: name.trim() || `Group ${shop.groups.length + 1}`,
+          guid: groupId,
+          url: '',
+          memo: '',
+          items: [],
+        },
+      ],
+    })
+  })
+}
+
+export function deleteCatalogGroup(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled || shop.groups.length <= 1) {
+      return shop
+    }
+    return recountCatalogShop({
+      ...shop,
+      groups: shop.groups.filter((group) => group.id !== groupId),
+    })
+  })
+}
+
+export function duplicateCatalogGroup(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    const group = shop.groups.find((candidate) => candidate.id === groupId)
+    if (!group) {
+      return shop
+    }
+    const nextGroupId = uid()
+    return recountCatalogShop({
+      ...shop,
+      groups: [
+        ...shop.groups,
+        {
+          ...group,
+          id: nextGroupId,
+          guid: nextGroupId,
+          name: `${group.name} Copy`,
+          items: group.items.map((item) => {
+            const nextItemId = uid()
+            return {
+              ...item,
+              id: nextItemId,
+              guid: nextItemId,
+              name: `${item.name} Copy`,
+            }
+          }),
+        },
+      ],
+    })
+  })
+}
+
+export function moveCatalogGroup(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+  direction: CatalogRepositoryMoveDirection,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    const index = shop.groups.findIndex((group) => group.id === groupId)
+    const nextIndex = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || nextIndex < 0 || nextIndex >= shop.groups.length) {
+      return shop
+    }
+    const groups = [...shop.groups]
+    const [group] = groups.splice(index, 1)
+    groups.splice(nextIndex, 0, group)
+    return recountCatalogShop({ ...shop, groups })
+  })
+}
+
+export function addCatalogItem(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+  name: string,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    return recountCatalogShop({
+      ...shop,
+      groups: shop.groups.map((group) =>
+        group.id === groupId
+          ? { ...group, items: [...group.items, createEmptyCatalogItem(name || `Item ${group.items.length + 1}`)] }
+          : group,
+      ),
+    })
+  })
+}
+
+export function duplicateCatalogItem(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+  itemId: string,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    return recountCatalogShop({
+      ...shop,
+      groups: shop.groups.map((group) => {
+        if (group.id !== groupId) {
+          return group
+        }
+        const item = group.items.find((candidate) => candidate.id === itemId)
+        if (!item) {
+          return group
+        }
+        const nextId = uid()
+        return {
+          ...group,
+          items: [
+            ...group.items,
+            {
+              ...cloneCatalogRepositoryShop({ ...shop, groups: [{ ...group, items: [item] }] }).groups[0].items[0],
+              id: nextId,
+              guid: nextId,
+              name: `${item.name} Copy`,
+            },
+          ],
+        }
+      }),
+    })
+  })
+}
+
+export function deleteCatalogItem(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  groupId: string,
+  itemId: string,
+): CatalogRepositoryShop[] {
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    return recountCatalogShop({
+      ...shop,
+      groups: shop.groups.map((group) =>
+        group.id === groupId ? { ...group, items: group.items.filter((item) => item.id !== itemId) } : group,
+      ),
+    })
+  })
+}
+
+export function moveCatalogItemToGroup(
+  shops: CatalogRepositoryShop[],
+  shopId: string,
+  sourceGroupId: string,
+  itemId: string,
+  targetGroupId: string,
+): CatalogRepositoryShop[] {
+  if (sourceGroupId === targetGroupId) {
+    return shops
+  }
+  return shops.map((shop) => {
+    if (shop.id !== shopId || shop.isBundled) {
+      return shop
+    }
+    const sourceGroup = shop.groups.find((group) => group.id === sourceGroupId)
+    const item = sourceGroup?.items.find((candidate) => candidate.id === itemId)
+    if (!item || !shop.groups.some((group) => group.id === targetGroupId)) {
+      return shop
+    }
+    return recountCatalogShop({
+      ...shop,
+      groups: shop.groups.map((group) => {
+        if (group.id === sourceGroupId) {
+          return { ...group, items: group.items.filter((candidate) => candidate.id !== itemId) }
+        }
+        if (group.id === targetGroupId) {
+          return { ...group, items: [...group.items, item] }
+        }
+        return group
+      }),
+    })
+  })
 }
 
 export type CatalogShopPatch = Partial<Pick<CatalogRepositoryShop, 'name' | 'url' | 'memo' | 'shopVersion'>>

@@ -18,6 +18,7 @@ import {
   flipTemplateEntryShapes,
   insertTemplateDocIntoCurrent,
   moveTemplateEntryToFolder,
+  moveTemplateFolderToFolder,
   moveTemplateRepositoryEntry,
   parseTemplateRepositoryImport,
   renameTemplateFolder,
@@ -29,8 +30,17 @@ import {
   type TemplateRepositorySortKey,
 } from '../templates/template-repository'
 import {
+  addCatalogGroup,
+  addCatalogItem,
+  createCatalogShop,
+  deleteCatalogGroup,
+  deleteCatalogItem,
+  duplicateCatalogGroup,
+  duplicateCatalogItem,
   getCatalogItemCount,
   mergeCatalogShopImport,
+  moveCatalogItemToGroup,
+  moveCatalogGroup,
   moveCatalogRepositoryShop,
   parseCatalogShopImport,
   serializeCatalogShop,
@@ -218,6 +228,11 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     setStatus(folderId ? 'Template moved to folder' : 'Template moved to repository root')
   }
 
+  const handleMoveTemplateFolderToFolder = (folderId: string, parentFolderId: string | null) => {
+    setTemplateRepositoryFolders((previous) => moveTemplateFolderToFolder(previous, folderId, parentFolderId))
+    setStatus(parentFolderId ? 'Folder moved' : 'Folder moved to repository root')
+  }
+
   const handleFlipTemplate = (entryId: string, axis: 'horizontal' | 'vertical') => {
     setTemplateRepository((previous) =>
       previous.map((entry) => (entry.id === entryId ? flipTemplateEntryShapes(entry, axis) : entry)),
@@ -401,6 +416,17 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     }
   }
 
+  const handleCreateCatalogShop = () => {
+    const name = window.prompt('Catalog shop name', `Catalog ${catalogRepository.length + 1}`)?.trim()
+    if (!name) {
+      return
+    }
+    const shop = createCatalogShop(name)
+    setCatalogRepository((previous) => [shop, ...previous])
+    setSelectedCatalogShopId(shop.id)
+    setStatus(`Created catalog "${shop.name}"`)
+  }
+
   const handleDeleteCatalogShop = (shopId: string) => {
     setCatalogRepository((previous) => previous.filter((shop) => shop.id !== shopId))
     if (selectedCatalogShopId === shopId) {
@@ -451,6 +477,93 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
   const handleUpdateCatalogItem = (shopId: string, groupId: string, itemId: string, patch: CatalogItemPatch) => {
     setCatalogRepository((previous) => updateCatalogItem(previous, shopId, groupId, itemId, patch))
     setStatus('Catalog item updated')
+  }
+
+  const handleCreateCatalogGroup = (shopId: string) => {
+    const shop = catalogRepository.find((entry) => entry.id === shopId)
+    if (!shop || shop.isBundled) {
+      setStatus('Select an editable catalog first')
+      return
+    }
+    const name = window.prompt('Catalog group name', `Group ${shop.groups.length + 1}`)?.trim()
+    if (!name) {
+      return
+    }
+    setCatalogRepository((previous) => addCatalogGroup(previous, shopId, name))
+    setStatus(`Created catalog group "${name}"`)
+  }
+
+  const handleDeleteCatalogGroup = (shopId: string, groupId: string) => {
+    const shop = catalogRepository.find((entry) => entry.id === shopId)
+    const group = shop?.groups.find((entry) => entry.id === groupId)
+    if (!shop || !group || shop.isBundled) {
+      setStatus('Select an editable catalog group first')
+      return
+    }
+    if (shop.groups.length <= 1) {
+      setStatus('A catalog must keep at least one group')
+      return
+    }
+    if (!window.confirm(`Delete group "${group.name}" and its ${group.items.length} item${group.items.length === 1 ? '' : 's'}?`)) {
+      return
+    }
+    setCatalogRepository((previous) => deleteCatalogGroup(previous, shopId, groupId))
+    setStatus(`Deleted catalog group "${group.name}"`)
+  }
+
+  const handleDuplicateCatalogGroup = (shopId: string, groupId: string) => {
+    setCatalogRepository((previous) => duplicateCatalogGroup(previous, shopId, groupId))
+    setStatus('Catalog group duplicated')
+  }
+
+  const handleMoveCatalogGroup = (shopId: string, groupId: string, direction: CatalogRepositoryMoveDirection) => {
+    setCatalogRepository((previous) => moveCatalogGroup(previous, shopId, groupId, direction))
+    setStatus('Catalog group moved')
+  }
+
+  const handleCreateCatalogItem = (shopId: string, groupId: string) => {
+    const shop = catalogRepository.find((entry) => entry.id === shopId)
+    const group = shop?.groups.find((entry) => entry.id === groupId)
+    if (!shop || !group || shop.isBundled) {
+      setStatus('Select an editable catalog group first')
+      return
+    }
+    const name = window.prompt('Catalog item name', `Item ${group.items.length + 1}`)?.trim()
+    if (!name) {
+      return
+    }
+    setCatalogRepository((previous) => addCatalogItem(previous, shopId, groupId, name))
+    setStatus(`Created catalog item "${name}"`)
+  }
+
+  const handleDuplicateCatalogItem = (shopId: string, groupId: string, itemId: string) => {
+    setCatalogRepository((previous) => duplicateCatalogItem(previous, shopId, groupId, itemId))
+    setStatus('Catalog item duplicated')
+  }
+
+  const handleDeleteCatalogItem = (shopId: string, groupId: string, itemId: string) => {
+    const shop = catalogRepository.find((entry) => entry.id === shopId)
+    const group = shop?.groups.find((entry) => entry.id === groupId)
+    const item = group?.items.find((entry) => entry.id === itemId)
+    if (!shop || !group || !item || shop.isBundled) {
+      setStatus('Select an editable catalog item first')
+      return
+    }
+    if (!window.confirm(`Delete catalog item "${item.name}"?`)) {
+      return
+    }
+    setCatalogRepository((previous) => deleteCatalogItem(previous, shopId, groupId, itemId))
+    setStatus(`Deleted catalog item "${item.name}"`)
+  }
+
+  const handleMoveCatalogItemToGroup = (
+    shopId: string,
+    sourceGroupId: string,
+    itemId: string,
+    targetGroupId: string,
+  ) => {
+    setCatalogRepository((previous) => moveCatalogItemToGroup(previous, shopId, sourceGroupId, itemId, targetGroupId))
+    setStatus('Catalog item moved')
   }
 
   // Source v2.0.0 [Distance Marking] — stamp the selected repository template
@@ -529,6 +642,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleRenameTemplateFolder,
     handleDeleteTemplateFolder,
     handleMoveTemplateToFolder,
+    handleMoveTemplateFolderToFolder,
     handleFlipTemplate,
     handleLoadTemplateAsDocument,
     handleInsertTemplateIntoDocument,
@@ -537,6 +651,7 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleExportTemplateRepository,
     handleImportTemplateRepositoryFile,
     handleImportCatalogFile,
+    handleCreateCatalogShop,
     handleDeleteCatalogShop,
     handleExportCatalogShop,
     handleMoveCatalogShop,
@@ -544,5 +659,13 @@ export function useTemplateActions(params: UseTemplateActionsParams) {
     handleUpdateCatalogShop,
     handleUpdateCatalogGroup,
     handleUpdateCatalogItem,
+    handleCreateCatalogGroup,
+    handleDeleteCatalogGroup,
+    handleDuplicateCatalogGroup,
+    handleMoveCatalogGroup,
+    handleCreateCatalogItem,
+    handleDuplicateCatalogItem,
+    handleDeleteCatalogItem,
+    handleMoveCatalogItemToGroup,
   }
 }

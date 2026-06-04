@@ -55,12 +55,22 @@ type TemplateRepositoryModalProps = {
   onRenameTemplateFolder: (folderId: string) => void
   onDeleteTemplateFolder: (folderId: string) => void
   onMoveTemplateToFolder: (entryId: string, folderId: string | null) => void
+  onMoveTemplateFolderToFolder: (folderId: string, parentFolderId: string | null) => void
   onDeleteCatalogShop: (shopId: string) => void
+  onCreateCatalogShop: () => void
   onMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
   onSortCatalogShops: (sortKey: CatalogRepositorySortKey) => void
   onUpdateCatalogShop: (shopId: string, patch: CatalogShopPatch) => void
   onUpdateCatalogGroup: (shopId: string, groupId: string, patch: CatalogGroupPatch) => void
   onUpdateCatalogItem: (shopId: string, groupId: string, itemId: string, patch: CatalogItemPatch) => void
+  onCreateCatalogGroup: (shopId: string) => void
+  onDeleteCatalogGroup: (shopId: string, groupId: string) => void
+  onDuplicateCatalogGroup: (shopId: string, groupId: string) => void
+  onMoveCatalogGroup: (shopId: string, groupId: string, direction: CatalogRepositoryMoveDirection) => void
+  onCreateCatalogItem: (shopId: string, groupId: string) => void
+  onDuplicateCatalogItem: (shopId: string, groupId: string, itemId: string) => void
+  onDeleteCatalogItem: (shopId: string, groupId: string, itemId: string) => void
+  onMoveCatalogItemToGroup: (shopId: string, sourceGroupId: string, itemId: string, targetGroupId: string) => void
 }
 
 type CatalogPreviewEntry = {
@@ -84,6 +94,19 @@ function joinCatalogItemDetails(item: CatalogRepositoryItem): string {
     details.push(item.imageDpi ? `image @ ${item.imageDpi} dpi` : 'image included')
   }
   return details.join(' · ')
+}
+
+function buildTemplateFolderPath(folders: TemplateRepositoryFolder[], folderId: string): string {
+  const byId = new Map(folders.map((folder) => [folder.id, folder]))
+  const parts: string[] = []
+  const seen = new Set<string>()
+  let cursor: TemplateRepositoryFolder | undefined = byId.get(folderId)
+  while (cursor && !seen.has(cursor.id)) {
+    seen.add(cursor.id)
+    parts.unshift(cursor.name)
+    cursor = cursor.parentFolderId ? byId.get(cursor.parentFolderId) : undefined
+  }
+  return parts.join(' / ') || 'Folder'
 }
 
 export function TemplateRepositoryModal({
@@ -119,12 +142,22 @@ export function TemplateRepositoryModal({
   onRenameTemplateFolder,
   onDeleteTemplateFolder,
   onMoveTemplateToFolder,
+  onMoveTemplateFolderToFolder,
   onDeleteCatalogShop,
+  onCreateCatalogShop,
   onMoveCatalogShop,
   onSortCatalogShops,
   onUpdateCatalogShop,
   onUpdateCatalogGroup,
   onUpdateCatalogItem,
+  onCreateCatalogGroup,
+  onDeleteCatalogGroup,
+  onDuplicateCatalogGroup,
+  onMoveCatalogGroup,
+  onCreateCatalogItem,
+  onDuplicateCatalogItem,
+  onDeleteCatalogItem,
+  onMoveCatalogItemToGroup,
 }: TemplateRepositoryModalProps) {
   const [activeTab, setActiveTab] = useState<TemplateRepositoryTab>('templates')
   const [selectedCatalogItemKey, setSelectedCatalogItemKey] = useState<string | null>(null)
@@ -134,6 +167,8 @@ export function TemplateRepositoryModal({
     Record<string, { width: number; height: number }>
   >({})
   const [catalogItemSort, setCatalogItemSort] = useState<CatalogItemSort>('group')
+  const [catalogSearch, setCatalogSearch] = useState('')
+  const [catalogThumbnailGrid, setCatalogThumbnailGrid] = useState(false)
   const catalogPreviewImageObjectUrlsRef = useRef<Set<string>>(new Set())
   const catalogPreviewImagePendingRef = useRef<Set<string>>(new Set())
   const selectedCatalogShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
@@ -144,6 +179,27 @@ export function TemplateRepositoryModal({
   const filteredTemplateRepository = templateRepository.filter(
     (entry) => (entry.parentFolderId ?? null) === selectedTemplateFolderId,
   )
+  const templateFolderDepths = (() => {
+    const depths = new Map<string, number>()
+    const resolveDepth = (folder: TemplateRepositoryFolder): number => {
+      if (depths.has(folder.id)) {
+        return depths.get(folder.id) ?? 0
+      }
+      const parent = folder.parentFolderId ? templateRepositoryFolders.find((entry) => entry.id === folder.parentFolderId) : null
+      const depth = parent ? resolveDepth(parent) + 1 : 0
+      depths.set(folder.id, depth)
+      return depth
+    }
+    templateRepositoryFolders.forEach(resolveDepth)
+    return depths
+  })()
+  const sortedTemplateFolders = templateRepositoryFolders
+    .slice()
+    .sort((left, right) => {
+      const leftPath = buildTemplateFolderPath(templateRepositoryFolders, left.id)
+      const rightPath = buildTemplateFolderPath(templateRepositoryFolders, right.id)
+      return leftPath.localeCompare(rightPath)
+    })
   const selectedCatalogShopGroupCount =
     selectedCatalogShop === null
       ? 0
@@ -164,7 +220,15 @@ export function TemplateRepositoryModal({
         item,
       })),
     )
-    return entries.sort((left, right) => {
+    const search = catalogSearch.trim().toLowerCase()
+    const filtered = search
+      ? entries.filter((entry) =>
+          [entry.item.name, entry.item.category, entry.item.memo, entry.groupName].some((value) =>
+            value.toLowerCase().includes(search),
+          ),
+        )
+      : entries
+    return filtered.sort((left, right) => {
       if (catalogItemSort === 'name') {
         return left.item.name.localeCompare(right.item.name)
       }
@@ -180,6 +244,9 @@ export function TemplateRepositoryModal({
       return left.groupIndex - right.groupIndex || left.itemIndex - right.itemIndex
     })
   })()
+  const catalogCategories = Array.from(
+    new Set(selectedCatalogShop?.groups.flatMap((group) => group.items.map((item) => item.category).filter(Boolean)) ?? []),
+  ).sort((left, right) => left.localeCompare(right))
   const resolvedSelectedCatalogItemKey =
     selectedCatalogItemKey && catalogPreviewItems.some((entry) => entry.key === selectedCatalogItemKey)
       ? selectedCatalogItemKey
@@ -189,6 +256,10 @@ export function TemplateRepositoryModal({
       ? null
       : catalogPreviewItems.find((entry) => entry.key === resolvedSelectedCatalogItemKey) ?? null
   const selectedCatalogPreviewImagePayload = selectedCatalogPreviewItem?.item.zipBmpBase64 ?? null
+  const selectedCatalogPreviewGroup = selectedCatalogPreviewItem
+    ? selectedCatalogShop?.groups[selectedCatalogPreviewItem.groupIndex] ?? null
+    : null
+  const selectedCatalogIsEditable = Boolean(selectedCatalogShop && !selectedCatalogShop.isBundled)
 
   useEffect(() => {
     const createdObjectUrls = catalogPreviewImageObjectUrlsRef.current
@@ -351,11 +422,12 @@ export function TemplateRepositoryModal({
                   Repository Root
                   <span>{templateRepository.filter((entry) => (entry.parentFolderId ?? null) === null).length}</span>
                 </button>
-                {templateRepositoryFolders.map((folder) => (
+                {sortedTemplateFolders.map((folder) => (
                   <button
                     key={folder.id}
                     type="button"
                     className={`template-folder-item${selectedTemplateFolderId === folder.id ? ' active' : ''}`}
+                    style={{ paddingLeft: `${9 + (templateFolderDepths.get(folder.id) ?? 0) * 14}px` }}
                     onClick={() => onSelectTemplateFolder(folder.id)}
                   >
                     {folder.name}
@@ -423,11 +495,33 @@ export function TemplateRepositoryModal({
                   }}
                 >
                   <option value="">Repository Root</option>
-                  {templateRepositoryFolders.map((folder) => (
+                  {sortedTemplateFolders.map((folder) => (
                     <option key={folder.id} value={folder.id}>
-                      {folder.name}
+                      {buildTemplateFolderPath(templateRepositoryFolders, folder.id)}
                     </option>
                   ))}
+                </select>
+              </label>
+              <label className="field-row template-folder-move">
+                <span>Folder parent</span>
+                <select
+                  value={selectedTemplateFolder?.parentFolderId ?? ''}
+                  disabled={!selectedTemplateFolder}
+                  onChange={(event) => {
+                    if (!selectedTemplateFolder) {
+                      return
+                    }
+                    onMoveTemplateFolderToFolder(selectedTemplateFolder.id, event.target.value || null)
+                  }}
+                >
+                  <option value="">Repository Root</option>
+                  {sortedTemplateFolders
+                    .filter((folder) => folder.id !== selectedTemplateFolder?.id)
+                    .map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {buildTemplateFolderPath(templateRepositoryFolders, folder.id)}
+                      </option>
+                    ))}
                 </select>
               </label>
               <button onClick={onLoadAsDocument} disabled={!selectedTemplateEntry}>
@@ -486,6 +580,7 @@ export function TemplateRepositoryModal({
           <>
             <div className="line-type-modal-actions">
               <button onClick={onImportCatalog}>Import Catalog</button>
+              <button onClick={onCreateCatalogShop}>New Catalog</button>
               <button
                 onClick={() => {
                   if (selectedCatalogShop) {
@@ -590,9 +685,46 @@ export function TemplateRepositoryModal({
                           <option value="image">Images first</option>
                         </select>
                       </label>
+                      <label className="field-row">
+                        <span>Search</span>
+                        <input
+                          type="search"
+                          value={catalogSearch}
+                          onChange={(event) => setCatalogSearch(event.target.value)}
+                          placeholder="Name, group, category"
+                        />
+                      </label>
+                      <label className="layer-toggle-item">
+                        <input
+                          type="checkbox"
+                          checked={catalogThumbnailGrid}
+                          onChange={(event) => setCatalogThumbnailGrid(event.target.checked)}
+                        />
+                        <span>Thumbnail grid</span>
+                      </label>
+                      <button
+                        onClick={() => {
+                          if (selectedCatalogShop) {
+                            onCreateCatalogGroup(selectedCatalogShop.id)
+                          }
+                        }}
+                        disabled={!selectedCatalogIsEditable}
+                      >
+                        New Group
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                            onCreateCatalogItem(selectedCatalogShop.id, selectedCatalogPreviewGroup.id)
+                          }
+                        }}
+                        disabled={!selectedCatalogIsEditable || !selectedCatalogPreviewGroup}
+                      >
+                        New Item
+                      </button>
                     </div>
                     <div className="catalog-preview-layout">
-                      <div className="catalog-preview-item-list" role="listbox" aria-label="Catalog items">
+                      <div className={`catalog-preview-item-list${catalogThumbnailGrid ? ' catalog-preview-item-grid' : ''}`} role="listbox" aria-label="Catalog items">
                         {catalogPreviewItems.map((entry) => {
                           const itemDetails = joinCatalogItemDetails(entry.item)
                           return (
@@ -603,6 +735,11 @@ export function TemplateRepositoryModal({
                               onClick={() => setSelectedCatalogItemKey(entry.key)}
                               aria-selected={resolvedSelectedCatalogItemKey === entry.key}
                             >
+                              {catalogThumbnailGrid ? (
+                                <span className="catalog-preview-thumb">
+                                  {entry.item.hasImage ? 'Image' : 'No image'}
+                                </span>
+                              ) : null}
                               <span className="catalog-preview-item-chip-name">{entry.item.name}</span>
                               <span className="catalog-preview-item-chip-meta">
                                 {entry.groupName}
@@ -615,6 +752,113 @@ export function TemplateRepositoryModal({
                       <div className="catalog-preview-detail">
                         {selectedCatalogPreviewItem ? (
                           <>
+                            <div className="catalog-management-actions">
+                              <button
+                                onClick={() => {
+                                  if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                                    onMoveCatalogGroup(selectedCatalogShop.id, selectedCatalogPreviewGroup.id, 'up')
+                                  }
+                                }}
+                                disabled={
+                                  !selectedCatalogIsEditable ||
+                                  !selectedCatalogPreviewGroup ||
+                                  selectedCatalogPreviewItem.groupIndex <= 0
+                                }
+                              >
+                                Group Up
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                                    onMoveCatalogGroup(selectedCatalogShop.id, selectedCatalogPreviewGroup.id, 'down')
+                                  }
+                                }}
+                                disabled={
+                                  !selectedCatalogIsEditable ||
+                                  !selectedCatalogPreviewGroup ||
+                                  selectedCatalogPreviewItem.groupIndex >= selectedCatalogShop.groups.length - 1
+                                }
+                              >
+                                Group Down
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                                    onDuplicateCatalogGroup(selectedCatalogShop.id, selectedCatalogPreviewGroup.id)
+                                  }
+                                }}
+                                disabled={!selectedCatalogIsEditable || !selectedCatalogPreviewGroup}
+                              >
+                                Duplicate Group
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                                    onDuplicateCatalogItem(
+                                      selectedCatalogShop.id,
+                                      selectedCatalogPreviewGroup.id,
+                                      selectedCatalogPreviewItem.item.id,
+                                    )
+                                  }
+                                }}
+                                disabled={!selectedCatalogIsEditable || !selectedCatalogPreviewGroup}
+                              >
+                                Duplicate Item
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                                    onDeleteCatalogItem(
+                                      selectedCatalogShop.id,
+                                      selectedCatalogPreviewGroup.id,
+                                      selectedCatalogPreviewItem.item.id,
+                                    )
+                                  }
+                                }}
+                                disabled={!selectedCatalogIsEditable || !selectedCatalogPreviewGroup}
+                              >
+                                Delete Item
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (selectedCatalogShop && selectedCatalogPreviewGroup) {
+                                    onDeleteCatalogGroup(selectedCatalogShop.id, selectedCatalogPreviewGroup.id)
+                                  }
+                                }}
+                                disabled={
+                                  !selectedCatalogIsEditable ||
+                                  !selectedCatalogPreviewGroup ||
+                                  selectedCatalogShop.groups.length <= 1
+                                }
+                              >
+                                Delete Group
+                              </button>
+                              <label className="field-row catalog-move-item-field">
+                                <span>Move item to</span>
+                                <select
+                                  className="action-select"
+                                  value={selectedCatalogPreviewGroup?.id ?? ''}
+                                  disabled={!selectedCatalogIsEditable || !selectedCatalogPreviewGroup}
+                                  onChange={(event) => {
+                                    if (!selectedCatalogShop || !selectedCatalogPreviewGroup) {
+                                      return
+                                    }
+                                    onMoveCatalogItemToGroup(
+                                      selectedCatalogShop.id,
+                                      selectedCatalogPreviewGroup.id,
+                                      selectedCatalogPreviewItem.item.id,
+                                      event.target.value,
+                                    )
+                                  }}
+                                >
+                                  {selectedCatalogShop.groups.map((group) => (
+                                    <option key={group.id} value={group.id}>
+                                      {group.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
                             <CatalogEditorPanel
                               shop={selectedCatalogShop}
                               groupIndex={selectedCatalogPreviewItem.groupIndex}
@@ -634,6 +878,7 @@ export function TemplateRepositoryModal({
                               onUpdateShop={onUpdateCatalogShop}
                               onUpdateGroup={onUpdateCatalogGroup}
                               onUpdateItem={onUpdateCatalogItem}
+                              categories={catalogCategories}
                             />
                             <dl className="catalog-preview-detail-grid">
                               <dt>Category</dt>

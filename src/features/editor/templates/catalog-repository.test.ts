@@ -4,7 +4,16 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { decodeCatalogZipBmpToObjectUrl } from './catalog-image-preview'
 import {
+  addCatalogGroup,
+  addCatalogItem,
+  createCatalogShop,
+  deleteCatalogGroup,
+  deleteCatalogItem,
+  duplicateCatalogGroup,
+  duplicateCatalogItem,
+  moveCatalogGroup,
   moveCatalogRepositoryShop,
+  moveCatalogItemToGroup,
   parseCatalogShopImport,
   serializeCatalogShop,
   sortCatalogRepository,
@@ -287,6 +296,65 @@ describe('catalog editing', () => {
       imageCropMode: 'max',
     })
     expect(untouched[1].name).toBe('Bundled')
+  })
+
+  it('creates editable shops, groups, and items with updated counts', () => {
+    const created = createCatalogShop('Hardware Shop')
+    expect(created.name).toBe('Hardware Shop')
+    expect(created.groups).toHaveLength(1)
+    expect(created.groupCount).toBe(1)
+    expect(created.itemCount).toBe(1)
+
+    const withGroup = addCatalogGroup([created], created.id, 'Snaps')[0]
+    expect(withGroup.groups.map((group) => group.name)).toEqual(['Default Group', 'Snaps'])
+    expect(withGroup.groupCount).toBe(2)
+
+    const withItem = addCatalogItem([withGroup], withGroup.id, withGroup.groups[1].id, 'Line 20 Snap')[0]
+    expect(withItem.groups[1].items[0].name).toBe('Line 20 Snap')
+    expect(withItem.itemCount).toBe(2)
+  })
+
+  it('duplicates, moves, and deletes catalog items and groups', () => {
+    const base = addCatalogGroup([createCatalogShop('Hardware Shop')], 'missing', 'Ignored')[0]
+    const withGroup = addCatalogGroup([base], base.id, 'Snaps')[0]
+    const sourceGroup = withGroup.groups[0]
+    const targetGroup = withGroup.groups[1]
+    const sourceItem = sourceGroup.items[0]
+
+    const duplicated = duplicateCatalogItem([withGroup], withGroup.id, sourceGroup.id, sourceItem.id)[0]
+    expect(duplicated.groups[0].items).toHaveLength(2)
+    expect(duplicated.groups[0].items[1].name).toBe(`${sourceItem.name} Copy`)
+
+    const moved = moveCatalogItemToGroup(
+      [duplicated],
+      duplicated.id,
+      sourceGroup.id,
+      sourceItem.id,
+      targetGroup.id,
+    )[0]
+    expect(moved.groups[0].items.map((item) => item.id)).not.toContain(sourceItem.id)
+    expect(moved.groups[1].items.map((item) => item.id)).toContain(sourceItem.id)
+    expect(moved.itemCount).toBe(2)
+
+    const withoutItem = deleteCatalogItem([moved], moved.id, targetGroup.id, sourceItem.id)[0]
+    expect(withoutItem.itemCount).toBe(1)
+
+    const withoutGroup = deleteCatalogGroup([withoutItem], withoutItem.id, targetGroup.id)[0]
+    expect(withoutGroup.groups.map((group) => group.id)).toEqual([sourceGroup.id])
+    expect(withoutGroup.groupCount).toBe(1)
+  })
+
+  it('duplicates and reorders catalog groups', () => {
+    const base = createCatalogShop('Hardware Shop')
+    const withGroup = addCatalogGroup([base], base.id, 'Snaps')[0]
+    const duplicated = duplicateCatalogGroup([withGroup], withGroup.id, withGroup.groups[1].id)[0]
+
+    expect(duplicated.groups).toHaveLength(3)
+    expect(duplicated.groups[2].name).toBe('Snaps Copy')
+
+    const moved = moveCatalogGroup([duplicated], duplicated.id, duplicated.groups[2].id, 'up')[0]
+    expect(moved.groups[1].name).toBe('Snaps Copy')
+    expect(moved.groupCount).toBe(3)
   })
 })
 

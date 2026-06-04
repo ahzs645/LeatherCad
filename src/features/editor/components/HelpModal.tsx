@@ -50,6 +50,7 @@ For more detail visit https://www.leathercraftcad.com/docs.
 `
 
 type HelpModalTab = 'about' | 'shortcuts' | 'license' | 'readme' | 'donation' | 'links'
+  | 'release' | 'parity'
 
 type HelpModalProps = {
   open: boolean
@@ -59,10 +60,41 @@ type HelpModalProps = {
 const TABS: Array<{ id: HelpModalTab; label: string }> = [
   { id: 'about', label: 'About' },
   { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'release', label: 'Release Notes' },
+  { id: 'parity', label: 'Parity' },
   { id: 'readme', label: 'ReadMe' },
   { id: 'license', label: 'License' },
   { id: 'donation', label: 'Donation' },
   { id: 'links', label: 'Resources' },
+]
+
+const SHORTCUTS = [
+  'Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo',
+  'Cmd/Ctrl+C / X / V clipboard, Cmd/Ctrl+D duplicate',
+  'Cmd/Ctrl+A select all',
+  'Escape clears draft and selection',
+  'Delete / Backspace removes selected shapes',
+  'T toggles tracing overlays',
+  'Z extends/trims selected linework',
+  'F5 toggles dimension annotations',
+  'F6 toggles the stitching simulator',
+  '+ / - adjusts simulator thread thickness',
+  '= cycles even/odd stitch visibility',
+  'Mobile: 2D / 3D / Split buttons switch workspace focus',
+]
+
+const RELEASE_NOTES = [
+  'Catalog manager now supports editable shops, groups, items, item search, thumbnail grid mode, and group/item move/duplicate/delete workflows.',
+  'Template repository folders support nested parents and clearer folder paths when moving templates.',
+  'Pricking iron toolbox supports .lccp import/export, custom groups, preset duplication, reorder controls, and visual blade previews.',
+  'PDF tracing supports page switching, page browser buttons, DPI scaling, and ruler calibration.',
+  'Font list management supports import/export, rename, duplicate, remove, and use actions.',
+]
+
+const PARITY_NOTES = [
+  'Source app: Leathercraft_CAD_v2.8.3 macOS ARM extraction.',
+  'Major parity covered: drafting, line palette, layers, stitch holes, pricking irons, tracing, SVG/DXF/PDF workflows, templates, catalogs, print calibration, bonus generators, mandala helpers, and 3D preview extensions.',
+  'Known intentional differences: remote version checks and member entitlement handshakes are offline-friendly or out of scope for this web rebuild.',
 ]
 
 function copyToClipboard(value: string) {
@@ -131,12 +163,31 @@ export function HelpModal({ open, onClose }: HelpModalProps) {
           <section className="help-section">
             <h3>Keyboard shortcuts</h3>
             <ul className="help-list">
-              <li>Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo</li>
-              <li>Cmd/Ctrl+C / X / V clipboard, Cmd/Ctrl+D duplicate</li>
-              <li>Cmd/Ctrl+A select all</li>
-              <li>Escape clears draft and selection</li>
-              <li>Delete / Backspace removes selected shapes</li>
-              <li>Mobile: 2D / 3D / Split buttons switch workspace focus</li>
+              {SHORTCUTS.map((shortcut) => (
+                <li key={shortcut}>{shortcut}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {activeTab === 'release' && (
+          <section className="help-section">
+            <h3>Release Notes</h3>
+            <ul className="help-list">
+              {RELEASE_NOTES.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {activeTab === 'parity' && (
+          <section className="help-section">
+            <h3>Source-App Parity</h3>
+            <ul className="help-list">
+              {PARITY_NOTES.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
             </ul>
           </section>
         )}

@@ -16,6 +16,7 @@ type CatalogEditorPanelProps = {
   imageLoading: boolean
   imageError: string | null
   canEdit: boolean
+  categories: string[]
   onImageSize: (itemKey: string, size: { width: number; height: number }) => void
   onUpdateShop: (shopId: string, patch: CatalogShopPatch) => void
   onUpdateGroup: (shopId: string, groupId: string, patch: CatalogGroupPatch) => void
@@ -47,6 +48,7 @@ export function CatalogEditorPanel({
   imageLoading,
   imageError,
   canEdit,
+  categories,
   onImageSize,
   onUpdateShop,
   onUpdateGroup,
@@ -115,7 +117,18 @@ export function CatalogEditorPanel({
         </label>
         <label className="field-row">
           <span>Category</span>
-          <input type="text" value={item.category} disabled={!canEdit} onChange={(event) => updateItem({ category: event.target.value })} />
+          <input
+            type="text"
+            list="catalog-category-options"
+            value={item.category}
+            disabled={!canEdit}
+            onChange={(event) => updateItem({ category: event.target.value })}
+          />
+          <datalist id="catalog-category-options">
+            {categories.map((category) => (
+              <option key={category} value={category} />
+            ))}
+          </datalist>
         </label>
         <label className="field-row">
           <span>Unit Price</span>

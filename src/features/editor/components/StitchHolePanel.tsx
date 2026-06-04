@@ -65,7 +65,12 @@ function normalizeCatalog(catalog: PrickingIronCatalog): PrickingIronCatalog {
     .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name))
   const presets = catalog.presets
     .slice()
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort((left, right) => {
+      if (left.groupId !== right.groupId) {
+        return left.groupId.localeCompare(right.groupId)
+      }
+      return 0
+    })
   return { groups, presets, showFiveMmGuide: catalog.showFiveMmGuide === true }
 }
 
@@ -294,6 +299,59 @@ export function StitchHolePanel({
     setPendingPrickingIronId(builtinCatalog.presets[0]?.id ?? null)
   }
 
+  const handleDuplicatePreset = () => {
+    if (!selectedPrickingIron) {
+      return
+    }
+    const targetGroupId = selectedPrickingIron.system
+      ? (customCatalog.groups[0] ?? createDefaultCustomPrickingIronGroup(0)).id
+      : selectedPrickingIron.groupId
+    const nextGroups = customCatalog.groups.some((group) => group.id === targetGroupId)
+      ? customCatalog.groups
+      : [...customCatalog.groups, createDefaultCustomPrickingIronGroup(0)]
+    const duplicate = createCustomPrickingIron({
+      groupId: targetGroupId,
+      name: `${selectedPrickingIron.name} Copy`,
+      shape: selectedPrickingIron.shape,
+      pitchMm: selectedPrickingIron.pitchMm,
+      widthMm: selectedPrickingIron.widthMm,
+      heightMm: selectedPrickingIron.heightMm,
+      tiltDeg: selectedPrickingIron.tiltDeg,
+      inverted: selectedPrickingIron.inverted,
+      numBlades: selectedPrickingIron.numBlades,
+    })
+    saveCustomCatalog({
+      groups: nextGroups,
+      presets: [duplicate, ...customCatalog.presets],
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
+    })
+    setPendingPrickingIronId(duplicate.id)
+  }
+
+  const handleMoveCustomPreset = (direction: -1 | 1) => {
+    if (!selectedPrickingIron || selectedPrickingIron.system) {
+      return
+    }
+    const groupPresets = customCatalog.presets.filter((preset) => preset.groupId === selectedPrickingIron.groupId)
+    const index = groupPresets.findIndex((preset) => preset.id === selectedPrickingIron.id)
+    const targetIndex = index + direction
+    if (index < 0 || targetIndex < 0 || targetIndex >= groupPresets.length) {
+      return
+    }
+    const reordered = groupPresets.slice()
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(targetIndex, 0, moved)
+    const reorderedIds = new Set(reordered.map((preset) => preset.id))
+    saveCustomCatalog({
+      groups: customCatalog.groups,
+      presets: [
+        ...customCatalog.presets.filter((preset) => preset.groupId !== selectedPrickingIron.groupId),
+        ...reordered,
+      ].filter((preset, index, all) => !reorderedIds.has(preset.id) || all.findIndex((entry) => entry.id === preset.id) === index),
+      showFiveMmGuide: customCatalog.showFiveMmGuide,
+    })
+  }
+
   const handleExportPrickingLibrary = () => {
     const blob = new Blob([serializePrickingIronLccp(customCatalog)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
@@ -445,6 +503,15 @@ export function StitchHolePanel({
           </button>
           <button onClick={handleDeleteCustomPreset} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
             Delete Preset
+          </button>
+          <button onClick={handleDuplicatePreset} disabled={!selectedPrickingIron}>
+            Duplicate Preset
+          </button>
+          <button onClick={() => handleMoveCustomPreset(-1)} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
+            Preset Up
+          </button>
+          <button onClick={() => handleMoveCustomPreset(1)} disabled={!selectedPrickingIron || selectedPrickingIron.system}>
+            Preset Down
           </button>
         </div>
       )}
@@ -692,10 +759,33 @@ export function StitchHolePanel({
       </label>
 
       {selectedPrickingIron && (
-        <span className="hint">
-          {groupsById[selectedPrickingIron.groupId]?.name ?? 'Group'}: {selectedPrickingIron.numBlades} blades
-          {customCatalog.showFiveMmGuide ? ', 5 mm guide on' : ''}
-        </span>
+        <div className="pricking-selected-preview">
+          <svg viewBox="0 0 120 34" width="150" height="42" role="img" aria-label="Selected pricking iron preview">
+            {Array.from({ length: Math.min(selectedPrickingIron.numBlades, 12) }, (_, index) => {
+              const x = 12 + index * 12
+              const shape = selectedPrickingIron.shape
+              return shape === 'round' ? (
+                <circle key={index} cx={x} cy="17" r="3.5" fill="currentColor" />
+              ) : (
+                <rect
+                  key={index}
+                  x={x - 1.5}
+                  y="9"
+                  width="3"
+                  height="16"
+                  rx={shape === 'flat' ? 0 : 1}
+                  fill="currentColor"
+                  transform={`rotate(${selectedPrickingIron.tiltDeg} ${x} 17)`}
+                />
+              )
+            })}
+          </svg>
+          <span className="hint">
+            {groupsById[selectedPrickingIron.groupId]?.name ?? 'Group'}: {selectedPrickingIron.numBlades} blades,
+            {' '}{formatDisplayDistance(selectedPrickingIron.pitchMm, displayUnit, displayUnit === 'in' ? 3 : 2)} pitch
+            {customCatalog.showFiveMmGuide ? ', 5 mm guide on' : ''}
+          </span>
+        </div>
       )}
 
       <button onClick={onAutoPlacePreferredPitch} disabled={selectedShapeCount === 0}>

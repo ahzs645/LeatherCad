@@ -46,3 +46,30 @@ export function addFontToList(fonts: string[], fontFamily: string): string[] {
 export function removeFontFromList(fonts: string[], fontFamily: string): string[] {
   return fonts.filter((entry) => entry !== fontFamily)
 }
+
+export function renameFontInList(fonts: string[], oldFontFamily: string, newFontFamily: string): string[] {
+  const trimmed = newFontFamily.trim()
+  if (!trimmed) {
+    return fonts
+  }
+  return fonts.map((entry) => (entry === oldFontFamily ? trimmed : entry)).filter((entry, index, all) => all.indexOf(entry) === index)
+}
+
+export function duplicateFontInList(fonts: string[], fontFamily: string): string[] {
+  const next = `${fontFamily} Copy`
+  return addFontToList(fonts, next)
+}
+
+export function serializeFontList(fonts: string[]): string {
+  return JSON.stringify({ fileType: 'LeatherCad_FontList', fonts }, null, 2)
+}
+
+export function parseFontListImport(raw: string): string[] {
+  const parsed = JSON.parse(raw) as unknown
+  const fonts = Array.isArray(parsed)
+    ? parsed
+    : typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as { fonts?: unknown[] }).fonts)
+      ? (parsed as { fonts: unknown[] }).fonts
+      : []
+  return fonts.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+}

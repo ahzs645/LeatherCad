@@ -132,6 +132,33 @@ export function renameTemplateFolder(
   )
 }
 
+export function moveTemplateFolderToFolder(
+  folders: TemplateRepositoryFolder[],
+  folderId: string,
+  parentFolderId: string | null,
+): TemplateRepositoryFolder[] {
+  if (folderId === parentFolderId) {
+    return folders
+  }
+  const descendants = new Set<string>()
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const folder of folders) {
+      if ((folder.parentFolderId === folderId || (folder.parentFolderId && descendants.has(folder.parentFolderId))) && !descendants.has(folder.id)) {
+        descendants.add(folder.id)
+        changed = true
+      }
+    }
+  }
+  if (parentFolderId && descendants.has(parentFolderId)) {
+    return folders
+  }
+  return folders.map((folder) =>
+    folder.id === folderId ? { ...folder, parentFolderId, updatedAt: new Date().toISOString() } : folder,
+  )
+}
+
 function flipPoint(point: { x: number; y: number }, axis: 'horizontal' | 'vertical') {
   return axis === 'horizontal' ? { x: -point.x, y: point.y } : { x: point.x, y: -point.y }
 }

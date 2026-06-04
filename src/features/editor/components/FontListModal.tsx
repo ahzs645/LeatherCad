@@ -5,6 +5,10 @@ type FontListModalProps = {
   fonts: string[]
   onAdd: (fontFamily: string) => void
   onRemove: (fontFamily: string) => void
+  onRename: (oldFontFamily: string, newFontFamily: string) => void
+  onDuplicate: (fontFamily: string) => void
+  onImport: (raw: string) => void
+  onExport: () => string
   onSelect: (fontFamily: string) => void
   onClose: () => void
 }
@@ -14,6 +18,10 @@ export function FontListModal({
   fonts,
   onAdd,
   onRemove,
+  onRename,
+  onDuplicate,
+  onImport,
+  onExport,
   onSelect,
   onClose,
 }: FontListModalProps) {
@@ -28,6 +36,16 @@ export function FontListModal({
     if (!value) return
     onAdd(value)
     setDraft('')
+  }
+
+  const handleExport = () => {
+    const blob = new Blob([onExport()], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'leathercad-font-list.json'
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -56,6 +74,21 @@ export function FontListModal({
         </label>
         <div className="modal-actions">
           <button onClick={handleAdd} disabled={!draft.trim()}>Add</button>
+          <button onClick={handleExport}>Export</button>
+          <label className="button-like">
+            Import
+            <input
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (!file) return
+                void file.text().then(onImport)
+              }}
+            />
+          </label>
         </div>
 
         <ul className="help-list">
@@ -64,6 +97,15 @@ export function FontListModal({
             <li key={font} style={{ fontFamily: font }}>
               {font}{' '}
               <button onClick={() => onSelect(font)}>Use</button>{' '}
+              <button
+                onClick={() => {
+                  const next = window.prompt('Font family', font)
+                  if (next) onRename(font, next)
+                }}
+              >
+                Rename
+              </button>{' '}
+              <button onClick={() => onDuplicate(font)}>Duplicate</button>{' '}
               <button onClick={() => onRemove(font)}>Remove</button>
             </li>
           ))}

@@ -10,7 +10,15 @@ import type { ProjectMemoModalProps } from '../components/ProjectMemoModal'
 import { saveAutoSaveEnabled } from '../ops/autosave'
 import { saveBoxStitchHelperSettings, type BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import { saveEditorPreferences, getDefaultEditorPreferences } from '../ops/editor-prefs'
-import { addFontToList, removeFontFromList, saveFontList } from '../ops/font-list-ops'
+import {
+  addFontToList,
+  duplicateFontInList,
+  parseFontListImport,
+  removeFontFromList,
+  renameFontInList,
+  saveFontList,
+  serializeFontList,
+} from '../ops/font-list-ops'
 import { getArcGeometry, getLineAngleDeg, getLineLengthMm, scaleLineLengthByRatio, setArcGeometry, setLineAngle, setLineLength } from '../ops/geometry-editing-ops'
 import type { OutlineChain } from '../ops/outline-detection'
 import { saveStitchAutoPitchSettings } from '../ops/stitch-auto-pitch-settings'
@@ -654,6 +662,23 @@ export function buildEditorOverlayProps({
           setFontList(next)
           saveFontList(next)
         },
+        onRename: (oldFontFamily: string, newFontFamily: string) => {
+          const next = renameFontInList(fontList, oldFontFamily, newFontFamily)
+          setFontList(next)
+          saveFontList(next)
+        },
+        onDuplicate: (fontFamily: string) => {
+          const next = duplicateFontInList(fontList, fontFamily)
+          setFontList(next)
+          saveFontList(next)
+        },
+        onImport: (raw: string) => {
+          const next = Array.from(new Set([...fontList, ...parseFontListImport(raw)]))
+          setFontList(next)
+          saveFontList(next)
+          setStatus(`Imported ${next.length} font list entr${next.length === 1 ? 'y' : 'ies'}`)
+        },
+        onExport: () => serializeFontList(fontList),
         onSelect: (fontFamily: string) => {
           setTextFontFamily(fontFamily)
           setStatus(`Text font family set to ${fontFamily}`)

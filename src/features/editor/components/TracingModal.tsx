@@ -275,8 +275,8 @@ export function TracingModal({
             </details>
             {activeTracingOverlay.kind === 'pdf' && pdfPageCount > 1 && (
               <div className="field-row">
-                <span>PDF Page</span>
-                <div className="line-type-modal-actions">
+                <span>PDF Page Browser</span>
+                <div className="line-type-modal-actions pdf-page-browser">
                   <button
                     type="button"
                     onClick={() => onSetPdfTracingPage(activeTracingOverlay, pdfPageNumber - 1)}
@@ -302,6 +302,16 @@ export function TracingModal({
                   >
                     Next
                   </button>
+                  {Array.from({ length: pdfPageCount }, (_, index) => index + 1).map((pageNumber) => (
+                    <button
+                      key={pageNumber}
+                      type="button"
+                      className={pageNumber === pdfPageNumber ? 'active' : ''}
+                      onClick={() => onSetPdfTracingPage(activeTracingOverlay, pageNumber)}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

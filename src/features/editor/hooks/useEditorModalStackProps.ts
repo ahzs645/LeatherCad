@@ -71,7 +71,9 @@ export type UseEditorModalStackPropsParams = {
   handleRenameTemplateFolder: (folderId: string) => void
   handleDeleteTemplateFolder: (folderId: string) => void
   handleMoveTemplateToFolder: (entryId: string, folderId: string | null) => void
+  handleMoveTemplateFolderToFolder: (folderId: string, parentFolderId: string | null) => void
   handleFlipTemplate: (entryId: string, axis: 'horizontal' | 'vertical') => void
+  handleCreateCatalogShop: () => void
   handleDeleteCatalogShop: (shopId: string) => void
   handleExportCatalogShop: (shopId: string) => void
   handleMoveCatalogShop: (shopId: string, direction: CatalogRepositoryMoveDirection) => void
@@ -79,6 +81,14 @@ export type UseEditorModalStackPropsParams = {
   handleUpdateCatalogShop: (shopId: string, patch: CatalogShopPatch) => void
   handleUpdateCatalogGroup: (shopId: string, groupId: string, patch: CatalogGroupPatch) => void
   handleUpdateCatalogItem: (shopId: string, groupId: string, itemId: string, patch: CatalogItemPatch) => void
+  handleCreateCatalogGroup: (shopId: string) => void
+  handleDeleteCatalogGroup: (shopId: string, groupId: string) => void
+  handleDuplicateCatalogGroup: (shopId: string, groupId: string) => void
+  handleMoveCatalogGroup: (shopId: string, groupId: string, direction: CatalogRepositoryMoveDirection) => void
+  handleCreateCatalogItem: (shopId: string, groupId: string) => void
+  handleDuplicateCatalogItem: (shopId: string, groupId: string, itemId: string) => void
+  handleDeleteCatalogItem: (shopId: string, groupId: string, itemId: string) => void
+  handleMoveCatalogItemToGroup: (shopId: string, sourceGroupId: string, itemId: string, targetGroupId: string) => void
   handleAlignSelection: (axis: 'x' | 'y' | 'both') => void
   handleAlignSelectionToGrid: () => void
   activeLayer: Layer | null
@@ -187,7 +197,9 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleRenameTemplateFolder,
     handleDeleteTemplateFolder,
     handleMoveTemplateToFolder,
+    handleMoveTemplateFolderToFolder,
     handleFlipTemplate,
+    handleCreateCatalogShop,
     handleDeleteCatalogShop,
     handleExportCatalogShop,
     handleMoveCatalogShop,
@@ -195,6 +207,14 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleUpdateCatalogShop,
     handleUpdateCatalogGroup,
     handleUpdateCatalogItem,
+    handleCreateCatalogGroup,
+    handleDeleteCatalogGroup,
+    handleDuplicateCatalogGroup,
+    handleMoveCatalogGroup,
+    handleCreateCatalogItem,
+    handleDuplicateCatalogItem,
+    handleDeleteCatalogItem,
+    handleMoveCatalogItemToGroup,
     handleAlignSelection,
     handleAlignSelectionToGrid,
     activeLayer,
@@ -609,13 +629,23 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onRenameTemplateFolder: handleRenameTemplateFolder,
       onDeleteTemplateFolder: handleDeleteTemplateFolder,
       onMoveTemplateToFolder: handleMoveTemplateToFolder,
+      onMoveTemplateFolderToFolder: handleMoveTemplateFolderToFolder,
       onFlipTemplate: handleFlipTemplate,
+      onCreateCatalogShop: handleCreateCatalogShop,
       onDeleteCatalogShop: handleDeleteCatalogShop,
       onMoveCatalogShop: handleMoveCatalogShop,
       onSortCatalogShops: handleSortCatalogShops,
       onUpdateCatalogShop: handleUpdateCatalogShop,
       onUpdateCatalogGroup: handleUpdateCatalogGroup,
       onUpdateCatalogItem: handleUpdateCatalogItem,
+      onCreateCatalogGroup: handleCreateCatalogGroup,
+      onDeleteCatalogGroup: handleDeleteCatalogGroup,
+      onDuplicateCatalogGroup: handleDuplicateCatalogGroup,
+      onMoveCatalogGroup: handleMoveCatalogGroup,
+      onCreateCatalogItem: handleCreateCatalogItem,
+      onDuplicateCatalogItem: handleDuplicateCatalogItem,
+      onDeleteCatalogItem: handleDeleteCatalogItem,
+      onMoveCatalogItemToGroup: handleMoveCatalogItemToGroup,
     },
     patternToolsModalProps: {
       open: showPatternToolsModal,
