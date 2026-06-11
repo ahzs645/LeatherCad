@@ -59,6 +59,7 @@ export type EditorWorkbenchProps = {
   twoDPane: ReactNode
   threeDPane: ReactNode
   precisionDrawer: ReactNode
+  commandStrip: ReactNode
   onStartBrowserResize: PointerEventHandler<HTMLDivElement>
   onStartPeekResize: PointerEventHandler<HTMLDivElement>
   onStartInspectorResize: PointerEventHandler<HTMLDivElement>
@@ -113,6 +114,7 @@ export function EditorWorkbench({
   twoDPane,
   threeDPane,
   precisionDrawer,
+  commandStrip,
   onStartBrowserResize,
   onStartPeekResize,
   onStartInspectorResize,
@@ -186,6 +188,7 @@ export function EditorWorkbench({
 
         <div className={`workbench-surface workbench-2d-surface ${showThreeInMain ? (showTwoDInPeek ? 'in-peek' : 'hidden-surface') : 'in-main'} ${showThreeInMain ? 'read-only' : ''}`}>
           {twoDPane}
+          {commandStrip}
         </div>
 
         <div className={`workbench-surface workbench-3d-surface ${showThreeInMain ? 'in-main' : showThreeInPeek ? 'in-peek' : 'hidden-surface'} ${showThreeInMain ? '' : 'read-only'}`}>

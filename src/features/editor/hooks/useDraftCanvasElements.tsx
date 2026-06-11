@@ -8,18 +8,44 @@ type UseDraftPreviewElementParams = {
 }
 
 export function useSnapIndicatorElement() {
-  const snapIndicator = useEditorToolSelector((state) => state.snapIndicator)
+  const { angleGuideLines, markedSnapPoints, snapIndicator } = useEditorToolSelector((state) => ({
+    angleGuideLines: state.angleGuideLines,
+    markedSnapPoints: state.markedSnapPoints,
+    snapIndicator: state.snapIndicator,
+  }))
   return useMemo(() => {
-    if (!snapIndicator) return null
-    const { point, reason } = snapIndicator
+    if (!snapIndicator && markedSnapPoints.length === 0 && angleGuideLines.length === 0) return null
+    const point = snapIndicator?.point
+    const reason = snapIndicator?.reason
     return (
       <g className="snap-indicator" pointerEvents="none">
-        <circle cx={point.x} cy={point.y} r={4} fill="none" stroke="#10b981" strokeWidth={1.5} />
-        <circle cx={point.x} cy={point.y} r={1.2} fill="#10b981" />
-        <title>{`Snapped to ${reason}`}</title>
+        {angleGuideLines.map((line) => (
+          <line
+            key={line.id}
+            x1={line.start.x}
+            y1={line.start.y}
+            x2={line.end.x}
+            y2={line.end.y}
+            className="angle-guide-line"
+          />
+        ))}
+        {markedSnapPoints.map((entry, index) => (
+          <g key={`${entry.reason}-${entry.point.x}-${entry.point.y}-${index}`} className="marked-snap-anchor">
+            <circle cx={entry.point.x} cy={entry.point.y} r={5.5} />
+            <path d={`M ${entry.point.x - 3.5} ${entry.point.y} L ${entry.point.x + 3.5} ${entry.point.y} M ${entry.point.x} ${entry.point.y - 3.5} L ${entry.point.x} ${entry.point.y + 3.5}`} />
+            <title>{`Marked ${entry.reason}`}</title>
+          </g>
+        ))}
+        {point && reason && (
+          <>
+            <circle cx={point.x} cy={point.y} r={4} fill="none" stroke="#10b981" strokeWidth={1.5} />
+            <circle cx={point.x} cy={point.y} r={1.2} fill="#10b981" />
+            <title>{`Snapped to ${reason}`}</title>
+          </>
+        )}
       </g>
     )
-  }, [snapIndicator])
+  }, [angleGuideLines, markedSnapPoints, snapIndicator])
 }
 
 export function useCombinedDraftAndSnapElement(params: UseDraftPreviewElementParams) {

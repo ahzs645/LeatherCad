@@ -76,7 +76,7 @@ export function buildWorkbenchProps({
   onTogglePrecision,
 }: BuildWorkbenchPropsParams): Omit<
   EditorWorkbenchProps,
-  'inspectContent' | 'pieceContent' | 'previewContent' | 'documentContent' | 'twoDPane' | 'threeDPane' | 'precisionDrawer'
+  'inspectContent' | 'pieceContent' | 'previewContent' | 'documentContent' | 'twoDPane' | 'threeDPane' | 'precisionDrawer' | 'commandStrip'
 > {
   return {
     docLabel: controller.docLabel,

@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 
 type PrecisionCommandPanelProps = {
   open: boolean
   onClose: () => void
   toolHint: string | null
   onRunCommand: (command: string) => string
-  variant?: 'modal' | 'drawer'
+  variant?: 'modal' | 'drawer' | 'strip'
 }
 
 type CommandLogLine = {
@@ -23,20 +23,23 @@ export function PrecisionCommandPanel({
 }: PrecisionCommandPanelProps) {
   const [command, setCommand] = useState('')
   const [logs, setLogs] = useState<CommandLogLine[]>([])
+  const [history, setHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const isStrip = variant === 'strip'
 
   useEffect(() => {
-    if (!open) {
+    if (!open || isStrip) {
       return
     }
     inputRef.current?.focus()
-  }, [open])
+  }, [isStrip, open])
 
   useEffect(() => {
-    if (!open) {
+    if (!open || isStrip) {
       return
     }
-    const onKeyDown = (event: KeyboardEvent) => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
@@ -44,19 +47,21 @@ export function PrecisionCommandPanel({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+  }, [isStrip, open, onClose])
 
-  if (!open) {
+  if (!open && !isStrip) {
     return null
   }
 
   const run = (event: FormEvent) => {
     event.preventDefault()
-    const trimmed = command.trim()
+    const trimmed = command.trim() || history[0] || ''
     if (!trimmed) {
       return
     }
     const result = onRunCommand(trimmed)
+    setHistory((previous) => [trimmed, ...previous.filter((entry) => entry !== trimmed)].slice(0, 30))
+    setHistoryIndex(null)
     setLogs((previous) => [
       {
         id: Date.now(),
@@ -68,34 +73,85 @@ export function PrecisionCommandPanel({
     setCommand('')
   }
 
+  const handleCommandKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (history.length === 0) return
+      const nextIndex = historyIndex === null ? 0 : Math.min(history.length - 1, historyIndex + 1)
+      setHistoryIndex(nextIndex)
+      setCommand(history[nextIndex])
+      return
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      if (history.length === 0 || historyIndex === null) return
+      const nextIndex = historyIndex - 1
+      if (nextIndex < 0) {
+        setHistoryIndex(null)
+        setCommand('')
+        return
+      }
+      setHistoryIndex(nextIndex)
+      setCommand(history[nextIndex])
+      return
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      if (command.trim()) {
+        setCommand('')
+        setHistoryIndex(null)
+        return
+      }
+      const result = onRunCommand('finish')
+      setLogs((previous) => [
+        {
+          id: Date.now(),
+          command: 'finish',
+          result,
+        },
+        ...previous,
+      ].slice(0, 6))
+      if (!isStrip) {
+        onClose()
+      }
+    }
+  }
+
   const panel = (
     <section
-      className={`precision-panel ${variant === 'drawer' ? 'precision-drawer' : 'precision-modal'}`}
-      role="dialog"
-      aria-modal={variant === 'modal' ? 'true' : 'false'}
-      aria-label="Precision input"
+      className={`precision-panel ${variant === 'drawer' ? 'precision-drawer' : isStrip ? 'precision-strip' : 'precision-modal'}`}
+      role={isStrip ? 'search' : 'dialog'}
+      aria-modal={variant === 'modal' ? 'true' : undefined}
+      aria-label={isStrip ? 'CAD command line' : 'Precision input'}
       onMouseDown={(event) => event.stopPropagation()}
     >
-      <div className="precision-modal-header">
-        <h2>Precision Input</h2>
-        <button type="button" onClick={onClose}>
-          Close
-        </button>
-      </div>
+      {!isStrip && (
+        <div className="precision-modal-header">
+          <h2>Precision Input</h2>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      )}
       <form className="precision-form" onSubmit={run}>
+        {isStrip && <span className="precision-strip-prompt">Command</span>}
         <input
           ref={inputRef}
           type="text"
           value={command}
-          onChange={(event) => setCommand(event.target.value)}
-          placeholder="x,y  |  @x,y  |  r<deg"
-          aria-label="Precision command input"
+          onChange={(event) => {
+            setCommand(event.target.value)
+            setHistoryIndex(null)
+          }}
+          onKeyDown={handleCommandKeyDown}
+          placeholder={isStrip ? "l, rect, offset 3, mirror h, trim, extend, x,y" : "x,y  |  @x,y  |  r<deg"}
+          aria-label={isStrip ? 'CAD command input' : 'Precision command input'}
         />
         <button type="submit">Run</button>
       </form>
-      <p className="precision-help">Commands: `help`, `finish`, `x,y`, `@x,y`, `r&lt;deg`</p>
+      {!isStrip && <p className="precision-help">Commands: `help`, `finish`, `x,y`, `@x,y`, `r&lt;deg`</p>}
       {toolHint && <p className="precision-hint">{toolHint}</p>}
-      {logs.length > 0 && (
+      {logs.length > 0 && !isStrip && (
         <div className="precision-log">
           {logs.map((line) => (
             <div key={line.id} className="precision-log-line">
@@ -108,7 +164,7 @@ export function PrecisionCommandPanel({
     </section>
   )
 
-  if (variant === 'drawer') {
+  if (variant === 'drawer' || isStrip) {
     return panel
   }
 

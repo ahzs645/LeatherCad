@@ -67,7 +67,9 @@ export function useEditorScreenShells(params: UseEditorScreenShellsParams) {
       handleDeleteLayer,
       handleShowAllLayers,
       handleHideOtherLayers,
+      handleHighlightShapesOnCurrentLayer,
       handleMergeActiveLayerIntoBelow,
+      handleMoveSelectedShapesToActiveLayer,
       handleFlattenAllLayers,
     },
   } = actions
@@ -101,6 +103,8 @@ export function useEditorScreenShells(params: UseEditorScreenShellsParams) {
     onDeleteLayer: handleDeleteLayer,
     onShowAllLayers: handleShowAllLayers,
     onHideOtherLayers: handleHideOtherLayers,
+    onSelectActiveLayerShapes: handleHighlightShapesOnCurrentLayer,
+    onMoveSelectionToActiveLayer: handleMoveSelectedShapesToActiveLayer,
     onMergeActiveLayerIntoBelow: handleMergeActiveLayerIntoBelow,
     onFlattenAllLayers: handleFlattenAllLayers,
     onOpenLayerColorModal: () => params.panelState.setShowLayerColorModal(true),

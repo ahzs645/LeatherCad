@@ -75,6 +75,35 @@ export const drawingToolDefinitions = {
       runtime.clearDraft()
       runtime.setStatus('Line created')
     },
+    onCommand(command, context) {
+      const { runtime, referencePoint } = context
+      if (runtime.draftPoints.length === 1) {
+        const distanceMm = parseNumber(command)
+        if (Number.isFinite(distanceMm) && distanceMm > 0) {
+          const start = runtime.draftPoints[0]
+          const cursor = runtime.cursorPoint ?? referencePoint
+          const constrainedCursor = applyLineConstraint(start, cursor, runtime)
+          const dx = constrainedCursor.x - start.x
+          const dy = constrainedCursor.y - start.y
+          const length = Math.hypot(dx, dy)
+          const angle = length > 1e-6 ? Math.atan2(dy, dx) : runtime.lastLineAngleRad ?? 0
+          const end = {
+            x: start.x + Math.cos(angle) * distanceMm,
+            y: start.y + Math.sin(angle) * distanceMm,
+          }
+          drawingToolDefinitions.line.onPointerDown(end, runtime)
+          return 'Line distance applied'
+        }
+      }
+
+      const vector = parseVector(referencePoint, command)
+      if (!vector.ok) {
+        return vector.message
+      }
+      drawingToolDefinitions.line.onPointerDown(vector.point, runtime)
+      pickToolPoint(runtime, vector.point)
+      return 'Point accepted'
+    },
   },
   polyline: {
     onPointerDown(point, runtime) {

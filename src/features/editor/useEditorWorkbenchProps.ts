@@ -24,7 +24,7 @@ type UseEditorWorkbenchPropsParams = {
   setShowPrecisionModal: Dispatch<SetStateAction<boolean>>
   toolHint: PrecisionPanelProps['toolHint']
   runPrecisionCommand: PrecisionPanelProps['onRunCommand']
-  workbenchProps: Omit<EditorWorkbenchProps, 'inspectContent' | 'pieceContent' | 'previewContent' | 'documentContent' | 'twoDPane' | 'threeDPane' | 'precisionDrawer'>
+  workbenchProps: Omit<EditorWorkbenchProps, 'inspectContent' | 'pieceContent' | 'previewContent' | 'documentContent' | 'twoDPane' | 'threeDPane' | 'precisionDrawer' | 'commandStrip'>
   selectionInspectorProps: SelectionInspectorPanelProps
   pieceInspectorContentProps: PieceInspectorContentProps
   documentInspectorProps: DocumentInspectorPanelProps

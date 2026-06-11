@@ -16,6 +16,8 @@ type LayerSidePanelProps = {
   onDeleteLayer: () => void
   onShowAllLayers: () => void
   onHideOtherLayers: () => void
+  onSelectActiveLayerShapes: () => void
+  onMoveSelectionToActiveLayer: () => void
   onMergeActiveLayerIntoBelow: () => void
   onFlattenAllLayers: () => void
   onOpenLayerColorModal: () => void
@@ -71,6 +73,8 @@ export function LayerSidePanel({
   onDeleteLayer,
   onShowAllLayers,
   onHideOtherLayers,
+  onSelectActiveLayerShapes,
+  onMoveSelectionToActiveLayer,
   onMergeActiveLayerIntoBelow,
   onFlattenAllLayers,
   onOpenLayerColorModal,
@@ -154,6 +158,12 @@ export function LayerSidePanel({
         </button>
         <button type="button" onClick={onHideOtherLayers} disabled={!activeLayer || layers.length < 2} title="Hide other layers">
           Hide Others
+        </button>
+        <button type="button" onClick={onSelectActiveLayerShapes} disabled={!activeLayer} title="Select all shapes on active layer">
+          Select Layer
+        </button>
+        <button type="button" onClick={onMoveSelectionToActiveLayer} disabled={!activeLayer} title="Move selected shapes to active layer">
+          Assign Sel
         </button>
         <button type="button" onClick={onMergeActiveLayerIntoBelow} disabled={!activeLayer || layers.length < 2} title="Merge active layer into below">
           Merge Below

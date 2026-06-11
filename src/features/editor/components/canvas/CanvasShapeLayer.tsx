@@ -1,29 +1,20 @@
 import type { PointerEvent } from 'react'
-import { lineTypeStrokeDasharray, resolveLineTypeStrokeWidthMm } from '../../cad/line-types'
 import type {
   FoldLine,
-  LineType,
-  Shape,
   TextShape,
 } from '../../cad/cad-types'
-import type { SketchWorkspaceMode, PiecePlacementGuide } from '../../editor-types'
+import type { PiecePlacementGuide } from '../../editor-types'
 import type { HandlePointKey } from '../../hooks/useCanvasInteractions'
+import type { CanvasRenderShapeEntity } from '../../render/canvas-render-model'
 import { renderCanvasShape } from './canvas-shape-rendering'
 import { shapeHandleEntries } from './canvas-geometry'
 
 type CanvasShapeLayerProps = {
-  renderableLinkedShapes: Shape[]
-  renderableVisibleShapes: Shape[]
-  previewShapeIdSet: Set<string>
+  linkedShapeEntities: CanvasRenderShapeEntity[]
+  editableShapeEntities: CanvasRenderShapeEntity[]
+  previewShapeEntities: CanvasRenderShapeEntity[]
   selectedShapeIdSet: Set<string>
-  lineTypesById: Record<string, LineType | undefined>
-  sketchWorkspaceMode: SketchWorkspaceMode
-  resolveShapeStrokeColor: (shape: Shape) => string
-  shapeStrokeOpacity: number
-  /** When set, shapes whose layerId differs are dimmed to emphasise the active layer. */
-  highlightActiveLayerId?: string | null
   onShapePointerDown: (event: PointerEvent<SVGElement>, shapeId: string) => void
-  previewShapes: Shape[]
   showShapeHandles: boolean
   onShapeHandlePointerDown: (
     event: PointerEvent<SVGCircleElement>,
@@ -42,17 +33,11 @@ type CanvasShapeLayerProps = {
 }
 
 export function CanvasShapeLayer({
-  renderableLinkedShapes,
-  renderableVisibleShapes,
-  previewShapeIdSet,
+  linkedShapeEntities,
+  editableShapeEntities,
+  previewShapeEntities,
   selectedShapeIdSet,
-  lineTypesById,
-  sketchWorkspaceMode,
-  resolveShapeStrokeColor,
-  shapeStrokeOpacity,
-  highlightActiveLayerId,
   onShapePointerDown,
-  previewShapes,
   showShapeHandles,
   onShapeHandlePointerDown,
   onShapeHandleDoubleClick,
@@ -68,67 +53,38 @@ export function CanvasShapeLayer({
   return (
     <>
       <g className="canvas-linked-geometry-layer">
-        {renderableLinkedShapes.map((shape) => {
-          const lineType = lineTypesById[shape.lineTypeId]
-          const layerStroke = resolveShapeStrokeColor(shape)
-          const strokeDasharray = sketchWorkspaceMode === 'sketch' ? '8 5' : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
-          const linkedClassName = shape.type === 'text'
-            ? 'annotation-label text-shape'
-            : sketchWorkspaceMode === 'sketch'
-              ? 'shape-line shape-linked-reference'
-              : 'shape-line shape-linked-assembly'
-
-          return renderCanvasShape(shape, {
-            key: shape.id,
-            className: linkedClassName,
-            color: layerStroke,
-            strokeDasharray,
-            opacity: shape.type === 'text' ? 0.7 : shapeStrokeOpacity,
-            interactive: false,
+        {linkedShapeEntities.map((entity) => {
+          return renderCanvasShape(entity.shape, {
+            key: entity.id,
+            className: entity.paint.className,
+            color: entity.paint.strokeColor,
+            strokeDasharray: entity.paint.strokeDasharray,
+            opacity: entity.paint.opacity,
+            interactive: entity.paint.interactive,
             onShapePointerDown,
             buildTextGlyphPlacements,
             normalizeTextShape,
             textBaselineAngleDeg,
-            strokeWidthMm: resolveLineTypeStrokeWidthMm(lineType),
+            strokeWidthMm: entity.paint.strokeWidthMm,
             viewportScale,
           })
         })}
       </g>
 
       <g className="canvas-editable-geometry-layer">
-        {renderableVisibleShapes.map((shape) => {
-          const lineType = lineTypesById[shape.lineTypeId]
-          const isSelected = selectedShapeIdSet.has(shape.id)
-          const isPreviewSource = previewShapeIdSet.has(shape.id)
-          const layerStroke = resolveShapeStrokeColor(shape)
-          const strokeDasharray = lineTypeStrokeDasharray(lineType?.style ?? 'solid')
-          const className = shape.type === 'text'
-            ? `${isSelected ? 'annotation-label text-shape text-shape-selected' : 'annotation-label text-shape'}${isPreviewSource ? ' shape-preview-source' : ''}`
-            : `${isSelected ? 'shape-line shape-selected' : 'shape-line'}${isPreviewSource ? ' shape-preview-source' : ''}`
-
-          // Source v? `chkHighlightActiveLayer` — dim shapes on other layers.
-          const isOffActiveLayer =
-            highlightActiveLayerId !== undefined &&
-            highlightActiveLayerId !== null &&
-            shape.layerId !== highlightActiveLayerId
-          const dimmedOpacity = Math.min(shapeStrokeOpacity, 0.35)
-          const effectiveOpacity = isPreviewSource
-            ? Math.min(shapeStrokeOpacity, 0.2)
-            : isOffActiveLayer
-              ? dimmedOpacity
-              : shapeStrokeOpacity
-          return renderCanvasShape(shape, {
-            key: shape.id,
-            className,
-            color: layerStroke,
-            strokeDasharray,
-            opacity: effectiveOpacity,
-            interactive: true,
+        {editableShapeEntities.map((entity) => {
+          return renderCanvasShape(entity.shape, {
+            key: entity.id,
+            className: entity.paint.className,
+            color: entity.paint.strokeColor,
+            strokeDasharray: entity.paint.strokeDasharray,
+            opacity: entity.paint.opacity,
+            interactive: entity.paint.interactive,
             onShapePointerDown,
             buildTextGlyphPlacements,
             normalizeTextShape,
             textBaselineAngleDeg,
-            strokeWidthMm: resolveLineTypeStrokeWidthMm(lineType),
+            strokeWidthMm: entity.paint.strokeWidthMm,
             viewportScale,
           })
         })}
@@ -136,33 +92,33 @@ export function CanvasShapeLayer({
 
       {showShapeHandles && (
         <g className="canvas-handle-layer">
-          {renderableVisibleShapes
-            .filter((shape) => selectedShapeIdSet.has(shape.id) && !previewShapeIdSet.has(shape.id))
-            .flatMap((shape) =>
-              shapeHandleEntries(shape).map((entry) => (
+          {editableShapeEntities
+            .filter((entity) => selectedShapeIdSet.has(entity.id) && !entity.paint.previewSource)
+            .flatMap((entity) =>
+              shapeHandleEntries(entity.shape).map((entry) => (
                 <circle
-                  key={`${shape.id}-${entry.key}-handle`}
+                  key={`${entity.id}-${entry.key}-handle`}
                   cx={entry.point.x}
                   cy={entry.point.y}
                   r={2.3}
                   className="shape-handle"
-                  onPointerDown={(event) => onShapeHandlePointerDown(event, shape.id, entry.key)}
-                  onDoubleClick={() => onShapeHandleDoubleClick?.(shape.id, entry.key)}
+                  onPointerDown={(event) => onShapeHandlePointerDown(event, entity.id, entry.key)}
+                  onDoubleClick={() => onShapeHandleDoubleClick?.(entity.id, entry.key)}
                 />
               )),
             )}
-          {previewShapes
-            .filter((shape) => selectedShapeIdSet.has(shape.id))
-            .flatMap((shape) =>
-              shapeHandleEntries(shape).map((entry) => (
+          {previewShapeEntities
+            .filter((entity) => selectedShapeIdSet.has(entity.id))
+            .flatMap((entity) =>
+              shapeHandleEntries(entity.shape).map((entry) => (
                 <circle
-                  key={`${shape.id}-${entry.key}-preview-handle`}
+                  key={`${entity.id}-${entry.key}-preview-handle`}
                   cx={entry.point.x}
                   cy={entry.point.y}
                   r={2.3}
                   className="shape-handle shape-handle-preview"
-                  onPointerDown={(event) => onShapeHandlePointerDown(event, shape.id, entry.key)}
-                  onDoubleClick={() => onShapeHandleDoubleClick?.(shape.id, entry.key)}
+                  onPointerDown={(event) => onShapeHandlePointerDown(event, entity.id, entry.key)}
+                  onDoubleClick={() => onShapeHandleDoubleClick?.(entity.id, entry.key)}
                 />
               )),
             )}

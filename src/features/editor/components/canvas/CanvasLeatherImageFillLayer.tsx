@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import type { LeatherImageFill, LineType, Shape } from '../../cad/cad-types'
+import type { LeatherImageFill, LineType } from '../../cad/cad-types'
 import { detectOutlines } from '../../ops/outline-detection'
+import type { CanvasRenderShapeEntity } from '../../render/canvas-render-model'
 
 type CanvasLeatherImageFillLayerProps = {
   leatherImageFills: LeatherImageFill[]
-  renderableVisibleShapes: Shape[]
+  editableShapeEntities: CanvasRenderShapeEntity[]
   lineTypesById: Record<string, LineType | undefined>
 }
 
@@ -18,16 +19,20 @@ function polygonPoints(points: Array<{ x: number; y: number }>) {
 
 export function CanvasLeatherImageFillLayer({
   leatherImageFills,
-  renderableVisibleShapes,
+  editableShapeEntities,
   lineTypesById,
 }: CanvasLeatherImageFillLayerProps) {
+  const editableShapes = useMemo(
+    () => editableShapeEntities.map((entity) => entity.shape),
+    [editableShapeEntities],
+  )
   const closedOutlines = useMemo(
     () =>
       detectOutlines(
-        renderableVisibleShapes,
+        editableShapes,
         Object.values(lineTypesById).filter((lineType): lineType is LineType => lineType !== undefined),
       ).filter((outline) => outline.isClosed && outline.area > 0),
-    [renderableVisibleShapes, lineTypesById],
+    [editableShapes, lineTypesById],
   )
   const visibleFills = leatherImageFills.filter((fill) => fill.visible && fill.assignedShapeIds.length > 0)
 

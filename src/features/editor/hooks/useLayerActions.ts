@@ -426,6 +426,27 @@ export function useLayerActions(params: UseLayerActionsParams) {
     setStatus(`Moved ${selectedShapeIdSet.size} shape${selectedShapeIdSet.size === 1 ? '' : 's'} to "${targetLayer.name}"`)
   }
 
+  const handleMoveSelectedShapesToActiveLayer = () => {
+    if (!activeLayer) {
+      setStatus('No active layer to move selection onto')
+      return
+    }
+    if (selectedShapeIdSet.size === 0) {
+      setStatus('Select one or more shapes to move')
+      return
+    }
+    if (activeLayer.locked) {
+      setStatus(`Unlock "${activeLayer.name}" before moving shapes onto it`)
+      return
+    }
+    setShapes((previous) =>
+      previous.map((shape) =>
+        selectedShapeIdSet.has(shape.id) ? { ...shape, layerId: activeLayer.id } : shape,
+      ),
+    )
+    setStatus(`Moved ${selectedShapeIdSet.size} shape${selectedShapeIdSet.size === 1 ? '' : 's'} to "${activeLayer.name}"`)
+  }
+
   const handleMoveSelectedShapesToLayer = (targetLayerId: string) => {
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more shapes to move')
@@ -531,6 +552,7 @@ export function useLayerActions(params: UseLayerActionsParams) {
     handleActivateLayerOfSelectedShape,
     handleDuplicateSelectedShapesOnBelowLayer,
     handleMoveSelectedShapesToLayerBelow,
+    handleMoveSelectedShapesToActiveLayer,
     handleMoveSelectedShapesToLayer,
     handleMoveSelectedShapesToAnotherLayer,
     handleHighlightShapesOnCurrentLayer,

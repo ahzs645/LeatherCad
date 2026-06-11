@@ -1,9 +1,11 @@
-import { useMemo, type Dispatch, type PointerEvent as ReactPointerEvent, type RefObject, type SetStateAction } from 'react'
+import { useMemo, useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type RefObject, type SetStateAction } from 'react'
+import { sampleShapePoints } from '../cad/cad-geometry'
 import type {
   DimensionLine,
   FoldLine,
   HardwareMarker,
   Layer,
+  LineShape,
   LineType,
   PatternPiece,
   PieceNotch,
@@ -15,12 +17,13 @@ import type {
   StitchHole,
   Viewport,
 } from '../cad/cad-types'
+import { extendLineToShape, trimShapeAtPoint } from '../ops/geometry/line-editing'
 import { computeMandalaIntersectionCandidates, snapPointToContext } from '../ops/pattern-ops'
 import type { ToolRuntime } from '../tools/tool-types'
 import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
 import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
-import type { PanState } from './canvas-interactions/canvas-interaction-types'
+import type { CanvasInteractionPreview, PanState } from './canvas-interactions/canvas-interaction-types'
 import { useCanvasPanAndZoom } from './canvas-interactions/useCanvasPanAndZoom'
 import { useCanvasSelectionInteractions } from './canvas-interactions/useCanvasSelectionInteractions'
 import { useCanvasShapeDragInteractions } from './canvas-interactions/useCanvasShapeDragInteractions'
@@ -149,7 +152,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
 
   const {
     tool,
+    cadCommandMode,
+    cursorPoint,
     draftPoints,
+    markedSnapPoints,
     stitchHoleDefaults,
     textDraftValue,
     textFontFamily,
@@ -159,7 +165,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     textSweepDeg,
   } = useEditorToolSelector((state) => ({
     tool: state.tool,
+    cadCommandMode: state.cadCommandMode,
+    cursorPoint: state.cursorPoint,
     draftPoints: state.draftPoints,
+    markedSnapPoints: state.markedSnapPoints,
     stitchHoleDefaults: state.stitchHoleDefaults,
     textDraftValue: state.textDraftValue,
     textFontFamily: state.textFontFamily,
@@ -177,7 +186,20 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     }),
   )
   const { setStatus } = useEditorUIActions()
-  const { setDraftPoints, setCursorPoint, setSnapIndicator, clearDraft } = useEditorToolActions()
+  const {
+    setActiveTool,
+    setAngleGuideLines,
+    setCadCommandMode,
+    setCommandPreviewShapes,
+    setDraftPoints,
+    setCursorPoint,
+    setMarkedSnapPoints,
+    setSnapIndicator,
+    clearDraft,
+  } = useEditorToolActions()
+  const selectionBoxRef = useRef<{ pointerId: number; start: Point; current: Point; didMove: boolean; additive: boolean } | null>(null)
+  const [selectionBoxPreview, setSelectionBoxPreview] = useState<CanvasInteractionPreview | null>(null)
+  const lastSnapRef = useRef<{ key: string; firstSeen: number } | null>(null)
 
   const toWorldPoint = (clientX: number, clientY: number): Point | null => {
     const svg = svgRef.current
@@ -203,7 +225,10 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       foldLines,
       hardwareMarkers: visibleHardwareMarkers,
       viewportScale: viewport.scale,
-      customSnapPoints: customSnapPoint ? [customSnapPoint] : undefined,
+      customSnapPoints: [
+        ...(customSnapPoint ? [customSnapPoint] : []),
+        ...markedSnapPoints.map((entry) => entry.point),
+      ],
       mandalaIntersections: mandalaIntersections.length > 0 ? mandalaIntersections : undefined,
       draftAnchor: draftPoints.length > 0 ? draftPoints[0] : undefined,
       tangentCircleMode,
@@ -318,7 +343,13 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       setSelectedHardwareMarkerId,
       ensureActiveLayerWritable,
       ensureActiveLineTypeWritable,
+      cursorPoint,
       toolSession: toolSessionRef,
+      selectedShapeIds,
+      setSelectedShapeIds,
+      setActiveTool,
+      cadCommandMode,
+      setCadCommandMode,
     }
   }
 
@@ -329,6 +360,129 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   })
   toolSessionRef = toolSession
 
+  const updateSnapGuides = (snap: ReturnType<typeof getSnappedPoint>, now = performance.now()) => {
+    if (!snap.reason || snap.reason === 'grid') {
+      lastSnapRef.current = null
+      return
+    }
+    const key = `${snap.reason}:${snap.point.x.toFixed(3)}:${snap.point.y.toFixed(3)}`
+    const previous = lastSnapRef.current
+    if (!previous || previous.key !== key) {
+      lastSnapRef.current = { key, firstSeen: now }
+      return
+    }
+    if (now - previous.firstSeen < 320) {
+      return
+    }
+
+    setMarkedSnapPoints((entries) => {
+      if (entries.some((entry) => Math.hypot(entry.point.x - snap.point.x, entry.point.y - snap.point.y) < 0.001)) {
+        return entries
+      }
+      return [{ point: snap.point, reason: snap.reason ?? 'snap', markedAt: now }, ...entries].slice(0, 3)
+    })
+  }
+
+  const updateAngleGuides = (point: Point | null) => {
+    if (!point || (markedSnapPoints.length === 0 && draftPoints.length === 0)) {
+      setAngleGuideLines([])
+      return
+    }
+    const anchors = [
+      ...draftPoints.slice(-1),
+      ...markedSnapPoints.map((entry) => entry.point),
+    ].slice(0, 4)
+    const stepDeg = Math.max(15, relativeAngleStepDeg || 45)
+    const guideLength = Math.max(5000, 2200 / Math.max(0.1, viewport.scale))
+    const lines = anchors.flatMap((anchor, anchorIndex) => {
+      const angleToCursor = Math.atan2(point.y - anchor.y, point.x - anchor.x)
+      const stepRad = (stepDeg * Math.PI) / 180
+      const snappedAngle = Math.round(angleToCursor / stepRad) * stepRad
+      return [{
+        id: `guide-${anchorIndex}-${snappedAngle.toFixed(4)}`,
+        start: {
+          x: anchor.x - Math.cos(snappedAngle) * guideLength,
+          y: anchor.y - Math.sin(snappedAngle) * guideLength,
+        },
+        end: {
+          x: anchor.x + Math.cos(snappedAngle) * guideLength,
+          y: anchor.y + Math.sin(snappedAngle) * guideLength,
+        },
+      }]
+    })
+    setAngleGuideLines(lines)
+  }
+
+  const shapeIntersectsBox = (shape: Shape, minX: number, minY: number, maxX: number, maxY: number, contained: boolean) => {
+    const samples = sampleShapePoints(shape, 24)
+    if (samples.length === 0) {
+      return false
+    }
+    if (contained) {
+      return samples.every((point) => point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY)
+    }
+    if (samples.some((point) => point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY)) {
+      return true
+    }
+    const shapeMinX = Math.min(...samples.map((point) => point.x))
+    const shapeMinY = Math.min(...samples.map((point) => point.y))
+    const shapeMaxX = Math.max(...samples.map((point) => point.x))
+    const shapeMaxY = Math.max(...samples.map((point) => point.y))
+    return shapeMaxX >= minX && shapeMinX <= maxX && shapeMaxY >= minY && shapeMinY <= maxY
+  }
+
+  const buildCadCommandPreview = (point: Point): Shape[] => {
+    const selectedShapes = selectedShapeIds.map((id) => shapesById[id]).filter(Boolean)
+    if (cadCommandMode === 'trim') {
+      const target = selectedShapes[0]
+      if (!target) {
+        return []
+      }
+      const keepSide = Math.hypot(point.x - target.start.x, point.y - target.start.y) < Math.hypot(point.x - target.end.x, point.y - target.end.y)
+        ? 'end'
+        : 'start'
+      return [trimShapeAtPoint(target, point, keepSide)]
+    }
+    if (cadCommandMode === 'extend') {
+      const line = selectedShapes.find((shape): shape is LineShape => shape.type === 'line')
+      const target = selectedShapes.find((shape) => shape && shape.id !== line?.id)
+      if (!line || !target) {
+        return []
+      }
+      const extendEnd = Math.hypot(point.x - line.start.x, point.y - line.start.y) < Math.hypot(point.x - line.end.x, point.y - line.end.y)
+        ? 'start'
+        : 'end'
+      const extended = extendLineToShape(line, target, extendEnd)
+      return extended ? [extended] : []
+    }
+    return []
+  }
+
+  const updateCadCommandPreview = (point: Point) => {
+    if (!cadCommandMode) {
+      return
+    }
+    setCommandPreviewShapes(buildCadCommandPreview(point))
+  }
+
+  const commitCadCommandPreview = (point: Point) => {
+    if (!cadCommandMode) {
+      return false
+    }
+    const previews = buildCadCommandPreview(point)
+    if (previews.length === 0) {
+      setStatus(cadCommandMode === 'trim' ? 'Trim: no preview to commit' : 'Extend: no preview to commit')
+      return true
+    }
+    const updatesById = new Map(previews.map((shape) => [shape.id, shape]))
+    setShapes((previous) => previous.map((shape) => updatesById.get(shape.id) ?? shape))
+    setSelectedShapeIds(previews.map((shape) => shape.id))
+    setCommandPreviewShapes([])
+    setCadCommandMode(null)
+    setStatus(cadCommandMode === 'trim' ? 'Trim committed' : 'Extend committed')
+    return true
+  }
+
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (event.pointerType !== 'touch' && event.button !== 0 && !(event.button === 1 || event.button === 2)) {
       return
@@ -338,7 +492,39 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       return
     }
 
-    if (tool === 'pan' || event.button === 1 || event.button === 2) {
+    if (tool === 'pan' && event.button === 0) {
+      const rawPoint = toWorldPoint(event.clientX, event.clientY)
+      if (!rawPoint) {
+        return
+      }
+      const snap = getSnappedPoint(rawPoint)
+      if (commitCadCommandPreview(snap.point)) {
+        event.preventDefault()
+        return
+      }
+      selectionBoxRef.current = {
+        pointerId: event.pointerId,
+        start: rawPoint,
+        current: rawPoint,
+        didMove: false,
+        additive: event.shiftKey || incrementalSelection === true,
+      }
+      setSelectionBoxPreview({
+        kind: 'selection-box',
+        start: rawPoint,
+        end: rawPoint,
+        mode: 'contained',
+      })
+      event.preventDefault()
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        // Safe no-op for browsers that fail pointer capture checks.
+      }
+      return
+    }
+
+    if (event.button === 1 || event.button === 2) {
       event.preventDefault()
       beginPan(event.clientX, event.clientY, event.pointerId)
       if (event.pointerType !== 'touch') {
@@ -362,6 +548,8 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     const snap = getSnappedPoint(rawPoint)
     setCursorPoint(snap.point)
     setSnapIndicator(snap.reason ? { point: snap.point, reason: snap.reason } : null)
+    updateSnapGuides(snap)
+    updateAngleGuides(snap.point)
     handleToolPointerDown(snap.point)
   }
 
@@ -373,7 +561,23 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       return
     }
 
-    if (draftPoints.length === 0 && tool !== 'hardware') {
+    const selectionBox = selectionBoxRef.current
+    if (selectionBox) {
+      if (event.pointerType === 'touch' && event.pointerId !== selectionBox.pointerId) {
+        return
+      }
+      const point = toWorldPoint(event.clientX, event.clientY)
+      if (!point) {
+        return
+      }
+      selectionBox.current = point
+      selectionBox.didMove = selectionBox.didMove || Math.hypot(point.x - selectionBox.start.x, point.y - selectionBox.start.y) > 1 / Math.max(0.1, viewport.scale)
+      setSelectionBoxPreview({
+        kind: 'selection-box',
+        start: selectionBox.start,
+        end: point,
+        mode: point.x >= selectionBox.start.x ? 'contained' : 'crossing',
+      })
       return
     }
 
@@ -382,10 +586,36 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       const snap = getSnappedPoint(point)
       setCursorPoint(snap.point)
       setSnapIndicator(snap.reason ? { point: snap.point, reason: snap.reason } : null)
+      updateSnapGuides(snap)
+      updateAngleGuides(snap.point)
+      updateCadCommandPreview(snap.point)
     }
   }
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const selectionBox = selectionBoxRef.current
+    if (selectionBox && !(event.pointerType === 'touch' && event.pointerId !== selectionBox.pointerId)) {
+      selectionBoxRef.current = null
+      setSelectionBoxPreview(null)
+      if (!selectionBox.didMove) {
+        if (!selectionBox.additive) {
+          setSelectedShapeIds([])
+          setStatus('Shape selection cleared')
+        }
+      } else {
+        const minX = Math.min(selectionBox.start.x, selectionBox.current.x)
+        const minY = Math.min(selectionBox.start.y, selectionBox.current.y)
+        const maxX = Math.max(selectionBox.start.x, selectionBox.current.x)
+        const maxY = Math.max(selectionBox.start.y, selectionBox.current.y)
+        const contained = selectionBox.current.x >= selectionBox.start.x
+        const picked = displayShapes
+          .filter((shape) => shapeIntersectsBox(shape, minX, minY, maxX, maxY, contained))
+          .map((shape) => shape.id)
+        const nextSelection = selectionBox.additive ? Array.from(new Set([...selectedShapeIds, ...picked])) : picked
+        setSelectedShapeIds(nextSelection)
+        setStatus(`${contained ? 'Contained' : 'Crossing'} selected ${picked.length} shape${picked.length === 1 ? '' : 's'}`)
+      }
+    }
     handlePanPointerUp(event.pointerId, event.pointerType)
     handleDragPointerUp(event)
 
@@ -413,7 +643,7 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     handleHardwarePointerDown,
     handlePointerMove,
     handlePointerUp,
-    interactionPreview,
+    interactionPreview: selectionBoxPreview ?? interactionPreview,
     runPrecisionCommand,
     toolHint,
   }

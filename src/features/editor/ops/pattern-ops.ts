@@ -375,17 +375,6 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
     }
   }
 
-  if (settings.grid) {
-    const safeStep = Math.max(0.1, settings.gridStep)
-    registerCandidate(
-      {
-        x: Math.round(point.x / safeStep) * safeStep,
-        y: Math.round(point.y / safeStep) * safeStep,
-      },
-      'grid',
-    )
-  }
-
   if (settings.endpoints) {
     for (const shape of context.shapes) {
       if (shapeIsTooSmall(shape)) continue
@@ -521,6 +510,17 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
         )
       }
     }
+  }
+
+  if (!best.reason && settings.grid) {
+    const safeStep = Math.max(0.1, settings.gridStep)
+    registerCandidate(
+      {
+        x: Math.round(point.x / safeStep) * safeStep,
+        y: Math.round(point.y / safeStep) * safeStep,
+      },
+      'grid',
+    )
   }
 
   return {

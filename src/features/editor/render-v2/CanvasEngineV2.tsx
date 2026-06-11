@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
-import type { Shape, Viewport } from '../cad/cad-types'
+import type { Viewport } from '../cad/cad-types'
 import { computeAdaptiveSpacing } from '../ops/grid-spacing'
+import type { CanvasRenderEntity } from '../render/canvas-render-model'
 
 /**
  * Parallel canvas-based rendering engine. Opt-in via `?engine=v2` URL param or
@@ -15,12 +16,12 @@ type CanvasEngineV2Props = {
   viewport: Viewport
   gridSpacing: number
   darkMode: boolean
-  shapes: Shape[]
+  entities: CanvasRenderEntity[]
   width: number
   height: number
 }
 
-export function CanvasEngineV2({ viewport, gridSpacing, darkMode, shapes, width, height }: CanvasEngineV2Props) {
+export function CanvasEngineV2({ viewport, gridSpacing, darkMode, entities, width, height }: CanvasEngineV2Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -50,8 +51,6 @@ export function CanvasEngineV2({ viewport, gridSpacing, darkMode, shapes, width,
     const gridMinor = darkMode ? 'rgba(51, 65, 85, 0.45)' : 'rgba(148, 163, 184, 0.35)'
     const gridMajor = darkMode ? 'rgba(71, 85, 105, 0.85)' : 'rgba(148, 163, 184, 0.75)'
     const axis = darkMode ? 'rgba(100, 116, 139, 1)' : 'rgba(71, 85, 105, 1)'
-    const stroke = darkMode ? 'rgba(56, 189, 248, 0.95)' : 'rgba(14, 116, 144, 0.95)'
-
     // Minor grid
     ctx.beginPath()
     ctx.strokeStyle = gridMinor
@@ -104,10 +103,21 @@ export function CanvasEngineV2({ viewport, gridSpacing, darkMode, shapes, width,
 
     // Shape outlines (line / bezier only for now)
     const toScreen = (wx: number, wy: number): [number, number] => [wx * scale + offsetX, wy * scale + offsetY]
-    ctx.strokeStyle = stroke
-    ctx.lineWidth = 1.25
-    ctx.beginPath()
-    for (const shape of shapes) {
+    for (const entity of entities) {
+      if (entity.kind !== 'shape') {
+        continue
+      }
+      const shape = entity.shape
+      ctx.save()
+      ctx.strokeStyle = entity.paint.strokeColor
+      ctx.globalAlpha = entity.paint.opacity
+      ctx.lineWidth = Math.max(1, (entity.paint.strokeWidthMm ?? 1.25) * scale)
+      const dash = entity.paint.strokeDasharray
+        ?.split(/[ ,]+/)
+        .map((entry) => Number(entry))
+        .filter((entry) => Number.isFinite(entry) && entry > 0)
+      ctx.setLineDash(dash && dash.length > 0 ? dash.map((entry) => entry * scale) : [])
+      ctx.beginPath()
       if (shape.type === 'line') {
         const [x1, y1] = toScreen(shape.start.x, shape.start.y)
         const [x2, y2] = toScreen(shape.end.x, shape.end.y)
@@ -126,9 +136,10 @@ export function CanvasEngineV2({ viewport, gridSpacing, darkMode, shapes, width,
         ctx.moveTo(x1, y1)
         ctx.quadraticCurveTo(xc, yc, x2, y2)
       }
+      ctx.stroke()
+      ctx.restore()
     }
-    ctx.stroke()
-  }, [viewport, gridSpacing, darkMode, shapes, width, height])
+  }, [viewport, gridSpacing, darkMode, entities, width, height])
 
   return (
     <canvas

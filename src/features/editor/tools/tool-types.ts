@@ -26,6 +26,7 @@ export type CommandParseResult =
 
 export type ToolRuntime = {
   draftPoints: Point[]
+  cursorPoint: Point | null
   activeLayerId: string
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
@@ -52,6 +53,8 @@ export type ToolRuntime = {
   lineTypesById: Record<string, LineType>
   shapesById: Record<string, Shape>
   layers: Layer[]
+  selectedShapeIds: string[]
+  cadCommandMode: 'trim' | 'extend' | null
   stitchHoles: StitchHole[]
   pieceNotches: PieceNotch[]
   seamConnections: SeamConnection[]
@@ -59,8 +62,11 @@ export type ToolRuntime = {
   dimensionLineTypeId?: string | null
   setDraftPoints: (updater: Point[] | ((previous: Point[]) => Point[])) => void
   clearDraft: () => void
+  setActiveTool: (tool: Tool) => void
+  setCadCommandMode: (mode: 'trim' | 'extend' | null) => void
   setStatus: (status: string) => void
   setShapes: (updater: Shape[] | ((previous: Shape[]) => Shape[])) => void
+  setSelectedShapeIds: (updater: string[] | ((previous: string[]) => string[])) => void
   setFoldLines: (updater: FoldLine[] | ((previous: FoldLine[]) => FoldLine[])) => void
   setStitchHoles: (updater: StitchHole[] | ((previous: StitchHole[]) => StitchHole[])) => void
   setSelectedStitchHoleId: (value: string | null) => void

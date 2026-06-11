@@ -254,6 +254,10 @@ export type EditorToolState = {
   draftPoints: import('../cad/cad-types').Point[]
   cursorPoint: import('../cad/cad-types').Point | null
   snapIndicator: { point: import('../cad/cad-types').Point; reason: string } | null
+  markedSnapPoints: Array<{ point: import('../cad/cad-types').Point; reason: string; markedAt: number }>
+  angleGuideLines: Array<{ id: string; start: import('../cad/cad-types').Point; end: import('../cad/cad-types').Point }>
+  cadCommandMode: 'trim' | 'extend' | null
+  commandPreviewShapes: import('../cad/cad-types').Shape[]
   textDraftValue: string
   textFontFamily: string
   textFontSizeMm: number

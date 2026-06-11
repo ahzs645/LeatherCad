@@ -31,6 +31,12 @@ export type CanvasInteractionPreview =
       pointKey: HandlePointKey
       point: Point
     }
+  | {
+      kind: 'selection-box'
+      start: Point
+      end: Point
+      mode: 'crossing' | 'contained'
+    }
 
 export type HandleDragState = {
   pointerId: number

@@ -19,6 +19,10 @@ const initialEditorToolState: EditorToolState = {
   draftPoints: [],
   cursorPoint: null,
   snapIndicator: null,
+  markedSnapPoints: [],
+  angleGuideLines: [],
+  cadCommandMode: null,
+  commandPreviewShapes: [],
   textDraftValue: 'Leathercraft CAD',
   textFontFamily: 'Georgia, serif',
   textFontSizeMm: 14,
@@ -50,6 +54,10 @@ function createEditorToolStateActions(
     dispatch({ type: 'draftPoints', value: [] })
     dispatch({ type: 'cursorPoint', value: null })
     dispatch({ type: 'snapIndicator', value: null })
+    dispatch({ type: 'markedSnapPoints', value: [] })
+    dispatch({ type: 'angleGuideLines', value: [] })
+    dispatch({ type: 'cadCommandMode', value: null })
+    dispatch({ type: 'commandPreviewShapes', value: [] })
   }
 
   return {
@@ -61,6 +69,14 @@ function createEditorToolStateActions(
       dispatch({ type: 'cursorPoint', value }),
     setSnapIndicator: (value: React.SetStateAction<EditorToolState['snapIndicator']>) =>
       dispatch({ type: 'snapIndicator', value }),
+    setMarkedSnapPoints: (value: React.SetStateAction<EditorToolState['markedSnapPoints']>) =>
+      dispatch({ type: 'markedSnapPoints', value }),
+    setAngleGuideLines: (value: React.SetStateAction<EditorToolState['angleGuideLines']>) =>
+      dispatch({ type: 'angleGuideLines', value }),
+    setCadCommandMode: (value: React.SetStateAction<EditorToolState['cadCommandMode']>) =>
+      dispatch({ type: 'cadCommandMode', value }),
+    setCommandPreviewShapes: (value: React.SetStateAction<EditorToolState['commandPreviewShapes']>) =>
+      dispatch({ type: 'commandPreviewShapes', value }),
     clearDraft,
     setActiveTool: (nextTool: EditorToolState['tool']) => {
       dispatch({ type: 'tool', value: nextTool })

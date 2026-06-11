@@ -23,6 +23,8 @@ import type { PrintPlan } from '../preview/print-preview'
 import { useCanvasGrid } from '../hooks/useCanvasGrid'
 import { CanvasEngineV2 } from '../render-v2/CanvasEngineV2'
 import { isEngineV2Enabled } from '../render-v2/engine-v2-flags'
+import { buildCanvasRenderModel } from '../render/canvas-render-model'
+import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import type { CanvasInteractionPreview } from '../hooks/useCanvasInteractions'
 import { LayerLegendPanel } from './LayerLegendPanel'
 import { CanvasAnnotationLayer } from './canvas/CanvasAnnotationLayer'
@@ -38,7 +40,6 @@ import {
   pointInBounds,
   shapeBounds,
   type Bounds,
-  withPreviewApplied,
 } from './canvas/canvas-geometry'
 
 type StackLegendEntry = {
@@ -99,6 +100,7 @@ export type EditorCanvasPaneProps = {
   foldStrokeColor: string
   cutStrokeColor: string
   displayLayerColorsById: Record<string, string>
+  layerStackLevels: Record<string, number>
   onShapePointerDown: (event: PointerEvent<SVGElement>, shapeId: string) => void
   onShapeHandlePointerDown: (
     event: PointerEvent<SVGCircleElement>,
@@ -186,6 +188,7 @@ export function EditorCanvasPane({
   foldStrokeColor,
   cutStrokeColor,
   displayLayerColorsById,
+  layerStackLevels,
   onShapePointerDown,
   onShapeHandlePointerDown,
   onShapeHandleDoubleClick,
@@ -219,6 +222,7 @@ export function EditorCanvasPane({
   drawFirstPos = false,
 }: EditorCanvasPaneProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
+  const commandPreviewShapes = useEditorToolSelector((state) => state.commandPreviewShapes)
   const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
   const detailPadding = Math.max(32, 96 / Math.max(viewport.scale, 0.1))
@@ -232,50 +236,63 @@ export function EditorCanvasPane({
     }
   }, [detailPadding, viewport.scale, viewport.x, viewport.y])
 
-  const previewShapeIdSet = interactionPreview
-    ? interactionPreview.kind === 'move'
-      ? new Set(interactionPreview.shapeIds)
-      : new Set([interactionPreview.shapeId])
-    : new Set<string>()
-
-  const resolveShapeStrokeColor = (shape: Shape) => {
-    const lineType = lineTypesById[shape.lineTypeId]
-    const lineTypeRole = lineType?.role ?? 'cut'
-    if (sketchWorkspaceMode === 'assembly') {
-      return displayLayerColorsById[shape.layerId] ?? fallbackLayerStroke
-    }
-    if (lineType?.color) {
-      return lineType.color
-    }
-    if (lineTypeRole === 'stitch') {
-      return stitchStrokeColor
-    }
-    if (lineTypeRole === 'fold') {
-      return foldStrokeColor
-    }
-    return lineType?.color ?? cutStrokeColor
-  }
-
+  const renderModel = useMemo(
+    () =>
+      buildCanvasRenderModel({
+        visibleShapes,
+        linkedShapes,
+        lineTypesById,
+        layerStackLevels,
+        selectedShapeIdSet,
+        sketchWorkspaceMode,
+        shapeStrokeOpacity,
+        highlightActiveLayerId,
+        displayLayerColorsById,
+        fallbackLayerStroke,
+        stitchStrokeColor,
+        foldStrokeColor,
+        cutStrokeColor,
+        viewBounds,
+        detailPadding,
+        interactionPreview,
+        transientPreviewShapes: commandPreviewShapes,
+        visibleStitchHoles,
+        visibleHardwareMarkers,
+        foldLines,
+        pieceGrainlineSegments,
+        pieceNotchLines,
+        piecePlacementGuides,
+      }),
+    [
+      detailPadding,
+      displayLayerColorsById,
+      commandPreviewShapes,
+      fallbackLayerStroke,
+      foldLines,
+      foldStrokeColor,
+      highlightActiveLayerId,
+      interactionPreview,
+      layerStackLevels,
+      linkedShapes,
+      lineTypesById,
+      pieceGrainlineSegments,
+      pieceNotchLines,
+      piecePlacementGuides,
+      selectedShapeIdSet,
+      shapeStrokeOpacity,
+      sketchWorkspaceMode,
+      stitchStrokeColor,
+      cutStrokeColor,
+      viewBounds,
+      visibleHardwareMarkers,
+      visibleShapes,
+      visibleStitchHoles,
+    ],
+  )
   const renderableVisibleShapes = useMemo(
-    () => visibleShapes.filter((shape) => boundsIntersect(shapeBounds(shape), viewBounds, detailPadding)),
-    [detailPadding, viewBounds, visibleShapes],
+    () => renderModel.layers.editableShapes.map((entry) => entry.shape),
+    [renderModel],
   )
-  const renderableLinkedShapes = useMemo(
-    () => linkedShapes.filter((shape) => boundsIntersect(shapeBounds(shape), viewBounds, detailPadding)),
-    [detailPadding, linkedShapes, viewBounds],
-  )
-  const previewShapes = useMemo(() => {
-    if (!interactionPreview) {
-      return [] as Shape[]
-    }
-    const matchesPreviewShape = interactionPreview.kind === 'move'
-      ? (shape: Shape) => interactionPreview.shapeIds.includes(shape.id)
-      : (shape: Shape) => shape.id === interactionPreview.shapeId
-    return visibleShapes
-      .filter(matchesPreviewShape)
-      .map((shape) => withPreviewApplied(shape, interactionPreview))
-  }, [interactionPreview, visibleShapes])
-
   const renderablePieceEdgeLabels = useMemo(
     () =>
       viewport.scale >= 0.55
@@ -283,10 +300,7 @@ export function EditorCanvasPane({
         : [],
     [detailPadding, pieceEdgeLabels, viewBounds, viewport.scale],
   )
-  const renderableStitchHoles = useMemo(
-    () => visibleStitchHoles.filter((entry) => pointInBounds(entry.point, viewBounds, detailPadding)),
-    [detailPadding, viewBounds, visibleStitchHoles],
-  )
+  const renderableStitchHoles = renderModel.layers.stitchHoles
   const renderableSimulatedSegments = useMemo(
     () =>
       simulatedStitchSegments.filter((segment) =>
@@ -307,24 +321,10 @@ export function EditorCanvasPane({
     () => renderableStitchHoles.filter((hole) => hole.endHole === true),
     [renderableStitchHoles],
   )
-  const renderableHardwareMarkers = useMemo(
-    () => visibleHardwareMarkers.filter((entry) => pointInBounds(entry.point, viewBounds, detailPadding)),
-    [detailPadding, viewBounds, visibleHardwareMarkers],
-  )
-  const renderablePieceGrainlineSegments = useMemo(
-    () =>
-      pieceGrainlineSegments.filter((segment) => boundsIntersect(lineBounds(segment.start, segment.end), viewBounds, detailPadding)),
-    [detailPadding, pieceGrainlineSegments, viewBounds],
-  )
-  const renderablePieceNotchLines = useMemo(
-    () =>
-      pieceNotchLines.filter((notch) => boundsIntersect(lineBounds(notch.start, notch.end), viewBounds, detailPadding)),
-    [detailPadding, pieceNotchLines, viewBounds],
-  )
-  const renderablePlacementGuides = useMemo(
-    () => piecePlacementGuides.filter((guide) => pointInBounds(guide.point, viewBounds, detailPadding)),
-    [detailPadding, piecePlacementGuides, viewBounds],
-  )
+  const renderableHardwareMarkers = renderModel.layers.hardwareMarkers
+  const renderablePieceGrainlineSegments = renderModel.layers.pieceGrainlineSegments
+  const renderablePieceNotchLines = renderModel.layers.pieceNotchLines
+  const renderablePlacementGuides = renderModel.layers.placementGuides
   const renderableAnnotationLabels = useMemo(
     () =>
       viewport.scale >= 0.35
@@ -346,10 +346,7 @@ export function EditorCanvasPane({
       ),
     [detailPadding, outlineChains, viewBounds],
   )
-  const renderableFoldLines = useMemo(
-    () => foldLines.filter((line) => boundsIntersect(lineBounds(line.start, line.end), viewBounds, detailPadding)),
-    [detailPadding, foldLines, viewBounds],
-  )
+  const renderableFoldLines = renderModel.layers.foldLines
 
   const hasImportedDimensions = dimensionLines.length > 0
   const dimensionShapes = showDimensions && !hasImportedDimensions
@@ -398,7 +395,7 @@ export function EditorCanvasPane({
           viewport={viewport}
           gridSpacing={gridSpacing}
           darkMode={gridBackgroundMode === 'dark'}
-          shapes={visibleShapes}
+          entities={renderModel.entities.all}
           width={ESTIMATED_CANVAS_WIDTH_PX}
           height={ESTIMATED_CANVAS_HEIGHT_PX}
         />
@@ -454,22 +451,16 @@ export function EditorCanvasPane({
 
           <CanvasLeatherImageFillLayer
             leatherImageFills={leatherImageFills}
-            renderableVisibleShapes={renderableVisibleShapes}
+            editableShapeEntities={renderModel.shapeLayers.editable}
             lineTypesById={lineTypesById}
           />
 
           <CanvasShapeLayer
-            renderableLinkedShapes={renderableLinkedShapes}
-            renderableVisibleShapes={renderableVisibleShapes}
-            previewShapeIdSet={previewShapeIdSet}
+            linkedShapeEntities={renderModel.layers.linkedShapes}
+            editableShapeEntities={renderModel.layers.editableShapes}
             selectedShapeIdSet={selectedShapeIdSet}
-            lineTypesById={lineTypesById}
-            sketchWorkspaceMode={sketchWorkspaceMode}
-            resolveShapeStrokeColor={resolveShapeStrokeColor}
-            shapeStrokeOpacity={shapeStrokeOpacity}
-            highlightActiveLayerId={highlightActiveLayerId}
             onShapePointerDown={onShapePointerDown}
-            previewShapes={previewShapes}
+            previewShapeEntities={renderModel.layers.previewShapes}
             showShapeHandles={showShapeHandles}
             onShapeHandlePointerDown={onShapeHandlePointerDown}
             onShapeHandleDoubleClick={onShapeHandleDoubleClick}
@@ -484,12 +475,11 @@ export function EditorCanvasPane({
           />
 
           <CanvasInteractionOverlay
-            interactionPreview={interactionPreview}
-            previewShapes={previewShapes.filter((shape) => boundsIntersect(shapeBounds(shape), viewBounds, detailPadding))}
+            previewShapeEntities={renderModel.layers.previewShapes.filter((entry) =>
+              boundsIntersect(shapeBounds(entry.shape), viewBounds, detailPadding),
+            )}
+            selectionBoxEntities={renderModel.entities.selectionBoxes}
             previewElement={previewElement}
-            lineTypesById={lineTypesById}
-            resolveShapeStrokeColor={resolveShapeStrokeColor}
-            shapeStrokeOpacity={shapeStrokeOpacity}
             onShapePointerDown={onShapePointerDown}
             buildTextGlyphPlacements={buildTextGlyphPlacements}
             normalizeTextShape={normalizeTextShape as (shape: TextShape) => TextShape}

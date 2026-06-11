@@ -73,6 +73,7 @@ export function buildEditorScreenCanvasPaneParams({
     pieceGrainlineSegments,
     pieceNotchLines,
     piecePlacementGuides,
+    layerStackLevels,
     layerColorsById,
     stackLegendEntries,
     displayLayerColorsById,
@@ -174,6 +175,7 @@ export function buildEditorScreenCanvasPaneParams({
     foldStrokeColor,
     cutStrokeColor,
     displayLayerColorsById,
+    layerStackLevels,
     onShapePointerDown: handleShapePointerDown,
     onShapeHandlePointerDown: handleShapeHandlePointerDown,
     onShapeHandleDoubleClick: (shapeId: string, pointKey: 'start' | 'mid' | 'control' | 'end') => {

@@ -104,6 +104,10 @@ export function buildDirectionArrowPoints(segment: ThreadSegment, size: number) 
 }
 
 export function withPreviewApplied(shape: Shape, preview: CanvasInteractionPreview): Shape {
+  if (preview.kind === 'selection-box') {
+    return shape
+  }
+
   if (preview.kind === 'move') {
     if (shape.type === 'line') {
       return {

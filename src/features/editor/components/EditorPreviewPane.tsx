@@ -69,6 +69,8 @@ type EditorPreviewPaneProps = {
   onDeleteLayer: () => void
   onShowAllLayers: () => void
   onHideOtherLayers: () => void
+  onSelectActiveLayerShapes: () => void
+  onMoveSelectionToActiveLayer: () => void
   onMergeActiveLayerIntoBelow: () => void
   onFlattenAllLayers: () => void
   onOpenLayerColorModal: () => void
@@ -123,6 +125,8 @@ export function EditorPreviewPane({
   onDeleteLayer,
   onShowAllLayers,
   onHideOtherLayers,
+  onSelectActiveLayerShapes,
+  onMoveSelectionToActiveLayer,
   onMergeActiveLayerIntoBelow,
   onFlattenAllLayers,
   onOpenLayerColorModal,
@@ -235,6 +239,8 @@ export function EditorPreviewPane({
           onDeleteLayer={onDeleteLayer}
           onShowAllLayers={onShowAllLayers}
           onHideOtherLayers={onHideOtherLayers}
+          onSelectActiveLayerShapes={onSelectActiveLayerShapes}
+          onMoveSelectionToActiveLayer={onMoveSelectionToActiveLayer}
           onMergeActiveLayerIntoBelow={onMergeActiveLayerIntoBelow}
           onFlattenAllLayers={onFlattenAllLayers}
           onOpenLayerColorModal={onOpenLayerColorModal}

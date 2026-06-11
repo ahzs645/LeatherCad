@@ -24,6 +24,8 @@ type UseEditorPreviewPanePropsParams = Pick<
   onDeleteLayer: ComponentProps<typeof EditorPreviewPane>['onDeleteLayer']
   onShowAllLayers: ComponentProps<typeof EditorPreviewPane>['onShowAllLayers']
   onHideOtherLayers: ComponentProps<typeof EditorPreviewPane>['onHideOtherLayers']
+  onSelectActiveLayerShapes: ComponentProps<typeof EditorPreviewPane>['onSelectActiveLayerShapes']
+  onMoveSelectionToActiveLayer: ComponentProps<typeof EditorPreviewPane>['onMoveSelectionToActiveLayer']
   onMergeActiveLayerIntoBelow: ComponentProps<typeof EditorPreviewPane>['onMergeActiveLayerIntoBelow']
   onFlattenAllLayers: ComponentProps<typeof EditorPreviewPane>['onFlattenAllLayers']
   onOpenLayerColorModal: ComponentProps<typeof EditorPreviewPane>['onOpenLayerColorModal']
@@ -46,6 +48,8 @@ export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParam
     onDeleteLayer,
     onShowAllLayers,
     onHideOtherLayers,
+    onSelectActiveLayerShapes,
+    onMoveSelectionToActiveLayer,
     onMergeActiveLayerIntoBelow,
     onFlattenAllLayers,
     onOpenLayerColorModal,
@@ -174,6 +178,8 @@ export function useEditorPreviewPaneProps(params: UseEditorPreviewPanePropsParam
     onDeleteLayer,
     onShowAllLayers,
     onHideOtherLayers,
+    onSelectActiveLayerShapes,
+    onMoveSelectionToActiveLayer,
     onMergeActiveLayerIntoBelow,
     onFlattenAllLayers,
     onOpenLayerColorModal,
