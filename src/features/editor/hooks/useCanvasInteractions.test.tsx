@@ -34,6 +34,24 @@ const initialLine: Shape = {
   end: { x: 10, y: 0 },
 }
 
+const containedLine: Shape = {
+  id: 'contained-line',
+  type: 'line',
+  layerId: 'layer',
+  lineTypeId: 'cut',
+  start: { x: 0, y: 0 },
+  end: { x: 2, y: 0 },
+}
+
+const crossingLine: Shape = {
+  id: 'crossing-line',
+  type: 'line',
+  layerId: 'layer',
+  lineTypeId: 'cut',
+  start: { x: 4, y: 0 },
+  end: { x: 8, y: 0 },
+}
+
 function dispatchPointer(node: Element, type: string, init: PointerEventInit) {
   const PointerEventCtor = window.PointerEvent ?? window.MouseEvent
   act(() => {
@@ -60,11 +78,19 @@ function ToolStateProbe() {
   return createElement('output', { 'data-testid': 'tool-state' }, JSON.stringify(state))
 }
 
-function Harness() {
+type HarnessProps = {
+  initialShapes?: Shape[]
+  initialSelectedShapeIds?: string[]
+}
+
+function Harness({
+  initialShapes = [initialLine],
+  initialSelectedShapeIds = ['trim-line'],
+}: HarnessProps) {
   const svgRef = useRef<SVGSVGElement | null>(null)
   const panRef = useRef<PanState | null>(null)
-  const [shapes, setShapes] = useState<Shape[]>([initialLine])
-  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>(['trim-line'])
+  const [shapes, setShapes] = useState<Shape[]>(initialShapes)
+  const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>(initialSelectedShapeIds)
   const shapesById = useMemo(() => Object.fromEntries(shapes.map((shape) => [shape.id, shape])), [shapes])
   const interactions = useCanvasInteractions({
     svgRef,
@@ -128,11 +154,12 @@ function Harness() {
     }),
     createElement('output', { 'data-testid': 'shapes' }, JSON.stringify(shapes)),
     createElement('output', { 'data-testid': 'selected' }, JSON.stringify(selectedShapeIds)),
+    createElement('output', { 'data-testid': 'interaction-preview' }, JSON.stringify(interactions.interactionPreview)),
     createElement(ToolStateProbe),
   )
 }
 
-function renderHarness() {
+function renderHarness(props?: HarnessProps) {
   lastRender = renderForTest(
     createElement(
       EditorUIStateProvider,
@@ -140,7 +167,7 @@ function renderHarness() {
       createElement(
         EditorPanelStateProvider,
         null,
-        createElement(EditorToolStateProvider, null, createElement(Harness)),
+        createElement(EditorToolStateProvider, null, createElement(Harness, props)),
       ),
     ),
   )
@@ -180,5 +207,45 @@ describe('useCanvasInteractions CAD command mode', () => {
     const clearedState = readJson<{ cadCommandMode: string | null; commandPreviewShapes: Shape[] }>(rendered.container, 'tool-state')
     expect(clearedState.cadCommandMode).toBeNull()
     expect(clearedState.commandPreviewShapes).toEqual([])
+  })
+})
+
+describe('useCanvasInteractions CAD selection box', () => {
+  it('selects only fully contained shapes for left-to-right drags', () => {
+    const rendered = renderHarness({
+      initialShapes: [containedLine, crossingLine],
+      initialSelectedShapeIds: [],
+    })
+    const canvas = rendered.container.querySelector('[data-testid="canvas"]')
+
+    dispatchPointer(canvas!, 'pointerdown', { clientX: -1, clientY: -1 })
+    dispatchPointer(canvas!, 'pointermove', { clientX: 3, clientY: 1 })
+
+    const preview = readJson<{ kind: string; mode: string }>(rendered.container, 'interaction-preview')
+    expect(preview.kind).toBe('selection-box')
+    expect(preview.mode).toBe('contained')
+
+    dispatchPointer(canvas!, 'pointerup', { clientX: 3, clientY: 1 })
+
+    expect(readJson<string[]>(rendered.container, 'selected')).toEqual(['contained-line'])
+  })
+
+  it('selects crossing shapes for right-to-left drags', () => {
+    const rendered = renderHarness({
+      initialShapes: [containedLine, crossingLine],
+      initialSelectedShapeIds: [],
+    })
+    const canvas = rendered.container.querySelector('[data-testid="canvas"]')
+
+    dispatchPointer(canvas!, 'pointerdown', { clientX: 6, clientY: -1 })
+    dispatchPointer(canvas!, 'pointermove', { clientX: 1, clientY: 1 })
+
+    const preview = readJson<{ kind: string; mode: string }>(rendered.container, 'interaction-preview')
+    expect(preview.kind).toBe('selection-box')
+    expect(preview.mode).toBe('crossing')
+
+    dispatchPointer(canvas!, 'pointerup', { clientX: 1, clientY: 1 })
+
+    expect(readJson<string[]>(rendered.container, 'selected')).toEqual(['contained-line', 'crossing-line'])
   })
 })

@@ -27,6 +27,12 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
   }
 
   switch (item.id) {
+    case 'toggle-grid-snap':
+      return 'grid'
+    case 'toggle-object-snap':
+      return 'snap'
+    case 'toggle-guide-snap':
+      return 'ruler'
     case 'fit-view':
       return 'fit'
     case 'reset-view':

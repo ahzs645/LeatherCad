@@ -11,6 +11,7 @@ import type {
   SeamConnection,
   Shape,
   SketchGroup,
+  SnapSettings,
   StitchHole,
   TextureSource,
   TracingOverlay,
@@ -46,6 +47,8 @@ type UseEditorWorkbenchControllerParams = {
   selectedHardwareMarker: HardwareMarker | null
   selectedShapeCount: number
   selectedShapeIdSet: Set<string>
+  snapSettings: SnapSettings
+  setSnapSettings: React.Dispatch<React.SetStateAction<SnapSettings>>
   canUndo: boolean
   canRedo: boolean
   workbenchRibbonTab: WorkbenchRibbonTab
@@ -146,6 +149,8 @@ export function useEditorWorkbenchController({
   selectedHardwareMarker,
   selectedShapeCount,
   selectedShapeIdSet,
+  snapSettings,
+  setSnapSettings,
   canUndo,
   canRedo,
   workbenchRibbonTab,
@@ -264,6 +269,9 @@ export function useEditorWorkbenchController({
     selectedShapeCount,
     selectedPatternPiece: selectedPatternPiece !== null,
     selectedStitchHole: selectedStitchHole !== null,
+    gridSnapEnabled: snapSettings.enabled && snapSettings.grid,
+    objectSnapEnabled: snapSettings.enabled && (snapSettings.endpoints || snapSettings.midpoints || snapSettings.hardware),
+    guideSnapEnabled: snapSettings.enabled && snapSettings.guides,
   })
 
   const docLabel = documentName ?? patternPieces[0]?.name ?? 'Current Draft'
@@ -326,6 +334,24 @@ export function useEditorWorkbenchController({
         break
       case 'toggle-annotations':
         setShowAnnotations((previous) => !previous)
+        break
+      case 'toggle-grid-snap':
+        setSnapSettings((previous) => ({ ...previous, enabled: true, grid: !previous.grid }))
+        break
+      case 'toggle-object-snap':
+        setSnapSettings((previous) => {
+          const nextEnabled = !(previous.endpoints || previous.midpoints || previous.hardware)
+          return {
+            ...previous,
+            enabled: true,
+            endpoints: nextEnabled,
+            midpoints: nextEnabled,
+            hardware: nextEnabled,
+          }
+        })
+        break
+      case 'toggle-guide-snap':
+        setSnapSettings((previous) => ({ ...previous, enabled: true, guides: !previous.guides }))
         break
       case 'undo':
         handleUndo()

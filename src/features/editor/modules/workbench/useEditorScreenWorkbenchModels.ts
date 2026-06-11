@@ -329,6 +329,8 @@ export function useEditorScreenWorkbenchModels({
     selectedHardwareMarker,
     selectedShapeCount,
     selectedShapeIdSet,
+    snapSettings,
+    setSnapSettings,
     canUndo,
     canRedo,
     workbenchRibbonTab,

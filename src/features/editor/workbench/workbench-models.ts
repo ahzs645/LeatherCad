@@ -276,11 +276,34 @@ export function buildRibbonModel(params: {
   selectedShapeCount: number
   selectedPatternPiece: boolean
   selectedStitchHole: boolean
+  gridSnapEnabled?: boolean
+  objectSnapEnabled?: boolean
+  guideSnapEnabled?: boolean
 }): RibbonCommandGroup[] {
-  const { activeTab, canUndo, canRedo, canPaste, selectedShapeCount, selectedPatternPiece, selectedStitchHole } = params
+  const {
+    activeTab,
+    canUndo,
+    canRedo,
+    canPaste,
+    selectedShapeCount,
+    selectedPatternPiece,
+    selectedStitchHole,
+    gridSnapEnabled = false,
+    objectSnapEnabled = false,
+    guideSnapEnabled = false,
+  } = params
 
   const groupsByTab: Record<WorkbenchRibbonTab, RibbonCommandGroup[]> = {
     draft: [
+      {
+        id: 'draft-cad-aids',
+        title: 'CAD Aids',
+        items: [
+          { id: 'toggle-grid-snap', label: gridSnapEnabled ? 'Grid On' : 'Grid Off', icon: 'grid' },
+          { id: 'toggle-object-snap', label: objectSnapEnabled ? 'Snap On' : 'Snap Off', icon: 'snap' },
+          { id: 'toggle-guide-snap', label: guideSnapEnabled ? 'Guides On' : 'Guides Off', icon: 'ruler' },
+        ],
+      },
       {
         id: 'draft-view',
         title: 'View',

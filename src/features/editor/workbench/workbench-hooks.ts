@@ -34,6 +34,9 @@ export function useRibbonModel(params: {
   selectedShapeCount: number
   selectedPatternPiece: boolean
   selectedStitchHole: boolean
+  gridSnapEnabled?: boolean
+  objectSnapEnabled?: boolean
+  guideSnapEnabled?: boolean
 }): RibbonCommandGroup[] {
   return useMemo(() => buildRibbonModel(params), [params])
 }

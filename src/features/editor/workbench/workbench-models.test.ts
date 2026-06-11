@@ -157,6 +157,28 @@ describe('buildInspectorContext', () => {
 })
 
 describe('buildRibbonModel', () => {
+  it('puts grid, object snap, and guide toggles in the draft ribbon', () => {
+    const groups = buildRibbonModel({
+      activeTab: 'draft',
+      canUndo: true,
+      canRedo: true,
+      canPaste: true,
+      selectedShapeCount: 1,
+      selectedPatternPiece: false,
+      selectedStitchHole: false,
+      gridSnapEnabled: true,
+      objectSnapEnabled: false,
+      guideSnapEnabled: true,
+    })
+
+    expect(groups[0]?.id).toBe('draft-cad-aids')
+    expect(groups[0]?.items.map((item) => [item.id, item.label, item.icon])).toEqual([
+      ['toggle-grid-snap', 'Grid On', 'grid'],
+      ['toggle-object-snap', 'Snap Off', 'snap'],
+      ['toggle-guide-snap', 'Guides On', 'ruler'],
+    ])
+  })
+
   it('groups commands by workbench tab and respects disabled state', () => {
     const groups = buildRibbonModel({
       activeTab: 'modify',
