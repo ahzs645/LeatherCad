@@ -120,6 +120,7 @@ type UseEditorWorkbenchControllerParams = {
   setTracingOverlays: React.Dispatch<React.SetStateAction<TracingOverlay[]>>
   setSecondaryPreviewMode: React.Dispatch<React.SetStateAction<'hidden' | '2d-peek' | '3d-peek'>>
   setWorkspaceMode: React.Dispatch<React.SetStateAction<'2d' | '3d'>>
+  runPrecisionCommand: (command: string) => string
 }
 
 export function useEditorWorkbenchController({
@@ -219,6 +220,7 @@ export function useEditorWorkbenchController({
   setTracingOverlays,
   setSecondaryPreviewMode,
   setWorkspaceMode,
+  runPrecisionCommand,
 }: UseEditorWorkbenchControllerParams) {
   const selectedPieceIds = useMemo(
     () =>
@@ -469,6 +471,18 @@ export function useEditorWorkbenchController({
         break
       case 'arc-to-bezier':
         handleConvertArcToBezier()
+        break
+      case 'cad-offset':
+        runPrecisionCommand('offset')
+        break
+      case 'cad-trim':
+        runPrecisionCommand('trim')
+        break
+      case 'cad-extend':
+        runPrecisionCommand('extend')
+        break
+      case 'cad-mirror':
+        runPrecisionCommand('mirror')
         break
       case 'extend-trim':
         handleExtendOrTrimLines()

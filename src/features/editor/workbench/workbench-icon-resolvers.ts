@@ -120,6 +120,14 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
       return 'ai'
     case 'arc-to-bezier':
       return 'convert'
+    case 'cad-offset':
+      return 'offset'
+    case 'cad-trim':
+      return 'trim'
+    case 'cad-extend':
+      return 'trim'
+    case 'cad-mirror':
+      return 'mirror'
     case 'extend-trim':
       return 'trim'
     case 'mirror-shapes':

@@ -17,7 +17,7 @@ import type {
   StitchHole,
   Viewport,
 } from '../cad/cad-types'
-import { extendLineToShape, trimShapeAtPoint } from '../ops/geometry/line-editing'
+import { resolveExtendPreview, resolveTrimPreview } from '../ops/geometry/line-editing'
 import { computeMandalaIntersectionCandidates, snapPointToContext } from '../ops/pattern-ops'
 import type { ToolRuntime } from '../tools/tool-types'
 import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvider'
@@ -432,28 +432,22 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   }
 
   const buildCadCommandPreview = (point: Point): Shape[] => {
-    const selectedShapes = selectedShapeIds.map((id) => shapesById[id]).filter(Boolean)
+    const selectedShapes = selectedShapeIds.map((id) => shapesById[id]).filter((shape): shape is Shape => Boolean(shape))
+    const candidateShapes = selectedShapes.length > 0 ? selectedShapes : displayShapes
     if (cadCommandMode === 'trim') {
-      const target = selectedShapes[0]
-      if (!target) {
-        return []
-      }
-      const keepSide = Math.hypot(point.x - target.start.x, point.y - target.start.y) < Math.hypot(point.x - target.end.x, point.y - target.end.y)
-        ? 'end'
-        : 'start'
-      return [trimShapeAtPoint(target, point, keepSide)]
+      const trimPreview = resolveTrimPreview(candidateShapes, point)
+      return trimPreview ? [trimPreview.preview] : []
     }
     if (cadCommandMode === 'extend') {
-      const line = selectedShapes.find((shape): shape is LineShape => shape.type === 'line')
-      const target = selectedShapes.find((shape) => shape && shape.id !== line?.id)
-      if (!line || !target) {
-        return []
-      }
-      const extendEnd = Math.hypot(point.x - line.start.x, point.y - line.start.y) < Math.hypot(point.x - line.end.x, point.y - line.end.y)
-        ? 'start'
-        : 'end'
-      const extended = extendLineToShape(line, target, extendEnd)
-      return extended ? [extended] : []
+      const selectedLineCandidates = selectedShapes.filter((shape): shape is LineShape => shape.type === 'line')
+      const lineCandidates = selectedLineCandidates.length > 0
+        ? selectedLineCandidates
+        : displayShapes.filter((shape): shape is LineShape => shape.type === 'line')
+      const targetCandidates = selectedShapes.length > 0 && (selectedLineCandidates.length === 0 || selectedShapes.length > 1)
+        ? selectedShapes
+        : displayShapes
+      const extendPreview = resolveExtendPreview(lineCandidates, targetCandidates, point)
+      return extendPreview ? [extendPreview.preview] : []
     }
     return []
   }

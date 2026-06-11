@@ -59,6 +59,21 @@ function renderIcon(name: WorkbenchIconName) {
           <path {...STROKE_PROPS} d="M9.2 13.1l1.7 1.7M11.1 11.2l1.1 1.1M13 9.3l1.7 1.7M14.9 7.4l1.1 1.1" />
         </>
       )
+    case 'grid':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M5 5h14v14H5z" />
+          <path {...STROKE_PROPS} d="M9.7 5v14M14.3 5v14M5 9.7h14M5 14.3h14" />
+        </>
+      )
+    case 'snap':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M12 4v5M12 15v5M4 12h5M15 12h5" />
+          <circle {...STROKE_PROPS} cx="12" cy="12" r="3" />
+          <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+        </>
+      )
     case 'dimensions':
       return (
         <>
@@ -278,6 +293,14 @@ function renderIcon(name: WorkbenchIconName) {
           <path {...STROKE_PROPS} d="M5 17L19 5" />
           <path {...STROKE_PROPS} d="M5 7h14" />
           <circle cx="12" cy="7" r="1.5" fill="currentColor" />
+        </>
+      )
+    case 'offset':
+      return (
+        <>
+          <path {...STROKE_PROPS} d="M5 9h11.5" />
+          <path {...STROKE_PROPS} d="M7.5 15H19" />
+          <path {...STROKE_PROPS} d="M16.5 6.75L19 9.25l-2.5 2.5M7.5 12.75L5 15.25l2.5 2.5" />
         </>
       )
     case 'convert':

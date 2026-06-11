@@ -24,6 +24,20 @@ const baseParams = {
   stitchStrokeColor: '#0f766e',
   foldStrokeColor: '#7c3aed',
   cutStrokeColor: '#111827',
+  seamGuides: [],
+  annotationLabels: [],
+  dimensionLines: [],
+  showAnnotations: true,
+  showDimensions: true,
+  showOpenPathLabels: false,
+  viewportScale: 1,
+  displayUnit: 'mm' as const,
+  snapIndicator: null,
+  markedSnapPoints: [],
+  angleGuideLines: [],
+  pieceEdgeLabels: [],
+  constraintSuggestions: [],
+  outlineChains: [],
 }
 
 describe('buildCanvasRenderModel', () => {
@@ -186,5 +200,167 @@ describe('buildCanvasRenderModel', () => {
     expect(model.layers.editableShapes[0].paint.selected).toBe(true)
     expect(model.layers.editableShapes[0].paint.className).toContain('shape-selected')
     expect(model.layers.editableShapes[1].paint.opacity).toBeLessThan(1)
+  })
+
+  it('culls annotation and dimension overlays through render entities', () => {
+    const model = buildCanvasRenderModel({
+      visibleShapes: [line('shape', 'layer', 0)],
+      linkedShapes: [],
+      ...baseParams,
+      layerStackLevels: { layer: 0 },
+      viewBounds: { minX: 0, minY: 0, maxX: 60, maxY: 60 },
+      detailPadding: 0,
+      interactionPreview: null,
+      visibleStitchHoles: [],
+      visibleHardwareMarkers: [],
+      foldLines: [],
+      seamGuides: [
+        { id: 'seam-visible', shapeId: 'shape', d: 'M 0 0 L 10 0', labelPoint: { x: 5, y: 5 }, offsetMm: 3 },
+        { id: 'seam-outside', shapeId: 'shape', d: 'M 100 100 L 110 100', labelPoint: { x: 100, y: 100 }, offsetMm: 4 },
+      ],
+      annotationLabels: [
+        { id: 'label-visible', text: 'Front', point: { x: 10, y: 10 } },
+        { id: 'label-outside', text: 'Back', point: { x: 200, y: 200 } },
+      ],
+      dimensionLines: [
+        { id: 'dim-visible', start: { x: 5, y: 20 }, end: { x: 25, y: 20 }, offsetMm: 5, layerId: 'layer', lineTypeId: 'cut' },
+        { id: 'dim-outside', start: { x: 100, y: 100 }, end: { x: 120, y: 100 }, offsetMm: 5, layerId: 'layer', lineTypeId: 'cut' },
+      ],
+      pieceGrainlineSegments: [],
+      pieceNotchLines: [],
+      piecePlacementGuides: [],
+    })
+
+    expect(model.entities.seamGuides.map((entry) => [entry.id, entry.paint.labelVisible])).toEqual([
+      ['seam-visible', true],
+      ['seam-outside', false],
+    ])
+    expect(model.entities.annotationLabels.map((entry) => entry.id)).toEqual(['label-visible'])
+    expect(model.entities.dimensionLines.map((entry) => entry.id)).toEqual(['dim-visible'])
+    expect(model.entities.dimensionLines[0].payload.label?.text).toBe('20.0mm')
+  })
+
+  it('groups render entities in explicit draw-order buckets and carries paint metadata', () => {
+    const model = buildCanvasRenderModel({
+      visibleShapes: [line('shape', 'layer', 0)],
+      linkedShapes: [],
+      ...baseParams,
+      layerStackLevels: { layer: 0 },
+      viewBounds: { minX: -10, minY: -10, maxX: 100, maxY: 100 },
+      detailPadding: 0,
+      interactionPreview: null,
+      visibleStitchHoles: [{
+        id: 'hole',
+        shapeId: 'shape',
+        point: { x: 2, y: 2 },
+        sequence: 0,
+        diameterMm: 1,
+        holeType: 'round',
+        renderShape: 'round',
+      }],
+      visibleHardwareMarkers: [{
+        id: 'snap',
+        kind: 'snap',
+        label: 'Snap',
+        point: { x: 4, y: 4 },
+        holeDiameterMm: 2,
+      }],
+      foldLines: [],
+      seamGuides: [{ id: 'seam', shapeId: 'shape', d: 'M 0 0 L 10 0', labelPoint: { x: 4, y: 4 }, offsetMm: 2.5 }],
+      annotationLabels: [{ id: 'piece-label', text: 'Piece', point: { x: 6, y: 6 }, fontSizeMm: 4 }],
+      dimensionLines: [],
+      pieceGrainlineSegments: [],
+      pieceNotchLines: [],
+      piecePlacementGuides: [],
+    })
+
+    expect(model.entities.all.map((entry) => entry.kind)).toEqual([
+      'shape',
+      'seam-guide',
+      'stitch-hole',
+      'hardware-marker',
+      'annotation-label',
+      'dimension-label',
+    ])
+    expect(model.groups.base.map((entry) => entry.kind)).toEqual(['shape'])
+    expect(model.groups.guide.map((entry) => entry.kind)).toEqual(['seam-guide'])
+    expect(model.groups.detail.map((entry) => entry.kind)).toEqual(['stitch-hole', 'hardware-marker'])
+    expect(model.groups.annotation.map((entry) => entry.kind)).toEqual(['annotation-label', 'dimension-label'])
+    expect(model.entities.seamGuides[0].paint.lineClassName).toBe('seam-guide-line')
+    expect(model.entities.seamGuides[0].paint.labelText).toBe('2.5mm seam')
+    expect(model.entities.annotationLabels[0].paint.className).toBe('annotation-label')
+    expect(model.entities.dimensionLabels[0].paint.className).toBe('dimension-label')
+  })
+
+  it('moves piece edge labels, constraint glyphs, and open path labels into annotation entities', () => {
+    const model = buildCanvasRenderModel({
+      visibleShapes: [line('shape', 'layer', 0)],
+      linkedShapes: [],
+      ...baseParams,
+      showOpenPathLabels: true,
+      layerStackLevels: { layer: 0 },
+      viewBounds: { minX: -10, minY: -10, maxX: 100, maxY: 100 },
+      detailPadding: 0,
+      interactionPreview: null,
+      pieceEdgeLabels: [{ id: 'edge-a', x: 8, y: 8, label: 'A', active: true }],
+      constraintSuggestions: [{
+        constraint: { id: 'constraint', type: 'horizontal', shapeId: 'shape' },
+        label: 'Horizontal',
+        glyph: 'H',
+        glyphPoint: { x: 12, y: 12 },
+        confidence: 0.8,
+      }],
+      outlineChains: [{
+        id: 'open-chain',
+        shapeIds: ['shape'],
+        polygon: [{ x: 0, y: 0 }, { x: 20, y: 0 }],
+        isClosed: false,
+        area: 0,
+      }],
+      visibleStitchHoles: [],
+      visibleHardwareMarkers: [],
+      foldLines: [],
+      pieceGrainlineSegments: [],
+      pieceNotchLines: [],
+      piecePlacementGuides: [],
+    })
+
+    expect(model.entities.pieceEdgeLabels[0].payload.label).toBe('A')
+    expect(model.entities.constraintGlyphs[0].payload.opacity).toBeCloseTo(0.9)
+    expect(model.entities.outlineChainLabels[0].payload.text).toBe('Open Path')
+    expect(model.groups.annotation.map((entry) => entry.kind)).toContain('piece-edge-label')
+    expect(model.groups.annotation.map((entry) => entry.kind)).toContain('constraint-glyph')
+    expect(model.groups.annotation.map((entry) => entry.kind)).toContain('outline-chain-label')
+  })
+
+  it('includes snap anchors and angle guides as overlay entities', () => {
+    const model = buildCanvasRenderModel({
+      visibleShapes: [line('shape', 'layer', 0)],
+      linkedShapes: [],
+      ...baseParams,
+      layerStackLevels: { layer: 0 },
+      viewBounds: { minX: -10, minY: -10, maxX: 100, maxY: 100 },
+      detailPadding: 0,
+      interactionPreview: null,
+      snapIndicator: { point: { x: 8, y: 8 }, reason: 'endpoint' },
+      markedSnapPoints: [{ point: { x: 4, y: 4 }, reason: 'midpoint', markedAt: 1 }],
+      angleGuideLines: [{ id: 'angle-guide', start: { x: 0, y: 0 }, end: { x: 40, y: 40 } }],
+      visibleStitchHoles: [],
+      visibleHardwareMarkers: [],
+      foldLines: [],
+      pieceGrainlineSegments: [],
+      pieceNotchLines: [],
+      piecePlacementGuides: [],
+    })
+
+    expect(model.entities.angleGuides).toHaveLength(1)
+    expect(model.entities.snapAnchors.map((entry) => entry.payload.active)).toEqual([false, true])
+    expect(model.entities.all.map((entry) => entry.kind)).toEqual([
+      'shape',
+      'dimension-label',
+      'angle-guide',
+      'snap-anchor',
+      'snap-anchor',
+    ])
   })
 })

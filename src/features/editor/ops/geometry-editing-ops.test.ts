@@ -9,6 +9,8 @@ import {
   getArcGeometry,
   getLineAngleDeg,
   getLineLengthMm,
+  resolveExtendPreview,
+  resolveTrimPreview,
   removeDuplicateShapes,
   scaleLineLengthByRatio,
   setArcGeometry,
@@ -48,6 +50,63 @@ describe('buildCenterLineBetween', () => {
     const mid = buildCenterLineBetween(a, b, { layerId: 'layer-1', lineTypeId: 'cut' })
     expect(mid.start).toEqual({ x: 5, y: 0 })
     expect(mid.end).toEqual({ x: 5, y: 20 })
+  })
+})
+
+describe('resolveTrimPreview', () => {
+  it('trims the nearest eligible shape at the nearest point on that shape', () => {
+    const far = makeLine('far', 0, 0, 20, 0)
+    const near = makeLine('near', 0, 10, 20, 10)
+    const resolved = resolveTrimPreview([far, near], { x: 7, y: 9 })
+
+    expect(resolved?.shape.id).toBe('near')
+    expect(resolved?.point).toEqual({ x: 7, y: 10 })
+    expect(resolved?.preview.id).toBe('near')
+    expect(resolved?.preview.start).toEqual({ x: 7, y: 10 })
+  })
+
+  it('ignores text shapes when resolving trim targets', () => {
+    const line = makeLine('line', 0, 0, 10, 0)
+    const text: Shape = {
+      id: 'text',
+      type: 'text',
+      layerId: 'layer-1',
+      lineTypeId: 'cut',
+      start: { x: 0, y: 1 },
+      end: { x: 10, y: 1 },
+      text: 'Label',
+      fontFamily: 'Arial',
+      fontSizeMm: 3,
+      transform: 'none',
+      radiusMm: 0,
+      sweepDeg: 0,
+    }
+    const resolved = resolveTrimPreview([text, line], { x: 4, y: 0.2 })
+
+    expect(resolved?.shape.id).toBe('line')
+  })
+})
+
+describe('resolveExtendPreview', () => {
+  it('extends the nearest line endpoint to the nearest target in that extension direction', () => {
+    const line = makeLine('line', 0, 0, 10, 0)
+    const nearTarget = makeLine('target-near', 20, -5, 20, 5)
+    const farTarget = makeLine('target-far', 30, -5, 30, 5)
+    const resolved = resolveExtendPreview([line], [line, farTarget, nearTarget], { x: 11, y: 0.5 })
+
+    expect(resolved?.line.id).toBe('line')
+    expect(resolved?.target.id).toBe('target-near')
+    expect(resolved?.extendEnd).toBe('end')
+    expect(resolved?.preview.end).toEqual({ x: 20, y: 0 })
+  })
+
+  it('can extend the start endpoint when the cursor is nearer the start', () => {
+    const line = makeLine('line', 0, 0, 10, 0)
+    const target = makeLine('target', -12, -5, -12, 5)
+    const resolved = resolveExtendPreview([line], [target], { x: -1, y: 0 })
+
+    expect(resolved?.extendEnd).toBe('start')
+    expect(resolved?.preview.start).toEqual({ x: -12, y: 0 })
   })
 })
 

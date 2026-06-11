@@ -265,6 +265,7 @@ type BuildDocumentInspectorPropsInput = {
   handleSetLayerColorOverride: (layerId: string, color: string) => void
   handleClearLayerColorOverride: (layerId: string) => void
   handleResetLayerColors: () => void
+  onRunCadCommand: (command: string) => string
 }
 
 export function buildDocumentInspectorProps({
@@ -325,6 +326,7 @@ export function buildDocumentInspectorProps({
   handleSetLayerColorOverride,
   handleClearLayerColorOverride,
   handleResetLayerColors,
+  onRunCadCommand,
 }: BuildDocumentInspectorPropsInput): DocumentInspectorPanelProps {
   return {
     displayUnit,
@@ -390,5 +392,6 @@ export function buildDocumentInspectorProps({
     onSetLayerColorOverride: handleSetLayerColorOverride,
     onClearLayerColorOverride: handleClearLayerColorOverride,
     onResetLayerColors: handleResetLayerColors,
+    onRunCadCommand,
   }
 }

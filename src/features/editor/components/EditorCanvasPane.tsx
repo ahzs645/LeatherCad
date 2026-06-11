@@ -1,6 +1,5 @@
 import { useMemo, useState, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
 import { CanvasContextMenu, type ContextMenuItem } from './CanvasContextMenu'
-import { sampleShapePoints } from '../cad/cad-geometry'
 import type {
   DimensionLine,
   FoldLine,
@@ -18,7 +17,7 @@ import type {
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 import type { AnnotationLabel, LegendMode, PiecePlacementGuide, SeamGuide, SketchWorkspaceMode } from '../editor-types'
 import type { ConstraintSuggestion } from '../ops/auto-constraint-ops'
-import { formatDisplayDistance, type DisplayUnit } from '../ops/unit-ops'
+import type { DisplayUnit } from '../ops/unit-ops'
 import type { PrintPlan } from '../preview/print-preview'
 import { useCanvasGrid } from '../hooks/useCanvasGrid'
 import { CanvasEngineV2 } from '../render-v2/CanvasEngineV2'
@@ -222,10 +221,16 @@ export function EditorCanvasPane({
   drawFirstPos = false,
 }: EditorCanvasPaneProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
-  const commandPreviewShapes = useEditorToolSelector((state) => state.commandPreviewShapes)
+  const { angleGuideLines, commandPreviewShapes, markedSnapPoints, snapIndicator } = useEditorToolSelector((state) => ({
+    angleGuideLines: state.angleGuideLines,
+    commandPreviewShapes: state.commandPreviewShapes,
+    markedSnapPoints: state.markedSnapPoints,
+    snapIndicator: state.snapIndicator,
+  }))
   const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
   const detailPadding = Math.max(32, 96 / Math.max(viewport.scale, 0.1))
+  const showOpenPathLabels = typeof window !== 'undefined' && window.localStorage?.getItem('leathercad_show_open_path_labels') === '1'
 
   const viewBounds = useMemo<Bounds>(() => {
     return {
@@ -259,14 +264,32 @@ export function EditorCanvasPane({
         visibleStitchHoles,
         visibleHardwareMarkers,
         foldLines,
+        seamGuides,
+        annotationLabels,
+        dimensionLines,
+        showAnnotations,
+        showDimensions,
+        showOpenPathLabels,
+        viewportScale: viewport.scale,
+        displayUnit,
+        snapIndicator,
+        markedSnapPoints,
+        angleGuideLines,
+        pieceEdgeLabels,
+        constraintSuggestions,
+        outlineChains,
         pieceGrainlineSegments,
         pieceNotchLines,
         piecePlacementGuides,
       }),
     [
+      angleGuideLines,
       detailPadding,
       displayLayerColorsById,
       commandPreviewShapes,
+      annotationLabels,
+      dimensionLines,
+      displayUnit,
       fallbackLayerStroke,
       foldLines,
       foldStrokeColor,
@@ -275,30 +298,29 @@ export function EditorCanvasPane({
       layerStackLevels,
       linkedShapes,
       lineTypesById,
+      markedSnapPoints,
       pieceGrainlineSegments,
       pieceNotchLines,
       piecePlacementGuides,
+      pieceEdgeLabels,
+      constraintSuggestions,
+      outlineChains,
+      seamGuides,
       selectedShapeIdSet,
       shapeStrokeOpacity,
       sketchWorkspaceMode,
+      showAnnotations,
+      showDimensions,
+      showOpenPathLabels,
+      snapIndicator,
       stitchStrokeColor,
       cutStrokeColor,
+      viewport.scale,
       viewBounds,
       visibleHardwareMarkers,
       visibleShapes,
       visibleStitchHoles,
     ],
-  )
-  const renderableVisibleShapes = useMemo(
-    () => renderModel.layers.editableShapes.map((entry) => entry.shape),
-    [renderModel],
-  )
-  const renderablePieceEdgeLabels = useMemo(
-    () =>
-      viewport.scale >= 0.55
-        ? pieceEdgeLabels.filter((entry) => pointInBounds({ x: entry.x, y: entry.y }, viewBounds, detailPadding))
-        : [],
-    [detailPadding, pieceEdgeLabels, viewBounds, viewport.scale],
   )
   const renderableStitchHoles = renderModel.layers.stitchHoles
   const renderableSimulatedSegments = useMemo(
@@ -325,20 +347,6 @@ export function EditorCanvasPane({
   const renderablePieceGrainlineSegments = renderModel.layers.pieceGrainlineSegments
   const renderablePieceNotchLines = renderModel.layers.pieceNotchLines
   const renderablePlacementGuides = renderModel.layers.placementGuides
-  const renderableAnnotationLabels = useMemo(
-    () =>
-      viewport.scale >= 0.35
-        ? annotationLabels.filter((label) => pointInBounds(label.point, viewBounds, detailPadding))
-        : [],
-    [annotationLabels, detailPadding, viewBounds, viewport.scale],
-  )
-  const renderableConstraintSuggestions = useMemo(
-    () =>
-      viewport.scale >= 0.45
-        ? constraintSuggestions.filter((entry) => pointInBounds(entry.glyphPoint, viewBounds, detailPadding))
-        : [],
-    [constraintSuggestions, detailPadding, viewBounds, viewport.scale],
-  )
   const renderableOutlineChains = useMemo(
     () =>
       outlineChains.filter((chain) =>
@@ -347,43 +355,6 @@ export function EditorCanvasPane({
     [detailPadding, outlineChains, viewBounds],
   )
   const renderableFoldLines = renderModel.layers.foldLines
-
-  const hasImportedDimensions = dimensionLines.length > 0
-  const dimensionShapes = showDimensions && !hasImportedDimensions
-    ? selectedShapeIdSet.size > 0
-      ? renderableVisibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-      : renderableVisibleShapes.slice(0, 40)
-    : []
-
-  const dimensionEntries = viewport.scale >= 0.45
-    ? dimensionShapes
-        .map((shape) => {
-          const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 36)
-          if (sampled.length < 2) {
-            return null
-          }
-
-          let lengthMm = 0
-          for (let index = 1; index < sampled.length; index += 1) {
-            const dx = sampled[index].x - sampled[index - 1].x
-            const dy = sampled[index].y - sampled[index - 1].y
-            lengthMm += Math.hypot(dx, dy)
-          }
-
-          if (!Number.isFinite(lengthMm) || lengthMm <= 0.01) {
-            return null
-          }
-
-          const mid = sampled[Math.floor(sampled.length / 2)]
-          return {
-            id: shape.id,
-            x: mid.x + 4,
-            y: mid.y - 4,
-            text: formatDisplayDistance(lengthMm, displayUnit, displayUnit === 'in' ? 3 : 1),
-          }
-        })
-        .filter((entry): entry is { id: string; x: number; y: number; text: string } => entry !== null)
-    : []
 
   const engineV2 = isEngineV2Enabled()
 
@@ -434,19 +405,15 @@ export function EditorCanvasPane({
           />
 
           <CanvasAnnotationLayer
-            seamGuides={seamGuides}
             showAnnotations={showAnnotations}
             viewportScale={viewport.scale}
-            viewBounds={viewBounds}
-            detailPadding={detailPadding}
-            renderablePieceEdgeLabels={renderablePieceEdgeLabels}
-            renderableAnnotationLabels={renderableAnnotationLabels}
-            renderableOutlineChains={renderableOutlineChains}
-            renderableConstraintSuggestions={renderableConstraintSuggestions}
-            dimensionEntries={dimensionEntries}
-            showDimensions={showDimensions}
-            dimensionLines={dimensionLines}
-            displayUnit={displayUnit}
+            pieceEdgeLabelEntities={renderModel.entities.pieceEdgeLabels}
+            seamGuideEntities={renderModel.entities.seamGuides}
+            annotationLabelEntities={renderModel.entities.annotationLabels}
+            dimensionLabelEntities={renderModel.entities.dimensionLabels}
+            dimensionLineEntities={renderModel.entities.dimensionLines}
+            outlineChainLabelEntities={renderModel.entities.outlineChainLabels}
+            constraintGlyphEntities={renderModel.entities.constraintGlyphs}
           />
 
           <CanvasLeatherImageFillLayer
@@ -479,6 +446,8 @@ export function EditorCanvasPane({
               boundsIntersect(shapeBounds(entry.shape), viewBounds, detailPadding),
             )}
             selectionBoxEntities={renderModel.entities.selectionBoxes}
+            snapAnchorEntities={renderModel.entities.snapAnchors}
+            angleGuideEntities={renderModel.entities.angleGuides}
             previewElement={previewElement}
             onShapePointerDown={onShapePointerDown}
             buildTextGlyphPlacements={buildTextGlyphPlacements}

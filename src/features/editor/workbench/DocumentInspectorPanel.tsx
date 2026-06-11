@@ -6,6 +6,21 @@ import { GRID_SPACING_OPTIONS } from '../editor-constants'
 import { LayerColorSettingsSection } from '../components/LayerColorSettingsSection'
 import { LeatherImageFillSection } from '../components/LeatherImageFillSection'
 import { LineTypeManagerSection } from '../components/LineTypeManagerSection'
+import { WorkbenchIcon } from './workbench-icons'
+import type { WorkbenchIconName } from './workbench-types'
+
+const CAD_COMMANDS: Array<{ command: string; label: string; icon: WorkbenchIconName; hint: string }> = [
+  { command: 'offset', label: 'Offset', icon: 'offset', hint: 'Repeat copies at an active distance' },
+  { command: 'trim', label: 'Trim', icon: 'trim', hint: 'Hover preview before commit' },
+  { command: 'extend', label: 'Extend', icon: 'trim', hint: 'Nearest boundary extension' },
+  { command: 'mirror', label: 'Mirror', icon: 'mirror', hint: 'Reflect selected geometry' },
+]
+
+const CAD_SNAP_AIDS: Array<{ icon: WorkbenchIconName; label: string; value: string }> = [
+  { icon: 'snap', label: 'Snap priority', value: 'Geometry before grid' },
+  { icon: 'grid', label: 'Grid', value: 'Drafting interval only' },
+  { icon: 'ruler', label: 'Typed input', value: 'Distance works while angle-locked' },
+]
 
 export type DocumentInspectorPanelProps = {
   displayUnit: DisplayUnit
@@ -65,6 +80,7 @@ export type DocumentInspectorPanelProps = {
   onSetLayerColorOverride: (layerId: string, color: string) => void
   onClearLayerColorOverride: (layerId: string) => void
   onResetLayerColors: () => void
+  onRunCadCommand: (command: string) => string
 }
 
 export function DocumentInspectorPanel({
@@ -125,6 +141,7 @@ export function DocumentInspectorPanel({
   onSetLayerColorOverride,
   onClearLayerColorOverride,
   onResetLayerColors,
+  onRunCadCommand,
 }: DocumentInspectorPanelProps) {
   return (
     <>
@@ -218,6 +235,33 @@ export function DocumentInspectorPanel({
             <input type="checkbox" checked={snapSettings.hardware} onChange={(event) => onUpdateSnapSettings({ hardware: event.target.checked })} />
             <span>Hardware</span>
           </label>
+        </div>
+      </div>
+
+      <div className="control-block">
+        <h3>CAD Aids</h3>
+        <div className="cad-command-grid" aria-label="CAD command shortcuts">
+          {CAD_COMMANDS.map((item) => (
+            <button
+              key={item.command}
+              type="button"
+              className="cad-command-button"
+              title={`${item.label}: ${item.hint}`}
+              onClick={() => onRunCadCommand(item.command)}
+            >
+              <WorkbenchIcon name={item.icon} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="cad-aid-list">
+          {CAD_SNAP_AIDS.map((item) => (
+            <div key={item.label} className="cad-aid-item">
+              <WorkbenchIcon name={item.icon} />
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
         </div>
       </div>
 

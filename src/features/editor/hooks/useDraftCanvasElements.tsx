@@ -50,16 +50,14 @@ export function useSnapIndicatorElement() {
 
 export function useCombinedDraftAndSnapElement(params: UseDraftPreviewElementParams) {
   const draft = useDraftPreviewElement(params)
-  const snap = useSnapIndicatorElement()
   return useMemo(() => {
-    if (!draft && !snap) return null
+    if (!draft) return null
     return (
       <>
         {draft}
-        {snap}
       </>
     )
-  }, [draft, snap])
+  }, [draft])
 }
 
 export function useDraftPreviewElement(params: UseDraftPreviewElementParams) {

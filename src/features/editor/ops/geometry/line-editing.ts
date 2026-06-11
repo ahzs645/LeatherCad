@@ -8,6 +8,27 @@ import {
   sampleShapeWithParams,
 } from './path-core'
 
+export type ShapePointHit = {
+  shape: Shape
+  point: Point
+  distance: number
+  t: number
+}
+
+export type TrimPreviewResolution = ShapePointHit & {
+  keepSide: 'start' | 'end'
+  preview: Shape
+}
+
+export type ExtendPreviewResolution = {
+  line: LineShape
+  target: Shape
+  extendEnd: 'start' | 'end'
+  endpointDistance: number
+  extensionDistance: number
+  preview: LineShape
+}
+
 // ---------------------------------------------------------------------------
 // 5. lineLineIntersection
 // ---------------------------------------------------------------------------
@@ -63,21 +84,23 @@ export function extendLineToShape(
     const y3 = target.start.y
     const x4 = target.end.x
     const y4 = target.end.y
+    const sdx = x4 - x3
+    const sdy = y4 - y3
 
-    const denom = ldx * (y3 - y4) - ldy * (x3 - x4)
+    const denom = ldx * sdy - ldy * sdx
     if (Math.abs(denom) < 1e-10) return null
 
     const t =
-      ((lx1 - x3) * (y3 - y4) - (ly1 - y3) * (x3 - x4)) / denom
+      ((x3 - lx1) * sdy - (y3 - ly1) * sdx) / denom
     const u =
-      -((ldx) * (ly1 - y3) - (ldy) * (lx1 - x3)) / denom
+      ((x3 - lx1) * ldy - (y3 - ly1) * ldx) / denom
 
     // u must be on the target segment
     if (u < -1e-9 || u > 1 + 1e-9) return null
 
     // t determines if the intersection is on the correct extension side
-    if (extend === 'end' && t < -1e-9) return null
-    if (extend === 'start' && t > 1 + 1e-9) return null
+    if (extend === 'end' && t < 1 - 1e-9) return null
+    if (extend === 'start' && t > 1e-9) return null
 
     const ix = round(lx1 + t * ldx)
     const iy = round(ly1 + t * ldy)
@@ -110,8 +133,8 @@ export function extendLineToShape(
       ((p1.x - lx1) * ldy - (p1.y - ly1) * ldx) / denom
 
     if (u < -0.01 || u > 1.01) continue
-    if (extend === 'end' && t < -1e-9) continue
-    if (extend === 'start' && t > 1 + 1e-9) continue
+    if (extend === 'end' && t < 1 - 1e-9) continue
+    if (extend === 'start' && t > 1e-9) continue
 
     const ix = lx1 + t * ldx
     const iy = ly1 + t * ldy
@@ -131,6 +154,119 @@ export function extendLineToShape(
     start: extend === 'start' ? bestPoint : line.start,
     end: extend === 'end' ? bestPoint : line.end,
   }
+}
+
+function nearestPointOnLine(line: LineShape, point: Point): ShapePointHit {
+  const dx = line.end.x - line.start.x
+  const dy = line.end.y - line.start.y
+  const lengthSq = dx * dx + dy * dy
+  const t = lengthSq <= 1e-12
+    ? 0
+    : Math.max(0, Math.min(1, ((point.x - line.start.x) * dx + (point.y - line.start.y) * dy) / lengthSq))
+  const projected = {
+    x: line.start.x + dx * t,
+    y: line.start.y + dy * t,
+  }
+  return {
+    shape: line,
+    point: projected,
+    distance: distance(point, projected),
+    t,
+  }
+}
+
+export function nearestPointOnShape(shape: Shape, point: Point): ShapePointHit | null {
+  if (shape.type === 'text') {
+    return null
+  }
+  if (shape.type === 'line') {
+    return nearestPointOnLine(shape, point)
+  }
+
+  let best: ShapePointHit | null = null
+  for (const sample of sampleShapeWithParams(shape, 200)) {
+    const sampleDistance = distance(point, sample.point)
+    if (!best || sampleDistance < best.distance) {
+      best = {
+        shape,
+        point: sample.point,
+        distance: sampleDistance,
+        t: sample.t,
+      }
+    }
+  }
+  return best
+}
+
+export function resolveTrimPreview(candidates: Shape[], point: Point): TrimPreviewResolution | null {
+  let best: ShapePointHit | null = null
+  for (const candidate of candidates) {
+    const hit = nearestPointOnShape(candidate, point)
+    if (!hit) {
+      continue
+    }
+    if (!best || hit.distance < best.distance) {
+      best = hit
+    }
+  }
+  if (!best) {
+    return null
+  }
+
+  const keepSide = best.t < 0.5 ? 'end' : 'start'
+  return {
+    ...best,
+    point: { x: round(best.point.x), y: round(best.point.y) },
+    keepSide,
+    preview: trimShapeAtPoint(best.shape, best.point, keepSide),
+  }
+}
+
+export function resolveExtendPreview(
+  lineCandidates: LineShape[],
+  targetCandidates: Shape[],
+  point: Point,
+): ExtendPreviewResolution | null {
+  let best: ExtendPreviewResolution | null = null
+
+  for (const line of lineCandidates) {
+    const endpoints: Array<{ extendEnd: 'start' | 'end'; point: Point }> = [
+      { extendEnd: 'start', point: line.start },
+      { extendEnd: 'end', point: line.end },
+    ]
+    for (const endpoint of endpoints) {
+      const endpointDistance = distance(point, endpoint.point)
+      for (const target of targetCandidates) {
+        if (target.id === line.id || target.type === 'text') {
+          continue
+        }
+        const preview = extendLineToShape(line, target, endpoint.extendEnd)
+        if (!preview) {
+          continue
+        }
+        const extendedPoint = endpoint.extendEnd === 'start' ? preview.start : preview.end
+        const extensionDistance = distance(endpoint.point, extendedPoint)
+        const resolution: ExtendPreviewResolution = {
+          line,
+          target,
+          extendEnd: endpoint.extendEnd,
+          endpointDistance,
+          extensionDistance,
+          preview,
+        }
+        if (
+          !best ||
+          resolution.endpointDistance < best.endpointDistance ||
+          (Math.abs(resolution.endpointDistance - best.endpointDistance) < 1e-9 &&
+            resolution.extensionDistance < best.extensionDistance)
+        ) {
+          best = resolution
+        }
+      }
+    }
+  }
+
+  return best
 }
 
 // ---------------------------------------------------------------------------

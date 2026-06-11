@@ -403,6 +403,7 @@ export function useEditorScreenWorkbenchModels({
     setTracingOverlays,
     setSecondaryPreviewMode,
     setWorkspaceMode,
+    runPrecisionCommand: canvasController.runPrecisionCommand,
   })
   const shouldLoadThreeWorkbench = workspaceMode === '3d'
   const selectionInspectorProps = buildSelectionInspectorProps({
@@ -521,6 +522,7 @@ export function useEditorScreenWorkbenchModels({
     handleSetLayerColorOverride,
     handleClearLayerColorOverride,
     handleResetLayerColors,
+    onRunCadCommand: canvasController.runPrecisionCommand,
   })
   const workbenchProps = buildWorkbenchProps({
     controller: workbenchController,
