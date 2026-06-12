@@ -67,6 +67,8 @@ describe('final product XPBD relaxation', () => {
       rmsStitchErrorMm: 10,
       maxHingeErrorDeg: 0,
       collisionWarningCount: 0,
+      foldSweepCollisionCount: 0,
+      foldSweepSampleCount: 0,
       unpairedChainCount: 0,
     }
 

@@ -175,6 +175,6 @@ describe('parseImportedJsonDocument', () => {
     expect(importedShape).toMatchObject({
       boxStitchSource: { extracted: true },
     })
-    expect(imported.doc.stitchHoles[0]?.endHole).toBe(true)
+    expect(imported.doc.stitchHoles?.[0]?.endHole).toBe(true)
   })
 })

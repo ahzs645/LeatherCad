@@ -422,6 +422,10 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
       const pathShapes = pathToLines(tempPath, layerId, lineTypeId).map((shape) =>
         scaleShapePoints(shape, documentScaleMm),
       )
+      if (pathShapes.length === 0) {
+        warnings.push('Skipped an unsupported path element')
+        return
+      }
       shapes.push(...transformElementShapes(pathElement, pathShapes, svgRoot, documentScaleMm))
     } catch {
       warnings.push('Skipped an unsupported path element')

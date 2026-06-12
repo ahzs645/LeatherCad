@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { STITCH_LINE_TYPE_ID } from './cad/line-types'
 import { checkForNewerVersion } from './version-check'
 import type { EditorScreenShellActions } from './editorScreenShellTypes'
@@ -43,9 +43,6 @@ import { useEditorSelectionState } from './hooks/useEditorSelectionState'
 import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
-import { type StitchSimulatorSettings } from './ops/stitch-simulator-ops'
-import { loadStitchSimulatorSettings, saveStitchSimulatorSettings } from './ops/stitch-simulator-settings'
-import { loadBoxStitchHelperSettings, type BoxStitchHelperSettings } from './ops/box-stitch-settings'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
 import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
@@ -60,6 +57,7 @@ import { useEditorScreenRefs } from './controllers/useEditorScreenRefs'
 import { useEditorScreenShells } from './controllers/useEditorScreenShells'
 import { useEditorDocumentCommands } from './useEditorDocumentCommands'
 import { useEditorAssetCommands } from './useEditorAssetCommands'
+import { useStitchSimulatorController } from './controllers/useStitchSimulatorController'
 
 export type EditorScreenLayoutModel = {
   isMobileLayout: boolean
@@ -693,9 +691,17 @@ export function useEditorScreenController() {
   })
 
   const handleExtendOrTrimLinesRef = useRef<() => void>(() => {})
-  const setStitchSimulatorSettingsRef = useRef<Dispatch<SetStateAction<StitchSimulatorSettings>>>(
-    () => undefined,
-  )
+  const {
+    stitchSimulatorSettings,
+    setStitchSimulatorSettings,
+    boxStitchHelperSettings,
+    setBoxStitchHelperSettings,
+  } = useStitchSimulatorController({
+    leatherSimEnabled,
+    showStitchSimulatorModal,
+    setShowStitchSimulatorModal,
+    setStatus,
+  })
   useEditorGlobalShortcuts({
     handleDeleteSelection,
     handleUndo,
@@ -722,7 +728,7 @@ export function useEditorScreenController() {
     setStatus,
     setShowAnnotations,
     setShowStitchSimulatorModal,
-    setStitchSimulatorSettings: (value) => setStitchSimulatorSettingsRef.current(value),
+    setStitchSimulatorSettings,
   })
 
   useEditorAutomationEffects({
@@ -872,14 +878,6 @@ export function useEditorScreenController() {
     }
   }, [setStatus])
 
-  // Leather-sim ↔ stitch-sim coupling: when leather-sim turns on, auto-open the
-  // stitch simulator (source-app v2.5.6 behavior).
-  useEffect(() => {
-    if (leatherSimEnabled && !showStitchSimulatorModal) {
-      setShowStitchSimulatorModal(true)
-    }
-  }, [leatherSimEnabled, showStitchSimulatorModal, setShowStitchSimulatorModal])
-
   const layerActions = useLayerActions({
     activeLayer,
     layers,
@@ -959,93 +957,6 @@ export function useEditorScreenController() {
     setLayers,
     setStatus,
   })
-  const [stitchSimulatorSettings, setStitchSimulatorSettings] = useState<StitchSimulatorSettings>(() =>
-    loadStitchSimulatorSettings(),
-  )
-  useEffect(() => {
-    setStitchSimulatorSettingsRef.current = setStitchSimulatorSettings
-  }, [setStitchSimulatorSettings])
-  useEffect(() => {
-    if (!leatherSimEnabled || stitchSimulatorSettings.showSimulatorPattern) {
-      return
-    }
-    queueMicrotask(() => {
-      setStitchSimulatorSettings((previous) => {
-        if (previous.showSimulatorPattern) {
-          return previous
-        }
-        const next = { ...previous, showSimulatorPattern: true }
-        saveStitchSimulatorSettings(next)
-        return next
-      })
-    })
-  }, [leatherSimEnabled, stitchSimulatorSettings.showSimulatorPattern])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null
-      const isTypingContext = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT'
-      if (isTypingContext || event.ctrlKey || event.metaKey || event.altKey) {
-        return
-      }
-      if (event.key === 'F6') {
-        event.preventDefault()
-        setShowStitchSimulatorModal((previous) => !previous)
-        setStitchSimulatorSettings((previous) => {
-          const next = { ...previous, showSimulatorPattern: !previous.showSimulatorPattern }
-          saveStitchSimulatorSettings(next)
-          return next
-        })
-        setStatus('Toggled stitching simulator')
-        return
-      }
-      // Scope the simulator nudge keys (+/-/=) to when the stitch simulator
-      // modal is open so they don't hijack +/- on the canvas in normal use.
-      if (!showStitchSimulatorModal) {
-        return
-      }
-      if (event.key === '+' || event.key === '-') {
-        event.preventDefault()
-        const delta = event.key === '+' ? 0.1 : -0.1
-        setStitchSimulatorSettings((previous) => {
-          const next = {
-            ...previous,
-            threadWidthMm: Math.max(0.3, Math.min(2, Number((previous.threadWidthMm + delta).toFixed(2)))),
-          }
-          saveStitchSimulatorSettings(next)
-          setStatus(`Thread width ${next.threadWidthMm.toFixed(1)} mm`)
-          return next
-        })
-        return
-      }
-      if (event.key === '=') {
-        event.preventDefault()
-        setStitchSimulatorSettings((previous) => {
-          const next =
-            previous.showEvenStitches && previous.showOddStitches
-              ? { ...previous, showOddStitches: false }
-              : previous.showEvenStitches
-                ? { ...previous, showEvenStitches: false, showOddStitches: true }
-                : { ...previous, showEvenStitches: true, showOddStitches: true }
-          saveStitchSimulatorSettings(next)
-          setStatus(
-            next.showEvenStitches && next.showOddStitches
-              ? 'Showing even and odd stitches'
-              : next.showEvenStitches
-                ? 'Showing even stitches'
-                : 'Showing odd stitches',
-          )
-          return next
-        })
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [setShowStitchSimulatorModal, setStatus, showStitchSimulatorModal, setStitchSimulatorSettings])
-  const [boxStitchHelperSettings, setBoxStitchHelperSettings] = useState<BoxStitchHelperSettings>(() =>
-    loadBoxStitchHelperSettings(),
-  )
   const constraintActions = useConstraintActions({
     activeLayer,
     activeLayerId: activeLayer?.id ?? null,

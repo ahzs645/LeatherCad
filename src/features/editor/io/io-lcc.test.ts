@@ -141,6 +141,50 @@ describe('importLccDocument', () => {
     }
   })
 
+  it('skips malformed OTHER paths without creating partial geometry', () => {
+    const lcc = JSON.stringify({
+      meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
+      layers: [{ id: 0, chk: '-1', nam: 'Cut', indp: '0' }],
+      shapes: [
+        {
+          ...baseShape('bad-path', 'OTHER'),
+          path: 'M0,0 L10',
+        },
+      ],
+      backdrops: [],
+      printareas: [],
+    })
+
+    const result = importLccDocument(lcc)
+
+    expect(result.summary.shapeCount).toBe(0)
+    expect(result.warnings).toEqual(['OTHER shape "bad-path" has no parseable path, skipped'])
+  })
+
+  it('does not create zero-length line segments from repeated LCC path points', () => {
+    const lcc = JSON.stringify({
+      meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
+      layers: [{ id: 0, chk: '-1', nam: 'Cut', indp: '0' }],
+      shapes: [
+        {
+          ...baseShape('repeated-point-path', 'OTHER'),
+          path: 'M0,0 L0,0 L10,0',
+        },
+      ],
+      backdrops: [],
+      printareas: [],
+    })
+
+    const result = importLccDocument(lcc)
+
+    expect(result.summary.shapeCount).toBe(1)
+    const shape = result.doc.objects[0]
+    expect(shape.type).toBe('line')
+    if (shape.type !== 'line') return
+    expect(shape.start).toEqual({ x: 0, y: 0 })
+    expect(shape.end).toEqual({ x: 10, y: 0 })
+  })
+
   it('strips UTF-8 BOM', () => {
     const withBom = '\uFEFF' + MINIMAL_LCC
     const result = importLccDocument(withBom)
@@ -951,7 +995,7 @@ describe('exportLccDocument', () => {
     constraints: [],
     seamAllowances: [],
     hardwareMarkers: [],
-    snapSettings: { enabled: true, grid: true, gridStep: 5, endpoints: true, midpoints: false, guides: true, hardware: true },
+    snapSettings: { enabled: true, grid: true, gridStep: 5, endpoints: true, midpoints: false, quarterPoints: true, guides: true, hardware: true },
     showAnnotations: true,
     tracingOverlays: [],
     projectMemo: '',
@@ -1130,7 +1174,7 @@ describe('exportLccDocument', () => {
 
     const imported = importLccDocument(JSON.stringify(lcc))
     expect(imported.doc.stitchHoles).toHaveLength(1)
-    expect(imported.doc.stitchHoles[0]).toMatchObject({
+    expect(imported.doc.stitchHoles?.[0]).toMatchObject({
       widthMm: 0.6,
       heightMm: 2.2,
       renderShape: 'diamond',

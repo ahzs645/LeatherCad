@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { describe, expect, it } from 'vitest'
 import type { DocFile } from '../cad/cad-types'
+import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import type { AppDataClient } from './app-data-client'
 import { createDexieDataClient } from './dexie-data-client'
 import { exportLocalData, importLocalData, pushLocalDataToCloud } from './local-data-migration'
@@ -31,14 +32,14 @@ function makeDoc(documentName: string): DocFile {
     seamAllowances: [],
     pieceNotches: [],
     hardwareMarkers: [],
-    snapSettings: null,
+    snapSettings: { enabled: true, grid: true, gridStep: 5, endpoints: true, midpoints: true, quarterPoints: true, guides: true, hardware: true },
     showAnnotations: true,
     tracingOverlays: [],
     backdrops: [],
     projectMemo: '',
     stitchAlwaysShapeIds: [],
     stitchThreadColor: '#111111',
-    threePreviewSettings: null,
+    threePreviewSettings: DEFAULT_THREE_PREVIEW_SETTINGS,
     avatars: [],
     threeTextureSource: null,
     threeTextureShapeIds: [],

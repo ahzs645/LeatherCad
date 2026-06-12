@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { PieceInspectorContent } from '../components/PieceInspectorContent'
 import { cleanupRender, changeValue, click, getByText, pointerDown, renderForTest } from '../../../test/render'
 import { EditorWorkbench } from './EditorWorkbench'
+import type { PatternPiece } from '../cad/cad-types'
 import type {
   DocumentBrowserNode,
   SecondaryPreviewMode,
@@ -30,9 +31,12 @@ function createHarnessElement() {
     const [selectionText, setSelectionText] = useState('No selection')
     const [lastCommand, setLastCommand] = useState('')
     const [resizeCounts, setResizeCounts] = useState({ browser: 0, peek: 0, inspector: 0 })
-    const [piece, setPiece] = useState({
+    const [piece, setPiece] = useState<PatternPiece>({
       id: 'piece-1',
       name: 'Body Panel',
+      boundaryShapeId: 'shape-1',
+      internalShapeIds: [],
+      layerId: 'layer-1',
       quantity: 1,
       code: 'A1',
       annotation: '',
@@ -136,9 +140,11 @@ function createHarnessElement() {
         onSetWorkspaceMode: handleSetWorkspaceMode,
         onTogglePeek: handleTogglePeek,
         activeRibbonTab,
+        themeMode: 'light',
         ribbonGroups,
         onSetRibbonTab: setActiveRibbonTab,
         onInvokeRibbonCommand: setLastCommand,
+        onSetThemeMode: () => undefined,
         browserNodes,
         onActivateNode: (node: DocumentBrowserNode) => {
           setSelectedNodeId(node.id)
@@ -173,7 +179,7 @@ function createHarnessElement() {
           availableInternalShapes: [],
           selectedInternalShapeIds: new Set<string>(),
           autoFocusName: true,
-          onUpdatePiece: (patch: Partial<typeof piece>) => setPiece((previous) => ({ ...previous, ...patch })),
+          onUpdatePiece: (patch: Partial<PatternPiece>) => setPiece((previous) => ({ ...previous, ...patch })),
           onToggleInternalShape: () => undefined,
           onUpdateGrainline: () => undefined,
           onUpdatePieceLabel: () => undefined,
@@ -192,6 +198,7 @@ function createHarnessElement() {
         twoDPane: createElement('div', { 'data-testid': 'pane-2d' }, '2D Workspace'),
         threeDPane: createElement('div', { 'data-testid': 'pane-3d' }, '3D Workspace'),
         precisionDrawer: null,
+        commandStrip: null,
         onStartBrowserResize: () =>
           setResizeCounts((previous) => ({ ...previous, browser: previous.browser + 1 })),
         onStartPeekResize: () =>

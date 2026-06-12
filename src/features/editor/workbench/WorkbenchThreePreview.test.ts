@@ -98,7 +98,7 @@ function createPreviewHarness({
       clearSelectionTexture: () => undefined,
       resetMaterial: () => undefined,
       threeTextureShapeIds: [],
-    } as Parameters<typeof WorkbenchThreePreviewInspector>[0]['controller']
+    } as unknown as Parameters<typeof WorkbenchThreePreviewInspector>[0]['controller']
 
     return createElement(
       'div',

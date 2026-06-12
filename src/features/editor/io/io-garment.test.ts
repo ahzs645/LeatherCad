@@ -63,7 +63,7 @@ describe('exportGarmentInterchangeDocument', () => {
       seamAllowances: [],
       pieceNotches: [],
       hardwareMarkers: [],
-      snapSettings: { enabled: true, grid: true, gridStep: 10, endpoints: true, midpoints: true, guides: true, hardware: true },
+      snapSettings: { enabled: true, grid: true, gridStep: 10, endpoints: true, midpoints: true, quarterPoints: true, guides: true, hardware: true },
       showAnnotations: true,
       tracingOverlays: [],
       projectMemo: '',

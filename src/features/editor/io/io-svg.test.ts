@@ -70,4 +70,39 @@ describe('importSvgAsShapes', () => {
     expect(shape.end.x).toBeCloseTo(10)
     expect(shape.end.y).toBeGreaterThan(20)
   })
+
+  it('ignores empty path data without warnings or placeholder geometry', () => {
+    const result = importSvgAsShapes(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="   " /></svg>',
+      importOptions,
+    )
+
+    expect(result.warnings).toEqual([])
+    expect(result.shapes).toEqual([])
+  })
+
+  it('skips malformed path data with a warning instead of importing corrupt geometry', () => {
+    const result = importSvgAsShapes(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 L nope nope" /></svg>',
+      importOptions,
+    )
+
+    expect(result.warnings).toEqual(['Skipped an unsupported path element'])
+    expect(result.shapes).toEqual([])
+  })
+
+  it('drops malformed point-list coordinates and keeps only complete finite pairs', () => {
+    const result = importSvgAsShapes(
+      '<svg xmlns="http://www.w3.org/2000/svg"><polyline points="0,0 nope,10 20,20 30" /></svg>',
+      importOptions,
+    )
+
+    expect(result.warnings).toEqual([])
+    expect(result.shapes).toHaveLength(1)
+    const shape = result.shapes[0]
+    expect(shape.type).toBe('line')
+    if (shape.type !== 'line') return
+    expect(shape.start).toEqual({ x: 0, y: 0 })
+    expect(shape.end).toEqual({ x: 20, y: 20 })
+  })
 })

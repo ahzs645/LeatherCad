@@ -207,7 +207,10 @@ describe('source catalog fixtures', () => {
   it('decodes at least one real source catalog zipbmp image payload', async () => {
     const file = readdirSync(catalogDir).find((entry) => entry.endsWith('.ctlg'))
     expect(file).toBeTruthy()
-    const imported = parseCatalogShopImport(readFileSync(join(catalogDir, file ?? ''), 'utf8'), file)
+    if (!file) {
+      throw new Error('Expected at least one source catalog fixture')
+    }
+    const imported = parseCatalogShopImport(readFileSync(join(catalogDir, file), 'utf8'), file)
     const itemWithImage = imported.groups.flatMap((group) => group.items).find((item) => item.zipBmpBase64)
     expect(itemWithImage?.zipBmpBase64).toBeTruthy()
 

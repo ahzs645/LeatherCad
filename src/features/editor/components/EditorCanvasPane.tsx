@@ -24,6 +24,7 @@ import { CanvasEngineV2 } from '../render-v2/CanvasEngineV2'
 import { isEngineV2Enabled } from '../render-v2/engine-v2-flags'
 import { buildCanvasRenderModel } from '../render/canvas-render-model'
 import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
+import { safeLocalStorageGet } from '../ops/safe-storage'
 import type { CanvasInteractionPreview } from '../hooks/useCanvasInteractions'
 import { LayerLegendPanel } from './LayerLegendPanel'
 import { CanvasAnnotationLayer } from './canvas/CanvasAnnotationLayer'
@@ -230,7 +231,7 @@ export function EditorCanvasPane({
   const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
   const detailPadding = Math.max(32, 96 / Math.max(viewport.scale, 0.1))
-  const showOpenPathLabels = typeof window !== 'undefined' && window.localStorage?.getItem('leathercad_show_open_path_labels') === '1'
+  const showOpenPathLabels = typeof window !== 'undefined' && safeLocalStorageGet('leathercad_show_open_path_labels') === '1'
 
   const viewBounds = useMemo<Bounds>(() => {
     return {

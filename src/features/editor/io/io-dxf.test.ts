@@ -197,4 +197,35 @@ describe('buildDxfFromShapes', () => {
     expect(result.content).toMatch(/\nCIRCLE\n/)
     expect(result.content).toContain('0.600000')
   })
+
+  it('does not emit a native ARC for collinear arc control points', () => {
+    const arc: ArcShape = {
+      id: 'arc-1',
+      type: 'arc',
+      layerId: 'L',
+      lineTypeId: 'lt',
+      start: { x: 0, y: 0 },
+      mid: { x: 5, y: 0 },
+      end: { x: 10, y: 0 },
+    }
+
+    const result = buildDxfFromShapes([arc], { version: 'r14' })
+
+    expect(result.arcCount).toBe(0)
+    expect(result.content).not.toMatch(/\nARC\n/)
+    expect(result.content).not.toContain('NaN')
+    expect(result.content).not.toContain('Infinity')
+  })
+
+  it('omits stitch holes whose parent shape is missing', () => {
+    const result = buildDxfFromShapes([], {
+      stitchHoles: [makeStitchHole({ shapeId: 'missing-shape' })],
+      stitchHoleRenderMode: 'single-lines',
+    })
+
+    expect(result.segmentCount).toBe(0)
+    expect(result.circleCount).toBe(0)
+    expect(result.content).not.toMatch(/\nLINE\n/)
+    expect(result.content).not.toMatch(/\nCIRCLE\n/)
+  })
 })

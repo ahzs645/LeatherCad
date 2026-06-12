@@ -4,6 +4,7 @@ import type {
   SecondaryPreviewMode,
   WorkbenchInspectorTab,
 } from './workbench-types'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
 
 const STORAGE_KEY = 'leathercad.workbench.layout.v1'
 const MIN_BROWSER_WIDTH = 220
@@ -35,7 +36,7 @@ function readStoredLayout(): DockLayoutState {
     return DEFAULT_LAYOUT
   }
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    const raw = safeLocalStorageGet(STORAGE_KEY)
     if (!raw) {
       return DEFAULT_LAYOUT
     }
@@ -173,7 +174,7 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
     if (typeof window === 'undefined') {
       return
     }
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(effectiveLayout))
+    safeLocalStorageSet(STORAGE_KEY, JSON.stringify(effectiveLayout))
   }, [effectiveLayout])
 
   useEffect(() => {

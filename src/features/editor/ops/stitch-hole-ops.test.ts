@@ -166,7 +166,7 @@ describe('generateFixedPitchStitchHoles', () => {
 
 describe('terminal stitch markers', () => {
   it('keeps only one terminal hole per shape when marking a new end hole', () => {
-    const holes = [
+    const holes: StitchHole[] = [
       { id: 'h1', shapeId: 'shape-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0, endHole: true },
       { id: 'h2', shapeId: 'shape-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1 },
       { id: 'h3', shapeId: 'shape-2', point: { x: 20, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0, endHole: true },
@@ -181,7 +181,7 @@ describe('terminal stitch markers', () => {
   })
 
   it('clears the terminal hole on the selected path', () => {
-    const holes = [
+    const holes: StitchHole[] = [
       { id: 'h1', shapeId: 'shape-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0 },
       { id: 'h2', shapeId: 'shape-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1, endHole: true },
     ]
@@ -193,7 +193,7 @@ describe('terminal stitch markers', () => {
   })
 
   it('normalizes duplicate terminal markers during sequence normalization', () => {
-    const holes = [
+    const holes: StitchHole[] = [
       { id: 'h2', shapeId: 'shape-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 2, endHole: true },
       { id: 'h1', shapeId: 'shape-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1, endHole: true },
     ]
@@ -206,7 +206,7 @@ describe('terminal stitch markers', () => {
   })
 
   it('normalizes imported LCC stitch holes by chain id across marker shapes', () => {
-    const holes = [
+    const holes: StitchHole[] = [
       { id: 'h2', shapeId: 'shape-2', chainId: 'chain-1', point: { x: 10, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 1 },
       { id: 'h1', shapeId: 'shape-1', chainId: 'chain-1', point: { x: 0, y: 0 }, angleDeg: 90, holeType: 'round', sequence: 0 },
     ]

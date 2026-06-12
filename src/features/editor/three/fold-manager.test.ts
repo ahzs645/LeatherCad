@@ -25,6 +25,7 @@ describe('resolveSafeFoldAngle', () => {
   it('clamps the requested angle to the fold behavior max angle', () => {
     const behavior = resolveFoldBehavior({
       id: 'fold-1',
+      name: 'Fold 1',
       start: { x: 0, y: 0 },
       end: { x: 0, y: 10 },
       angleDeg: 20,
@@ -49,6 +50,7 @@ describe('resolveSafeFoldAngle', () => {
   it('backs off to the nearest non-colliding angle', () => {
     const behavior = resolveFoldBehavior({
       id: 'fold-2',
+      name: 'Fold 2',
       start: { x: 0, y: 0 },
       end: { x: 0, y: 10 },
       angleDeg: 75,
@@ -76,6 +78,7 @@ describe('ThreeFoldManager', () => {
 
     manager.syncFoldLine({
       id: 'fold-3',
+      name: 'Fold 3',
       start: { x: 0, y: 0 },
       end: { x: 0, y: 20 },
       angleDeg: 25,

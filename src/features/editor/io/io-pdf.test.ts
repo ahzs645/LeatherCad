@@ -29,6 +29,16 @@ function makeStitchHole(overrides: Partial<StitchHole> = {}): StitchHole {
 }
 
 describe('buildPdfFromShapes', () => {
+  it('exports a valid empty-page PDF for empty shape input', () => {
+    const pdf = buildPdfFromShapes([])
+
+    expect(pdf).toContain('%PDF-1.4')
+    expect(pdf).toContain('/MediaBox')
+    expect(pdf).toContain('%%EOF')
+    expect(pdf).not.toContain('NaN')
+    expect(pdf).not.toContain('Infinity')
+  })
+
   it('includes stitch holes in the exported PDF stream', () => {
     const pdf = buildPdfFromShapes([makeLineShape()], {
       lineTypeColors: { 'lt-1': '#000000' },
@@ -40,5 +50,16 @@ describe('buildPdfFromShapes', () => {
     expect(pdf).toContain('%PDF-1.4')
     expect(pdf).toMatch(/\n0\.000 0\.000 0\.000 rg\n/)
     expect(pdf).toMatch(/\nf\n/)
+  })
+
+  it('ignores stitch holes whose parent shape is missing', () => {
+    const pdf = buildPdfFromShapes([], {
+      stitchHoles: [makeStitchHole({ shapeId: 'missing-shape' })],
+      stitchHoleRenderMode: 'dots',
+    })
+
+    expect(pdf).toContain('%PDF-1.4')
+    expect(pdf).not.toMatch(/\nf\n/)
+    expect(pdf).not.toContain('NaN')
   })
 })
