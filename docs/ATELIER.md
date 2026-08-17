@@ -13,7 +13,7 @@ and the staged plan for the rest. Companion to Atelier's `docs/ARCHITECTURE.md` 
 | 0 — foundation (pnpm, `link:` deps, Vite dedupe, sibling-checkout CI) | **Complete** |
 | 1 — `@atelier/geometry` | **Complete** for exact-duplicate primitives |
 | 2 — `@atelier/io` | Assessed; deferred (see below — not a mechanical swap) |
-| 3 — `@atelier/viewport` | Assessed; deferred (deliberate visual change, staged separately) |
+| 3 — `@atelier/viewport` + `@atelier/render` | **Complete** — engine viewport drives the 3D preview; path-traced studio stills wired |
 | 4 — `@atelier/core` | Assessed; deferred (opposite history designs, the big one) |
 
 ## Consumption model
@@ -94,19 +94,37 @@ schedule with downstream consumers in mind, or an opportunity to add engine form
 app lacks (HPGL, cut-file presets) as new features. Import (`fromSVG`, `fromDXF`) is the
 softer entry point since parity is against rendered geometry, not byte output.
 
-## Phase 3 — viewport, and why it is deferred
+## Phase 3 — viewport and still rendering (done)
 
-`three/runtime-manager.ts` is a hand-rolled sibling of `@atelier/viewport`'s `Viewport`
-facade (renderer + camera rig + lighting + grid + fit modes + collage capture). The
-engine's version brings picking, gizmos, overlays, post FX, and leak-proof disposal — but
-its lighting rig, tone mapping, control damping, and background handling differ, so the
-swap **visibly changes the 3D view**. Per the ground rules that lands as its own step:
-mount `Viewport` behind `three-bridge.ts` (the only consumer of the runtime manager, so
-the blast radius is one file), port the theme palettes onto the engine's lighting rig,
-then delete the runtime manager. `@atelier/react`'s `ViewportCanvas` (built for PackCAD,
-React 19) is the mounting primitive when that happens. The engine has already been
-hardened for this app's compiler settings (`erasableSyntaxOnly` — parameter properties
-removed from `viewport.ts`).
+The hand-rolled `three/runtime-manager.ts` is gone. The 3D preview runs on
+`@atelier/viewport`'s `Viewport` — the same runtime behind Seamer Studio's drape view —
+mounted behind `three-bridge.ts` so the bridge's consumer-facing API did not change:
+
+- **`three/engine-runtime.ts`** constructs the `Viewport` bound to the React-owned canvas
+  via `rendererFactory`, holds a permanent render lease (the model builders mutate the
+  scene graph directly, so on-demand invalidation is a later optimization), and keeps the
+  bench-specific pieces: LeatherCad's camera fit modes (`orbit`/`pattern`/`top`/`front`/
+  `side`) and the four-view review collage. On dispose it re-attaches the canvas the
+  engine detached, because that node belongs to React.
+- **`three/leather-stage.ts`** is the SeamerLighting-equivalent app-side stage: the old
+  theme hues (dark `#0a1220` / light `#eef4ff`, the blue key/rim pair) retuned for the
+  engine's ACES tone mapping, plus room-environment IBL so dyed and burnished leather
+  picks up reflections, a shadow-catcher floor, and the themed grid.
+- GTAO ambient occlusion + SMAA run through the engine's `PostFX` — occlusion is what
+  makes stitch holes, skived edges, and stacked panels read as depth.
+- **Stitching renders as thread** (`three/stitch-thread.ts`): lit instanced cylinders
+  along consecutive holes of each stitch chain (the visible saddle-stitch run) and across
+  seam pairs, in the document's thread color. The stress-tint diagnostic view keeps the
+  colored guide lines; presentation mode (stress overlay off) shows thread everywhere.
+- **Path-traced studio stills** (`@atelier/render`): the "Studio Render" button in the 3D
+  preview drives `renderStill` (scene clone → studio staging → progressive path trace →
+  denoise) and downloads a PNG — the same beauty-shot pipeline Seamer Studio ships. Loaded
+  lazily so the path tracer stays out of the main bundle.
+
+`@atelier/react`'s `ViewportCanvas` remains available for a later cleanup of the React
+mount itself. `@types/three` is pinned to atelier's version (0.184.1) while the runtime
+`three` stays the app's own — the same types-ahead-of-runtime arrangement seamer uses;
+Vite's `resolve.dedupe` guarantees one runtime copy.
 
 ## Phase 4 — core, and why it is deferred
 

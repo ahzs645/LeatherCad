@@ -6,7 +6,6 @@ import {
   LineBasicMaterial,
   LineSegments,
   Mesh,
-  MeshBasicMaterial,
   MeshStandardMaterial,
   ShapeUtils,
   SphereGeometry,
@@ -25,9 +24,16 @@ import { relaxFinalProductSeamsWithXpbd, type XpbdFinalProductRelaxation } from 
 import { analyzeFinalProductFoldSweep } from './final-product-fold-sweep'
 import { buildFoldTimelinePreview } from './fold-timeline'
 import type { CommonRebuildParams } from './model-builder-types'
+import {
+  buildThreadSegments,
+  chainRunSegments,
+  createThreadMaterial,
+  type ThreadSegment,
+} from './stitch-thread'
 
 const STITCH_SPHERE_SEGMENTS = 8
 const STITCH_SPHERE_RADIUS = 0.006
+const STITCH_THREAD_RADIUS = 0.0035
 const MIN_PANEL_THICKNESS_SCENE = 0.001
 
 export type RebuildFinalProductModelParams = CommonRebuildParams & {
@@ -323,9 +329,10 @@ function addStitchHoles(
   threadColor: string,
   relaxation: XpbdFinalProductRelaxation | null,
 ) {
-  const material = new MeshBasicMaterial({ color: threadColor })
+  const material = createThreadMaterial(threadColor)
   const geometry = new SphereGeometry(STITCH_SPHERE_RADIUS, STITCH_SPHERE_SEGMENTS, STITCH_SPHERE_SEGMENTS)
   for (const chain of result.stitchChains) {
+    const runPoints: Vector3[] = []
     for (const hole of chain.holes) {
       const panel = findPanelForHole(result, hole)
       if (!panel) {
@@ -335,10 +342,22 @@ function addStitchHoles(
       if (!position) {
         continue
       }
+      runPoints.push(position)
       const sphere = new Mesh(geometry, material)
       sphere.position.copy(position)
+      sphere.castShadow = true
       sphere.name = `final-product-stitch-${hole.id}`
       group.add(sphere)
+    }
+    // The visible saddle-stitch run between consecutive holes of the chain.
+    const runs = buildThreadSegments(
+      chainRunSegments(runPoints),
+      material,
+      STITCH_THREAD_RADIUS,
+      `final-product-stitch-run-${chain.id}`,
+    )
+    if (runs) {
+      group.add(runs)
     }
   }
 }
@@ -390,8 +409,10 @@ function addSeamGuides(
   transform: CommonRebuildParams['transform'],
   showStressOverlay: boolean,
   relaxation: XpbdFinalProductRelaxation | null,
+  threadColor: string,
 ) {
   for (const pair of result.stitchPairs) {
+    const crossSegments: ThreadSegment[] = []
     const vertices: number[] = []
     const rightHoles = pair.reversed ? [...pair.right.holes].reverse() : pair.right.holes
     for (let index = 0; index < pair.left.holes.length; index += 1) {
@@ -401,15 +422,31 @@ function addSeamGuides(
         continue
       }
       vertices.push(left.x, left.y + 0.004, left.z, right.x, right.y + 0.004, right.z)
+      crossSegments.push({ start: left, end: right })
     }
     if (vertices.length === 0) {
       continue
     }
-    const geometry = new BufferGeometry()
-    geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
-    const line = new LineSegments(geometry, new LineBasicMaterial({ color: pairColor(pair, showStressOverlay) }))
-    line.name = `final-product-seam-${pair.id}`
-    group.add(line)
+    if (showStressOverlay) {
+      // Diagnostic mode: seam quality as colored guide lines, as before.
+      const geometry = new BufferGeometry()
+      geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3))
+      const line = new LineSegments(geometry, new LineBasicMaterial({ color: pairColor(pair, showStressOverlay) }))
+      line.name = `final-product-seam-${pair.id}`
+      group.add(line)
+      continue
+    }
+    // Presentation mode: the cross-seam passes are thread, matching the
+    // stitch runs, so a closed seam reads as saddle stitching.
+    const thread = buildThreadSegments(
+      crossSegments,
+      createThreadMaterial(threadColor),
+      STITCH_THREAD_RADIUS,
+      `final-product-seam-${pair.id}`,
+    )
+    if (thread) {
+      group.add(thread)
+    }
   }
 }
 
@@ -661,7 +698,7 @@ export function rebuildFinalProductModel({
   addStitchHoles(finalProductGroup, result, transform, threadColor, relaxation)
   addHingeBendSurfaces(finalProductGroup, result, transform, previewSettings.thicknessMm, materials.assembledFrontMaterial)
   if (previewSettings.showSeams) {
-    addSeamGuides(finalProductGroup, result, transform, previewSettings.showStressOverlay, relaxation)
+    addSeamGuides(finalProductGroup, result, transform, previewSettings.showStressOverlay, relaxation, threadColor)
     addHingeGuides(finalProductGroup, result, transform, previewSettings.thicknessMm)
   }
 

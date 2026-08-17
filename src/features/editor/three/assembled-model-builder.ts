@@ -22,8 +22,10 @@ import type { PatternPiece, PiecePlacement3D, StitchHole, ThreePreviewSettings }
 import { scoreSeamStress } from '../assembly/stress-score'
 import { createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 import { clearGroup } from './bridge/scene-lifecycle'
+import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
 import { addPanelOutline } from './outline-renderer'
+import { buildThreadSegments, chainRunSegments } from './stitch-thread'
 
 const DEFAULT_THICKNESS_WORLD = 0.005
 
@@ -141,6 +143,19 @@ function addAssembledStitchHoles(
   })
   instances.instanceMatrix.needsUpdate = true
   group.add(instances)
+
+  // The visible saddle-stitch runs between consecutive holes of each chain.
+  const { chains } = buildStitchChains(holes)
+  for (const chain of chains) {
+    const points = chain.holes.map((hole) => {
+      const projected = projectPiecePoint(hole.point, transform.scale, transform.centerX, transform.centerY)
+      return new Vector3(projected.x, topY + 0.0025, projected.y)
+    })
+    const runs = buildThreadSegments(chainRunSegments(points), material, 0.0035, `assembled-stitch-run-${piece.id}-${chain.id}`)
+    if (runs) {
+      group.add(runs)
+    }
+  }
 }
 
 function createAssembledPieceGroup({

@@ -25,7 +25,7 @@ import {
 } from './model-builder'
 import { ThreeMaterialManager } from './material-manager'
 import type { PieceMeshData } from './piece-mesh'
-import { ThreeRuntimeManager } from './runtime-manager'
+import { EngineRuntime } from './engine-runtime'
 import type {
   OutlinePolygon,
   ThreeBridgeDocument,
@@ -40,7 +40,7 @@ export function isOnlyFinalFoldProgressChange(previous: ThreePreviewSettings, ne
 }
 
 export class ThreeBridge {
-  private runtimeManager: ThreeRuntimeManager
+  private runtimeManager: EngineRuntime
   private avatarManager = new ThreeAvatarManager()
   private foldManager = new ThreeFoldManager()
   private modelRoot = new Group()
@@ -106,7 +106,7 @@ export class ThreeBridge {
   }
 
   constructor(canvas: HTMLCanvasElement) {
-    this.runtimeManager = new ThreeRuntimeManager(canvas)
+    this.runtimeManager = new EngineRuntime(canvas)
     this.preservedMaterials = this.materialManager.preservedMaterials
 
     this.foldingPivot.add(this.foldingSideGroup)
@@ -120,8 +120,9 @@ export class ThreeBridge {
     this.modelRoot.rotation.x = -0.7
     this.scene.add(this.modelRoot)
 
+    // The engine renders while the runtime holds its render lease; no
+    // app-side animation loop is needed.
     this.rebuildModel()
-    this.runtimeManager.startAnimation()
   }
 
   private fitControlsToModel() {
@@ -513,8 +514,40 @@ export class ThreeBridge {
     this.runtimeManager.enableShadows(enabled)
   }
 
-  resize(width: number, height: number) {
-    this.runtimeManager.resize(width, height)
+  /** Capture a path-traced studio still of the current scene (Seamer Studio's beauty-shot pipeline). */
+  async captureStudioStill(options?: {
+    width?: number
+    height?: number
+    samples?: number
+    signal?: AbortSignal
+    onProgress?: (progress: { stage: string; progress: number }) => void
+  }) {
+    const { renderStill } = await import('@atelier/render')
+    const canvas = this.runtimeManager.renderer.domElement
+    const width = options?.width ?? Math.max(canvas.width, 640)
+    const height = options?.height ?? Math.max(canvas.height, 640)
+    return renderStill(
+      { scene: this.scene, camera: this.runtimeManager.camera },
+      {
+        width,
+        height,
+        // 128 progressive samples plus the denoiser is a good beauty-shot
+        // baseline; machines without hardware GL can take minutes regardless.
+        samples: options?.samples ?? 128,
+        studio: true,
+        autoFrame: true,
+        denoise: true,
+        signal: options?.signal,
+        onProgress: options?.onProgress,
+      },
+    )
+  }
+
+  resize(width?: number, height?: number) {
+    void width
+    void height
+    // The engine viewport measures its own container.
+    this.runtimeManager.resize()
   }
 
   dispose() {
