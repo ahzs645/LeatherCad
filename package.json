@@ -6,11 +6,13 @@
     "leathercad": "./scripts/leathercad-agent-server.mjs"
   },
   "type": "module",
+  "packageManager": "pnpm@10.18.1",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "agent": "npm run build && node scripts/leathercad-agent-server.mjs",
+    "agent": "pnpm run build && node scripts/leathercad-agent-server.mjs",
     "agent:serve": "node scripts/leathercad-agent-server.mjs",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "check:architecture": "node scripts/check-file-size.mjs",
     "render:ai-builder-benchmarks": "node scripts/render-ai-builder-benchmarks.mjs",
@@ -21,6 +23,11 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@atelier/core": "link:../atelier/packages/core",
+    "@atelier/geometry": "link:../atelier/packages/geometry",
+    "@atelier/io": "link:../atelier/packages/io",
+    "@atelier/react": "link:../atelier/packages/react",
+    "@atelier/viewport": "link:../atelier/packages/viewport",
     "clipper-lib": "^6.4.2",
     "dexie": "^4.4.2",
     "opentype.js": "^1.3.4",

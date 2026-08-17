@@ -181,7 +181,7 @@ function withPresetStrokeWidth(shape: Shape): Shape {
         ? 1.35
         : 2.2
 
-  return { ...shape, strokeWidthOverride } as Shape
+  return { ...shape, strokeWidthOverride }
 }
 
 function buildDoc(

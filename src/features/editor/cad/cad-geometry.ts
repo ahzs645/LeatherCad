@@ -1,3 +1,5 @@
+import { dist } from '@atelier/geometry'
+
 import type { Point, Shape } from './cad-types'
 import { normalizeTextShape, sampleTextShapePoints } from '../ops/text-shape-ops'
 
@@ -19,9 +21,7 @@ export function uid() {
 }
 
 export function distance(a: Point, b: Point) {
-  const dx = a.x - b.x
-  const dy = a.y - b.y
-  return Math.hypot(dx, dy)
+  return dist(a, b)
 }
 
 function deltaCcw(start: number, end: number) {

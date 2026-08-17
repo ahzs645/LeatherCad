@@ -17,19 +17,28 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 
 ## Getting Started
 
+LeatherCad consumes the shared [Atelier](https://github.com/ahzs645/atelier) CAD editor
+runtime as a sibling checkout through pnpm `link:` dependencies — the same setup Seamer
+Studio uses. Clone both repositories next to each other:
+
 ```bash
-npm install
-npm run dev
+git clone https://github.com/ahzs645/atelier.git
+git clone https://github.com/ahzs645/LeatherCad.git
+cd atelier && pnpm install && cd ../LeatherCad
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+See [`docs/ATELIER.md`](docs/ATELIER.md) for how the engine is consumed and the
+staged adoption plan.
 
 ## Native AI Agent
 
 LeatherCad can also run as a Node-served app with a native live AI Builder agent:
 
 ```bash
-npm run agent
+pnpm agent
 ```
 
 This builds the app, serves `dist/`, and enables the AI Builder's **Native Live Agent** panel. Without `OPENAI_API_KEY`, it streams deterministic local leather-template drafts for testing the live canvas loop. With `OPENAI_API_KEY`, the server also asks the configured OpenAI model to refine the local draft before the final preview.
@@ -37,7 +46,7 @@ This builds the app, serves `dist/`, and enables the AI Builder's **Native Live 
 After a build, the same server can be started directly:
 
 ```bash
-npm run agent:serve -- --port 4177
+pnpm agent:serve -- --port 4177
 ```
 
 The package exposes a `leathercad` bin, so local `npx`/package-runner workflows can start the same server entrypoint.
@@ -46,20 +55,21 @@ The package exposes a `leathercad` bin, so local `npx`/package-runner workflows 
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server with HMR |
-| `npm run build` | Type-check and build for production |
-| `npm run agent` | Build and run the Node native AI agent server |
-| `npm run agent:serve` | Serve an existing build with the native AI agent server |
-| `npm run preview` | Preview the production build |
-| `npm run lint` | Run ESLint |
-| `npm test` | Run tests |
-| `npm run test:ai-builder-benchmarks` | Validate AI Builder swarm benchmark outputs |
-| `npm run render:ai-builder-benchmarks` | Render swarm benchmark outputs into PNG/HTML previews |
-| `npm run test:watch` | Run tests in watch mode |
+| `pnpm dev` | Start development server with HMR |
+| `pnpm build` | Type-check and build for production |
+| `pnpm agent` | Build and run the Node native AI agent server |
+| `pnpm agent:serve` | Serve an existing build with the native AI agent server |
+| `pnpm preview` | Preview the production build |
+| `pnpm lint` | Run ESLint |
+| `pnpm test` | Run tests |
+| `pnpm test:ai-builder-benchmarks` | Validate AI Builder swarm benchmark outputs |
+| `pnpm render:ai-builder-benchmarks` | Render swarm benchmark outputs into PNG/HTML previews |
+| `pnpm test:watch` | Run tests in watch mode |
 
 ## Tech Stack
 
 - **React 19** with TypeScript
+- **[Atelier](https://github.com/ahzs645/atelier)** shared CAD editor runtime (`@atelier/*`, consumed as sibling source)
 - **Vite** for bundling and dev server
 - **Three.js** for 3D preview
 - **Vitest** with happy-dom for testing

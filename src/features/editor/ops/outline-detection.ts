@@ -4,6 +4,8 @@
  * as closed (piece outlines) or open (surface marks).
  */
 
+import { pointInPolygon as atelierPointInPolygon } from '@atelier/geometry'
+
 import type { Point, Shape, LineType } from '../cad/cad-types'
 import { shapeToPolyline, polygonArea } from './polygon-ops'
 
@@ -144,16 +146,7 @@ export function openPathChains(chains: OutlineChain[]): OutlineChain[] {
  * Point-in-polygon test (ray casting).
  */
 export function pointInPolygon(point: Point, polygon: Point[]): boolean {
-  let inside = false
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    if (
-      polygon[i].y > point.y !== polygon[j].y > point.y &&
-      point.x < ((polygon[j].x - polygon[i].x) * (point.y - polygon[i].y)) / (polygon[j].y - polygon[i].y) + polygon[i].x
-    ) {
-      inside = !inside
-    }
-  }
-  return inside
+  return atelierPointInPolygon(point, polygon)
 }
 
 /**

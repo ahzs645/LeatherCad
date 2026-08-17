@@ -10,6 +10,8 @@
  *  - Waste percentage calculation
  */
 
+import { convexHull, pointInPolygon } from '@atelier/geometry'
+
 import type { PatternPiece, PieceGrainline, Point, Shape } from '../cad/cad-types'
 import {
   type Polygon,
@@ -171,61 +173,11 @@ export function computeNFP(fixed: Polygon, moving: Polygon): Polygon {
 /**
  * Andrew's monotone chain convex hull algorithm. O(n log n).
  */
-function convexHull(points: Point[]): Polygon {
-  if (points.length < 3) return [...points]
-
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y)
-  const n = sorted.length
-
-  // Build lower hull
-  const lower: Point[] = []
-  for (let i = 0; i < n; i++) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], sorted[i]) <= 0) {
-      lower.pop()
-    }
-    lower.push(sorted[i])
-  }
-
-  // Build upper hull
-  const upper: Point[] = []
-  for (let i = n - 1; i >= 0; i--) {
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], sorted[i]) <= 0) {
-      upper.pop()
-    }
-    upper.push(sorted[i])
-  }
-
-  // Remove last point of each half because it's repeated
-  lower.pop()
-  upper.pop()
-
-  return lower.concat(upper)
-}
+// convexHull and pointInPolygon come from @atelier/geometry (same monotone
+// chain and ray-cast algorithms this file used to carry privately).
 
 function cross(o: Point, a: Point, b: Point): number {
   return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
-}
-
-// ---------------------------------------------------------------------------
-// Point-in-polygon test
-// ---------------------------------------------------------------------------
-
-function pointInPolygon(point: Point, polygon: Polygon): boolean {
-  let inside = false
-  const n = polygon.length
-  for (let i = 0, j = n - 1; i < n; j = i++) {
-    const yi = polygon[i].y
-    const yj = polygon[j].y
-    if ((yi > point.y) !== (yj > point.y)) {
-      const xi = polygon[i].x
-      const xj = polygon[j].x
-      const intersectX = ((xj - xi) * (point.y - yi)) / (yj - yi) + xi
-      if (point.x < intersectX) {
-        inside = !inside
-      }
-    }
-  }
-  return inside
 }
 
 // ---------------------------------------------------------------------------

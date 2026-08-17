@@ -60,8 +60,8 @@ describe('buildDocumentBrowserModel', () => {
       ],
       selectedPieceIds: ['piece-1'],
       layers: [
-        { id: 'layer-1', name: 'Front', visible: true, locked: false, stackLevel: 0 } as never,
-        { id: 'layer-2', name: 'Back', visible: false, locked: true, stackLevel: 1 } as never,
+        { id: 'layer-1', name: 'Front', visible: true, locked: false, stackLevel: 0 },
+        { id: 'layer-2', name: 'Back', visible: false, locked: true, stackLevel: 1 },
       ],
       activeLayerId: 'layer-1',
       sketchGroups: [
@@ -99,11 +99,11 @@ describe('buildDocumentBrowserModel', () => {
       seamConnections: [],
       selectedPieceIds: [],
       layers: [
-        { id: 'layer-1', name: 'Cut/Holes', visible: true, locked: false, stackLevel: 0 } as never,
-        { id: 'layer-2', name: 'Fold/Crease', visible: true, locked: false, stackLevel: 1 } as never,
-        { id: 'layer-3', name: 'Marking', visible: true, locked: false, stackLevel: 2 } as never,
-        { id: 'layer-4', name: 'Stitching', visible: true, locked: false, stackLevel: 3 } as never,
-        { id: 'layer-5', name: 'Dimensions', visible: true, locked: false, stackLevel: 4 } as never,
+        { id: 'layer-1', name: 'Cut/Holes', visible: true, locked: false, stackLevel: 0 },
+        { id: 'layer-2', name: 'Fold/Crease', visible: true, locked: false, stackLevel: 1 },
+        { id: 'layer-3', name: 'Marking', visible: true, locked: false, stackLevel: 2 },
+        { id: 'layer-4', name: 'Stitching', visible: true, locked: false, stackLevel: 3 },
+        { id: 'layer-5', name: 'Dimensions', visible: true, locked: false, stackLevel: 4 },
       ],
       activeLayerId: 'layer-1',
       sketchGroups: [],

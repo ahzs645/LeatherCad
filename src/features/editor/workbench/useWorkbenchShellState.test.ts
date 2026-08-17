@@ -102,14 +102,14 @@ describe('useWorkbenchShellState', () => {
               },
             } as ResizeObserverEntry,
           ],
-          this as unknown as ResizeObserver,
+          this,
         )
       }
 
       unobserve() {}
 
       disconnect() {}
-    } as unknown as typeof ResizeObserver
+    }
   })
 
   afterEach(() => {
@@ -129,7 +129,7 @@ describe('useWorkbenchShellState', () => {
     }
 
     const parsed: unknown = JSON.parse(raw)
-    return typeof parsed === 'object' && parsed !== null ? (parsed as Partial<DockLayoutState>) : {}
+    return typeof parsed === 'object' && parsed !== null ? (parsed) : {}
   }
 
   it('persists the active inspector tab and clamped dock layout', () => {

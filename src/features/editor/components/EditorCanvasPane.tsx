@@ -10,7 +10,6 @@ import type {
   Point,
   Shape,
   StitchHole,
-  TextShape,
   TracingOverlay,
   Viewport,
 } from '../cad/cad-types'
@@ -438,8 +437,8 @@ export function EditorCanvasPane({
             renderablePlacementGuides={renderablePlacementGuides}
             viewportScale={viewport.scale}
             buildTextGlyphPlacements={buildTextGlyphPlacements}
-            normalizeTextShape={normalizeTextShape as (shape: TextShape) => TextShape}
-            textBaselineAngleDeg={textBaselineAngleDeg as (shape: TextShape) => number}
+            normalizeTextShape={normalizeTextShape}
+            textBaselineAngleDeg={textBaselineAngleDeg}
           />
 
           <CanvasInteractionOverlay
@@ -452,8 +451,8 @@ export function EditorCanvasPane({
             previewElement={previewElement}
             onShapePointerDown={onShapePointerDown}
             buildTextGlyphPlacements={buildTextGlyphPlacements}
-            normalizeTextShape={normalizeTextShape as (shape: TextShape) => TextShape}
-            textBaselineAngleDeg={textBaselineAngleDeg as (shape: TextShape) => number}
+            normalizeTextShape={normalizeTextShape}
+            textBaselineAngleDeg={textBaselineAngleDeg}
           />
 
           {drawEdges && renderableOutlineChains.length > 0 ? (

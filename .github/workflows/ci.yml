@@ -8,33 +8,59 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: LeatherCad
     steps:
-      - name: Checkout
+      # The Atelier engine is consumed as `link:../atelier/packages/*` source
+      # symlinks, so it must be checked out as a sibling directory — the same
+      # layout seamer-studio's CI uses.
+      - name: Checkout LeatherCad
         uses: actions/checkout@v4
+        with:
+          path: LeatherCad
+
+      - name: Checkout atelier
+        uses: actions/checkout@v4
+        with:
+          repository: ahzs645/atelier
+          path: atelier
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
+          cache-dependency-path: LeatherCad/pnpm-lock.yaml
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install engine dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: atelier
+
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
+        run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: Lint
-        run: npm run lint
+        run: pnpm lint
 
       - name: Architecture guardrails
-        run: npm run check:architecture
+        run: pnpm check:architecture
+
+      - name: Typecheck
+        run: pnpm typecheck
 
       - name: Unit tests
-        run: npm test
+        run: pnpm test
 
       - name: UI smoke test
-        run: npm run test:e2e
+        run: pnpm test:e2e
 
       - name: Build
-        run: npm run build
+        run: pnpm build

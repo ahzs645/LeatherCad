@@ -31,7 +31,7 @@ let createBoxStitchFromSelectionCached: AdvancedBoxStitchOpsModule['createBoxSti
 
 function loadAdvancedBoxStitchOps() {
   if (createBoxStitchFromSelectionCached) {
-    return Promise.resolve({ createBoxStitchFromSelection: createBoxStitchFromSelectionCached } as AdvancedBoxStitchOpsModule)
+    return Promise.resolve({ createBoxStitchFromSelection: createBoxStitchFromSelectionCached })
   }
   if (!advancedBoxStitchOpsPromise) {
     advancedBoxStitchOpsPromise = import('../ops/advanced-box-stitch-ops').then((module) => {

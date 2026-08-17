@@ -145,20 +145,20 @@ export function withPreviewApplied(shape: Shape, preview: CanvasInteractionPrevi
 
   if (shape.type === 'line' || shape.type === 'text') {
     if (preview.pointKey === 'start' || preview.pointKey === 'end') {
-      return { ...shape, [preview.pointKey]: preview.point } as Shape
+      return { ...shape, [preview.pointKey]: preview.point }
     }
     return shape
   }
 
   if (shape.type === 'arc') {
     if (preview.pointKey === 'start' || preview.pointKey === 'mid' || preview.pointKey === 'end') {
-      return { ...shape, [preview.pointKey]: preview.point } as Shape
+      return { ...shape, [preview.pointKey]: preview.point }
     }
     return shape
   }
 
   if (preview.pointKey === 'start' || preview.pointKey === 'control' || preview.pointKey === 'end') {
-    return { ...shape, [preview.pointKey]: preview.point } as Shape
+    return { ...shape, [preview.pointKey]: preview.point }
   }
 
   return shape
