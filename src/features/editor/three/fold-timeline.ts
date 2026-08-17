@@ -111,6 +111,22 @@ export function validateFoldTimeline(
   return diagnostics
 }
 
+/**
+ * Fold-sequence rank per fold line id (1 = folded first), from step order.
+ * A fold line keeps the rank of the first step that commands it.
+ */
+export function foldOrderRankFromTimeline(timeline: CompiledFoldTimelineStep[]) {
+  const rank = new Map<string, number>()
+  for (const step of timeline) {
+    for (const command of step.commands) {
+      if (!rank.has(command.foldLineId)) {
+        rank.set(command.foldLineId, rank.size + 1)
+      }
+    }
+  }
+  return rank
+}
+
 export function foldLinesAtTimelineProgress(
   foldLines: FoldLine[],
   timeline: CompiledFoldTimelineStep[],

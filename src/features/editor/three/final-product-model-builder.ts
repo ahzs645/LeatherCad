@@ -21,8 +21,8 @@ import { solveFinalProduct, projectSolvedPointForPreview } from './final-product
 import type { FinalProductDiagnostic, FinalProductSolveResult, SolvedFoldPanel, StitchPair } from './final-product-types'
 import { buildFinalProductRegions } from './final-product-regions'
 import { relaxFinalProductSeamsWithXpbd, type XpbdFinalProductRelaxation } from './final-product-xpbd-relaxation'
-import { analyzeFinalProductFoldSweep } from './final-product-fold-sweep'
-import { buildFoldTimelinePreview } from './fold-timeline'
+import { buildFoldTimelinePreview, foldOrderRankFromTimeline } from './fold-timeline'
+import { analyzeFinalProductFoldSweep, type FinalProductFoldSweepResult } from './final-product-fold-sweep'
 import type { CommonRebuildParams } from './model-builder-types'
 import {
   buildThreadSegments,
@@ -605,6 +605,30 @@ function finalDiagnosticFromAssemblyDiagnostic(diagnostic: AssemblyDiagnostic): 
   }
 }
 
+// The fold sweep samples the WHOLE timeline, so its result is independent of
+// the current fold progress. Scrubbing the progress slider rebuilds the model
+// every tick; without this memo each tick re-ran 21 identical solves.
+let foldSweepMemo: { signature: string; result: FinalProductFoldSweepResult } | null = null
+
+function memoizedFoldSweep(input: Parameters<typeof analyzeFinalProductFoldSweep>[0]): FinalProductFoldSweepResult {
+  const signature = JSON.stringify({
+    foldLines: input.foldLines,
+    instructions: input.instructions ?? null,
+    stitchHoles: input.stitchHoles.map((hole) => ({ id: hole.id, point: hole.point, chainId: hole.chainId ?? null })),
+    chains: (input.explicitStitchChains ?? []).map((chain) => chain.id),
+    pairs: (input.explicitStitchPairs ?? []).map((pair) => pair.id),
+    regions: input.regions ?? null,
+    outlinePolygons: input.outlinePolygons,
+    documentBounds: input.documentBounds,
+    thicknessMm: input.thicknessMm,
+    sampleCount: input.sampleCount ?? null,
+  })
+  if (foldSweepMemo?.signature !== signature) {
+    foldSweepMemo = { signature, result: analyzeFinalProductFoldSweep(input) }
+  }
+  return foldSweepMemo.result
+}
+
 export function rebuildFinalProductModel({
   layers,
   lineTypes,
@@ -656,6 +680,7 @@ export function rebuildFinalProductModel({
     ...assemblyDiagnostics,
   ].map(finalDiagnosticFromAssemblyDiagnostic).concat(foldTimelinePreview.diagnostics)
 
+  const foldOrderRank = foldOrderRankFromTimeline(foldTimelinePreview.timeline)
   const result = solveFinalProduct({
     foldLines: previewFoldLines,
     stitchHoles,
@@ -666,8 +691,9 @@ export function rebuildFinalProductModel({
     outlinePolygons,
     documentBounds,
     thicknessMm: previewSettings.thicknessMm,
+    foldOrderRank,
   })
-  const foldSweep = analyzeFinalProductFoldSweep({
+  const foldSweep = memoizedFoldSweep({
     foldLines,
     instructions: previewSettings.foldTimeline,
     stitchHoles,

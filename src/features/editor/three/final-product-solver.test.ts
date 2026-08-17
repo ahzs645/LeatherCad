@@ -246,4 +246,91 @@ describe('final product solver', () => {
     expect(result.collisionWarningCount).toBeGreaterThan(0)
     expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'panel-clearance-warning')).toBe(true)
   })
+
+  describe('clearance stacking', () => {
+    // Trifold-style strip: wide center panel (the BFS root) with a wing on
+    // each side. Both wings fold 180° over the center.
+    const stripOutline = [{
+      layerId: 'layer-1',
+      shapeIds: ['outline'],
+      polygon: [
+        { x: 0, y: 0 },
+        { x: 40, y: 0 },
+        { x: 40, y: 10 },
+        { x: 0, y: 10 },
+      ],
+    }]
+    const stripBounds = { minX: 0, maxX: 40, minY: 0, maxY: 10 }
+    const leftFold = { ...foldLine('left-fold', { x: 10, y: 0 }, { x: 10, y: 10 }), direction: 'valley' as const }
+    const rightFold = { ...foldLine('right-fold', { x: 30, y: 0 }, { x: 30, y: 10 }), direction: 'valley' as const }
+
+    function solveStrip(foldOrderRank?: ReadonlyMap<string, number>) {
+      const result = solveFinalProduct({
+        foldLines: [leftFold, rightFold],
+        stitchHoles: [],
+        outlinePolygons: stripOutline,
+        documentBounds: stripBounds,
+        thicknessMm: 2,
+        foldOrderRank,
+      })
+      const wingAt = (x: number) =>
+        result.panels.find((panel) => panel.polygon.every((point) => (x < 20 ? point.x <= 10 : point.x >= 30)))!
+      return { left: wingAt(0), right: wingAt(40) }
+    }
+
+    it('stacks the later-folded wing farther out when a timeline rank is given', () => {
+      const { left, right } = solveStrip(new Map([
+        ['right-fold', 1],
+        ['left-fold', 2],
+      ]))
+      expect(Math.abs(right.offset.y)).toBeCloseTo(2, 6)
+      expect(Math.abs(left.offset.y)).toBeCloseTo(4, 6)
+    })
+
+    it('inverts the stacking when the fold sequence is reversed', () => {
+      const { left, right } = solveStrip(new Map([
+        ['left-fold', 1],
+        ['right-fold', 2],
+      ]))
+      expect(Math.abs(left.offset.y)).toBeCloseTo(2, 6)
+      expect(Math.abs(right.offset.y)).toBeCloseTo(4, 6)
+    })
+
+    it('falls back to declaration order without a timeline rank', () => {
+      const { left, right } = solveStrip()
+      expect(Math.abs(left.offset.y)).toBeCloseTo(2, 6)
+      expect(Math.abs(right.offset.y)).toBeCloseTo(4, 6)
+    })
+
+    it('clears an under-folding wing downward and an over-folding wing upward', () => {
+      // The same wing folded mountain vs valley must clear on opposite sides,
+      // and each side must match where the wing actually swings mid-fold.
+      for (const direction of ['mountain', 'valley'] as const) {
+        const fold = { ...foldLine('center-fold', { x: 10, y: 0 }, { x: 10, y: 10 }), direction }
+        const solveAt = (angleDeg: number) => solveFinalProduct({
+          foldLines: [{ ...fold, angleDeg }],
+          stitchHoles: [],
+          outlinePolygons: twoPanelOutline,
+          documentBounds: { minX: 0, maxX: 20, minY: 0, maxY: 10 },
+          thicknessMm: 2,
+        })
+        // The BFS root keeps the identity transform; the wing is whichever
+        // panel actually swings at the halfway pose.
+        const centroidOf = (panel: { polygon: Array<{ x: number; y: number }> }) => ({
+          x: panel.polygon.reduce((sum, point) => sum + point.x, 0) / panel.polygon.length,
+          y: panel.polygon.reduce((sum, point) => sum + point.y, 0) / panel.polygon.length,
+        })
+        const halfwayResult = solveAt(90)
+        const halfway = [...halfwayResult.panels].sort((left, right) =>
+          Math.abs(solvePanelPoint(right, centroidOf(right)).y) - Math.abs(solvePanelPoint(left, centroidOf(left)).y),
+        )[0]
+        const swingY = solvePanelPoint(halfway, centroidOf(halfway)).y
+        expect(Math.abs(swingY)).toBeGreaterThan(1)
+
+        const closedResult = solveAt(180)
+        const closed = closedResult.panels.find((panel) => panel.id === halfway.id)!
+        expect(Math.sign(closed.offset.y)).toBe(Math.sign(swingY))
+      }
+    })
+  })
 })
