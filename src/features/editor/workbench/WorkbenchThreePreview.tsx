@@ -75,6 +75,9 @@ export function WorkbenchThreePreviewInspector({
   const {
     threePreviewSettings,
     bridgeRef,
+    captureStudioStill,
+    isStudioRendering,
+    studioRenderStatus,
     finalProductSolveResult,
     assemblyDiagnostics = [],
     onSetThreePreviewSettings,
@@ -228,6 +231,15 @@ export function WorkbenchThreePreviewInspector({
               <button type="button" onClick={() => downloadFinalReviewCollage(bridgeRef.current)}>
                 Capture Review Collage
               </button>
+              <button
+                type="button"
+                onClick={() => void captureStudioStill()}
+                disabled={isStudioRendering}
+                title="Path-traced beauty shot of the current model on a studio backdrop"
+              >
+                {isStudioRendering ? 'Rendering Studio Still…' : 'Studio Render'}
+              </button>
+              {studioRenderStatus ? <p className="hint">{studioRenderStatus}</p> : null}
             </div>
           </div>
         )}

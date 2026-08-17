@@ -1,6 +1,5 @@
 import { isShapeLike, uid } from './cad/cad-geometry'
 import type {
-  AlignConstraint,
   Backdrop,
   DimensionLine,
   DocFile,
@@ -357,7 +356,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
             ...constraint,
             shapeId: shapeIdMap.get(constraint.shapeId) ?? '',
             referenceShapeId: shapeIdMap.get(constraint.referenceShapeId) ?? '',
-          } as AlignConstraint
+          }
         })
         .filter((constraint) => {
           if (!nextShapeIdSet.has(constraint.shapeId)) {

@@ -17,11 +17,14 @@ export function ThreePreviewPanel({
   const {
     containerRef,
     canvasRef,
+    captureStudioStill,
     foldLines,
     invalidPatternPieces,
+    isStudioRendering,
     seamConnections,
     shapesIn3dView,
     stitchHoles,
+    studioRenderStatus,
     threePreviewSettings,
     visiblePatternPieces,
   } = controller
@@ -36,6 +39,15 @@ export function ThreePreviewPanel({
           <p>Stitch holes: {stitchHoles.length}</p>
           {invalidPatternPieces.length > 0 ? <p className="hint">{invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.</p> : null}
           <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
+          <button
+            className="preview-controls-toggle"
+            onClick={() => void captureStudioStill()}
+            disabled={isStudioRendering}
+            title="Path-traced beauty shot of the current model, rendered on a studio backdrop"
+          >
+            {isStudioRendering ? 'Rendering…' : 'Studio Render'}
+          </button>
+          {studioRenderStatus ? <p className="hint">{studioRenderStatus}</p> : null}
         </div>
         {isMobileLayout && (
           <button className="preview-controls-toggle" onClick={() => setShowControls((previous) => !previous)}>

@@ -1,4 +1,4 @@
-import type { DocFile, FoldLine, HardwareMarker, Layer, Shape, ThreePreviewSettings } from '../cad/cad-types'
+import type { DocFile, FoldLine, HardwareMarker, Layer, Shape, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import {
   CUT_LINE_TYPE_ID,
   DEFAULT_ACTIVE_LINE_TYPE_ID,
@@ -181,7 +181,7 @@ function withPresetStrokeWidth(shape: Shape): Shape {
         ? 1.35
         : 2.2
 
-  return { ...shape, strokeWidthOverride } as Shape
+  return { ...shape, strokeWidthOverride }
 }
 
 function buildDoc(
@@ -192,6 +192,7 @@ function buildDoc(
   activeLayerId = layers[0]?.id ?? 'layer-1',
   hardwareMarkers: HardwareMarker[] = [],
   threePreviewSettings?: ThreePreviewSettings,
+  stitchHoles: StitchHole[] = [],
 ): DocFile {
   return {
     version: 1,
@@ -208,6 +209,12 @@ function buildDoc(
       ...foldLine,
       id: `${name}-${foldLine.id}`,
       name: foldLine.name,
+    })),
+    stitchHoles: stitchHoles.map((hole) => ({
+      ...hole,
+      id: `${name}-${hole.id}`,
+      shapeId: `${name}-${hole.shapeId}`,
+      chainId: hole.chainId ? `${name}-${hole.chainId}` : undefined,
     })),
     hardwareMarkers: hardwareMarkers.map((marker) => ({
       ...marker,
@@ -383,6 +390,45 @@ const triFoldShapes: Shape[] = [
   line('front-card-right-stitch', triFoldFrontCardLayer.id, 114, 34, 114, -22, STITCH_LINE_TYPE_ID),
 ].map(withPresetStrokeWidth)
 
+function stitchRun(
+  chainId: string,
+  shapeId: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  pitchMm: number,
+): StitchHole[] {
+  const length = Math.hypot(x2 - x1, y2 - y1)
+  const count = Math.max(2, Math.round(length / pitchMm) + 1)
+  const angleDeg = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI
+  const holes: StitchHole[] = []
+  for (let index = 0; index < count; index += 1) {
+    const t = index / (count - 1)
+    holes.push({
+      id: `${chainId}-hole-${index + 1}`,
+      shapeId,
+      chainId,
+      point: { x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t },
+      angleDeg,
+      holeType: 'slit',
+      sequence: index,
+    })
+  }
+  return holes
+}
+
+// Saddle-stitch runs along the authored stitch guide lines. They ride the
+// shell across both fold lines, so the 3D preview shows thread on every
+// panel — live while drafting, and following the wings through the fold
+// timeline.
+// Distinct pitches keep the two decorative border runs from being mistaken
+// for a stitch pair (pairing requires equal hole counts).
+const triFoldStitchHoles: StitchHole[] = [
+  ...stitchRun('shell-top-run', 'shell-top-stitch', -116, -40, 116, -40, 8),
+  ...stitchRun('shell-bottom-run', 'shell-bottom-stitch', 116, 40, -116, 40, 9.5),
+]
+
 const triFoldFolds: FoldLine[] = [
   {
     id: 'tri-fold-left',
@@ -391,7 +437,12 @@ const triFoldFolds: FoldLine[] = [
     end: { x: -42, y: 50 },
     angleDeg: 180,
     maxAngleDeg: 180,
-    direction: 'mountain',
+    // Both wings must carry the same direction label to fold the same physical
+    // way: they sit on opposite sides of their fold lines, so the hinge sign
+    // math flips once per wing. 'mountain' here sent the left wing UNDER the
+    // stack while its timeline step says "Wrap left wing over stack" — the bug
+    // was invisible in the flat end state because +180° and -180° coincide.
+    direction: 'valley',
     radiusMm: 4,
     thicknessMm: 1.4,
     neutralAxisRatio: 0.5,
@@ -661,7 +712,7 @@ export const PRESET_DOCS: PresetDefinition[] = [
   {
     id: 'trifold',
     label: 'Trifold Wallet Prototype',
-    doc: buildDoc('trifold', triFoldLayers, triFoldShapes, triFoldFolds, triFoldShellLayer.id, [], triFoldPreviewSettings),
+    doc: buildDoc('trifold', triFoldLayers, triFoldShapes, triFoldFolds, triFoldShellLayer.id, [], triFoldPreviewSettings, triFoldStitchHoles),
   },
   {
     id: 'folding-box-net',

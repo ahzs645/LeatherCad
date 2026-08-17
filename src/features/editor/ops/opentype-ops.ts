@@ -9,7 +9,7 @@
 
 import * as opentype from 'opentype.js'
 import { uid } from '../cad/cad-geometry'
-import type { Point, Shape, TextShape, BezierShape } from '../cad/cad-types'
+import type { Point, Shape, TextShape } from '../cad/cad-types'
 
 // ---------------------------------------------------------------------------
 // Font cache
@@ -210,7 +210,7 @@ function commandsToShapes(
           start,
           control,
           end,
-        } as BezierShape)
+        })
         currentX = cmd.x!
         currentY = cmd.y!
         break
@@ -241,7 +241,7 @@ function commandsToShapes(
           start: toPoint(p0.x, p0.y),
           control: toPoint(mid012.x, mid012.y),
           end: toPoint(midPt.x, midPt.y),
-        } as BezierShape)
+        })
 
         // Second half: midPt -> mid123 (control) -> p3
         shapes.push({
@@ -253,7 +253,7 @@ function commandsToShapes(
           start: toPoint(midPt.x, midPt.y),
           control: toPoint(mid123.x, mid123.y),
           end: toPoint(p3.x, p3.y),
-        } as BezierShape)
+        })
 
         currentX = cmd.x!
         currentY = cmd.y!

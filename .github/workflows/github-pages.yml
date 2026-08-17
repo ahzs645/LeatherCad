@@ -18,27 +18,49 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: LeatherCad
     steps:
-      - name: Checkout
+      # Sibling checkout: the app consumes the Atelier engine through
+      # `link:../atelier/packages/*` dependencies.
+      - name: Checkout LeatherCad
         uses: actions/checkout@v4
+        with:
+          path: LeatherCad
+
+      - name: Checkout atelier
+        uses: actions/checkout@v4
+        with:
+          repository: ahzs645/atelier
+          path: atelier
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
+          cache-dependency-path: LeatherCad/pnpm-lock.yaml
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install engine dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: atelier
+
+      - name: Install app dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: npm run lint
+        run: pnpm lint
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       - name: Build app
-        run: npm run build
+        run: pnpm build
         env:
           VITE_BASE_PATH: /LeatherCad/
 
@@ -48,7 +70,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./LeatherCad/dist
 
   deploy:
     needs: build

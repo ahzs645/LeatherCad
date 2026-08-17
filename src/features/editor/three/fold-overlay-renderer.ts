@@ -4,8 +4,8 @@ import {
   Line,
   LineBasicMaterial,
   LineDashedMaterial,
-  Points,
-  PointsMaterial,
+  Mesh,
+  SphereGeometry,
   Vector2,
   Vector3,
 } from 'three'
@@ -14,6 +14,7 @@ import type { FoldLine, Layer, LineType, Shape, StitchHole } from '../cad/cad-ty
 import { lineIntersectionOnSegment, segmentLengthSquared, sideOfLine } from './bridge/geometry-utils'
 import type { ModelTransform } from './model-builder-types'
 import { projectPoint } from './model-builder-shared'
+import { buildThreadSegments, createThreadMaterial, type ThreadSegment } from './stitch-thread'
 
 const EPSILON = 1e-6
 const CUT_LINE_COLOR = '#38bdf8'
@@ -152,21 +153,14 @@ function addSegmentLine(group: Group, segment: ShapeSegment, pivot: Vector2 | nu
   group.add(line)
 }
 
-function addStitchPoint(group: Group, point: Vector2, color: string, pivot: Vector2 | null, yOffset: number) {
+const STITCH_HOLE_RADIUS = 0.006
+const STITCH_THREAD_RADIUS = 0.0035
+const STITCH_SURFACE_LIFT = 0.006
+
+function stitchWorldPoint(point: Vector2, pivot: Vector2 | null, yOffset: number) {
   const offsetX = pivot?.x ?? 0
   const offsetY = pivot?.y ?? 0
-  const geometry = new BufferGeometry().setFromPoints([
-    new Vector3(point.x - offsetX, yOffset + 0.007, point.y - offsetY),
-  ])
-  const points = new Points(
-    geometry,
-    new PointsMaterial({
-      color,
-      size: 0.025,
-      sizeAttenuation: true,
-    }),
-  )
-  group.add(points)
+  return new Vector3(point.x - offsetX, yOffset + STITCH_SURFACE_LIFT, point.y - offsetY)
 }
 
 export function renderLayerOverlays({
@@ -213,12 +207,24 @@ export function renderLayerOverlays({
 
   const layerShapeIds = new Set(layerSlice.shapes.map((shape) => shape.id))
   const layerStitchHoles = stitchHoles.filter((stitchHole) => layerShapeIds.has(stitchHole.shapeId))
+  if (layerStitchHoles.length === 0) {
+    return
+  }
+
   const stitchHolesByShape = new Map<string, StitchHole[]>()
   for (const stitchHole of layerStitchHoles) {
     const entries = stitchHolesByShape.get(stitchHole.shapeId) ?? []
     entries.push(stitchHole)
     stitchHolesByShape.set(stitchHole.shapeId, entries)
   }
+
+  // Stitching renders as lit thread — the same look as the final-product and
+  // assembled modes — so pricking work shows up live in the fold preview
+  // instead of as flat dots and lines.
+  const threadMaterial = createThreadMaterial(threadColor)
+  const holeGeometry = new SphereGeometry(STITCH_HOLE_RADIUS, 8, 8)
+  const staticSegments: ThreadSegment[] = []
+  const foldingSegments: ThreadSegment[] = []
 
   for (const stitchHolesOnShape of stitchHolesByShape.values()) {
     const ordered = stitchHolesOnShape
@@ -227,40 +233,37 @@ export function renderLayerOverlays({
 
     const projectedPoints = ordered.map((stitchHole) => projectPoint(stitchHole.point, transform))
     for (const projectedPoint of projectedPoints) {
-      if (sideOfLine(projectedPoint, foldStart, foldEnd) > -EPSILON) {
-        addStitchPoint(foldingSideGroup, projectedPoint, threadColor, foldMid, yOffset)
-      } else {
-        addStitchPoint(staticSideGroup, projectedPoint, threadColor, null, yOffset)
-      }
+      const onFoldingSide = sideOfLine(projectedPoint, foldStart, foldEnd) > -EPSILON
+      const sphere = new Mesh(holeGeometry, threadMaterial)
+      sphere.position.copy(stitchWorldPoint(projectedPoint, onFoldingSide ? foldMid : null, yOffset))
+      sphere.castShadow = true
+      ;(onFoldingSide ? foldingSideGroup : staticSideGroup).add(sphere)
     }
 
     for (let index = 1; index < projectedPoints.length; index += 1) {
       const split = splitSegmentByFold(projectedPoints[index - 1], projectedPoints[index], foldStart, foldEnd)
       for (const segment of split.negative) {
-        addSegmentLine(
-          staticSideGroup,
-          {
-            start: segment.start,
-            end: segment.end,
-            color: threadColor,
-          },
-          null,
-          yOffset + 0.0015,
-        )
+        staticSegments.push({
+          start: stitchWorldPoint(segment.start, null, yOffset),
+          end: stitchWorldPoint(segment.end, null, yOffset),
+        })
       }
       for (const segment of split.positive) {
-        addSegmentLine(
-          foldingSideGroup,
-          {
-            start: segment.start,
-            end: segment.end,
-            color: threadColor,
-          },
-          foldMid,
-          yOffset + 0.0015,
-        )
+        foldingSegments.push({
+          start: stitchWorldPoint(segment.start, foldMid, yOffset),
+          end: stitchWorldPoint(segment.end, foldMid, yOffset),
+        })
       }
     }
+  }
+
+  const staticThread = buildThreadSegments(staticSegments, threadMaterial, STITCH_THREAD_RADIUS, 'fold-stitch-thread-static')
+  if (staticThread) {
+    staticSideGroup.add(staticThread)
+  }
+  const foldingThread = buildThreadSegments(foldingSegments, threadMaterial, STITCH_THREAD_RADIUS, 'fold-stitch-thread-folding')
+  if (foldingThread) {
+    foldingSideGroup.add(foldingThread)
   }
 }
 

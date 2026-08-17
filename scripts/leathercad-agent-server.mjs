@@ -105,7 +105,7 @@ function serveStatic(request, response, distDir) {
     textResponse(
       response,
       503,
-      'LeatherCad dist/ is missing. Run `npm run build` first, or use `npm run agent` to build and serve.',
+      'LeatherCad dist/ is missing. Run `pnpm build` first, or use `pnpm agent` to build and serve.',
     )
     return
   }

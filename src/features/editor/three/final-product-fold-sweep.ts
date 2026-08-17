@@ -1,6 +1,6 @@
 import type { FoldInstructionNode, FoldLine, StitchHole } from '../cad/cad-types'
 import type { Bounds2 } from './bridge/geometry-utils'
-import { foldLinesAtTimelineProgress, compileFoldTimeline } from './fold-timeline'
+import { foldLinesAtTimelineProgress, foldOrderRankFromTimeline, compileFoldTimeline } from './fold-timeline'
 import { solveFinalProduct } from './final-product-solver'
 import type { FinalProductDiagnostic, StitchChain, StitchPair } from './final-product-types'
 import type { OutlinePolygon } from './three-bridge-types'
@@ -37,6 +37,7 @@ export function analyzeFinalProductFoldSweep({
 }): FinalProductFoldSweepResult {
   const resolvedSampleCount = Math.max(2, Math.round(sampleCount))
   const timeline = compileFoldTimeline({ foldLines, instructions })
+  const foldOrderRank = foldOrderRankFromTimeline(timeline)
   let collisionCount = 0
   let worstProgress: number | undefined
   let worstCollisionCount = 0
@@ -53,6 +54,7 @@ export function analyzeFinalProductFoldSweep({
       outlinePolygons,
       documentBounds,
       thicknessMm,
+      foldOrderRank,
       options: {
         maxIterations: 40,
       },

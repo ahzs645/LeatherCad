@@ -35,6 +35,13 @@ export type FinalProductSolveInput = {
   outlinePolygons?: OutlinePolygon[]
   documentBounds: Bounds2
   thicknessMm?: number
+  /**
+   * Fold-sequence rank per fold line id (1 = folded first), taken from the
+   * authored fold timeline. Later folds wrap the outside of the stack, so
+   * they get larger clearance offsets. Without it, ranks fall back to
+   * fold-line declaration order.
+   */
+  foldOrderRank?: ReadonlyMap<string, number>
   options?: FinalProductSolveOptions
 }
 
@@ -106,16 +113,22 @@ function inheritStackTransforms(panels: FoldPanel[], transforms: Map<string, Mat
   }
 }
 
+type PanelClearance = {
+  level: number
+  /** +1 when the panel folded over the top, -1 when it wrapped underneath. */
+  sign: 1 | -1
+}
+
 function inheritStackClearanceLevels(
   panels: FoldPanel[],
   transforms: Map<string, Matrix4>,
-  closedFoldClearanceLevelById: Map<string, number>,
+  clearanceById: Map<string, PanelClearance>,
 ) {
   const orderedPanels = [...panels].sort((left, right) => (left.stackLevel ?? 0) - (right.stackLevel ?? 0))
 
   for (const panel of orderedPanels) {
     const stackLevel = panel.stackLevel ?? 0
-    if (stackLevel <= 0 || closedFoldClearanceLevelById.has(panel.id)) {
+    if (stackLevel <= 0 || clearanceById.has(panel.id)) {
       continue
     }
 
@@ -130,7 +143,7 @@ function inheritStackClearanceLevels(
       .find((candidate) => pointInPolygon(center, candidate.polygon))
 
     if (carrier) {
-      closedFoldClearanceLevelById.set(panel.id, closedFoldClearanceLevelById.get(carrier.id) ?? 0)
+      clearanceById.set(panel.id, clearanceById.get(carrier.id) ?? { level: 0, sign: 1 })
     }
   }
 }
@@ -139,10 +152,12 @@ function stackOffsetForPanel(
   panel: FoldPanel,
   transform: Matrix4,
   stackStepMm: number,
-  closedFoldClearanceLevel: number,
+  clearance: PanelClearance,
 ) {
   const stackDistance = (panel.stackLevel ?? 0) * stackStepMm
-  const offset = new Vector3(0, closedFoldClearanceLevel * stackStepMm, 0)
+  // Clearance pushes the folded panel away from the stack it folded around,
+  // on the side its own fold motion put it (over the top vs underneath).
+  const offset = new Vector3(0, clearance.level * stackStepMm * clearance.sign, 0)
   if (stackDistance > 0) {
     const normal = new Vector3(0, 1, 0).applyMatrix4(transform).sub(new Vector3(0, 0, 0).applyMatrix4(transform)).normalize()
     offset.add(normal.multiplyScalar(stackDistance))
@@ -150,23 +165,35 @@ function stackOffsetForPanel(
   return offset
 }
 
-function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm: number) {
+function buildSolvedPanels(
+  panels: FoldPanel[],
+  hinges: FoldHinge[],
+  stackStepMm: number,
+  foldOrderRank?: ReadonlyMap<string, number>,
+) {
   if (panels.length === 0) {
     return [] as SolvedFoldPanel[]
   }
 
   const transforms = new Map<string, Matrix4>()
-  const closedFoldClearanceLevelById = new Map<string, number>()
+  const clearanceById = new Map<string, PanelClearance>()
   const root = [...panels].sort((left, right) => right.areaMm2 - left.areaMm2)[0]
   transforms.set(root.id, new Matrix4())
-  closedFoldClearanceLevelById.set(root.id, 0)
+  clearanceById.set(root.id, { level: 0, sign: 1 })
+
+  // Clearance rank per fold line: the fold sequence decides which fold ends
+  // up farther from the base of the stack (later folds wrap the outside).
+  // Timeline ranks win when present; fold lines the timeline never commands
+  // fall back to appearance order after the ranked ones.
   const foldClearanceLevelByLineId = new Map<string, number>()
+  let fallbackRank = foldOrderRank ? Math.max(0, ...foldOrderRank.values()) : 0
   for (const hinge of hinges) {
     if (foldClearanceLevelByLineId.has(hinge.foldLine.id)) {
       continue
     }
     const closureFactor = Math.abs(hinge.signedAngleDeg) <= FOLD_CLEARANCE_START_DEG ? 0 : 1
-    foldClearanceLevelByLineId.set(hinge.foldLine.id, (foldClearanceLevelByLineId.size + 1) * closureFactor)
+    const rank = foldOrderRank?.get(hinge.foldLine.id) ?? (fallbackRank += 1)
+    foldClearanceLevelByLineId.set(hinge.foldLine.id, rank * closureFactor)
   }
 
   const adjacency = new Map<string, Array<{ hinge: FoldHinge; nextPanelId: string; direction: 1 | -1 }>>()
@@ -180,6 +207,7 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
     adjacency.set(hinge.toPanelId, toEntries)
   }
 
+  const panelById = new Map(panels.map((panel) => [panel.id, panel]))
   const queue = [root.id]
   while (queue.length > 0) {
     const panelId = queue.shift()!
@@ -197,15 +225,31 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
       const angleRad = (entry.hinge.signedAngleDeg * entry.direction * Math.PI) / 180
       const rotation = makeRotationAroundAxis(axisStart, axisEnd, angleRad)
       transforms.set(entry.nextPanelId, rotation.multiply(currentTransform.clone()))
+
       const closedFoldRank = foldClearanceLevelByLineId.get(entry.hinge.foldLine.id) ?? 0
-      const currentClearanceLevel = closedFoldClearanceLevelById.get(panelId) ?? 0
-      closedFoldClearanceLevelById.set(entry.nextPanelId, Math.max(currentClearanceLevel, closedFoldRank))
+      const parentClearance = clearanceById.get(panelId) ?? { level: 0, sign: 1 as const }
+      // Which way did this panel swing? Sample its centroid at half the hinge
+      // angle: over-the-top folds rise, wrap-under folds dip. At exactly 180°
+      // the end pose cannot tell the two apart, but the halfway pose can.
+      const nextPanel = panelById.get(entry.nextPanelId)
+      let clearance: PanelClearance = parentClearance
+      if (nextPanel && closedFoldRank > parentClearance.level) {
+        const halfRotation = makeRotationAroundAxis(axisStart, axisEnd, angleRad / 2)
+        const centroid = panelCentroid(nextPanel)
+        const restY = pointToVector(centroid).applyMatrix4(currentTransform).y
+        const halfY = pointToVector(centroid)
+          .applyMatrix4(currentTransform)
+          .applyMatrix4(halfRotation).y
+        const sign: 1 | -1 = halfY - restY < 0 ? -1 : 1
+        clearance = { level: closedFoldRank, sign }
+      }
+      clearanceById.set(entry.nextPanelId, clearance)
       queue.push(entry.nextPanelId)
     }
   }
 
   inheritStackTransforms(panels, transforms)
-  inheritStackClearanceLevels(panels, transforms, closedFoldClearanceLevelById)
+  inheritStackClearanceLevels(panels, transforms, clearanceById)
 
   return panels.map((panel) => ({
     ...panel,
@@ -214,7 +258,7 @@ function buildSolvedPanels(panels: FoldPanel[], hinges: FoldHinge[], stackStepMm
       panel,
       transforms.get(panel.id) ?? new Matrix4(),
       stackStepMm,
-      closedFoldClearanceLevelById.get(panel.id) ?? 0,
+      clearanceById.get(panel.id) ?? { level: 0, sign: 1 },
     ),
   }))
 }
@@ -615,6 +659,7 @@ export function solveFinalProduct({
   outlinePolygons,
   documentBounds,
   thicknessMm = 1.8,
+  foldOrderRank,
   options = {},
 }: FinalProductSolveInput): FinalProductSolveResult {
   const maxIterations = options.maxIterations ?? DEFAULT_MAX_ITERATIONS
@@ -652,7 +697,7 @@ export function solveFinalProduct({
     })
   }
 
-  const solvedPanels = buildSolvedPanels(panelGraph.panels, panelGraph.hinges, thicknessMm)
+  const solvedPanels = buildSolvedPanels(panelGraph.panels, panelGraph.hinges, thicknessMm, foldOrderRank)
   const allHoles = allChains.flatMap((chain) => chain.holes)
   const holePanelMap = assignHolesToPanels(panelGraph.panels, allHoles)
   const { iterations, rmsStitchErrorMm } = solveStitchOffsets({

@@ -81,14 +81,14 @@ export function setAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | '
       const currentMid = getAnchorPoint(shape, 'mid')
       const dx = point.x - currentMid.x
       const dy = point.y - currentMid.y
-      return translateShape(clone as Shape, dx, dy)
+      return translateShape(clone, dx, dy)
     }
 
     case 'center': {
       const currentCenter = getAnchorPoint(shape, 'center')
       const dx = point.x - currentCenter.x
       const dy = point.y - currentCenter.y
-      return translateShape(clone as Shape, dx, dy)
+      return translateShape(clone, dx, dy)
     }
   }
 }
@@ -603,7 +603,7 @@ export function solveConstraints(
 
   const shapeMap = new Map<string, Shape>()
   for (const s of shapes) {
-    shapeMap.set(s.id, { ...s } as Shape)
+    shapeMap.set(s.id, { ...s })
   }
 
   const conflicts = detectConflicts(constraints)

@@ -221,8 +221,8 @@ describe('source catalog fixtures', () => {
       expect(blob.size).toBeGreaterThan(0)
       createdUrls.push('blob:test-catalog-image')
       return 'blob:test-catalog-image'
-    }) as typeof URL.createObjectURL
-    URL.revokeObjectURL = (() => undefined) as typeof URL.revokeObjectURL
+    })
+    URL.revokeObjectURL = (() => undefined)
     try {
       await expect(decodeCatalogZipBmpToObjectUrl(itemWithImage?.zipBmpBase64 ?? '')).resolves.toBe('blob:test-catalog-image')
       expect(createdUrls).toHaveLength(1)

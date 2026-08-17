@@ -693,7 +693,7 @@ export function parsePrickingIronLccp(raw: string): PrickingIronCatalog {
   const candidate = typeof sourceCollection === 'object' && sourceCollection !== null
     ? sourceCollection as StoredPrickingIronCatalog
     : effectiveRoot as StoredPrickingIronCatalog
-  const sourceEntries = collectSourcePrickingIronEntries(candidate as StoredPrickingIronCatalog | Record<string, unknown>)
+  const sourceEntries = collectSourcePrickingIronEntries(candidate)
   const groups = sourceEntries.sourceGroups.filter((entry) => !entry.system)
   const presets = sourceEntries.sourcePresets.filter((entry) => !entry.system)
   return mergeCatalog({

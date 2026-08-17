@@ -132,6 +132,8 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
 
   const [textureForm, setTextureForm] = useState<TextureSource>(() => threeTextureSource ?? DEFAULT_TEXTURE_FORM)
   const [textureStatus, setTextureStatus] = useState('Default leather material active')
+  const [studioRenderStatus, setStudioRenderStatus] = useState<string | null>(null)
+  const [isStudioRendering, setIsStudioRendering] = useState(false)
   const [hidden3dLayerIds, setHidden3dLayerIds] = useState<string[]>([])
   const [materialState, setMaterialState] = useState<ThreeMaterialState>(DEFAULT_MATERIAL_STATE)
 
@@ -568,6 +570,37 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     }))
   }
 
+  const captureStudioStill = async () => {
+    const bridge = bridgeRef.current
+    if (!bridge || isStudioRendering) {
+      return
+    }
+    setIsStudioRendering(true)
+    setStudioRenderStatus('Preparing studio render…')
+    try {
+      const result = await bridge.captureStudioStill({
+        onProgress: (progress) => {
+          const percent = Math.round(progress.progress * 100)
+          setStudioRenderStatus(`Studio render: ${progress.stage} ${percent}%`)
+        },
+      })
+      const url = URL.createObjectURL(result.blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'leathercad-studio-render.png'
+      link.click()
+      URL.revokeObjectURL(url)
+      setStudioRenderStatus(
+        `Studio render saved (${result.samples} samples${result.denoised ? ', denoised' : ''})`,
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      setStudioRenderStatus(`Studio render failed: ${message}`)
+    } finally {
+      setIsStudioRendering(false)
+    }
+  }
+
   const rotateLeatherTexture = (deltaDeg: number) => {
     const bridge = bridgeRef.current
     if (!bridge) {
@@ -675,6 +708,9 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     applyPreset,
     setLeatherColor,
     enableShadows,
+    captureStudioStill,
+    studioRenderStatus,
+    isStudioRendering,
     rotateLeatherTexture,
     applyTextureToSelection,
     applyTextureGlobally,

@@ -41,7 +41,7 @@ beforeEach(() => {
     takeRecords() {
       return []
     }
-  } as unknown as typeof ResizeObserver
+  }
 })
 
 afterEach(() => {

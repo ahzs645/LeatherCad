@@ -38,7 +38,7 @@ export function SeamConnectionEditor({
         t1: patch.t1 ?? localSpan?.t1 ?? 1,
         reversed: localSpan?.reversed,
       },
-    } as Partial<SeamConnection>)
+    })
   }
 
   return (

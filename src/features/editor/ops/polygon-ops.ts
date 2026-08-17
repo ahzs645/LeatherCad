@@ -3,6 +3,12 @@
  * and NFP nesting. Converts LeatherCad shapes to/from polygon point arrays.
  */
 
+import {
+  bounds as atelierBounds,
+  polygonArea as atelierPolygonArea,
+  polygonCentroid as atelierPolygonCentroid,
+} from '@atelier/geometry'
+
 import { sampleShapePoints, uid } from '../cad/cad-geometry'
 import type { Point, Shape, LineShape } from '../cad/cad-types'
 
@@ -145,13 +151,11 @@ export function polygonToLineShapes(
  * Computes the signed area of a polygon. Positive = CCW, Negative = CW.
  */
 export function polygonArea(polygon: Polygon): number {
-  let area = 0
-  for (let i = 0; i < polygon.length; i++) {
-    const j = (i + 1) % polygon.length
-    area += polygon[i].x * polygon[j].y
-    area -= polygon[j].x * polygon[i].y
-  }
-  return area / 2
+  // Signed shoelace area. NOTE: the document frame is Y-down, so a positive
+  // area here is *clockwise on screen* — the opposite of the Y-up convention
+  // the name suggests. ensureCCW/ensureCW below are named for the sign, not
+  // for the on-screen direction.
+  return atelierPolygonArea(polygon)
 }
 
 /**
@@ -178,29 +182,15 @@ export function ensureCW(polygon: Polygon): Polygon {
  * Computes the centroid of a polygon.
  */
 export function polygonCentroid(polygon: Polygon): Point {
-  let cx = 0
-  let cy = 0
-  for (const p of polygon) {
-    cx += p.x
-    cy += p.y
-  }
-  return { x: cx / polygon.length, y: cy / polygon.length }
+  // Vertex average, not the area centroid — matches the engine's definition.
+  return atelierPolygonCentroid(polygon)
 }
 
 /**
  * Computes axis-aligned bounding box of a polygon.
  */
 export function polygonBounds(polygon: Polygon) {
-  let minX = Infinity
-  let minY = Infinity
-  let maxX = -Infinity
-  let maxY = -Infinity
-  for (const p of polygon) {
-    minX = Math.min(minX, p.x)
-    minY = Math.min(minY, p.y)
-    maxX = Math.max(maxX, p.x)
-    maxY = Math.max(maxY, p.y)
-  }
+  const { minX, minY, maxX, maxY } = atelierBounds(polygon)
   return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY }
 }
 
