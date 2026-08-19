@@ -44,7 +44,7 @@ import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
-import { useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
+import { useMobileWorkbenchRouteSync, useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
 import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
 import { usePrintPreviewState } from './state/selectors/usePrintPreviewState'
@@ -111,7 +111,7 @@ export function useEditorScreenController() {
     setStatus,
     showThreePreview, setShowThreePreview,
     isMobileLayout, setIsMobileLayout,
-    setMobileViewMode,
+    mobileViewMode, setMobileViewMode,
     setShowMobileMenu,
     setMobileOptionsTab,
     workspaceMode, setWorkspaceMode,
@@ -239,6 +239,16 @@ export function useEditorScreenController() {
     setSecondaryPreviewMode,
     activeInspectorTab: effectiveLayout.activeInspectorTab,
     setActiveInspectorTab,
+  })
+
+  // The mobile shell drives `mobileViewMode` (2D / 3D / Split) rather than the
+  // desktop `workspaceMode`, so it gets its own sync against the same URL
+  // vocabulary. Exactly one of the two shells is mounted, so exactly one of
+  // these two hooks is ever enabled.
+  useMobileWorkbenchRouteSync({
+    enabled: isMobileLayout,
+    mobileViewMode,
+    setMobileViewMode,
   })
 
   const screenRefs = useEditorScreenRefs()

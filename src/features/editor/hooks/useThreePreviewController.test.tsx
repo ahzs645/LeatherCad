@@ -145,6 +145,12 @@ function createHarness() {
         'set-texture-form',
       ),
       createElement('button', { onClick: () => void controller.applyTextureToSelection() }, 'apply-selection-texture'),
+      createElement('div', { 'data-empty-state': true }, String(controller.showPatternPieceEmptyState)),
+      createElement(
+        'button',
+        { onClick: () => setThreePreviewSettings((previous) => ({ ...previous, mode: 'avatar' })) },
+        'use-avatar-mode',
+      ),
     )
   }
 
@@ -172,6 +178,17 @@ describe('useThreePreviewController', () => {
 
     expect(lastRender.container.querySelector('[data-assigned-shapes]')?.textContent).toBe('shape-1')
     expect(lastRender.container.querySelector('[data-texture-status]')?.textContent).toContain('Loading texture set')
+  })
+
+  it('flags the pattern-piece empty state only for Assembled and Avatar modes', async () => {
+    lastRender = renderForTest(createHarness())
+
+    expect(lastRender.container.querySelector('[data-empty-state]')?.textContent).toBe('false')
+
+    const buttons = lastRender.container.querySelectorAll('button')
+    click(buttons[buttons.length - 1] ?? null)
+
+    expect(lastRender.container.querySelector('[data-empty-state]')?.textContent).toBe('true')
   })
 
   it('builds declarative document and presentation state for the bridge', async () => {

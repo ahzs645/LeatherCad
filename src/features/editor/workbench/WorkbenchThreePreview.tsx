@@ -19,6 +19,25 @@ function defaultPiecePlacement(pieceId: string): PiecePlacement3D {
   return { pieceId, translationMm: { x: 0, y: 0, z: 0 }, rotationDeg: { x: 0, y: 0, z: 0 }, flipped: false }
 }
 
+/**
+ * Explains why Assembled/Avatar look bare when the document has no pattern pieces.
+ * Self-gating on `controller.showPatternPieceEmptyState` so every 3D surface (desktop
+ * viewport and mobile panel) can render it with a single line and no duplicated logic.
+ */
+export function ThreePreviewEmptyState({ controller }: { controller: WorkbenchThreePreviewController }) {
+  const { showPatternPieceEmptyState, threePreviewSettings } = controller
+  if (!showPatternPieceEmptyState) {
+    return null
+  }
+  return (
+    <p className="hint workbench-three-warning">
+      {threePreviewSettings.mode === 'avatar'
+        ? 'Avatar mode is showing the mannequin only: this document has no pattern pieces yet. Select a closed outline in the 2D canvas and use Create Piece to drape geometry on the avatar.'
+        : 'Assembled mode needs pattern pieces. Select a closed outline in the 2D canvas and use Create Piece, then return here to place it in 3D.'}
+    </p>
+  )
+}
+
 type WorkbenchThreePreviewViewportProps = { controller: WorkbenchThreePreviewController; compact?: boolean; interactive?: boolean }
 
 export function WorkbenchThreePreviewViewport({ controller, compact = false, interactive = true }: WorkbenchThreePreviewViewportProps) {
@@ -59,6 +78,7 @@ export function WorkbenchThreePreviewViewport({ controller, compact = false, int
           {invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.
         </p>
       )}
+      {!compact && <ThreePreviewEmptyState controller={controller} />}
       {showFinalFoldDrawer && <WorkbenchFinalFoldDrawer controller={controller} />}
       {showFinalFoldModeTab && <WorkbenchFinalFoldModeTab controller={controller} />}
     </div>

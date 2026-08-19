@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ThreePreviewControllerProps } from '../hooks/useThreePreviewController'
 import { useThreePreviewController } from '../hooks/useThreePreviewController'
-import { WorkbenchThreePreviewInspector } from '../workbench/WorkbenchThreePreview'
+import { ThreePreviewEmptyState, WorkbenchThreePreviewInspector } from '../workbench/WorkbenchThreePreview'
 
 type ThreePreviewPanelProps = ThreePreviewControllerProps & {
   isMobileLayout: boolean
@@ -29,39 +29,78 @@ export function ThreePreviewPanel({
     visiblePatternPieces,
   } = controller
 
+  const studioRenderButton = (
+    <button
+      className="preview-controls-toggle"
+      onClick={() => void captureStudioStill()}
+      disabled={isStudioRendering}
+      title="Path-traced beauty shot of the current model, rendered on a studio backdrop"
+    >
+      {isStudioRendering ? 'Rendering…' : 'Studio Render'}
+    </button>
+  )
+
+  const previewDetails = (
+    <>
+      <p>2D shapes: {shapesIn3dView.length} | pieces: {visiblePatternPieces.length}</p>
+      <p>Mode: {threePreviewSettings.mode} | fold lines: {foldLines.length} | seams: {seamConnections.length}</p>
+      <p>Stitch holes: {stitchHoles.length}</p>
+      {invalidPatternPieces.length > 0 ? <p className="hint">{invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.</p> : null}
+      <p className="hint three-preview-hint">
+        <span className="hint-fine-pointer">Drag to orbit, wheel to zoom, right-drag to pan.</span>
+        <span className="hint-coarse-pointer">Drag to orbit, pinch to zoom, two-finger drag to pan.</span>
+      </p>
+    </>
+  )
+
+  const countsSummary =
+    invalidPatternPieces.length > 0
+      ? `${invalidPatternPieces.length} piece(s) need closed outlines`
+      : `${shapesIn3dView.length} shapes · ${visiblePatternPieces.length} pieces`
+  const compactSummary = studioRenderStatus ?? countsSummary
+
   return (
     <div className={`three-preview-shell ${showControls ? '' : 'preview-controls-collapsed'}`}>
-      <div className="three-preview-header">
-        <div>
-          <h2>3D Preview Bridge</h2>
-          <p>2D shapes: {shapesIn3dView.length} | pieces: {visiblePatternPieces.length}</p>
-          <p>Mode: {threePreviewSettings.mode} | fold lines: {foldLines.length} | seams: {seamConnections.length}</p>
-          <p>Stitch holes: {stitchHoles.length}</p>
-          {invalidPatternPieces.length > 0 ? <p className="hint">{invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.</p> : null}
-          <p className="hint">Drag to orbit, two-finger pinch or wheel to zoom, right-drag/two-finger drag to pan.</p>
-          <button
-            className="preview-controls-toggle"
-            onClick={() => void captureStudioStill()}
-            disabled={isStudioRendering}
-            title="Path-traced beauty shot of the current model, rendered on a studio backdrop"
-          >
-            {isStudioRendering ? 'Rendering…' : 'Studio Render'}
-          </button>
-          {studioRenderStatus ? <p className="hint">{studioRenderStatus}</p> : null}
+      {isMobileLayout ? (
+        <div className="three-preview-header three-preview-header-compact">
+          <div className="three-preview-heading">
+            <h2>3D Preview</h2>
+            <p className="three-preview-summary" title={compactSummary}>{compactSummary}</p>
+          </div>
+          <div className="three-preview-header-actions">
+            {studioRenderButton}
+            <button
+              className="preview-controls-toggle"
+              aria-expanded={showControls}
+              aria-label={showControls ? 'Hide Controls' : 'Show Controls'}
+              onClick={() => setShowControls((previous) => !previous)}
+            >
+              {showControls ? 'Hide' : 'Controls'}
+            </button>
+          </div>
         </div>
-        {isMobileLayout && (
-          <button className="preview-controls-toggle" onClick={() => setShowControls((previous) => !previous)}>
-            {showControls ? 'Hide Controls' : 'Show Controls'}
-          </button>
-        )}
-      </div>
+      ) : (
+        <div className="three-preview-header">
+          <div>
+            <h2>3D Preview</h2>
+            {previewDetails}
+            {studioRenderButton}
+            {studioRenderStatus ? <p className="hint">{studioRenderStatus}</p> : null}
+          </div>
+        </div>
+      )}
 
       <div ref={containerRef} className="three-preview-canvas-wrap">
         <canvas ref={canvasRef} className="three-preview-canvas" />
       </div>
 
+      {/* Self-gates on controller.showPatternPieceEmptyState, so it costs no height
+          until Assembled/Avatar are picked on a document with no pattern pieces. */}
+      <ThreePreviewEmptyState controller={controller} />
+
       {showControls && (
         <div className="three-preview-controls">
+          {isMobileLayout ? <div className="three-preview-details">{previewDetails}</div> : null}
           <WorkbenchThreePreviewInspector controller={controller} />
         </div>
       )}

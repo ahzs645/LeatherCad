@@ -160,9 +160,22 @@
   overflow: auto;
 }
 
+/* Mobile layout: the preview pane is short enough that an open controls drawer
+   can push past its bottom edge, so let the pane scroll the same way the split
+   pane already does instead of clipping the overflow out of reach. */
+@media (max-width: 1100px) {
+  .preview-pane {
+    overflow: auto;
+  }
+}
+
+/* Row sizing for this shell is owned by the mobile block in
+   _modals-and-controls.scss: a grid-template-rows override here loses to
+   `.three-preview-shell.preview-controls-collapsed` (equal specificity, later
+   source order), and .preview-pane-mobile-split only ever applies below the
+   mobile breakpoint anyway. */
 .preview-pane-mobile-split .three-preview-shell {
   min-height: 100%;
-  grid-template-rows: auto minmax(130px, 1fr) auto;
 }
 
 .preview-pane-mobile-split .three-preview-header {

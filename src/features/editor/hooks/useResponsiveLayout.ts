@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { MOBILE_MEDIA_QUERY } from '../editor-constants'
 import type { MobileOptionsTab, MobileViewMode } from '../editor-types'
 import type { Tool } from '../cad/cad-types'
+import { resolveMobileViewMode } from '../workbench/useWorkbenchRouteSync'
 
 type UseResponsiveLayoutParams = {
   setIsMobileLayout: Dispatch<SetStateAction<boolean>>
@@ -26,7 +27,12 @@ export function useResponsiveLayout(params: UseResponsiveLayoutParams) {
     const sync = () => {
       if (media.matches) {
         setIsMobileLayout(true)
-        setMobileViewMode('editor')
+        // The route is the source of truth for which pane is showing, so derive the
+        // mode from the URL instead of forcing 'editor'. Hardcoding it here clobbered
+        // a /workbench/3d deep link: this runs on every matchMedia change event, which
+        // in a real browser lands after the route sync has already applied the URL,
+        // and the resulting mode flip pushed the user back to "/".
+        setMobileViewMode(resolveMobileViewMode(window.location.pathname))
         setShowMobileMenu(false)
         setMobileOptionsTab('view')
         setTool('pan')

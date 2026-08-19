@@ -5,7 +5,8 @@ const baseURL = 'http://127.0.0.1:41731'
 // Environments with a system-provided Chromium (sandboxed CI containers that
 // pre-install browsers) can point the Chromium-based projects at it instead
 // of the revision Playwright would download itself. Applies only to the
-// chromium/tablet projects; the mobile project runs WebKit.
+// Chromium-based projects, which is all of them today — the mobile project uses the
+// iPhone 13 descriptor but overrides defaultBrowserType to chromium in its spec.
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
 const chromiumLaunchOverride = chromiumExecutablePath
   ? { launchOptions: { executablePath: chromiumExecutablePath } }
@@ -49,9 +50,13 @@ export default defineConfig({
       testMatch: /tablet-smoke\.spec\.ts$/,
     },
     {
+      // The spec overrides defaultBrowserType to chromium, so it needs the same
+      // system-Chromium override as the projects above — without it the run tries
+      // to launch a Playwright-pinned revision the sandbox has not downloaded.
       name: 'mobile',
       use: {
         ...devices['iPhone 13'],
+        ...chromiumLaunchOverride,
       },
       testMatch: /mobile-smoke\.spec\.ts$/,
     },
