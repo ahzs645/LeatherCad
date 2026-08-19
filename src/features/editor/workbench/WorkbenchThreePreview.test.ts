@@ -52,6 +52,8 @@ function createPreviewHarness({
       shapesIn3dView: [{ id: 'shape-1', layerId: 'layer-1' }],
       visiblePatternPieces: [],
       invalidPatternPieces: [],
+      showPatternPieceEmptyState:
+        threePreviewSettings.mode === 'assembled' || threePreviewSettings.mode === 'avatar',
       finalProductSolveResult: null,
       seamConnections: [],
       foldLines: [
@@ -163,6 +165,23 @@ describe('WorkbenchThreePreview', () => {
 
     expect(lastRender.container.textContent).toContain('Final Folds')
     expect(lastRender.container.textContent).toContain('Fold All 90')
+  })
+
+  it('explains the empty viewport when Assembled or Avatar has no pattern pieces', () => {
+    lastRender = renderForTest(createPreviewHarness({ interactive: true }))
+
+    expect(lastRender.container.textContent).not.toContain('needs pattern pieces')
+
+    changeValue(lastRender.container.querySelector('select'), 'assembled')
+    expect(lastRender.container.textContent).toContain('Assembled mode needs pattern pieces')
+    expect(lastRender.container.textContent).toContain('Create Piece')
+
+    changeValue(lastRender.container.querySelector('select'), 'avatar')
+    expect(lastRender.container.textContent).toContain('Avatar mode is showing the mannequin only')
+
+    changeValue(lastRender.container.querySelector('select'), 'fold')
+    expect(lastRender.container.textContent).not.toContain('needs pattern pieces')
+    expect(lastRender.container.textContent).not.toContain('Avatar mode is showing the mannequin only')
   })
 
   it('shows a bottom tab in Fold mode that switches to Final Product', () => {

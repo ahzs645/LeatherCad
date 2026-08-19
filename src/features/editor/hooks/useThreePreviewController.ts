@@ -316,6 +316,13 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     [visiblePatternPieces, outlinePolygons],
   )
 
+  // Assembled and Avatar mode build their geometry from pattern pieces, so a document
+  // that only holds raw 2D shapes renders an empty scene (Avatar mode still shows the
+  // mannequin). Both the desktop viewport and the mobile panel use this to explain why.
+  const showPatternPieceEmptyState =
+    (threePreviewSettings.mode === 'assembled' || threePreviewSettings.mode === 'avatar') &&
+    visiblePatternPieces.length === 0
+
   const activeAvatarId = threePreviewSettings.avatarId ?? avatars[0]?.id ?? ''
   const activeAvatar = useMemo(() => avatars.find((entry) => entry.id === activeAvatarId), [avatars, activeAvatarId])
   const avatarFormResetKey = activeAvatar
@@ -691,6 +698,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     visibleLayerCountIn3d,
     visiblePatternPieces,
     invalidPatternPieces,
+    showPatternPieceEmptyState,
     finalProductSolveResult,
     assemblyDiagnostics,
     effectiveSeamConnections,

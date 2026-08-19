@@ -48,3 +48,34 @@ test('mobile Options modal scrolls and closes', async ({ page }) => {
   await page.getByRole('button', { name: /^Close$/ }).first().click()
   await expect(heading).toBeHidden()
 })
+
+test('mobile 3D tab pushes the workbench route and Back returns to 2D', async ({ page }) => {
+  await page.goto('/')
+
+  const twoDTab = page.getByRole('button', { name: '2D', exact: true })
+  const threeDTab = page.getByRole('button', { name: '3D', exact: true })
+  await expect(twoDTab).toHaveClass(/active/)
+
+  await threeDTab.click()
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/workbench/3d')
+  await expect(threeDTab).toHaveClass(/active/)
+
+  await page.goBack()
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/')
+  await expect(twoDTab).toHaveClass(/active/)
+})
+
+test('direct deep link to /workbench/3d opens the mobile 3D tab', async ({ page }) => {
+  await page.goto('/workbench/3d')
+
+  await expect(page.locator('select.tool-select-mobile')).toBeVisible()
+  await expect(page.getByRole('button', { name: '3D', exact: true })).toHaveClass(/active/)
+  await expect(page.getByRole('button', { name: '2D', exact: true })).not.toHaveClass(/active/)
+})
+
+test('direct deep link to /workbench/split opens the mobile Split tab', async ({ page }) => {
+  await page.goto('/workbench/split')
+
+  await expect(page.locator('select.tool-select-mobile')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Split', exact: true })).toHaveClass(/active/)
+})

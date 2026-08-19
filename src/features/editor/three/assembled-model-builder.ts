@@ -312,63 +312,67 @@ export function rebuildAssembledModel({
   clearGroup(foldGuideGroup, preservedMaterials)
 
   const pieces = patternPieces.filter((piece) => layers.some((layer) => layer.id === piece.layerId && layer.visible))
-  if (pieces.length === 0) {
-    fitControlsToModel()
-    return
-  }
 
-  const pieceMeshById = new Map(pieceMeshes.map((piece) => [piece.pieceId, piece]))
-  const pieceGroupById = new Map<string, Group>()
+  // A document with no pattern pieces is a valid empty state, not a failure: keep
+  // going so the avatar rebuild below still runs. Bailing out here used to leave
+  // Avatar mode with a bare grid instead of its mannequin.
+  if (pieces.length > 0) {
+    const pieceMeshById = new Map(pieceMeshes.map((piece) => [piece.pieceId, piece]))
+    const pieceGroupById = new Map<string, Group>()
 
-  pieces.forEach((piece, index) => {
-    const pieceMesh = pieceMeshById.get(piece.id)
-    if (!pieceMesh) {
-      return
-    }
-    const group = createAssembledPieceGroup({
-      piece,
-      pieceMesh,
-      index,
-      total: pieces.length,
-      piecePlacements3d,
-      previewSettings,
-      transform,
-      texturedShapeIdSet,
-      hasActiveTexture,
-      materials,
-      stitchHoles,
-      threadColor,
-    })
-    pieceGroupById.set(piece.id, group)
-    assembledGroup.add(group)
-  })
-
-  if (previewSettings.showSeams) {
-    for (const connection of seamConnections) {
-      const fromGroup = pieceGroupById.get(connection.from.pieceId)
-      const toGroup = pieceGroupById.get(connection.to.pieceId)
-      const fromPiece = pieceMeshById.get(connection.from.pieceId)
-      const toPiece = pieceMeshById.get(connection.to.pieceId)
-      if (!fromGroup || !toGroup || !fromPiece || !toPiece) {
-        continue
+    pieces.forEach((piece, index) => {
+      const pieceMesh = pieceMeshById.get(piece.id)
+      if (!pieceMesh) {
+        return
       }
-
-      const fromMid = edgeMidpointWorld(fromGroup, fromPiece, connection.from.edgeIndex, transform)
-      const toMid = edgeMidpointWorld(toGroup, toPiece, connection.to.edgeIndex, transform)
-      if (!fromMid || !toMid) {
-        continue
-      }
-      const color = seamColorForConnection(
-        edgeLengthWorld(fromPiece, connection.from.edgeIndex, transform),
-        edgeLengthWorld(toPiece, connection.to.edgeIndex, transform),
-        fromMid.distanceTo(toMid),
+      const group = createAssembledPieceGroup({
+        piece,
+        pieceMesh,
+        index,
+        total: pieces.length,
+        piecePlacements3d,
         previewSettings,
-        (connection.toleranceMm ?? 1) * transform.scale,
-      )
-      addSeamGuide(assembledGroup, fromMid, toMid, color, connection.kind !== 'aligned')
+        transform,
+        texturedShapeIdSet,
+        hasActiveTexture,
+        materials,
+        stitchHoles,
+        threadColor,
+      })
+      pieceGroupById.set(piece.id, group)
+      assembledGroup.add(group)
+    })
+
+    if (previewSettings.showSeams) {
+      for (const connection of seamConnections) {
+        const fromGroup = pieceGroupById.get(connection.from.pieceId)
+        const toGroup = pieceGroupById.get(connection.to.pieceId)
+        const fromPiece = pieceMeshById.get(connection.from.pieceId)
+        const toPiece = pieceMeshById.get(connection.to.pieceId)
+        if (!fromGroup || !toGroup || !fromPiece || !toPiece) {
+          continue
+        }
+
+        const fromMid = edgeMidpointWorld(fromGroup, fromPiece, connection.from.edgeIndex, transform)
+        const toMid = edgeMidpointWorld(toGroup, toPiece, connection.to.edgeIndex, transform)
+        if (!fromMid || !toMid) {
+          continue
+        }
+        const color = seamColorForConnection(
+          edgeLengthWorld(fromPiece, connection.from.edgeIndex, transform),
+          edgeLengthWorld(toPiece, connection.to.edgeIndex, transform),
+          fromMid.distanceTo(toMid),
+          previewSettings,
+          (connection.toleranceMm ?? 1) * transform.scale,
+        )
+        addSeamGuide(assembledGroup, fromMid, toMid, color, connection.kind !== 'aligned')
+      }
     }
   }
 
+  // The avatar manager clears `avatarGroup` and then no-ops unless the preview is in
+  // Avatar mode, so Assembled mode still renders pattern geometry only. Its procedural
+  // fallback is added synchronously, which keeps the fit below framing the mannequin.
   void rebuildAvatarModel()
   fitControlsToModel()
 }
