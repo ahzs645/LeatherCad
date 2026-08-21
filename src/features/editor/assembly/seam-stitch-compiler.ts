@@ -1,8 +1,13 @@
-import type { PieceEdgeSpan, SeamConnection, StitchHole } from '../cad/cad-types'
+import type { SeamConnection, StitchHole } from '../cad/cad-types'
 import type { StitchChain, StitchPair } from '../three/final-product-types'
-import { edgeAtIndex, edgesForShape, type PieceMeshData, type PieceOutlineEdge } from '../three/piece-mesh'
+import type { PieceMeshData, PieceOutlineEdge } from '../three/piece-mesh'
 import { buildPieceMeshMap, type AssemblyDiagnostic } from './assembly-diagnostics'
-import { resolveSeamSpans } from './seam-spans'
+import {
+  flipStretch,
+  resolveConnectionSide,
+  sampleSide,
+  type SeamSideStretch,
+} from './seam-geometry'
 
 const DEFAULT_STITCH_SPACING_MM = 4
 const MIN_EXPLICIT_SEAM_SAMPLES = 2
@@ -73,106 +78,6 @@ function sampleCountForConnection(connection: SeamConnection, leftLengthMm: numb
   return Math.max(MIN_EXPLICIT_SEAM_SAMPLES, Math.round(seamLengthMm / spacingMm) + 1)
 }
 
-/**
- * One contiguous stretch of boundary a seam runs along: an edge plus the portion
- * of it in play. A span that names an authored shape expands to every sampled
- * edge of that shape, so a curved side contributes its whole arc rather than one
- * 1/48 chord.
- */
-type SeamSideStretch = {
-  edge: PieceOutlineEdge
-  t0: number
-  t1: number
-  lengthMm: number
-}
-
-function stretchesForSpan(piece: PieceMeshData, span: PieceEdgeSpan): SeamSideStretch[] {
-  const t0 = Math.min(Math.max(span.t0 ?? 0, 0), 1)
-  const t1 = Math.min(Math.max(span.t1 ?? 1, 0), 1)
-  const shapeEdges = span.boundaryShapeId ? edgesForShape(piece, span.boundaryShapeId) : []
-  const edges = shapeEdges.length > 0 ? shapeEdges : [edgeAtIndex(piece, span.edgeIndex)].filter(Boolean) as PieceOutlineEdge[]
-  if (edges.length === 0) {
-    return []
-  }
-
-  // A partial span applies to the side as a whole, so distribute it across the
-  // side's arc length rather than clipping each sampled chord identically.
-  const totalMm = edges.reduce((sum, edge) => sum + edge.lengthMm, 0)
-  if (totalMm <= 0) {
-    return []
-  }
-  const startMm = totalMm * Math.min(t0, t1)
-  const endMm = totalMm * Math.max(t0, t1)
-
-  const stretches: SeamSideStretch[] = []
-  let cursorMm = 0
-  for (const edge of edges) {
-    const edgeStartMm = cursorMm
-    const edgeEndMm = cursorMm + edge.lengthMm
-    cursorMm = edgeEndMm
-    const overlapStart = Math.max(edgeStartMm, startMm)
-    const overlapEnd = Math.min(edgeEndMm, endMm)
-    if (overlapEnd <= overlapStart) {
-      continue
-    }
-    stretches.push({
-      edge,
-      t0: (overlapStart - edgeStartMm) / edge.lengthMm,
-      t1: (overlapEnd - edgeStartMm) / edge.lengthMm,
-      lengthMm: overlapEnd - overlapStart,
-    })
-  }
-  return stretches
-}
-
-function resolveSeamSide(
-  pieceMeshesById: Map<string, PieceMeshData>,
-  spans: PieceEdgeSpan[],
-): { stretches: SeamSideStretch[]; lengthMm: number; pieceIds: string[] } | null {
-  const stretches: SeamSideStretch[] = []
-  const pieceIds: string[] = []
-  for (const span of spans) {
-    const piece = pieceMeshesById.get(span.pieceId)
-    if (!piece) {
-      return null
-    }
-    if (!pieceIds.includes(span.pieceId)) {
-      pieceIds.push(span.pieceId)
-    }
-    const spanStretches = stretchesForSpan(piece, span)
-    if (spanStretches.length === 0) {
-      return null
-    }
-    stretches.push(...(span.reversed ? [...spanStretches].reverse().map(flipStretch) : spanStretches))
-  }
-  if (stretches.length === 0) {
-    return null
-  }
-  return {
-    stretches,
-    lengthMm: stretches.reduce((sum, stretch) => sum + stretch.lengthMm, 0),
-    pieceIds,
-  }
-}
-
-function flipStretch(stretch: SeamSideStretch): SeamSideStretch {
-  return { ...stretch, t0: stretch.t1, t1: stretch.t0 }
-}
-
-/** The point at arc-length `distanceMm` along a side, with the edge it sits on. */
-function sampleSide(stretches: SeamSideStretch[], distanceMm: number) {
-  let remaining = distanceMm
-  for (const stretch of stretches) {
-    if (remaining <= stretch.lengthMm || stretch === stretches[stretches.length - 1]) {
-      const local = stretch.lengthMm <= 0 ? 0 : Math.min(Math.max(remaining / stretch.lengthMm, 0), 1)
-      return { stretch, t: stretch.t0 + (stretch.t1 - stretch.t0) * local }
-    }
-    remaining -= stretch.lengthMm
-  }
-  const last = stretches[stretches.length - 1]
-  return { stretch: last, t: last.t1 }
-}
-
 function holeAlongSide(params: {
   id: string
   chainId: string
@@ -213,8 +118,8 @@ export function compileExplicitSeams(params: {
       continue
     }
 
-    const left = resolveSeamSide(pieceMeshesById, resolveSeamSpans(connection, 'from'))
-    const right = resolveSeamSide(pieceMeshesById, resolveSeamSpans(connection, 'to'))
+    const left = resolveConnectionSide(pieceMeshesById, connection, 'from')
+    const right = resolveConnectionSide(pieceMeshesById, connection, 'to')
     if (!left || !right) {
       continue
     }

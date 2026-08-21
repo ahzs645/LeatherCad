@@ -7,6 +7,7 @@ import {
   createDefaultLineTypes,
 } from '../cad/line-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
+import { SEAMED_PATTERN_PRESETS } from './seamed-sample-patterns'
 
 type PresetDefinition = {
   id: string
@@ -725,6 +726,7 @@ export const PRESET_DOCS: PresetDefinition[] = [
       foldingBoxLayer.id,
     ),
   },
+  ...SEAMED_PATTERN_PRESETS,
 ]
 
 export const DEFAULT_PRESET_ID = 'trifold'
