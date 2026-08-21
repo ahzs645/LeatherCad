@@ -174,6 +174,7 @@ export type DocumentBrowserModelParams = {
   piecePlacementLabels: PiecePlacementLabel[]
   seamConnections: SeamConnection[]
   selectedPieceIds: string[]
+  selectedSeamId: string | null
   layers: Layer[]
   activeLayerId: string
   sketchGroups: SketchGroup[]

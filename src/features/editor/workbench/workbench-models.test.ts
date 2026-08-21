@@ -6,6 +6,11 @@ import {
   buildRibbonModel,
 } from './workbench-models'
 
+/** Sections are looked up by id: their order is presentation, not contract. */
+function section(nodes: ReturnType<typeof buildDocumentBrowserModel>, id: string) {
+  return nodes.find((node) => node.id === id)
+}
+
 describe('buildDocumentBrowserModel', () => {
   it('derives compact browser sections from existing editor state', () => {
     const nodes = buildDocumentBrowserModel({
@@ -58,7 +63,8 @@ describe('buildDocumentBrowserModel', () => {
           to: { pieceId: 'piece-2', edgeIndex: 1 },
         } as never,
       ],
-      selectedPieceIds: ['piece-1'],
+      selectedSeamId: null,
+    selectedPieceIds: ['piece-1'],
       layers: [
         { id: 'layer-1', name: 'Front', visible: true, locked: false, stackLevel: 0 },
         { id: 'layer-2', name: 'Back', visible: false, locked: true, stackLevel: 1 },
@@ -76,17 +82,17 @@ describe('buildDocumentBrowserModel', () => {
       threeTextureSource: { sourceUrl: 'https://textures.example/leather' } as never,
     })
 
-    expect(nodes.map((node) => node.label)).toEqual(['Pieces', 'Layers', 'Sketches', 'Tracing', '3D Assets'])
-    expect(nodes[0]?.children?.[0]?.selected).toBe(true)
-    expect(nodes[0]?.children?.[0]?.children?.map((child) => child.kind)).toEqual([
+    expect(nodes.map((node) => node.label)).toEqual(['Pieces', 'Seams', 'Layers', 'Sketches', 'Tracing', '3D Assets'])
+    expect(section(nodes, 'section-pieces')?.children?.[0]?.selected).toBe(true)
+    expect(section(nodes, 'section-pieces')?.children?.[0]?.children?.map((child) => child.kind)).toEqual([
       'piece-label',
       'seam-allowance',
       'notch',
       'placement-label',
       'seam-connection',
     ])
-    expect(nodes[1]?.children?.[1]?.dimmed).toBe(true)
-    expect(nodes[4]?.children?.[1]?.meta).toBe('configured')
+    expect(section(nodes, 'section-layers')?.children?.[1]?.dimmed).toBe(true)
+    expect(section(nodes, 'section-assets')?.children?.[1]?.meta).toBe('configured')
   })
 
   it('groups standard LCC semantic layers under one material-layer parent', () => {
@@ -97,7 +103,8 @@ describe('buildDocumentBrowserModel', () => {
       pieceNotches: [],
       piecePlacementLabels: [],
       seamConnections: [],
-      selectedPieceIds: [],
+      selectedSeamId: null,
+    selectedPieceIds: [],
       layers: [
         { id: 'layer-1', name: 'Cut/Holes', visible: true, locked: false, stackLevel: 0 },
         { id: 'layer-2', name: 'Fold/Crease', visible: true, locked: false, stackLevel: 1 },
@@ -114,16 +121,62 @@ describe('buildDocumentBrowserModel', () => {
       threeTextureSource: null,
     })
 
-    expect(nodes[1]?.meta).toBe('1')
-    expect(nodes[1]?.children?.[0]?.kind).toBe('layer-group')
-    expect(nodes[1]?.children?.[0]?.label).toBe('Material Layer 1')
-    expect(nodes[1]?.children?.[0]?.children?.map((child) => child.label)).toEqual([
+    const layers = section(nodes, 'section-layers')
+    expect(layers?.meta).toBe('1')
+    expect(layers?.children?.[0]?.kind).toBe('layer-group')
+    expect(layers?.children?.[0]?.label).toBe('Material Layer 1')
+    expect(layers?.children?.[0]?.children?.map((child) => child.label)).toEqual([
       'Cut/Holes',
       'Fold/Crease',
       'Marking',
       'Stitching',
       'Dimensions',
     ])
+  })
+  it('gives seams a section of their own, named and in sewing order', () => {
+    const seam = (id: string, name: string, sequence: number, fromPiece: string, toPiece: string) => ({
+      id,
+      name,
+      sequence,
+      from: { pieceId: fromPiece, edgeIndex: 0 },
+      to: { pieceId: toPiece, edgeIndex: 0 },
+      kind: 'sewn' as const,
+    })
+
+    const nodes = buildDocumentBrowserModel({
+      patternPieces: [
+        { id: 'front', name: 'Front', boundaryShapeId: 's1', internalShapeIds: [], layerId: 'l', quantity: 1, onFold: false, orientation: 'any', allowFlip: true, includeInLayout: true, locked: false },
+        { id: 'back', name: 'Back', boundaryShapeId: 's2', internalShapeIds: [], layerId: 'l', quantity: 1, onFold: false, orientation: 'any', allowFlip: true, includeInLayout: true, locked: false },
+      ],
+      pieceLabels: [],
+      seamAllowances: [],
+      pieceNotches: [],
+      piecePlacementLabels: [],
+      seamConnections: [
+        seam('seam-b', 'Base seam', 2, 'front', 'back'),
+        seam('seam-a', 'Side seam', 1, 'front', 'back'),
+      ],
+      selectedSeamId: 'seam-b',
+      selectedPieceIds: [],
+      layers: [],
+      activeLayerId: 'l',
+      sketchGroups: [],
+      activeSketchGroupId: null,
+      tracingOverlays: [],
+      activeTracingOverlayId: null,
+      avatars: [],
+      threeTextureSource: null,
+    })
+
+    const seams = section(nodes, 'section-seams')
+    expect(seams?.meta).toBe('2')
+    expect(seams?.children?.map((child) => child.label)).toEqual(['1. Side seam', '2. Base seam'])
+    // Selection follows the seam, not whichever piece happens to be selected.
+    expect(seams?.children?.map((child) => child.selected)).toEqual([false, true])
+    // A seam joining two pieces still appears under each of them.
+    const pieces = section(nodes, 'section-pieces')
+    expect(pieces?.children?.[0]?.children?.map((child) => child.label)).toEqual(['Side seam', 'Base seam'])
+    expect(pieces?.children?.[1]?.children?.map((child) => child.label)).toEqual(['Side seam', 'Base seam'])
   })
 })
 

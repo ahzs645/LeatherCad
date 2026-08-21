@@ -1,4 +1,5 @@
 import type { Shape, StitchHole, HardwareMarker, PatternPiece } from '../cad/cad-types'
+import { describeSeamConnection, resolveSeamSpans, seamsInSewOrder } from '../assembly/seam-spans'
 import type {
   DocumentBrowserModelParams,
   DocumentBrowserNode,
@@ -39,6 +40,7 @@ export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): D
     piecePlacementLabels,
     seamConnections,
     selectedPieceIds,
+    selectedSeamId,
     layers,
     activeLayerId,
     sketchGroups,
@@ -48,6 +50,8 @@ export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): D
     avatars,
     threeTextureSource,
   } = params
+
+  const pieceNameById = new Map(patternPieces.map((piece) => [piece.id, piece.name]))
 
   const pieceSection: DocumentBrowserNode = {
     id: 'section-pieces',
@@ -107,17 +111,45 @@ export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): D
             meta: entry.kind,
             selected: selectedPieceIds.includes(piece.id),
           })),
-        ...seamConnections
-          .filter((entry) => entry.from.pieceId === piece.id || entry.to.pieceId === piece.id)
-          .map((entry, index) => ({
+        // Sew order here too, so a seam sits in the same relative place whether
+        // you find it under a piece or in the Seams section.
+        ...seamsInSewOrder(seamConnections)
+          .filter((entry) =>
+            [...resolveSeamSpans(entry, 'from'), ...resolveSeamSpans(entry, 'to')].some(
+              (span) => span.pieceId === piece.id,
+            ),
+          )
+          .map((entry) => ({
             id: `seam-connection:${piece.id}:${entry.id}`,
             kind: 'seam-connection' as const,
-            label: `Connection ${index + 1}`,
+            label: entry.name ?? describeSeamConnection(entry, pieceNameById),
             meta: entry.kind,
-            selected: selectedPieceIds.includes(piece.id),
+            selected: selectedSeamId === entry.id,
           })),
       ],
     })),
+  }
+
+  // Seams get their own section as well as appearing under each piece they
+  // touch. Nested-only meant a seam had no home of its own — you could only
+  // reach it through whichever piece happened to be selected, and a seam
+  // joining two pieces appeared twice with no indication it was one seam.
+  const seamSection: DocumentBrowserNode = {
+    id: 'section-seams',
+    kind: 'section',
+    label: 'Seams',
+    meta: `${seamConnections.length}`,
+    children: seamsInSewOrder(seamConnections).map((entry, index) => {
+      const spans = [...resolveSeamSpans(entry, 'from'), ...resolveSeamSpans(entry, 'to')]
+      const edgeCount = spans.length
+      return {
+        id: `seam:${entry.id}`,
+        kind: 'seam-connection' as const,
+        label: `${index + 1}. ${describeSeamConnection(entry, pieceNameById)}`,
+        meta: edgeCount > 2 ? `${entry.kind} · ${edgeCount} edges` : entry.kind,
+        selected: selectedSeamId === entry.id,
+      }
+    }),
   }
 
   const layerChildren = buildLayerChildren(layers, activeLayerId)
@@ -195,6 +227,7 @@ export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): D
 
   return [
     pieceSection,
+    seamSection,
     layerSection,
     sketchSection,
     tracingSection,
