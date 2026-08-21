@@ -1,11 +1,13 @@
 # Seam · 2D · 3D — mobile and desktop review
 
-> **Status: acted on.** Every stage in the plan below has been implemented on
+> **Status: acted on.** Every finding in this review has been implemented on
 > `claude/seam-2d-3d-review-xbacze`, along with four sample patterns that
 > exercise the seam pipeline. See [What shipped](#what-shipped) at the end for
 > the mapping from findings to commits, and for the defects that only surfaced
-> once the work was running in the app. The findings themselves are left as they
-> were measured, so the before/after is legible.
+> once the work was running in the app, and
+> [Pictures](#pictures) for the folding and the seams photographed from the
+> running build. The findings themselves are left as they were measured, so the
+> before/after is legible.
 
 **Date:** 2026-08-21 · **Branch:** `claude/seam-2d-3d-review-xbacze`
 **Scope:** LeatherCad's seam authoring and 2D↔3D workflow, measured on real
@@ -186,6 +188,8 @@ panel and the right inspector are both permanently docked and neither
 collapses. At 1280 it is 580px, 45%.
 
 ### 3.3 There is no side-by-side 2D + 3D on desktop
+
+> Fixed in `0ab55f6`. See [Pictures](#pictures).
 
 By design: `resolveWorkbenchWorkspaceMode` maps `/workbench/split` → `3d` on
 desktop, documented as "a desktop client that opens a `split` link degrades to
@@ -430,10 +434,98 @@ Reference implementations in the sibling checkouts:
 
 ---
 
+---
+
+## Pictures
+
+Every picture below is a screenshot of this branch running, taken by
+`scripts/capture-pattern-images.mjs`. The script drives the app through the same
+controls a maker uses — load the preset, switch to the 3D workspace, drag the
+assembly angle, drag the sew scrubber — so if one of these stops being true, the
+next run says so.
+
+```
+pnpm dev
+node scripts/capture-pattern-images.mjs
+```
+
+### The four sample patterns, flat
+
+Each ships with real pieces and real seams, listed down the left in sewing
+order. Before this branch the bundled document had 100 shapes and no pieces at
+all, so there was nothing to sew.
+
+| | |
+|---|---|
+| ![Two-panel card case, flat](images/card-case-flat.jpg) | ![Boxed zip pouch, flat](images/boxed-pouch-flat.jpg) |
+| **Card case** — a 47mm pocket sewn to the lower 47mm of a 70mm panel side, on three sides. Seams as *portions* of a boundary shape. | **Boxed pouch** — one 380mm gusset strip sewn up one side of a panel, across its base and down the far side. One seam over three boundary shapes. |
+| ![Round dice cup, flat](images/dice-cup-flat.jpg) | ![Tote bag, flat](images/tote-bag-flat.jpg) |
+| **Dice cup** — a straight wall sewn to a circular base. The base samples into 200-odd chords, which an edge index could not name at all. | **Tote bag** — five pieces, eight seams, including four handle tabs. |
+
+### The assembly angle opening a seam
+
+One scrubber places every piece from the seams that join them. At 0 the pieces
+lie flat and connected; at 90 they stand up; at 180 they fold closed. Before
+this branch, placing a piece meant typing six numbers into the inspector.
+
+| 0° | 90° | 180° |
+|---|---|---|
+| ![Card case laid flat](images/card-case-assembled-000.jpg) | ![Card case at 90 degrees](images/card-case-assembled-090.jpg) | ![Card case folded closed](images/card-case-assembled-180.jpg) |
+
+The dice cup is where the rigid solve reaches its limit, and says so:
+
+| 0° | 90° | 180° |
+|---|---|---|
+| ![Dice cup laid flat](images/dice-cup-assembled-000.jpg) | ![Dice cup at 90 degrees](images/dice-cup-assembled-090.jpg) | ![Dice cup folded closed](images/dice-cup-assembled-180.jpg) |
+
+A straight wall cannot wrap a circle without bending, so the seam guides stay
+warm-coloured through the sweep and the solver reports `requiresCrease`. The
+boxed pouch and the tote bag are in `images/` too.
+
+### The seams closing, one stitch at a time
+
+The tote bag's eight seams lay end to end on one stitch axis, 226 stitches long.
+The caption names the seam under the needle.
+
+| | |
+|---|---|
+| ![Tote bag with nothing sewn](images/tote-bag-sewing-unsewn.jpg) | ![Tote bag part sewn](images/tote-bag-sewing-part.jpg) |
+| **Stitch 0 of 226** — pieces placed, nothing joined. | **Stitch 75 of 226** — sewing *Right side seam*; the left side is finished and drawn whole. |
+| ![Tote bag mostly sewn](images/tote-bag-sewing-most.jpg) | ![Tote bag fully sewn](images/tote-bag-sewing-sewn.jpg) |
+| **Stitch 151 of 226** — sewing *Base to back*; both sides and the front base are done. | **Stitch 226 of 226** — all seams closed. |
+
+### The folding
+
+The fold solver was already the stronger half of this app, and none of this work
+changed it. It is here because a review of the 2D↔3D workflow that never shows
+the fold is not showing the workflow.
+
+| Flat | Half folded | Closed |
+|---|---|---|
+| ![Trifold wallet flat](images/trifold-fold-flat.jpg) | ![Trifold wallet half folded](images/trifold-fold-half.jpg) | ![Trifold wallet closed](images/trifold-fold-closed.jpg) |
+
+### Both views at once
+
+`/workbench/split` now opens two real lanes with a draggable divider, which is
+what finding 3.3 asked for. The old behaviour was to redirect the route to the
+3D workspace alone.
+
+![The split workspace, 2D and 3D side by side](images/workspace-split.jpg)
+
+And the phone layout. Finding 2.1 measured the 3D tab at 195px of a 664px
+screen; it gets 495px here, and the topbar that cost 245px of the rest is down
+to one row:
+
+| 2D | 3D |
+|---|---|
+| ![The mobile 2D canvas](images/mobile-canvas.jpg) | ![The mobile 3D tab](images/mobile-three.jpg) |
+
+---
+
 ## What shipped
 
-Eight commits, ~4,900 lines. Tests went 593 → 661; e2e 7 → 16. Typecheck, lint,
-unit and e2e all green.
+Twelve commits, ~5,800 lines changed. Unit tests went 593 → 678; e2e 7 → 18.
+Typecheck, lint, unit and e2e all green.
 
 | Finding | Where it landed |
 |---|---|
@@ -450,17 +542,20 @@ unit and e2e all green.
 | 3D view is read-only (4.4) | `c6b4936` — raycast picking; a seam can start in 2D and finish on the model |
 | An iPad is treated as a phone (3.1) | `21ec262` — breakpoint at 768px, workbench with edge-sheet docks between 768 and 1100 |
 | Pieces and seams unreachable on mobile (2.3) | `21ec262` — a Pieces + Seams tab in Options |
+| No side-by-side 2D + 3D on desktop (3.3) | `0ab55f6` — `/workbench/split` opens two real lanes with a draggable divider, matching Seamer's `both` |
+| Two controls doing the same thing (3.4) | `0ab55f6` — one `2D Draft / Both / 3D Assembly` toggle; the peek button is gone |
+| Sew order was all-or-nothing (4b) | `63ac830` — seams lay end to end on one stitch axis and a "Sewn up to" scrubber closes them one at a time |
 
-### Not done
+### Still open
 
-**Desktop side-by-side 2D + 3D (3.3)** and the **duplicate mode controls (3.4)**
-are still open. Both are desktop layout work that the seam changes did not
-depend on, and neither blocks anything above.
-
-**Sew-order timeline (4b)** is half done: seams carry a `sequence`, the document
-tree and the placement solver both walk them in sewing order, and the sample
-patterns declare one. What is missing is driving the fold scrubber from it so a
-garment visibly zips shut.
+**Nothing from the plan.** What is left is the ceiling the plan deliberately
+chose not to raise: the seam-driven placement is **rigid**, so it satisfies one
+seam per piece and lets the rest gape. That is the right answer for a card case
+or a boxed pouch, whose panels really are stiff. It is visibly not the answer
+for the dice cup, where a straight wall has to wrap a circular base — the
+`requiresCrease` diagnostic says so rather than pretending otherwise, and the
+pictures below show it. Closing that gap means relaxing the pieces, which is
+Stage 5 work and a different argument.
 
 ### Defects found while building
 
