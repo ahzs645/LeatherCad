@@ -2,7 +2,7 @@ import type { HardwareMarker, SeamConnection } from '../cad/cad-types'
 import { HARDWARE_PRESETS } from '../editor-constants'
 import { findNearestPatternPieceEdge, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
 import { findNearestStitchAnchor, createPrickingIronStitchHoles } from '../ops/stitch-hole-ops'
-import { clamp, pickToolPoint, uid } from './tool-helpers'
+import { clamp, edgePickOptions, pickToolPoint, uid } from './tool-helpers'
 import type { ToolDefinition } from './tool-types'
 
 export const stitchHardwareToolDefinitions = {
@@ -98,7 +98,7 @@ export const stitchHardwareToolDefinitions = {
       }
 
       const pieceChains = resolvePatternPieceChains(runtime.stitchTargetShapes, Object.values(runtime.lineTypesById))
-      const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId)
+      const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId, edgePickOptions(runtime))
       if (!nearest) {
         runtime.setStatus('Seam: click a pattern piece edge')
         return

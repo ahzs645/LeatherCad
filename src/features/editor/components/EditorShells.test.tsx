@@ -140,6 +140,34 @@ describe('Editor shells', () => {
     expect(lastRender.container.querySelector('[data-preview-pane]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-precision-panel]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-status-bar]')).not.toBeNull()
+    expect(lastRender.container.querySelector('.canvas-stage')?.className).not.toContain('panel-hidden')
+  })
+
+  it('hides the canvas stage wrapper, not just the pane, when the 2D lane is off', () => {
+    // The wrapper is a grid item. Leaving it mounted lets it claim the
+    // workspace's only explicit row and starves the 3D pane, which is what
+    // squeezed the phone 3D canvas down to 195px of a 664px viewport.
+    lastRender = renderForTest(
+      createElement(EditorMobileShell, {
+        workspaceRef: { current: null },
+        workspaceClassName: 'workspace mobile-preview',
+        topbarProps: {} as never,
+        canvasPaneProps: {} as never,
+        hideCanvasPane: true,
+        previewPaneProps: {} as never,
+        precisionPanelProps: {
+          open: false,
+          onClose: () => undefined,
+          toolHint: 'hint',
+          onRunCommand: () => '',
+        },
+        statusBarProps: {} as never,
+      }),
+    )
+
+    const stage = lastRender.container.querySelector('.canvas-stage')
+    expect(stage).not.toBeNull()
+    expect(stage?.className).toContain('panel-hidden')
   })
 
   it('renders the desktop shell from explicit prop bags', async () => {

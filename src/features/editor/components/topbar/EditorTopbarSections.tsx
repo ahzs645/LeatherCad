@@ -9,6 +9,30 @@ import { StitchHolePanel } from '../StitchHolePanel'
 import type { EditorTopbarProps } from './EditorTopbar.types'
 import { ThemeModeToggle } from './ThemeModeToggle'
 
+/**
+ * The mobile actions that are useful but not per-stroke. Keeping them out of the
+ * always-visible bar is what lets that bar stay one row tall.
+ */
+export function MobileQuickActions({
+  onOpenPrecisionModal,
+  onOpenProjectMemoModal,
+  onOpenTemplateRepositoryModal,
+}: EditorTopbarProps) {
+  return (
+    <div className="group mobile-quick-actions">
+      <button type="button" onClick={onOpenPrecisionModal}>
+        Precision
+      </button>
+      <button type="button" onClick={onOpenProjectMemoModal}>
+        Project Memo
+      </button>
+      <button type="button" onClick={onOpenTemplateRepositoryModal}>
+        Catalog
+      </button>
+    </div>
+  )
+}
+
 export function MobileOptionsTabs({
   mobileOptionsTab,
   onSetMobileOptionsTab,

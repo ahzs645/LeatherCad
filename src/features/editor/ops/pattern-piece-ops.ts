@@ -506,11 +506,34 @@ export function clonePatternPieceSelection(
   }
 }
 
+/**
+ * Screen-space pick radius for edge selection, in CSS pixels. Converted to
+ * document units by the caller's viewport scale so the target stays the same
+ * physical size at every zoom level. The coarse value is sized for a fingertip.
+ */
+export const EDGE_PICK_RADIUS_PX = 12
+export const EDGE_PICK_RADIUS_COARSE_PX = 24
+
+export type EdgePickOptions = {
+  /** Document units per CSS pixel. Pass the live viewport scale. */
+  viewportScale?: number
+  /** Pick radius in CSS pixels before the scale conversion. */
+  pickRadiusPx?: number
+}
+
 export function findNearestPatternPieceEdge(
   point: Point,
   pieces: PatternPiece[],
   chainsByShapeId: Map<string, OutlineChain>,
+  options: EdgePickOptions = {},
 ): { piece: PatternPiece; edgeIndex: number; t: number } | null {
+  const scale = Number.isFinite(options.viewportScale) && (options.viewportScale ?? 0) > 0
+    ? (options.viewportScale as number)
+    : 1
+  // A fixed document-unit radius means the target shrinks to nothing when zoomed
+  // out and swallows the drawing when zoomed in. Divide by scale so it is a
+  // constant on screen, which is where the finger actually is.
+  const maxDistance = (options.pickRadiusPx ?? EDGE_PICK_RADIUS_PX) / scale
   let best:
     | {
         piece: PatternPiece
@@ -552,7 +575,7 @@ export function findNearestPatternPieceEdge(
     }
   }
 
-  if (!best || best.distance > 12) {
+  if (!best || best.distance > maxDistance) {
     return null
   }
 

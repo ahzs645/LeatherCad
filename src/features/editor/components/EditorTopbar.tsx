@@ -6,6 +6,7 @@ import {
   LeatherCatalogSection,
   LineTypeSection,
   MobileOptionsTabs,
+  MobileQuickActions,
   StitchSection,
   TransformSection,
   WorkspaceViewSection,
@@ -36,7 +37,12 @@ export function EditorTopbar(props: EditorTopbarProps) {
       <div className={`topbar-body ${isMobileLayout ? 'topbar-body-mobile' : 'desktop-ribbon-panel'}`}>
         {showToolSection && <TopbarToolSection {...props} />}
 
-        {isMobileLayout && showMobileMenu && <MobileOptionsTabs {...props} />}
+        {isMobileLayout && showMobileMenu && (
+          <>
+            <MobileQuickActions {...props} />
+            <MobileOptionsTabs {...props} />
+          </>
+        )}
 
         {showZoomSection && <WorkspaceViewSection {...props} />}
 

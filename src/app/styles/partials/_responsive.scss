@@ -9,8 +9,10 @@
     font-size: 16px;
   }
 
-  /* Bigger tap targets across all interactive controls */
+  /* Tap targets at the 44px platform floor, in both axes — a 40px-tall button
+     that is 34px wide still misses. */
   button,
+  select,
   .button-like-file-input,
   .tool-icon-button,
   .desktop-ribbon-tabs button,
@@ -18,7 +20,16 @@
   .workbench-mode-toggle button,
   .view-mode-toggle button,
   .side-panel-tabs button {
-    min-height: 40px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* The zoom in/out pair is narrowed to 34px by a nth-child rule in the base
+     stylesheet. Match its specificity rather than leaving a sub-thumb target. */
+  .canvas-view-controls button:nth-child(1),
+  .canvas-view-controls button:nth-child(2) {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Disable text selection on UI chrome so taps feel native */
@@ -54,6 +65,11 @@
     grid-template-columns: 1fr;
   }
 
+  /* Single-lane modes declare exactly one row. The hidden lane is display:none
+     (see EditorMobileShell), so the one remaining grid item is auto-placed into
+     that row and takes the full height. A second 1fr row here would hand half
+     the workspace to nothing — fr distributes free space whether or not the row
+     holds an item. */
   .workspace.mobile-editor,
   .workspace.mobile-preview {
     grid-template-rows: minmax(0, 1fr);
@@ -61,6 +77,14 @@
 
   .workspace.mobile-split {
     grid-template-rows: minmax(0, 1fr) minmax(220px, 38vh);
+  }
+
+  /* Landscape phones have too little height for a 220px floor to leave the 2D
+     lane anything usable — measured 68px at 844x390. Split the space instead. */
+  @media (max-height: 560px) {
+    .workspace.mobile-split {
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    }
   }
 
   .canvas-pane {
@@ -78,7 +102,8 @@
   }
 
   .canvas-view-controls button {
-    min-width: 36px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 6px 8px;
   }
 
@@ -214,21 +239,25 @@
     padding-right: max(8px, env(safe-area-inset-right));
   }
 
-  /* Re-flow the tool group into stacked rows on narrow screens */
+  /* One row: tool, view tabs, settings, Options. Everything else moved into
+     MobileQuickActions behind the Options toggle. */
   .topbar-mobile .tool-group {
-    grid-template-columns: 1fr 1fr;
-    grid-auto-flow: row;
-    grid-auto-rows: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 6px;
   }
 
   .topbar-mobile .tool-group > .tool-select-mobile {
-    grid-column: 1 / -1;
+    flex: 1 1 120px;
+    min-width: 0;
   }
 
   .topbar-mobile .tool-group > .mobile-view-inline-tabs {
-    grid-column: 1 / -1;
+    flex: 1 1 150px;
+    display: flex;
     justify-content: stretch;
+    min-width: 0;
   }
 
   .topbar-mobile .tool-group > .mobile-view-inline-tabs button {
@@ -236,14 +265,22 @@
     min-width: 0;
   }
 
-  .topbar-mobile .tool-group > button {
-    min-height: 42px;
+  .topbar-mobile .tool-group > button,
+  .topbar-mobile .tool-group > .mobile-help-toggle {
+    flex: 0 0 auto;
+    min-height: 44px;
   }
 
-  .topbar-mobile .mobile-help-toggle,
-  .topbar-mobile .mobile-menu-toggle {
-    justify-self: stretch;
-    width: 100%;
+  /* Quick actions and options tabs only exist while the menu is open, so they
+     can afford a full row each. */
+  .topbar-mobile .mobile-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .topbar-mobile .mobile-quick-actions button {
+    min-height: 44px;
   }
 
   .tool-select-mobile {
@@ -265,9 +302,9 @@
   .topbar-mobile .tool-group .help-button {
     padding: 0;
     font-size: 18px;
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
   }
 
   /* Hide the (already hidden) statusbar; keep .three-preview-controls compact */
@@ -506,8 +543,8 @@
 
   /* Better hit target for floating canvas controls */
   .canvas-view-controls button {
-    min-width: 38px;
-    min-height: 38px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Modal action buttons span full row */

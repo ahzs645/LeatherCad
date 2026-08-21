@@ -26,7 +26,8 @@ test('mobile shell renders with topbar, canvas, and tool selector', async ({ pag
 test('mobile Options modal scrolls and closes', async ({ page }) => {
   await page.goto('/')
 
-  // Open the precision modal as a representative dialog.
+  // Precision lives behind Options so the always-visible bar stays one row tall.
+  await page.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('button', { name: 'Precision' }).click()
   const heading = page.getByRole('heading', { name: /Precision/ })
   await expect(heading).toBeVisible()
@@ -78,4 +79,47 @@ test('direct deep link to /workbench/split opens the mobile Split tab', async ({
 
   await expect(page.locator('select.tool-select-mobile')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Split', exact: true })).toHaveClass(/active/)
+})
+
+
+test('the mobile bar stays one row and the 3D tab keeps most of the screen', async ({ page }) => {
+  await page.goto('/workbench/3d')
+  await page.locator('canvas.three-preview-canvas').waitFor()
+
+  const budget = await page.evaluate(() => {
+    const height = (selector: string) => {
+      const element = document.querySelector(selector)
+      return element ? Math.round(element.getBoundingClientRect().height) : 0
+    }
+    return {
+      viewport: window.innerHeight,
+      topbar: height('.topbar'),
+      stage: height('.canvas-stage'),
+      canvas3d: height('.three-preview-canvas-wrap'),
+    }
+  })
+
+  // The bar was five stacked rows (245px of 664) before the quick actions moved
+  // behind Options.
+  expect(budget.topbar).toBeLessThan(140)
+  // The hidden 2D lane must not hold a grid row open.
+  expect(budget.stage).toBe(0)
+  // The 3D canvas used to get 195px of 664 — 29%.
+  expect(budget.canvas3d / budget.viewport).toBeGreaterThan(0.6)
+})
+
+test('every touch target on the mobile shell clears 44px', async ({ page }) => {
+  await page.goto('/')
+
+  const undersized = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('button, select, [role="tab"]'))
+      .map((element) => ({ element, rect: element.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+      .filter(({ rect }) => rect.height < 44 || rect.width < 44)
+      .map(({ element, rect }) =>
+        `${element.tagName.toLowerCase()}[${(element.textContent ?? '').trim().slice(0, 20)}] ${Math.round(rect.width)}x${Math.round(rect.height)}`,
+      ),
+  )
+
+  expect(undersized).toEqual([])
 })
