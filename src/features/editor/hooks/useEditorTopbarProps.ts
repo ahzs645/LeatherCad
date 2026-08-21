@@ -130,7 +130,26 @@ export type UseEditorTopbarPropsParams = {
   resetDocument: () => void
 }
 
-export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): ComponentProps<typeof EditorTopbar> {
+/**
+ * Everything the topbar needs except the compact shell's pieces and seams,
+ * which `useEditorScreenTopbarProps` layers on — they come from the pattern
+ * piece commands rather than from this hook's own state.
+ */
+export type EditorTopbarBaseProps = Omit<
+  ComponentProps<typeof EditorTopbar>,
+  | 'patternPieces'
+  | 'seamConnections'
+  | 'selectedPatternPieceId'
+  | 'selectedSeamId'
+  | 'canCreatePatternPiece'
+  | 'onCreatePatternPieceFromSelection'
+  | 'onSelectPatternPiece'
+  | 'onOpenPieceInspector'
+  | 'onSelectSeam'
+  | 'onDeleteSeamConnection'
+>
+
+export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): EditorTopbarBaseProps {
   const {
     topbarClassName,
     selectedShapeCount,

@@ -45,8 +45,9 @@ test('mobile Options modal scrolls and closes', async ({ page }) => {
     }
   }
 
-  // Close the modal.
-  await page.getByRole('button', { name: /^Close$/ }).first().click()
+  // Scope the close to the modal: the Options toggle also reads "Close" while
+  // the menu is open, and it sits behind the modal backdrop.
+  await modal.getByRole('button', { name: /^Close$/ }).click()
   await expect(heading).toBeHidden()
 })
 
@@ -119,4 +120,31 @@ test('every touch target on the mobile shell clears 44px', async ({ page }) => {
   }
 
   expect(undersized).toEqual([])
+})
+
+
+test('the phone can create a pattern piece and read its seams', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Options' }).click()
+  await page.getByRole('button', { name: 'Pieces + Seams' }).click()
+
+  // Every route to a pattern piece used to run through the workbench document
+  // tree, which the compact shell does not render — so the Seam tool was in the
+  // tool list with nothing to connect and nothing to show.
+  const createPiece = page.getByRole('button', { name: 'Create Piece' })
+  await expect(createPiece).toBeVisible()
+  await expect(createPiece).toBeDisabled()
+  await expect(page.getByText('Select a closed outline on the canvas')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Edit Piece' })).toBeVisible()
+  await expect(page.getByText(/^Seams \(\d+\)$/)).toBeVisible()
+})
+
+test('the phone tool list offers both seam tools', async ({ page }) => {
+  await page.goto('/')
+
+  const options = await page.locator('select.tool-select-mobile option').allTextContents()
+
+  expect(options).toContain('Tool: Seam')
+  expect(options).toContain('Tool: Seam (Multi-Edge)')
 })

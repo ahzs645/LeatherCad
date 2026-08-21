@@ -6,6 +6,7 @@ import {
   LeatherCatalogSection,
   LineTypeSection,
   MobileOptionsTabs,
+  MobilePiecesSection,
   MobileQuickActions,
   StitchSection,
   TransformSection,
@@ -41,6 +42,7 @@ export function EditorTopbar(props: EditorTopbarProps) {
           <>
             <MobileQuickActions {...props} />
             <MobileOptionsTabs {...props} />
+            {props.mobileOptionsTab === 'pieces' && <MobilePiecesSection {...props} />}
           </>
         )}
 
