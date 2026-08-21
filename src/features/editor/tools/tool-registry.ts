@@ -23,6 +23,7 @@ export const toolRegistry: Record<Tool, ToolDefinition> = {
   'stitch-hole': stitchHardwareToolDefinitions['stitch-hole'],
   hardware: stitchHardwareToolDefinitions.hardware,
   seam: stitchHardwareToolDefinitions.seam,
+  'seam-multi': stitchHardwareToolDefinitions['seam-multi'],
   'piece-notch': patternPieceToolDefinitions['piece-notch'],
   text: drawingToolDefinitions.text,
   freehand: drawingToolDefinitions.freehand,

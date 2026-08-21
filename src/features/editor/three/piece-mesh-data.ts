@@ -9,11 +9,23 @@ export type PieceOutlineEdge = {
   lengthMm: number
 }
 
+/**
+ * The run of boundary edges contributed by one authored shape. Carried through
+ * from the outline chain so a seam can name a whole side — including a curved
+ * one, which samples to ~48 consecutive edges.
+ */
+export type PieceShapeSegment = {
+  shapeId: string
+  firstEdgeIndex: number
+  lastEdgeIndex: number
+}
+
 export type PieceMeshData = {
   pieceId: string
   name: string
   outer: Point[]
   holes: Point[][]
+  shapeSegments: PieceShapeSegment[]
   bounds: {
     minX: number
     minY: number
@@ -115,9 +127,18 @@ export function buildPieceMeshData(
     return null
   }
 
+  const shapeSegments = outerChain.segments
+    .filter((segment) => segment.endIndex > segment.startIndex)
+    .map((segment) => ({
+      shapeId: segment.shapeId,
+      firstEdgeIndex: segment.startIndex,
+      lastEdgeIndex: segment.endIndex - 1,
+    }))
+
   return {
     pieceId: piece.id,
     name: piece.name,
+    shapeSegments,
     outer,
     holes,
     bounds,
@@ -136,4 +157,22 @@ export function buildPieceMeshes(
   return pieces
     .map((piece) => buildPieceMeshData(piece, chainsByShapeId))
     .filter((piece): piece is PieceMeshData => piece !== null)
+}
+
+
+/** Edge lookup by polygon index. `edges` is sparse — degenerate edges are
+ *  dropped — so array position and edge index are not interchangeable. */
+export function edgeAtIndex(piece: PieceMeshData, edgeIndex: number): PieceOutlineEdge | null {
+  return piece.edges.find((edge) => edge.index === edgeIndex) ?? null
+}
+
+/** Every boundary edge belonging to one authored shape, in polygon order. */
+export function edgesForShape(piece: PieceMeshData, shapeId: string): PieceOutlineEdge[] {
+  const segment = piece.shapeSegments.find((entry) => entry.shapeId === shapeId)
+  if (!segment) {
+    return []
+  }
+  return piece.edges.filter(
+    (edge) => edge.index >= segment.firstEdgeIndex && edge.index <= segment.lastEdgeIndex,
+  )
 }

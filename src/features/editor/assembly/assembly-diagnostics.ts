@@ -1,5 +1,5 @@
 import type { FoldLine, HardwareMarker, Layer, PatternPiece, PieceEdgeRef, Point, SeamConnection } from '../cad/cad-types'
-import type { PieceMeshData } from '../three/piece-mesh'
+import { edgeAtIndex, type PieceMeshData } from '../three/piece-mesh'
 
 export type AssemblyDiagnosticSeverity = 'fatal' | 'error' | 'warning' | 'info'
 
@@ -72,13 +72,13 @@ export function resolvePieceEdge(
   ref: PieceEdgeRef,
 ) {
   const piece = pieceMeshesById.get(ref.pieceId)
-  if (!piece || ref.edgeIndex < 0 || ref.edgeIndex >= piece.edges.length) {
+  if (!piece) {
     return null
   }
-  return {
-    piece,
-    edge: piece.edges[ref.edgeIndex],
-  }
+  // Look up by polygon index, not array position: buildEdges drops degenerate
+  // edges, so the two diverge as soon as a piece has one.
+  const edge = edgeAtIndex(piece, ref.edgeIndex)
+  return edge ? { piece, edge } : null
 }
 
 export function buildSeamAssemblyDiagnostics(params: {

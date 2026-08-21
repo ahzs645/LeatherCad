@@ -121,6 +121,7 @@ describe('patternPiecesToNestingPieces', () => {
         { x: 0, y: 30 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 300,
     }

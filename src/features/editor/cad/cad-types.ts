@@ -11,6 +11,7 @@ export type Tool =
   | 'stitch-hole'
   | 'hardware'
   | 'seam'
+  | 'seam-multi'
   | 'piece-notch'
   | 'text'
   | 'freehand'
@@ -249,11 +250,25 @@ export type PatternPieceOrientation = 'any' | 'horizontal' | 'vertical'
 
 export type PieceEdgeRef = {
   pieceId: string
+  /**
+   * Index into the piece's sampled boundary polygon. Positional, and therefore
+   * only valid against the geometry it was authored from — inserting a vertex or
+   * reversing a path shifts every index after the edit. Treat it as a cache of
+   * `boundaryShapeId`, which is the durable half of this reference.
+   */
   edgeIndex: number
+  /**
+   * The authored shape on the piece boundary that owns this edge. Stable across
+   * edits, and the only way to name a curved side: curves sample to 48 segments,
+   * so an arc side is ~48 consecutive `edgeIndex` values rather than one.
+   */
+  boundaryShapeId?: string
 }
 
 export type PieceEdgeSpan = PieceEdgeRef & {
+  /** Start position along the referenced edge, 0..1. */
   t0: number
+  /** End position along the referenced edge, 0..1. */
   t1: number
   reversed?: boolean
 }
@@ -288,17 +303,34 @@ export type PiecePlacement3D = {
 
 export type SeamConnectionKind = 'sewn' | 'aligned' | 'hinge'
 
+/**
+ * One seam: a set of boundary spans on one side stitched to a set on the other.
+ *
+ * `from`/`to` (and the single `fromSpan`/`toSpan`) are the original one-edge-to-
+ * one-edge form and remain the first entry of each side, so documents and code
+ * written against them keep working. `fromSpans`/`toSpans` carry the full list
+ * when a seam runs across several boundary shapes — a gusset meeting three sides
+ * of a panel is one seam, not three. Read both through `resolveSeamSpans`
+ * rather than reaching for either field directly.
+ */
 export type SeamConnection = {
   id: string
+  /** Display name. Falls back to a generated description of the joined edges. */
+  name?: string
   from: PieceEdgeRef
   to: PieceEdgeRef
   fromSpan?: PieceEdgeSpan
   toSpan?: PieceEdgeSpan
+  /** Full span list for this side; when absent, `fromSpan`/`from` is the only span. */
+  fromSpans?: PieceEdgeSpan[]
+  toSpans?: PieceEdgeSpan[]
   sourceConnectionId?: string
   edgeLengthDeltaMm?: number
   toleranceMm?: number
   stitchSpacingMm?: number
   reversed?: boolean
+  /** Position in the sewing order. Lower sews first; ties fall back to array order. */
+  sequence?: number
   kind: SeamConnectionKind
 }
 

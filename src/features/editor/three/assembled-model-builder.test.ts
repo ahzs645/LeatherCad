@@ -60,6 +60,7 @@ function squarePiece(): { piece: PatternPiece; pieceMesh: PieceMeshData } {
       name: 'Front Panel',
       outer,
       holes: [],
+      shapeSegments: [],
       bounds: { minX: 0, minY: 0, maxX: 40, maxY: 40, width: 40, height: 40 },
       center: { x: 20, y: 20 },
       edges: outer.map((start, index) => {

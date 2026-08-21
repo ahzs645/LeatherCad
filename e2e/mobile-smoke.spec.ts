@@ -86,40 +86,37 @@ test('the mobile bar stays one row and the 3D tab keeps most of the screen', asy
   await page.goto('/workbench/3d')
   await page.locator('canvas.three-preview-canvas').waitFor()
 
-  const budget = await page.evaluate(() => {
-    const height = (selector: string) => {
-      const element = document.querySelector(selector)
-      return element ? Math.round(element.getBoundingClientRect().height) : 0
-    }
-    return {
-      viewport: window.innerHeight,
-      topbar: height('.topbar'),
-      stage: height('.canvas-stage'),
-      canvas3d: height('.three-preview-canvas-wrap'),
-    }
-  })
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  const viewportHeight = viewport?.height ?? 0
 
-  // The bar was five stacked rows (245px of 664) before the quick actions moved
-  // behind Options.
-  expect(budget.topbar).toBeLessThan(140)
+  // The bar was five stacked rows — 245px of a 664px phone — before Precision,
+  // Project Memo and Catalog moved behind Options.
+  const topbar = await page.locator('.topbar').boundingBox()
+  expect(topbar?.height ?? 0).toBeLessThan(140)
+
   // The hidden 2D lane must not hold a grid row open.
-  expect(budget.stage).toBe(0)
+  await expect(page.locator('.canvas-stage')).toBeHidden()
+
   // The 3D canvas used to get 195px of 664 — 29%.
-  expect(budget.canvas3d / budget.viewport).toBeGreaterThan(0.6)
+  const canvas3d = await page.locator('.three-preview-canvas-wrap').boundingBox()
+  expect((canvas3d?.height ?? 0) / viewportHeight).toBeGreaterThan(0.6)
 })
 
 test('every touch target on the mobile shell clears 44px', async ({ page }) => {
   await page.goto('/')
+  await page.locator('select.tool-select-mobile').waitFor()
 
-  const undersized = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('button, select, [role="tab"]'))
-      .map((element) => ({ element, rect: element.getBoundingClientRect() }))
-      .filter(({ rect }) => rect.width > 0 && rect.height > 0)
-      .filter(({ rect }) => rect.height < 44 || rect.width < 44)
-      .map(({ element, rect }) =>
-        `${element.tagName.toLowerCase()}[${(element.textContent ?? '').trim().slice(0, 20)}] ${Math.round(rect.width)}x${Math.round(rect.height)}`,
-      ),
-  )
+  const controls = page.locator('button:visible, select:visible')
+  const undersized: string[] = []
+  for (const control of await controls.all()) {
+    const box = await control.boundingBox()
+    if (!box || box.width === 0 || box.height === 0) continue
+    if (box.height < 44 || box.width < 44) {
+      const label = (await control.textContent())?.trim().slice(0, 20) ?? ''
+      undersized.push(`${label} ${Math.round(box.width)}x${Math.round(box.height)}`)
+    }
+  }
 
   expect(undersized).toEqual([])
 })

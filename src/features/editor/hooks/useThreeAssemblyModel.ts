@@ -4,6 +4,7 @@ import type {
   FoldLine,
   HardwareMarker,
   Layer,
+  LineType,
   PatternPiece,
   PieceInterface,
   SeamConnection,
@@ -13,6 +14,8 @@ import type {
 import { buildAssemblyDiagnostics } from '../assembly/assembly-diagnostics'
 import { compileAssemblyConnections, mergeCompiledSeams } from '../assembly/assembly-connection-compiler'
 import { compileExplicitSeams } from '../assembly/seam-stitch-compiler'
+import { reconcileSeamConnections } from '../assembly/seam-spans'
+import { resolvePatternPieceChains } from '../ops/pattern-piece-ops'
 import { buildModelLayout } from '../three/model-builder'
 import type { OutlinePolygon } from '../three/three-bridge'
 
@@ -26,6 +29,7 @@ export function useThreeAssemblyModel(params: {
   outlinePolygons: OutlinePolygon[]
   shapesIn3dView: Shape[]
   layersFor3d: Layer[]
+  lineTypes: LineType[]
   threePreviewSettings: ThreePreviewSettings
 }) {
   const pieceMeshes = useMemo(
@@ -38,16 +42,36 @@ export function useThreeAssemblyModel(params: {
     [params.foldLines, params.outlinePolygons, params.patternPieces, params.shapesIn3dView],
   )
 
-  const effectiveSeamConnections = useMemo(() => {
+  const { effectiveSeamConnections, repairedSeamIds } = useMemo(() => {
     const compiled = compileAssemblyConnections({
       pieceInterfaces: params.pieceInterfaces,
       assemblyConnections: params.assemblyConnections,
     })
-    return mergeCompiledSeams({
+    const merged = mergeCompiledSeams({
       existingSeams: params.seamConnections,
       compiledSeams: compiled.seamConnections,
     })
-  }, [params.assemblyConnections, params.pieceInterfaces, params.seamConnections])
+    // Reconcile on read rather than rewriting the document: a seam authored
+    // before a fillet or a path reversal still names its boundary shape, so the
+    // stale index can be re-derived every time the geometry is walked. Repairing
+    // in place would mean mutating the document on render.
+    const reconciled = reconcileSeamConnections({
+      seamConnections: merged,
+      patternPieces: params.patternPieces,
+      chainsByShapeId: resolvePatternPieceChains(params.shapesIn3dView, params.lineTypes).byShapeId,
+    })
+    return {
+      effectiveSeamConnections: reconciled.connections,
+      repairedSeamIds: reconciled.repairedSeamIds,
+    }
+  }, [
+    params.assemblyConnections,
+    params.lineTypes,
+    params.patternPieces,
+    params.pieceInterfaces,
+    params.seamConnections,
+    params.shapesIn3dView,
+  ])
 
   const explicitSeams = useMemo(
     () => compileExplicitSeams({ pieceMeshes, seamConnections: effectiveSeamConnections }),
@@ -78,6 +102,7 @@ export function useThreeAssemblyModel(params: {
   return {
     pieceMeshes,
     effectiveSeamConnections,
+    repairedSeamIds,
     explicitSeams,
     assemblyDiagnostics,
   }

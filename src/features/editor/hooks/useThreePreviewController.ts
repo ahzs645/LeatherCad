@@ -224,6 +224,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     outlinePolygons,
     shapesIn3dView,
     layersFor3d,
+    lineTypes,
     threePreviewSettings,
   })
 

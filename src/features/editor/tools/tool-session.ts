@@ -1,17 +1,21 @@
 import type { Point, Tool } from '../cad/cad-types'
+import { EMPTY_SEAM_TOOL_STATE, type SeamToolState } from './seam-tool-state'
 
+/** @deprecated Kept for callers written against the single-edge seam tool. */
 export type PendingSeamSelection = {
   pieceId: string
   pieceName: string
   edgeIndex: number
 }
 
+export const SEAM_TOOLS: readonly Tool[] = ['seam', 'seam-multi']
+
 export interface EditorToolSession {
   getReferencePoint(): Point
   setReferencePoint(point: Point): void
-  getPendingSeamSelection(): PendingSeamSelection | null
-  setPendingSeamSelection(selection: PendingSeamSelection): void
-  clearPendingSeamSelection(): void
+  getSeamToolState(): SeamToolState
+  setSeamToolState(state: SeamToolState): void
+  clearSeamToolState(): void
   resetForTool(nextTool?: Tool): void
 }
 
@@ -19,7 +23,7 @@ const DEFAULT_REFERENCE_POINT: Point = { x: 0, y: 0 }
 
 export class DefaultEditorToolSession implements EditorToolSession {
   private referencePoint: Point = DEFAULT_REFERENCE_POINT
-  private pendingSeamSelection: PendingSeamSelection | null = null
+  private seamToolState: SeamToolState = EMPTY_SEAM_TOOL_STATE
 
   getReferencePoint() {
     return this.referencePoint
@@ -29,21 +33,24 @@ export class DefaultEditorToolSession implements EditorToolSession {
     this.referencePoint = point
   }
 
-  getPendingSeamSelection() {
-    return this.pendingSeamSelection
+  getSeamToolState() {
+    return this.seamToolState
   }
 
-  setPendingSeamSelection(selection: PendingSeamSelection) {
-    this.pendingSeamSelection = selection
+  setSeamToolState(state: SeamToolState) {
+    this.seamToolState = state
   }
 
-  clearPendingSeamSelection() {
-    this.pendingSeamSelection = null
+  clearSeamToolState() {
+    this.seamToolState = EMPTY_SEAM_TOOL_STATE
   }
 
   resetForTool(nextTool?: Tool) {
-    if (nextTool !== 'seam') {
-      this.pendingSeamSelection = null
+    // Switching between the single and multi seam tools keeps the in-progress
+    // picks, so a selection can be widened without starting over. Leaving the
+    // seam tools entirely discards it.
+    if (!nextTool || !SEAM_TOOLS.includes(nextTool)) {
+      this.seamToolState = EMPTY_SEAM_TOOL_STATE
     }
   }
 }

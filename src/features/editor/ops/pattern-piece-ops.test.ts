@@ -194,6 +194,7 @@ describe('buildPieceDerivedLabels', () => {
         { x: 0, y: 20 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 800,
     }
@@ -222,6 +223,7 @@ describe('buildPatternPieceSeamPath', () => {
         { x: 0, y: 10 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 200,
     }
@@ -266,6 +268,7 @@ describe('buildPieceDerivedNotches', () => {
         { x: 0, y: 10 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 200,
     }
@@ -344,6 +347,7 @@ describe('buildPieceDerivedPlacementGuides', () => {
         { x: 0, y: 10 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 200,
     }
@@ -420,6 +424,7 @@ describe('findNearestPatternPieceEdge', () => {
       { x: 0, y: 60 },
       { x: 0, y: 0 },
     ],
+    segments: [],
     isClosed: true,
     area: 6000,
   }
