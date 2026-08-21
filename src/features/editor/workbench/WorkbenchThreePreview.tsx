@@ -134,6 +134,8 @@ export function WorkbenchThreePreviewInspector({
     piecePlacementById,
     updatePlacement,
     assemblyAngleDeg,
+    seamSewPlan,
+    sewProgress,
     seamPlacementStatus,
     handleSolvePlacementFromSeams: onSolvePlacementFromSeams,
     handleSetAssemblyAngle: onSetAssemblyAngle,
@@ -597,6 +599,81 @@ export function WorkbenchThreePreviewInspector({
                 <button onClick={() => onSolvePlacementFromSeams()}>Solve From Seams</button>
               </div>
               {seamPlacementStatus ? <p className="hint">{seamPlacementStatus}</p> : null}
+            </div>
+
+            <div className="fold-control-card">
+              <strong>Sew order</strong>
+              {seamSewPlan.stitchCount === 0 ? (
+                <p className="hint">
+                  No sewn seams to walk yet. Seams marked aligned carry no stitches; use the seam
+                  tool to sew two edges together.
+                </p>
+              ) : (
+                <>
+                  <p className="hint">
+                    Walks the seams in the order they are sewn. Drag back and the project comes
+                    apart seam by seam; drag forward and it closes again.
+                  </p>
+                  <label className="field-row">
+                    <span>Sewn up to</span>
+                    <input
+                      aria-label="Sewn up to stitch"
+                      type="range"
+                      min={0}
+                      max={seamSewPlan.stitchCount}
+                      step={1}
+                      value={sewProgress.sewnStitchCount}
+                      onChange={(event) =>
+                        onSetThreePreviewSettings((previous) => ({
+                          ...previous,
+                          sewnStitchCount: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <p className="hint">
+                    {sewProgress.activeSeam
+                      ? `Stitch ${sewProgress.sewnStitchCount} of ${seamSewPlan.stitchCount} · sewing ${sewProgress.activeSeam.name}`
+                      : `Stitch ${sewProgress.sewnStitchCount} of ${seamSewPlan.stitchCount} · ${
+                          sewProgress.completedSeamIds.length === seamSewPlan.ranges.length
+                            ? 'all seams closed'
+                            : 'not started'
+                        }`}
+                  </p>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetThreePreviewSettings((previous) => ({ ...previous, sewnStitchCount: 0 }))
+                      }
+                    >
+                      Unsewn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetThreePreviewSettings((previous) => ({
+                          ...previous,
+                          sewnStitchCount: Math.round(seamSewPlan.stitchCount / 2),
+                        }))
+                      }
+                    >
+                      Half Sewn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetThreePreviewSettings((previous) => ({
+                          ...previous,
+                          sewnStitchCount: seamSewPlan.stitchCount,
+                        }))
+                      }
+                    >
+                      Fully Sewn
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             <details className="control-block inspector-disclosure">

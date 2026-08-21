@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resolveSeamSpans, seamsInSewOrder } from '../assembly/seam-spans'
+import { resolveConnectionSide } from '../assembly/seam-geometry'
 import { compileExplicitSeams } from '../assembly/seam-stitch-compiler'
 import { buildAssemblyDiagnostics } from '../assembly/assembly-diagnostics'
 import { resolvePatternPieceChains } from '../ops/pattern-piece-ops'
@@ -69,6 +70,26 @@ describe('seamed sample patterns', () => {
       for (const pair of compiled.pairs) {
         expect(pair.left.holes.length).toBe(pair.right.holes.length)
         expect(pair.left.holes.length).toBeGreaterThan(1)
+      }
+    }
+  })
+
+  it('matches the two sides of every seam in length, which is what the stress tint reads', () => {
+    for (const preset of SEAMED_PATTERN_PRESETS) {
+      const meshById = new Map(meshesFor(preset).map((mesh) => [mesh.pieceId, mesh]))
+
+      for (const seam of preset.doc.seamConnections ?? []) {
+        const from = resolveConnectionSide(meshById, seam, 'from')
+        const to = resolveConnectionSide(meshById, seam, 'to')
+        expect(from, `${preset.id} ${seam.id} from`).toBeTruthy()
+        expect(to, `${preset.id} ${seam.id} to`).toBeTruthy()
+        // The legacy single-edge refs name whole boundary shapes, so a seam
+        // authored as a portion of one — a 47mm pocket side against the lower
+        // 47mm of a 70mm panel side — reads 23mm out through them. These are the
+        // lengths that are really sewn together, and the assembled preview
+        // colours its seam guides from them. A round base samples into chords,
+        // which lose a tenth of a millimetre against the straight side.
+        expect(Math.abs(from!.lengthMm - to!.lengthMm), `${preset.id} ${seam.id}`).toBeLessThan(0.2)
       }
     }
   })

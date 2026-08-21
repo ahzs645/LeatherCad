@@ -8,6 +8,7 @@ import {
   InstancedMesh,
   Line,
   LineBasicMaterial,
+  LineSegments,
   LineDashedMaterial,
   MathUtils,
   Matrix4,
@@ -19,13 +20,16 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import type { PatternPiece, PiecePlacement3D, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import type { PatternPiece, PiecePlacement3D, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import { resolveConnectionSide, seamSideMidpoint } from '../assembly/seam-geometry'
 import { scoreSeamStress } from '../assembly/stress-score'
 import { createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
 import { addPanelOutline } from './outline-renderer'
+import { buildSeamSewPlan, connectionIdForPair, sewnFractionForSeam } from '../assembly/seam-sew-order'
+import type { StitchPair } from './final-product-types'
 import { buildThreadSegments, chainRunSegments } from './stitch-thread'
 
 const DEFAULT_THICKNESS_WORLD = 0.005
@@ -305,6 +309,43 @@ function edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number, transform:
   return edge ? edge.lengthMm * transform.scale : 0
 }
 
+/**
+ * Where one side of a seam actually sits, and how long it actually is.
+ *
+ * The guide and the stress tint used to read `connection.from` / `connection.to`
+ * — the legacy single-edge references, which name a whole boundary shape. A seam
+ * authored as a portion of one, such as a 47mm pocket side sewn to the lower
+ * 47mm of a 70mm panel side, then drew its guide between two points that are not
+ * on the seam, and compared 70mm against 47mm and painted a well-matched seam
+ * red. Resolving the side gives the span that is really sewn.
+ */
+function seamSideWorld(params: {
+  group: Group
+  piece: PieceMeshData
+  pieceMeshById: Map<string, PieceMeshData>
+  connection: SeamConnection
+  side: 'from' | 'to'
+  transform: ModelTransform
+}) {
+  const { group, piece, pieceMeshById, connection, side, transform } = params
+  const resolved = resolveConnectionSide(pieceMeshById, connection, side)
+  if (!resolved) {
+    const edgeIndex = connection[side].edgeIndex
+    const midpoint = edgeMidpointWorld(group, piece, edgeIndex, transform)
+    return midpoint ? { midpoint, lengthWorld: edgeLengthWorld(piece, edgeIndex, transform) } : null
+  }
+  const projected = projectPiecePoint(
+    seamSideMidpoint(resolved),
+    transform.scale,
+    transform.centerX,
+    transform.centerY,
+  )
+  return {
+    midpoint: flatToWorld(projected, 0).applyMatrix4(group.matrixWorld),
+    lengthWorld: resolved.lengthMm * transform.scale,
+  }
+}
+
 function seamColorForConnection(
   leftLength: number,
   rightLength: number,
@@ -341,11 +382,64 @@ function addSeamGuide(group: Group, from: Vector3, to: Vector3, color: Color, da
   group.add(line)
 }
 
+/**
+ * Draw a seam's stitching as links between the paired holes on its two sides,
+ * clipped to the portion sewn so far.
+ *
+ * The holes are compiled in the pieces' own flat coordinates, so each side is
+ * projected and then pushed through its piece group's world matrix — the pieces
+ * have moved by the time this runs.
+ */
+function addSeamStitching(
+  group: Group,
+  params: {
+    pairs: StitchPair[]
+    fromGroup: Group
+    toGroup: Group
+    transform: ModelTransform
+    color: Color
+    sewnFraction: number
+  },
+) {
+  const { pairs, fromGroup, toGroup, transform, color, sewnFraction } = params
+  if (pairs.length === 0 || sewnFraction <= 0) {
+    return
+  }
+
+  const points: Vector3[] = []
+  for (const pair of pairs) {
+    const count = Math.min(pair.left.holes.length, pair.right.holes.length)
+    const sewnCount = Math.max(1, Math.round(count * Math.min(sewnFraction, 1)))
+    for (let index = 0; index < sewnCount; index += 1) {
+      const left = flatToWorld(
+        projectPiecePoint(pair.left.holes[index].point, transform.scale, transform.centerX, transform.centerY),
+        0,
+      ).applyMatrix4(fromGroup.matrixWorld)
+      const right = flatToWorld(
+        projectPiecePoint(pair.right.holes[index].point, transform.scale, transform.centerX, transform.centerY),
+        0,
+      ).applyMatrix4(toGroup.matrixWorld)
+      points.push(left, right)
+    }
+  }
+  if (points.length === 0) {
+    return
+  }
+
+  group.add(
+    new LineSegments(
+      new BufferGeometry().setFromPoints(points),
+      new LineBasicMaterial({ color, transparent: true, opacity: 0.9 }),
+    ),
+  )
+}
+
 export function rebuildAssembledModel({
   layers,
   patternPieces,
   piecePlacements3d,
   seamConnections,
+  stitchPairs,
   stitchHoles,
   previewSettings,
   pieceMeshes,
@@ -404,6 +498,10 @@ export function rebuildAssembledModel({
     })
 
     if (previewSettings.showSeams) {
+      // Seams are laid end to end on one stitch axis, so a partly-sewn project
+      // shows its finished seams whole, the seam under the needle part-way, and
+      // the rest not yet joined.
+      const sewPlan = buildSeamSewPlan({ seamConnections, stitchPairs: stitchPairs ?? [] })
       for (const connection of seamConnections) {
         const fromGroup = pieceGroupById.get(connection.from.pieceId)
         const toGroup = pieceGroupById.get(connection.to.pieceId)
@@ -413,19 +511,31 @@ export function rebuildAssembledModel({
           continue
         }
 
-        const fromMid = edgeMidpointWorld(fromGroup, fromPiece, connection.from.edgeIndex, transform)
-        const toMid = edgeMidpointWorld(toGroup, toPiece, connection.to.edgeIndex, transform)
-        if (!fromMid || !toMid) {
+        const fromSide = seamSideWorld({ group: fromGroup, piece: fromPiece, pieceMeshById, connection, side: 'from', transform })
+        const toSide = seamSideWorld({ group: toGroup, piece: toPiece, pieceMeshById, connection, side: 'to', transform })
+        if (!fromSide || !toSide) {
+          continue
+        }
+        const sewnFraction = sewnFractionForSeam(sewPlan, connection.id, previewSettings.sewnStitchCount)
+        if (sewnFraction <= 0) {
           continue
         }
         const color = seamColorForConnection(
-          edgeLengthWorld(fromPiece, connection.from.edgeIndex, transform),
-          edgeLengthWorld(toPiece, connection.to.edgeIndex, transform),
-          fromMid.distanceTo(toMid),
+          fromSide.lengthWorld,
+          toSide.lengthWorld,
+          fromSide.midpoint.distanceTo(toSide.midpoint),
           previewSettings,
           (connection.toleranceMm ?? 1) * transform.scale,
         )
-        addSeamGuide(assembledGroup, fromMid, toMid, color, connection.kind !== 'aligned')
+        addSeamGuide(assembledGroup, fromSide.midpoint, toSide.midpoint, color, connection.kind !== 'aligned')
+        addSeamStitching(assembledGroup, {
+          pairs: (stitchPairs ?? []).filter((pair) => connectionIdForPair(pair) === connection.id),
+          fromGroup,
+          toGroup,
+          transform,
+          color,
+          sewnFraction,
+        })
       }
     }
   }

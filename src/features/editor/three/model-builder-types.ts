@@ -12,6 +12,7 @@ import type {
 } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
 import { ThreeFoldManager } from './fold-manager'
+import type { StitchPair } from './final-product-types'
 import type { OutlinePolygon } from './three-bridge-types'
 import type { Bounds2 } from './bridge/geometry-utils'
 
@@ -54,6 +55,8 @@ export type CommonRebuildParams = {
   patternPieces: PatternPiece[]
   piecePlacements3d: PiecePlacement3D[]
   seamConnections: SeamConnection[]
+  /** Compiled seam stitches, used to draw a seam closing one stitch at a time. */
+  stitchPairs?: StitchPair[]
   previewSettings: ThreePreviewSettings
   pieceMeshes: PieceMeshData[]
   transform: ModelTransform

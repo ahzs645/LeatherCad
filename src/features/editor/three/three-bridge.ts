@@ -16,7 +16,7 @@ import { ThreeAvatarManager } from './avatar-manager'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { ThreeFoldManager } from './fold-manager'
 import { rebuildFinalProductModel } from './final-product-model-builder'
-import type { FinalProductSolveResult } from './final-product-types'
+import type { FinalProductSolveResult, StitchPair } from './final-product-types'
 import {
   buildModelLayout,
   rebuildAssembledModel,
@@ -40,9 +40,31 @@ import type {
 
 export type { OutlinePolygon, ThreeBridgeDocument, ThreeBridgePresentationState, ThreeMaterialState } from './three-bridge-types'
 
-export function isOnlyFinalFoldProgressChange(previous: ThreePreviewSettings, next: ThreePreviewSettings) {
-  return JSON.stringify({ ...previous, finalFoldProgress: next.finalFoldProgress }) === JSON.stringify(next) &&
-    previous.finalFoldProgress !== next.finalFoldProgress
+/**
+ * Settings a timeline scrubber drives. These change on every frame of a drag, so
+ * refitting the camera for each one makes the model jump about while the maker
+ * is trying to watch one thing move.
+ */
+const SCRUB_SETTING_KEYS = ['finalFoldProgress', 'sewnStitchCount'] as const
+
+function withoutScrubSettings(settings: ThreePreviewSettings) {
+  const rest: Record<string, unknown> = {}
+  // Sorted so the comparison does not depend on the order the caller happened to
+  // build the object in.
+  for (const key of Object.keys(settings).sort()) {
+    if ((SCRUB_SETTING_KEYS as readonly string[]).includes(key)) {
+      continue
+    }
+    rest[key] = (settings as unknown as Record<string, unknown>)[key]
+  }
+  return JSON.stringify(rest)
+}
+
+export function isOnlyScrubChange(previous: ThreePreviewSettings, next: ThreePreviewSettings) {
+  return (
+    withoutScrubSettings(previous) === withoutScrubSettings(next) &&
+    SCRUB_SETTING_KEYS.some((key) => previous[key] !== next[key])
+  )
 }
 
 export class ThreeBridge {
@@ -70,6 +92,7 @@ export class ThreeBridge {
   private patternPieces: PatternPiece[] = []
   private piecePlacements3d: PiecePlacement3D[] = []
   private seamConnections: SeamConnection[] = []
+  private stitchPairs: StitchPair[] = []
   private avatars: AvatarSpec[] = []
   private threePreviewSettings: ThreePreviewSettings = {
     mode: 'fold',
@@ -190,6 +213,7 @@ export class ThreeBridge {
         patternPieces: this.patternPieces,
         piecePlacements3d: this.piecePlacements3d,
         seamConnections: this.seamConnections,
+        stitchPairs: this.stitchPairs,
         previewSettings: this.threePreviewSettings,
         pieceMeshes: this.pieceMeshes,
         transform: this.transform,
@@ -231,6 +255,7 @@ export class ThreeBridge {
         patternPieces: this.patternPieces,
         piecePlacements3d: this.piecePlacements3d,
         seamConnections: this.seamConnections,
+        stitchPairs: this.stitchPairs,
         previewSettings: this.threePreviewSettings,
         pieceMeshes: this.pieceMeshes,
         transform: this.transform,
@@ -327,6 +352,7 @@ export class ThreeBridge {
       document.seamConnections,
       this.threePreviewSettings,
       document.avatars,
+      document.stitchPairs ?? [],
     )
   }
 
@@ -359,7 +385,7 @@ export class ThreeBridge {
     }
 
     if (previewChanged) {
-      this.fitAfterRebuild = !previous || !isOnlyFinalFoldProgressChange(previous.previewSettings, next.previewSettings)
+      this.fitAfterRebuild = !previous || !isOnlyScrubChange(previous.previewSettings, next.previewSettings)
       try {
         this.threePreviewSettings = { ...next.previewSettings }
         this.rebuildModel()
@@ -411,6 +437,7 @@ export class ThreeBridge {
     seamConnections: SeamConnection[] = [],
     threePreviewSettings?: ThreePreviewSettings,
     avatars: AvatarSpec[] = [],
+    stitchPairs: StitchPair[] = [],
   ) {
     this.layers = [...layers]
     this.lineTypes = [...lineTypes]
@@ -421,6 +448,7 @@ export class ThreeBridge {
     this.patternPieces = [...patternPieces]
     this.piecePlacements3d = [...piecePlacements3d]
     this.seamConnections = [...seamConnections]
+    this.stitchPairs = [...stitchPairs]
     this.avatars = [...avatars]
     this.threePreviewSettings = threePreviewSettings ? { ...threePreviewSettings } : this.threePreviewSettings
     this.fitAfterRebuild = true

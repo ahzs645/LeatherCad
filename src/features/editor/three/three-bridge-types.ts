@@ -12,6 +12,7 @@ import type {
   ThreePreviewSettings,
 } from '../cad/cad-types'
 import type { OutlineChainSegment } from '../ops/outline-detection'
+import type { StitchPair } from './final-product-types'
 
 export type OutlinePolygon = {
   polygon: { x: number; y: number }[]
@@ -36,6 +37,11 @@ export type ThreeBridgeDocument = {
   patternPieces: PatternPiece[]
   piecePlacements3d: PiecePlacement3D[]
   seamConnections: SeamConnection[]
+  /**
+   * Compiled seam stitches. Carried on the document rather than recompiled in
+   * the bridge so the sew scrubber and the stitch chains agree on the count.
+   */
+  stitchPairs?: StitchPair[]
   avatars: AvatarSpec[]
 }
 

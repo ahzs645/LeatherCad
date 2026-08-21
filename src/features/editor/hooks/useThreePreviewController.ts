@@ -26,6 +26,7 @@ import { useEditorDocumentActions } from '../state/providers/EditorDocumentState
 import { useEditorToolSession } from '../state/providers/EditorToolSessionProvider'
 import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { applySeamPick, seamToolHint, type SeamPick } from '../tools/seam-tool-state'
+import { buildSeamSewPlan, resolveSewProgress } from '../assembly/seam-sew-order'
 import { withMirroredSingleRefs } from '../assembly/seam-spans'
 import { uid } from '../cad/cad-geometry'
 import type { FinalProductDiagnostic } from '../three/final-product-types'
@@ -344,6 +345,20 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     [selectedShapeIds, closedShapeIdSet],
   )
 
+  /**
+   * The seams laid end to end on one stitch axis, so the scrubber's range and
+   * its caption both come from the same place the renderer clips against.
+   */
+  const seamSewPlan = useMemo(
+    () => buildSeamSewPlan({ seamConnections: effectiveSeamConnections, stitchPairs: explicitSeams.pairs }),
+    [effectiveSeamConnections, explicitSeams],
+  )
+
+  const sewProgress = useMemo(
+    () => resolveSewProgress(seamSewPlan, threePreviewSettings.sewnStitchCount ?? seamSewPlan.stitchCount),
+    [seamSewPlan, threePreviewSettings.sewnStitchCount],
+  )
+
   const documentState = useMemo<ThreeBridgeDocument>(
     () => ({
       layers: layersFor3d,
@@ -356,6 +371,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       piecePlacements3d,
       seamConnections: effectiveSeamConnections,
       avatars,
+      stitchPairs: explicitSeams.pairs,
     }),
     [
       layersFor3d,
@@ -368,6 +384,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       piecePlacements3d,
       effectiveSeamConnections,
       avatars,
+      explicitSeams,
     ],
   )
 
@@ -841,6 +858,8 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     seamToolStatus,
     onViewportSeamPick: handleViewportSeamPick,
     assemblyAngleDeg,
+    seamSewPlan,
+    sewProgress,
     seamPlacementStatus,
     handleSolvePlacementFromSeams,
     handleSetAssemblyAngle,

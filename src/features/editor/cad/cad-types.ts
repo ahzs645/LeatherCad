@@ -390,6 +390,11 @@ export type ThreePreviewSettings = {
   showSeams: boolean
   showEdgeLabels: boolean
   showStressOverlay: boolean
+  /**
+   * Stitches sewn so far, along the axis `buildSeamSewPlan` lays the seams on.
+   * Undefined means the whole project is sewn, which is the resting state.
+   */
+  sewnStitchCount?: number
   usePhysicsRelaxation: boolean
   avatarId?: string
 }
