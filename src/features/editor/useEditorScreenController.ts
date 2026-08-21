@@ -44,6 +44,7 @@ import { useEditorRepositoryState } from './hooks/useEditorRepositoryState'
 import { useAiBuilderActions } from './hooks/useAiBuilderActions'
 import { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
 import { useWorkbenchShellState } from './workbench/useWorkbenchShellState'
+import type { SecondaryPreviewMode } from './workbench/workbench-types'
 import { useMobileWorkbenchRouteSync, useWorkbenchRouteSync } from './workbench/useWorkbenchRouteSync'
 import { usePatternPieceSelection } from './state/selectors/usePatternPieceSelection'
 import { usePatternPieceCommands } from './controllers/usePatternPieceCommands'
@@ -115,7 +116,7 @@ export function useEditorScreenController() {
     setShowMobileMenu,
     setMobileOptionsTab,
     workspaceMode, setWorkspaceMode,
-    secondaryPreviewMode, setSecondaryPreviewMode,
+    setSecondaryPreviewMode,
     mobileLayerAction,
     mobileFileAction,
     displayUnit,
@@ -219,9 +220,16 @@ export function useEditorScreenController() {
     viewport,
     setViewport,
   } = viewportState
+  // The workspace mode is the single source of truth for which surfaces show,
+  // now that one header control drives it. Deriving the secondary preview from
+  // it rather than storing it separately is what makes a /workbench/split deep
+  // link open with both lanes rather than only the one the mode names.
+  const derivedSecondaryPreviewMode: SecondaryPreviewMode =
+    uiState.workspaceMode === 'both' ? '3d-peek' : 'hidden'
   const workbenchShellState = useWorkbenchShellState({
     enabled: !isMobileLayout,
-    secondaryPreviewMode,
+    secondaryPreviewMode: derivedSecondaryPreviewMode,
+    evenSplit: uiState.workspaceMode === 'both',
     autoHideSidebar: panelState.autoHideSidebar,
     pinSideBar: uiState.pinSideBar,
   })

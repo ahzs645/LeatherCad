@@ -407,7 +407,9 @@ export function useEditorScreenWorkbenchModels({
     setWorkspaceMode,
     runPrecisionCommand: canvasController.runPrecisionCommand,
   })
-  const shouldLoadThreeWorkbench = workspaceMode === '3d'
+  // Any mode that shows the model needs the 3D lane loaded, not just the mode
+  // where it is the only surface.
+  const shouldLoadThreeWorkbench = workspaceMode !== '2d'
   const selectionInspectorProps = buildSelectionInspectorProps({
     context: workbenchController.selectionContext,
     selectedShapeCount,

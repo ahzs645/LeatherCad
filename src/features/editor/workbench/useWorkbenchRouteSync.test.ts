@@ -29,11 +29,11 @@ describe('buildWorkbenchWorkspacePath', () => {
 
 describe('buildWorkbenchRoutePath', () => {
   it('builds the split route on the root base path', () => {
-    expect(buildWorkbenchRoutePath('split', '/')).toBe('/workbench/split')
+    expect(buildWorkbenchRoutePath('both', '/')).toBe('/workbench/split')
   })
 
   it('builds the split route on a nested base path', () => {
-    expect(buildWorkbenchRoutePath('split', '/leathercad/')).toBe('/leathercad/workbench/split')
+    expect(buildWorkbenchRoutePath('both', '/leathercad/')).toBe('/leathercad/workbench/split')
   })
 })
 
@@ -41,8 +41,8 @@ describe('resolveWorkbenchRouteMode', () => {
   it('detects every workspace route', () => {
     expect(resolveWorkbenchRouteMode('/', '/')).toBe('2d')
     expect(resolveWorkbenchRouteMode('/workbench/3d', '/')).toBe('3d')
-    expect(resolveWorkbenchRouteMode('/workbench/split', '/')).toBe('split')
-    expect(resolveWorkbenchRouteMode('/leathercad/workbench/split', '/leathercad/')).toBe('split')
+    expect(resolveWorkbenchRouteMode('/workbench/split', '/')).toBe('both')
+    expect(resolveWorkbenchRouteMode('/leathercad/workbench/split', '/leathercad/')).toBe('both')
   })
 
   it('falls back to 2d for unknown routes', () => {
@@ -61,8 +61,10 @@ describe('resolveWorkbenchWorkspaceMode', () => {
     expect(resolveWorkbenchWorkspaceMode('/leathercad', '/leathercad/')).toBe('2d')
   })
 
-  it('degrades the mobile split route to the 3d workspace', () => {
-    expect(resolveWorkbenchWorkspaceMode('/workbench/split', '/')).toBe('3d')
+  it('opens the split route as the side-by-side workspace', () => {
+    // It used to degrade to the 3D workspace, because desktop had no mode that
+    // showed both surfaces.
+    expect(resolveWorkbenchWorkspaceMode('/workbench/split', '/')).toBe('both')
   })
 })
 
@@ -169,12 +171,12 @@ describe('useWorkbenchRouteSync route writes', () => {
     expect(window.location.pathname).toBe('/workbench/3d')
   })
 
-  it('normalizes a mobile split deep link to the 3d workspace on desktop', () => {
+  it('honours a split deep link on desktop instead of rewriting it', () => {
     window.history.pushState(null, '', '/workbench/split')
     lastRender = renderForTest(createElement(Harness, { initialMode: '2d' }))
 
-    expect(readAttribute(lastRender, 'data-workspace-mode')).toBe('3d')
-    expect(window.location.pathname).toBe('/workbench/3d')
+    expect(readAttribute(lastRender, 'data-workspace-mode')).toBe('both')
+    expect(window.location.pathname).toBe('/workbench/split')
   })
 
   it('reconciles the workspace mode on browser history navigation', () => {

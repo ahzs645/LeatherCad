@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ThemeMode } from '../editor-types'
-import type { QuickAction, SecondaryPreviewMode, WorkspaceMode, WorkbenchRibbonTab } from './workbench-types'
+import type { QuickAction, WorkspaceMode, WorkbenchRibbonTab } from './workbench-types'
 import { WorkbenchIcon } from './workbench-icons'
-import { resolvePeekIcon, resolveQuickActionIcon } from './workbench-icon-resolvers'
+import { resolveQuickActionIcon } from './workbench-icon-resolvers'
 
 type WorkbenchHeaderProps = {
   docLabel: string
   quickActions: QuickAction[]
   workspaceMode: WorkspaceMode
-  secondaryPreviewMode: SecondaryPreviewMode
   activeRibbonTab: WorkbenchRibbonTab
   themeMode: ThemeMode
   onInvokeQuickAction: (actionId: string) => void
   onSetRibbonTab: (tab: WorkbenchRibbonTab) => void
   onSetWorkspaceMode: (mode: WorkspaceMode) => void
   onSetThemeMode: (mode: ThemeMode) => void
-  onTogglePeek: () => void
 }
 
 const TABS: Array<{ id: WorkbenchRibbonTab; label: string }> = [
@@ -66,28 +64,26 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
   )
 }
 
+const WORKSPACE_MODES: Array<{ mode: WorkspaceMode; label: string; title: string }> = [
+  { mode: '2d', label: '2D Draft', title: 'The flat pattern on its own' },
+  { mode: 'both', label: 'Both', title: 'Flat pattern and model side by side' },
+  { mode: '3d', label: '3D Assembly', title: 'The assembled model on its own' },
+]
+
 export function WorkbenchHeader({
   docLabel,
   quickActions,
   workspaceMode,
-  secondaryPreviewMode,
   activeRibbonTab,
   themeMode,
   onInvokeQuickAction,
   onSetRibbonTab,
   onSetWorkspaceMode,
   onSetThemeMode,
-  onTogglePeek,
 }: WorkbenchHeaderProps) {
   const [showThemeMenu, setShowThemeMenu] = useState(false)
   const themeMenuRef = useRef<HTMLDivElement>(null)
   const themeButtonRef = useRef<HTMLButtonElement>(null)
-  const peekLabel =
-    workspaceMode === '2d'
-      ? 'Open 3D Workspace'
-      : secondaryPreviewMode === 'hidden'
-        ? 'Peek 2D'
-      : 'Hide Peek'
   const currentThemeLabel = THEME_OPTIONS.find((option) => option.mode === themeMode)?.label ?? 'Theme mode'
 
   useEffect(() => {
@@ -154,25 +150,24 @@ export function WorkbenchHeader({
           ))}
         </div>
 
+        {/* One control for which surfaces are showing. There used to be this
+            toggle *and* a separate Open 3D Workspace / Peek 2D button doing the
+            same job from the other end, which left no single place to read the
+            current state from. */}
         <div className="workbench-mode-toggle" role="group" aria-label="Workspace mode">
-          <button
-            type="button"
-            className={workspaceMode === '2d' ? 'active' : ''}
-            data-testid="workspace-mode-2d"
-            aria-pressed={workspaceMode === '2d'}
-            onClick={() => onSetWorkspaceMode('2d')}
-          >
-            2D Draft
-          </button>
-          <button
-            type="button"
-            className={workspaceMode === '3d' ? 'active' : ''}
-            data-testid="workspace-mode-3d"
-            aria-pressed={workspaceMode === '3d'}
-            onClick={() => onSetWorkspaceMode('3d')}
-          >
-            3D Assembly
-          </button>
+          {WORKSPACE_MODES.map((option) => (
+            <button
+              key={option.mode}
+              type="button"
+              className={workspaceMode === option.mode ? 'active' : ''}
+              data-testid={`workspace-mode-${option.mode}`}
+              aria-pressed={workspaceMode === option.mode}
+              title={option.title}
+              onClick={() => onSetWorkspaceMode(option.mode)}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
 
         <div className="workbench-theme-menu">
@@ -211,10 +206,6 @@ export function WorkbenchHeader({
           )}
         </div>
 
-        <button type="button" className="workbench-peek-toggle" data-testid="workbench-peek-toggle" onClick={onTogglePeek}>
-          <WorkbenchIcon name={resolvePeekIcon(secondaryPreviewMode)} />
-          <span>{peekLabel}</span>
-        </button>
       </div>
     </header>
   )

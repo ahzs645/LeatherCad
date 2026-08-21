@@ -13,6 +13,13 @@ const MIN_INSPECTOR_WIDTH = 300
 const MAX_INSPECTOR_WIDTH = 420
 const MIN_PEEK_WIDTH = 300
 const MAX_PEEK_WIDTH = 420
+/**
+ * In `both` mode the second surface is a co-equal lane rather than a peek, so
+ * it may take most of the workspace and is not gated on a wide shell.
+ */
+const MIN_SPLIT_PEEK_WIDTH = 320
+const MAX_SPLIT_PEEK_WIDTH = 1400
+const SPLIT_PEEK_BREAKPOINT = 1000
 const MIN_MAIN_WIDTH = 460
 const TOOL_RAIL_WIDTH = 58
 const SPLITTER_WIDTH = 10
@@ -23,6 +30,7 @@ const DEFAULT_LAYOUT: DockLayoutState = {
   browserWidth: 260,
   inspectorWidth: 340,
   peekWidth: 360,
+  splitWidth: null,
   activeInspectorTab: 'inspect',
   inspectorOpen: true,
 }
@@ -45,6 +53,7 @@ function readStoredLayout(): DockLayoutState {
       browserWidth: typeof parsed.browserWidth === 'number' ? parsed.browserWidth : DEFAULT_LAYOUT.browserWidth,
       inspectorWidth: typeof parsed.inspectorWidth === 'number' ? parsed.inspectorWidth : DEFAULT_LAYOUT.inspectorWidth,
       peekWidth: typeof parsed.peekWidth === 'number' ? parsed.peekWidth : DEFAULT_LAYOUT.peekWidth,
+      splitWidth: typeof parsed.splitWidth === 'number' ? parsed.splitWidth : null,
       activeInspectorTab:
         parsed.activeInspectorTab === 'piece' ||
         parsed.activeInspectorTab === 'preview3d' ||
@@ -62,10 +71,13 @@ export function clampDockLayoutState(
   layout: DockLayoutState,
   shellWidth: number,
   showPeek: boolean,
+  evenSplit = false,
 ): DockLayoutState {
+  const minPeek = evenSplit ? MIN_SPLIT_PEEK_WIDTH : MIN_PEEK_WIDTH
+  const maxPeek = evenSplit ? MAX_SPLIT_PEEK_WIDTH : MAX_PEEK_WIDTH
   let browserWidth = clamp(layout.browserWidth, MIN_BROWSER_WIDTH, MAX_BROWSER_WIDTH)
   let inspectorWidth = clamp(layout.inspectorWidth, MIN_INSPECTOR_WIDTH, MAX_INSPECTOR_WIDTH)
-  let peekWidth = clamp(layout.peekWidth, MIN_PEEK_WIDTH, MAX_PEEK_WIDTH)
+  let peekWidth = clamp(evenSplit ? (layout.splitWidth ?? minPeek) : layout.peekWidth, minPeek, maxPeek)
   const showInspector = layout.inspectorOpen
 
   if (shellWidth <= 0) {
@@ -89,7 +101,7 @@ export function clampDockLayoutState(
     let overflow = totalPanelWidth - maxPanelWidth
 
     if (overflow > 0 && showPeek) {
-      const nextPeekWidth = Math.max(MIN_PEEK_WIDTH, peekWidth - overflow)
+      const nextPeekWidth = Math.max(minPeek, peekWidth - overflow)
       overflow -= peekWidth - nextPeekWidth
       peekWidth = nextPeekWidth
     }
@@ -105,7 +117,7 @@ export function clampDockLayoutState(
     }
     totalPanelWidth = browserWidth + (showInspector ? inspectorWidth : 0) + (showPeek ? peekWidth : 0)
     if (totalPanelWidth > maxPanelWidth && showPeek) {
-      peekWidth = Math.max(MIN_PEEK_WIDTH, maxPanelWidth - browserWidth - (showInspector ? inspectorWidth : 0))
+      peekWidth = Math.max(minPeek, maxPanelWidth - browserWidth - (showInspector ? inspectorWidth : 0))
     }
   }
 
@@ -120,40 +132,57 @@ export function clampDockLayoutState(
 type UseWorkbenchShellStateParams = {
   enabled: boolean
   secondaryPreviewMode: SecondaryPreviewMode
+  /** `both` mode: the second surface is a lane, not a peek. */
+  evenSplit?: boolean
   autoHideSidebar?: boolean
   /** Source-app `chkPinSideBar` — when true, force inspector to stay open. */
   pinSideBar?: boolean
 }
 
 export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
-  const { enabled, secondaryPreviewMode, autoHideSidebar = false, pinSideBar = false } = params
-  const shellRef = useRef<HTMLElement | null>(null)
+  const { enabled, secondaryPreviewMode, evenSplit = false, autoHideSidebar = false, pinSideBar = false } = params
+  // A callback ref rather than a plain one, so the resize observer re-binds when
+  // the shell element is replaced — which happens when a lazily-loaded surface
+  // suspends and resolves. An observer left watching the detached node reports
+  // nothing, which reads as a zero-width shell and folds the second lane away.
+  const shellNodeRef = useRef<HTMLElement | null>(null)
+  const [shellNode, setShellNode] = useState<HTMLElement | null>(null)
+  const shellRef = useCallback((node: HTMLElement | null) => {
+    shellNodeRef.current = node
+    setShellNode(node)
+  }, [])
   const [shellWidth, setShellWidth] = useState(0)
   const [dockLayout, setDockLayout] = useState<DockLayoutState>(() => readStoredLayout())
   const [isResizing, setIsResizing] = useState(false)
 
+  // A peek is a luxury and folds away on a narrow shell; an even split is the
+  // point of the mode, so it survives down to a much lower width.
+  const peekBreakpoint = evenSplit ? SPLIT_PEEK_BREAKPOINT : AUTO_HIDE_PEEK_BREAKPOINT
   const effectiveSecondaryPreviewMode: SecondaryPreviewMode =
-    secondaryPreviewMode !== 'hidden' && shellWidth >= AUTO_HIDE_PEEK_BREAKPOINT
+    secondaryPreviewMode !== 'hidden' && shellWidth >= peekBreakpoint
       ? secondaryPreviewMode
       : 'hidden'
   const showPeek = enabled && effectiveSecondaryPreviewMode !== 'hidden'
 
+  // Re-bind whenever the observed element changes, not only when `enabled`
+  // does. The shell element is replaced when a lazy surface suspends and
+  // resolves, and an observer left watching the detached node reports nothing —
+  // which reads as a zero-width shell and folds the second lane away.
   useEffect(() => {
-    if (!enabled) {
-      return
-    }
-    const node = shellRef.current
+    const node = enabled ? shellNode : null
     if (!node) {
+      // No shell to measure. The last width stands, which is harmless: every
+      // consumer of it is behind `enabled`.
       return
     }
+    // observe() delivers an initial callback with the current size, so there is
+    // no need to seed the width synchronously.
     const observer = new ResizeObserver((entries) => {
-      const nextWidth = Math.round(entries[0]?.contentRect.width ?? node.clientWidth)
-      setShellWidth(nextWidth)
+      setShellWidth(Math.round(entries[0]?.contentRect.width ?? node.clientWidth))
     })
     observer.observe(node)
-    setShellWidth(node.clientWidth)
     return () => observer.disconnect()
-  }, [enabled])
+  }, [enabled, shellNode])
 
   const layoutForAutoHide: DockLayoutState = useMemo(() => {
     if (pinSideBar && !dockLayout.inspectorOpen) {
@@ -165,10 +194,26 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
     return dockLayout
   }, [autoHideSidebar, pinSideBar, dockLayout])
 
-  const effectiveLayout = useMemo(
-    () => clampDockLayoutState(layoutForAutoHide, shellWidth, showPeek),
-    [layoutForAutoHide, shellWidth, showPeek],
-  )
+  const effectiveLayout = useMemo(() => {
+    // An even split the user has not sized yet starts at half the space the two
+    // surfaces share. Borrowing the peek's remembered width would open it as a
+    // sliver, which is the arrangement `both` exists to avoid.
+    const seeded =
+      evenSplit && layoutForAutoHide.splitWidth === null && shellWidth > 0
+        ? {
+            ...layoutForAutoHide,
+            splitWidth: Math.round(
+              (shellWidth -
+                TOOL_RAIL_WIDTH -
+                layoutForAutoHide.browserWidth -
+                (layoutForAutoHide.inspectorOpen ? layoutForAutoHide.inspectorWidth : INSPECTOR_RESTORE_WIDTH) -
+                2 * SPLITTER_WIDTH) /
+                2,
+            ),
+          }
+        : layoutForAutoHide
+    return clampDockLayoutState(seeded, shellWidth, showPeek, evenSplit)
+  }, [evenSplit, layoutForAutoHide, shellWidth, showPeek])
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -196,7 +241,7 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
       event: ReactPointerEvent<HTMLDivElement>,
       update: (clientX: number, rect: DOMRect, layout: DockLayoutState) => DockLayoutState,
     ) => {
-      const node = shellRef.current
+      const node = shellNodeRef.current
       if (!enabled || !node) {
         return
       }
@@ -250,10 +295,14 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
         const inspectorLeft = rect.right - currentLayout.inspectorWidth - SPLITTER_WIDTH
         return {
           ...previous,
-          peekWidth: clamp(inspectorLeft - clientX, MIN_PEEK_WIDTH, MAX_PEEK_WIDTH),
+          ...(evenSplit
+            ? { splitWidth: clamp(inspectorLeft - clientX, MIN_SPLIT_PEEK_WIDTH, MAX_SPLIT_PEEK_WIDTH) }
+            : { peekWidth: clamp(inspectorLeft - clientX, MIN_PEEK_WIDTH, MAX_PEEK_WIDTH) }),
         }
       }),
-    [startResize],
+    // evenSplit decides which width the drag writes, so a stale capture would
+    // resize the wrong one after a mode change.
+    [evenSplit, startResize],
   )
 
   const setActiveInspectorTab = useCallback((tab: WorkbenchInspectorTab) => {

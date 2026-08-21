@@ -14,6 +14,7 @@ describe('clampDockLayoutState', () => {
           browserWidth: 360,
           inspectorWidth: 420,
           peekWidth: 420,
+          splitWidth: null,
           activeInspectorTab: 'inspect',
           inspectorOpen: true,
         },
@@ -24,6 +25,7 @@ describe('clampDockLayoutState', () => {
       browserWidth: 220,
       inspectorWidth: 300,
       peekWidth: 300,
+      splitWidth: null,
       activeInspectorTab: 'inspect',
       inspectorOpen: true,
     })
@@ -36,6 +38,7 @@ describe('clampDockLayoutState', () => {
           browserWidth: 360,
           inspectorWidth: 420,
           peekWidth: 420,
+          splitWidth: null,
           activeInspectorTab: 'inspect',
           inspectorOpen: false,
         },
@@ -46,6 +49,7 @@ describe('clampDockLayoutState', () => {
       browserWidth: 318,
       inspectorWidth: 420,
       peekWidth: 300,
+      splitWidth: null,
       activeInspectorTab: 'inspect',
       inspectorOpen: false,
     })

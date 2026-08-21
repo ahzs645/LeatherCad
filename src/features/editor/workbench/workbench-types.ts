@@ -16,7 +16,13 @@ import type {
 } from '../cad/cad-types'
 
 export type WorkbenchRibbonTab = 'draft' | 'modify' | 'piece' | 'stitch' | 'output'
-export type WorkspaceMode = '2d' | '3d'
+/**
+ * Which surfaces the workspace shows. `both` puts the flat canvas and the model
+ * side by side as co-equal lanes — the arrangement Seamer Studio defaults to,
+ * and the one that makes a seam legible: you pick an edge on one side and watch
+ * it close on the other.
+ */
+export type WorkspaceMode = '2d' | 'both' | '3d'
 export type SecondaryPreviewMode = 'hidden' | '2d-peek' | '3d-peek'
 export type WorkbenchInspectorTab = 'inspect' | 'piece' | 'preview3d' | 'document'
 export type WorkbenchIconName =
@@ -77,7 +83,14 @@ export type WorkbenchIconName =
 export type DockLayoutState = {
   browserWidth: number
   inspectorWidth: number
+  /** Width of the second surface as a peek beside a full-width primary. */
   peekWidth: number
+  /**
+   * Width of the second surface in `both` mode, where it is a co-equal lane.
+   * Held apart from `peekWidth` so the two arrangements remember their own
+   * proportions; null means "not chosen yet", which seeds an even split.
+   */
+  splitWidth: number | null
   activeInspectorTab: WorkbenchInspectorTab
   inspectorOpen: boolean
 }

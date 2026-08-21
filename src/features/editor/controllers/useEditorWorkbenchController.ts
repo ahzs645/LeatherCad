@@ -22,7 +22,7 @@ import {
   useQuickActions,
   useRibbonModel,
 } from '../workbench/workbench-hooks'
-import type { DocumentBrowserNode, WorkbenchRibbonTab } from '../workbench/workbench-types'
+import type { DocumentBrowserNode, WorkbenchRibbonTab, WorkspaceMode } from '../workbench/workbench-types'
 import { resolveSeamSpans } from '../assembly/seam-spans'
 import {
   useEditorSelectionActions,
@@ -59,7 +59,7 @@ type UseEditorWorkbenchControllerParams = {
   workbenchRibbonTab: WorkbenchRibbonTab
   setActiveInspectorTab: (tab: 'inspect' | 'piece' | 'preview3d' | 'document') => void
   isMobileLayout: boolean
-  workspaceMode: '2d' | '3d'
+  workspaceMode: WorkspaceMode
   handleSaveJson: () => void
   handleUndo: () => void
   handleRedo: () => void
@@ -127,7 +127,7 @@ type UseEditorWorkbenchControllerParams = {
   setLayers: React.Dispatch<React.SetStateAction<Layer[]>>
   setTracingOverlays: React.Dispatch<React.SetStateAction<TracingOverlay[]>>
   setSecondaryPreviewMode: React.Dispatch<React.SetStateAction<'hidden' | '2d-peek' | '3d-peek'>>
-  setWorkspaceMode: React.Dispatch<React.SetStateAction<'2d' | '3d'>>
+  setWorkspaceMode: React.Dispatch<React.SetStateAction<WorkspaceMode>>
   runPrecisionCommand: (command: string) => string
 }
 
@@ -700,8 +700,19 @@ export function useEditorWorkbenchController({
     })
   }
 
-  const handleSetWorkbenchMode = (mode: '2d' | '3d') => {
+  /**
+   * One control drives both which surface is primary and whether the other is
+   * showing, so the header no longer needs a mode toggle and a separate peek
+   * button that overlap.
+   */
+  const handleSetWorkbenchMode = (mode: WorkspaceMode) => {
     setWorkspaceMode(mode)
+    if (mode === 'both') {
+      // 2D leads and the model rides alongside, which is the reading order for
+      // drafting: draw on the flat, watch it close on the model.
+      setSecondaryPreviewMode('3d-peek')
+      return
+    }
     setSecondaryPreviewMode(mode === '3d' ? '2d-peek' : 'hidden')
   }
 

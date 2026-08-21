@@ -21,7 +21,7 @@ afterEach(() => {
 
 function createHarnessElement() {
   function Harness() {
-    const shellRef = { current: null as HTMLElement | null }
+    const shellRef = () => undefined
     const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('2d')
     const [secondaryPreviewMode, setSecondaryPreviewMode] = useState<SecondaryPreviewMode>('3d-peek')
     const [activeRibbonTab, setActiveRibbonTab] = useState<WorkbenchRibbonTab>('draft')
@@ -110,15 +110,6 @@ function createHarnessElement() {
       })
     }
 
-    const handleTogglePeek = () => {
-      setSecondaryPreviewMode((previous) => {
-        if (previous === 'hidden') {
-          return workspaceMode === '2d' ? '3d-peek' : '2d-peek'
-        }
-        return 'hidden'
-      })
-    }
-
     return createElement(
       'div',
       null,
@@ -138,7 +129,6 @@ function createHarnessElement() {
         quickActions: [{ id: 'save-json', label: 'Save' }],
         onInvokeQuickAction: () => undefined,
         onSetWorkspaceMode: handleSetWorkspaceMode,
-        onTogglePeek: handleTogglePeek,
         activeRibbonTab,
         themeMode: 'light',
         ribbonGroups,
