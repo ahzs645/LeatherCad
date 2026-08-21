@@ -154,6 +154,12 @@ export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): Three
     showEdgeLabels: value.showEdgeLabels === true,
     showStressOverlay: value.showStressOverlay !== false,
     usePhysicsRelaxation: value.usePhysicsRelaxation !== false,
+    // Left undefined rather than defaulted: no sew scrubber in play means the
+    // whole project reads as sewn, which is what a saved document should show.
+    sewnStitchCount:
+      typeof value.sewnStitchCount === 'number' && Number.isFinite(value.sewnStitchCount)
+        ? Math.max(0, Math.round(value.sewnStitchCount))
+        : undefined,
     avatarId: typeof value.avatarId === 'string' && value.avatarId.trim().length > 0 ? value.avatarId.trim() : undefined,
   }
 }
@@ -178,6 +184,7 @@ export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings 
     showEdgeLabels: candidate.showEdgeLabels === true,
     showStressOverlay: candidate.showStressOverlay !== false,
     usePhysicsRelaxation: candidate.usePhysicsRelaxation !== false,
+    sewnStitchCount: typeof candidate.sewnStitchCount === 'number' ? candidate.sewnStitchCount : undefined,
     avatarId: typeof candidate.avatarId === 'string' ? candidate.avatarId : undefined,
   })
 }

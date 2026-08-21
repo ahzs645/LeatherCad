@@ -6,6 +6,7 @@ import {
   buildPieceDerivedNotches,
   buildPieceDerivedPlacementGuides,
   clonePatternPieceSelection,
+  findNearestPatternPieceEdge,
   migrateLegacySeamAllowances,
 } from './pattern-piece-ops'
 import type { OutlineChain } from './outline-detection'
@@ -193,6 +194,7 @@ describe('buildPieceDerivedLabels', () => {
         { x: 0, y: 20 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 800,
     }
@@ -221,6 +223,7 @@ describe('buildPatternPieceSeamPath', () => {
         { x: 0, y: 10 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 200,
     }
@@ -265,6 +268,7 @@ describe('buildPieceDerivedNotches', () => {
         { x: 0, y: 10 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 200,
     }
@@ -343,6 +347,7 @@ describe('buildPieceDerivedPlacementGuides', () => {
         { x: 0, y: 10 },
         { x: 0, y: 0 },
       ],
+      segments: [],
       isClosed: true,
       area: 200,
     }
@@ -404,5 +409,69 @@ describe('buildPieceDerivedPlacementGuides', () => {
     expect(guide.point.x).not.toBeCloseTo(boundaryGuide.point.x, 4)
     expect(guide.point.y).not.toBeCloseTo(boundaryGuide.point.y, 4)
     expect(Number.isFinite(guide.rotationDeg)).toBe(true)
+  })
+})
+
+
+describe('findNearestPatternPieceEdge', () => {
+  const chain: OutlineChain = {
+    id: 'chain-1',
+    shapeIds: ['shape-1'],
+    polygon: [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 60 },
+      { x: 0, y: 60 },
+      { x: 0, y: 0 },
+    ],
+    segments: [],
+    isClosed: true,
+    area: 6000,
+  }
+  const piece = {
+    id: 'piece-1',
+    name: 'Panel',
+    boundaryShapeId: 'shape-1',
+    internalShapeIds: [],
+    layerId: 'layer-1',
+    quantity: 1,
+    onFold: false,
+    orientation: 'any',
+    allowFlip: true,
+    includeInLayout: true,
+    locked: false,
+  } as PatternPiece
+  const chains = new Map<string, OutlineChain>([['shape-1', chain]])
+
+  it('finds the edge the click is nearest to, with its parameter along that edge', () => {
+    const hit = findNearestPatternPieceEdge({ x: 75, y: 2 }, [piece], chains)
+
+    expect(hit?.edgeIndex).toBe(0)
+    expect(hit?.t).toBeCloseTo(0.75, 5)
+  })
+
+  it('measures the pick radius in screen pixels, not document units', () => {
+    const point = { x: 50, y: 20 }
+
+    // 20 document units away from edge 0. At 1x that is 20px — outside the
+    // 12px radius. Zoomed to 2x it is 40px away, so it stays out of reach;
+    // zoomed to 0.25x it is 5px away and becomes a legitimate hit.
+    expect(findNearestPatternPieceEdge(point, [piece], chains, { viewportScale: 1 })).toBeNull()
+    expect(findNearestPatternPieceEdge(point, [piece], chains, { viewportScale: 2 })).toBeNull()
+    expect(findNearestPatternPieceEdge(point, [piece], chains, { viewportScale: 0.25 })?.edgeIndex).toBe(0)
+  })
+
+  it('honours a widened radius for coarse pointers', () => {
+    const point = { x: 50, y: 20 }
+
+    expect(findNearestPatternPieceEdge(point, [piece], chains, { viewportScale: 1, pickRadiusPx: 12 })).toBeNull()
+    expect(
+      findNearestPatternPieceEdge(point, [piece], chains, { viewportScale: 1, pickRadiusPx: 24 })?.edgeIndex,
+    ).toBe(0)
+  })
+
+  it('falls back to a 1x scale when none is given', () => {
+    expect(findNearestPatternPieceEdge({ x: 50, y: 6 }, [piece], chains)?.edgeIndex).toBe(0)
+    expect(findNearestPatternPieceEdge({ x: 50, y: 20 }, [piece], chains)).toBeNull()
   })
 })

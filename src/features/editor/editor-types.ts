@@ -29,7 +29,7 @@ import type {
 } from './cad/cad-types'
 
 export type MobileViewMode = 'editor' | 'preview' | 'split'
-export type MobileOptionsTab = 'view' | 'file'
+export type MobileOptionsTab = 'view' | 'pieces' | 'file'
 export type ResolvedThemeMode = 'dark' | 'light'
 export type ThemeMode = ResolvedThemeMode | 'system'
 export type LegendMode = 'layer' | 'stack'

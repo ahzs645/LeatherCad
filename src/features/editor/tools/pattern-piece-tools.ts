@@ -1,7 +1,7 @@
 import { findNearestPatternPieceEdge, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
 import type { PieceNotch } from '../cad/cad-types'
 import type { ToolDefinition } from './tool-types'
-import { pickToolPoint, uid } from './tool-helpers'
+import { edgePickOptions, pickToolPoint, uid } from './tool-helpers'
 
 export const patternPieceToolDefinitions = {
   'piece-notch': {
@@ -11,7 +11,7 @@ export const patternPieceToolDefinitions = {
       }
 
       const pieceChains = resolvePatternPieceChains(runtime.stitchTargetShapes, Object.values(runtime.lineTypesById))
-      const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId)
+      const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId, edgePickOptions(runtime))
       if (!nearest) {
         runtime.setStatus('Piece notch: click a pattern piece boundary')
         return

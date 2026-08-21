@@ -1,4 +1,4 @@
-import type { Layer, LineType, StitchHoleDefaults, Tool } from '../../cad/cad-types'
+import type { Layer, LineType, PatternPiece, SeamConnection, StitchHoleDefaults, Tool } from '../../cad/cad-types'
 import type { DisplayUnit } from '../../ops/unit-ops'
 import type {
   DesktopRibbonTab,
@@ -31,6 +31,21 @@ export type EditorTopbarProps = {
   onToggleMobileMenu: () => void
   mobileOptionsTab: MobileOptionsTab
   onSetMobileOptionsTab: (tab: MobileOptionsTab) => void
+  /**
+   * Pieces and seams on the compact shell. Without these the phone had the Seam
+   * tool in its tool list and no way to make a piece for it to connect, nor any
+   * way to see what it had connected.
+   */
+  patternPieces: PatternPiece[]
+  seamConnections: SeamConnection[]
+  selectedPatternPieceId: string | null
+  selectedSeamId: string | null
+  canCreatePatternPiece: boolean
+  onCreatePatternPieceFromSelection: () => void
+  onSelectPatternPiece: (pieceId: string) => void
+  onOpenPieceInspector: () => void
+  onSelectSeam: (seamId: string) => void
+  onDeleteSeamConnection: (seamId: string) => void
   onLoadPreset: () => void
   onSetThemeMode: (mode: ThemeMode) => void
   themeMode: ThemeMode

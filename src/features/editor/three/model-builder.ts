@@ -1,5 +1,6 @@
 import { ShapeUtils, Vector2 } from 'three'
-import type { FoldLine, Point } from '../cad/cad-types'
+import type { FoldLine } from '../cad/cad-types'
+import type { OutlineChain } from '../ops/outline-detection'
 import { buildPieceMeshes } from './piece-mesh'
 import {
   ensureMinSpan,
@@ -63,17 +64,18 @@ function buildBoundsFromFoldLines(foldLines: FoldLine[]) {
 }
 
 function buildChainsByShapeId(outlinePolygons: OutlinePolygon[]) {
-  const chainsByShapeId = new Map<
-    string,
-    { id: string; shapeIds: string[]; polygon: Point[]; isClosed: true; area: number }
-  >()
+  const chainsByShapeId = new Map<string, OutlineChain>()
 
   for (const outline of outlinePolygons) {
-    const chain = {
+    const chain: OutlineChain = {
       id: outline.shapeIds[0] ?? outline.layerId,
       shapeIds: outline.shapeIds,
       polygon: outline.polygon,
-      isClosed: true as const,
+      // Carried through from the outline chain where the caller had it. Without
+      // it every seam side collapses to its first edge, which quietly disables
+      // multi-span and curved seams in the live 3D view.
+      segments: outline.segments ?? [],
+      isClosed: true,
       area: Math.abs(ShapeUtils.area(outline.polygon.map((point) => new Vector2(point.x, point.y)))),
     }
     for (const shapeId of outline.shapeIds) {

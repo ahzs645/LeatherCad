@@ -178,6 +178,11 @@ export type EditorSelectionState = {
   selectedShapeIds: string[]
   selectedStitchHoleId: string | null
   selectedHardwareMarkerId: string | null
+  /**
+   * The seam under inspection. Shared state rather than per-view, so the 2D
+   * canvas, the document tree and the 3D preview all highlight the same seam.
+   */
+  selectedSeamId: string | null
   clipboardPayload: ClipboardPayload | null
 }
 

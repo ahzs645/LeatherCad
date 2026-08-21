@@ -1,5 +1,6 @@
 import type { UseEditorScreenShellsParams } from '../../editorScreenShellTypes'
 import { useEditorTopbarViewModel } from '../../view-models/useEditorTopbarViewModel'
+import { resolveSeamSpans } from '../../assembly/seam-spans'
 
 export type EditorScreenTopbarLayout = {
   topbarClassName: string
@@ -26,6 +27,7 @@ export function useEditorScreenTopbarProps({
   actions,
   layout,
   repositoryState,
+  patternPieceSelection,
 }: UseEditorScreenTopbarPropsParams) {
   const {
     shapes,
@@ -75,6 +77,8 @@ export function useEditorScreenTopbarProps({
     setSelectedShapeIds,
     setSelectedStitchHoleId,
     setSelectedHardwareMarkerId,
+    selectedSeamId,
+    setSelectedSeamId,
   } = selectionState
   const { setShowLayerColorModal } = panelState
   const { fileInputRef, svgInputRef, tracingInputRef, translationInputRef } = screenRefs
@@ -193,7 +197,8 @@ export function useEditorScreenTopbarProps({
     setShowMoveCopyDistanceModal(true)
   }
 
-  return useEditorTopbarViewModel({
+  const { patternPieces, seamConnections } = documentState
+  const topbarViewModel = useEditorTopbarViewModel({
     tracingInputRef,
     translationInputRef,
     shapes,
@@ -343,4 +348,44 @@ export function useEditorScreenTopbarProps({
     handleExportLaserSvg,
     handleOpenInNewTab,
   })
+
+  // Pieces and seams for the compact shell. The workbench document tree that
+  // normally carries these is not rendered below 768px, and every route to
+  // creating a piece or opening its inspector ran through it.
+  return {
+    ...topbarViewModel,
+    patternPieces,
+    seamConnections,
+    selectedPatternPieceId: patternPieceSelection.selectedPatternPiece?.id ?? null,
+    selectedSeamId,
+    canCreatePatternPiece: selectedShapeCount > 0,
+    onCreatePatternPieceFromSelection: actions.patternPieceCommands.handleCreatePatternPieceFromSelection,
+    onOpenPieceInspector: actions.patternPieceCommands.openSelectedPatternPieceInspector,
+    onSelectPatternPiece: (pieceId: string) => {
+      const piece = patternPieces.find((entry) => entry.id === pieceId)
+      if (!piece) {
+        return
+      }
+      setSelectedShapeIds([piece.boundaryShapeId])
+    },
+    onSelectSeam: (seamId: string) => {
+      const seam = seamConnections.find((entry) => entry.id === seamId)
+      setSelectedSeamId(seamId)
+      if (!seam) {
+        return
+      }
+      const boundaryShapeIds = Array.from(
+        new Set(
+          [...resolveSeamSpans(seam, 'from'), ...resolveSeamSpans(seam, 'to')]
+            .map((span) => patternPieces.find((entry) => entry.id === span.pieceId)?.boundaryShapeId)
+            .filter((shapeId): shapeId is string => Boolean(shapeId)),
+        ),
+      )
+      setSelectedShapeIds(boundaryShapeIds)
+    },
+    onDeleteSeamConnection: (seamId: string) => {
+      setSeamConnections((previous) => previous.filter((entry) => entry.id !== seamId))
+      setSelectedSeamId((previous) => (previous === seamId ? null : previous))
+    },
+  }
 }

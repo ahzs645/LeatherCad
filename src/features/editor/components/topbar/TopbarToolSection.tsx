@@ -13,9 +13,6 @@ type TopbarToolSectionProps = Pick<
   | 'showMobileMenu'
   | 'onToggleMobileMenu'
   | 'showThreePreview'
-  | 'onOpenPrecisionModal'
-  | 'onOpenProjectMemoModal'
-  | 'onOpenTemplateRepositoryModal'
   | 'displayUnit'
   | 'onSetDisplayUnit'
   | 'gridSpacing'
@@ -34,9 +31,6 @@ export function TopbarToolSection({
   showMobileMenu,
   onToggleMobileMenu,
   showThreePreview,
-  onOpenPrecisionModal,
-  onOpenProjectMemoModal,
-  onOpenTemplateRepositoryModal,
   displayUnit,
   onSetDisplayUnit,
   gridSpacing,
@@ -99,11 +93,12 @@ export function TopbarToolSection({
           ))}
         </div>
       )}
+      {/* Precision, Project Memo and Catalog used to sit here, which forced the
+          mobile bar to five stacked rows — 245px of a 664px phone before any
+          drawing surface. They now live one tap away in MobileQuickActions,
+          leaving the bar a single row: tool, view tabs, settings, Options. */}
       {isMobileLayout && (
         <>
-          <button onClick={onOpenPrecisionModal}>Precision</button>
-          <button onClick={onOpenProjectMemoModal}>Project Memo</button>
-          <button onClick={onOpenTemplateRepositoryModal}>Catalog</button>
           <TopbarSettingsDropdown
             displayUnit={displayUnit}
             onSetDisplayUnit={onSetDisplayUnit}

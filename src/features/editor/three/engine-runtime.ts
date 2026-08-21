@@ -8,9 +8,16 @@
  * Replaces the hand-rolled ThreeRuntimeManager.
  */
 
-import { Box3, Group, PerspectiveCamera, Vector3, WebGLRenderer, type WebGLRendererParameters } from 'three'
+import { Box3, Group, Matrix4, PerspectiveCamera, Vector3, WebGLRenderer, type WebGLRendererParameters } from 'three'
 import { Viewport } from '@atelier/viewport'
 import { LeatherStage, type StageThemeMode } from './leather-stage'
+
+/**
+ * How far off a flat model's own plane the orbit camera has to sit, as the
+ * cosine of the angle between the view direction and the plane's normal. About
+ * 27 degrees — enough that a flat layout reads as a surface rather than a line.
+ */
+const MIN_PLATE_VIEW_ALIGNMENT = 0.45
 
 type Bounds3 = {
   minX: number
@@ -160,7 +167,25 @@ export class EngineRuntime {
       camera.position.set(center.x + radius * 2.2, center.y + radius * 0.15, center.z)
     } else {
       camera.up.set(0, 1, 0)
-      camera.position.set(center.x + radius * 0.95, center.y + radius * 1.15, center.z + radius * 1.3)
+      const offset = new Vector3(radius * 0.95, radius * 1.15, radius * 1.3)
+      // Assembled pieces are flat in the model's local XZ plane, and the model
+      // root is tilted to give the scene some perspective. Those two rotations
+      // happened to cancel: the default three-quarter offset landed within a
+      // degree of the plate's own plane, so a correctly-placed layout rendered
+      // as a hairline. Lift the camera off that plane before framing.
+      const planeNormal = new Vector3(0, 1, 0)
+        .applyMatrix4(new Matrix4().extractRotation(modelRoot.matrixWorld))
+        .normalize()
+      const direction = offset.clone().normalize()
+      const alignment = direction.dot(planeNormal)
+      if (Math.abs(alignment) < MIN_PLATE_VIEW_ALIGNMENT) {
+        const side = alignment >= 0 ? 1 : -1
+        direction
+          .addScaledVector(planeNormal, side * (MIN_PLATE_VIEW_ALIGNMENT - Math.abs(alignment)) * 2)
+          .normalize()
+        offset.copy(direction).multiplyScalar(radius * 1.95)
+      }
+      camera.position.set(center.x + offset.x, center.y + offset.y, center.z + offset.z)
     }
     camera.lookAt(center)
     controls.update()

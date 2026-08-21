@@ -1,4 +1,4 @@
-import type { PointerEventHandler, ReactNode, RefObject } from 'react'
+import type { PointerEventHandler, ReactNode } from 'react'
 import type {
   DocumentBrowserNode,
   QuickAction,
@@ -20,7 +20,9 @@ import type { ThemeMode } from '../editor-types'
 
 export type EditorWorkbenchProps = {
   docLabel: string
-  shellRef: RefObject<HTMLElement | null>
+  /** Callback ref: the observer has to follow the element, which is replaced
+   *  when a lazily-loaded surface suspends and resolves. */
+  shellRef: (node: HTMLElement | null) => void
   workspaceMode: WorkspaceMode
   secondaryPreviewMode: SecondaryPreviewMode
   showPeek: boolean
@@ -34,7 +36,6 @@ export type EditorWorkbenchProps = {
   quickActions: QuickAction[]
   onInvokeQuickAction: (actionId: string) => void
   onSetWorkspaceMode: (mode: WorkspaceMode) => void
-  onTogglePeek: () => void
   activeRibbonTab: WorkbenchRibbonTab
   themeMode: ThemeMode
   ribbonGroups: RibbonCommandGroup[]
@@ -89,7 +90,6 @@ export function EditorWorkbench({
   quickActions,
   onInvokeQuickAction,
   onSetWorkspaceMode,
-  onTogglePeek,
   activeRibbonTab,
   themeMode,
   ribbonGroups,
@@ -130,6 +130,9 @@ export function EditorWorkbench({
   const showThreeInMain = workspaceMode === '3d'
   const showThreeInPeek = showPeek && secondaryPreviewMode === '3d-peek'
   const showTwoDInPeek = showPeek && secondaryPreviewMode === '2d-peek'
+  // Side by side, both surfaces are live: an edge picked on one completes a seam
+  // started on the other.
+  const bothLive = workspaceMode === 'both'
   const inspectorColumns = inspectorOpen
     ? `${splitterWidth}px ${inspectorWidth}px`
     : `${inspectorRestoreWidth}px`
@@ -143,14 +146,12 @@ export function EditorWorkbench({
         docLabel={docLabel}
         quickActions={quickActions}
         workspaceMode={workspaceMode}
-        secondaryPreviewMode={secondaryPreviewMode}
         activeRibbonTab={activeRibbonTab}
         themeMode={themeMode}
         onInvokeQuickAction={onInvokeQuickAction}
         onSetRibbonTab={onSetRibbonTab}
         onSetWorkspaceMode={onSetWorkspaceMode}
         onSetThemeMode={onSetThemeMode}
-        onTogglePeek={onTogglePeek}
       />
 
       <WorkbenchRibbon
@@ -186,12 +187,12 @@ export function EditorWorkbench({
 
         <WorkbenchToolRail tool={tool} onSetActiveTool={onSetActiveTool} />
 
-        <div className={`workbench-surface workbench-2d-surface ${showThreeInMain ? (showTwoDInPeek ? 'in-peek' : 'hidden-surface') : 'in-main'} ${showThreeInMain ? 'read-only' : ''}`}>
+        <div className={`workbench-surface workbench-2d-surface ${showThreeInMain ? (showTwoDInPeek ? 'in-peek' : 'hidden-surface') : 'in-main'} ${showThreeInMain && !bothLive ? 'read-only' : ''}`}>
           {twoDPane}
           {commandStrip}
         </div>
 
-        <div className={`workbench-surface workbench-3d-surface ${showThreeInMain ? 'in-main' : showThreeInPeek ? 'in-peek' : 'hidden-surface'} ${showThreeInMain ? '' : 'read-only'}`}>
+        <div className={`workbench-surface workbench-3d-surface ${showThreeInMain ? 'in-main' : showThreeInPeek ? 'in-peek' : 'hidden-surface'} ${showThreeInMain || bothLive ? '' : 'read-only'}`}>
           {threeDPane}
         </div>
 

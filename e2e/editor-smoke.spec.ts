@@ -190,7 +190,8 @@ test('drawn closed outlines can become shaped pieces from the interface', async 
   await expect(page.getByRole('button', { name: /Piece 1/ })).toBeVisible()
   await expect(page.getByText('4.0mm seam')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Open 3D Workspace' }).click()
+  // The separate Open 3D Workspace button folded into the workspace mode control.
+  await page.getByTestId('workspace-mode-3d').click()
   await expect(page.getByText('3D Preview 4 shapes | 1 pieces')).toBeVisible()
   await expect(page.getByText('Piece Placement')).toBeVisible()
   await expect(page.locator('body')).toContainText('1 piece in the current 3D view.')

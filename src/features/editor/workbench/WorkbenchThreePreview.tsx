@@ -50,6 +50,9 @@ export function WorkbenchThreePreviewViewport({ controller, compact = false, int
     shapesIn3dView,
     threePreviewSettings,
     visiblePatternPieces,
+    seamToolActive,
+    seamToolStatus,
+    onViewportSeamPick,
   } = controller
   const showFinalFoldDrawer = !compact && interactive && threePreviewSettings.mode === 'final'
   const showFinalFoldModeTab = !compact && interactive && threePreviewSettings.mode === 'fold' && foldLines.length > 0
@@ -71,8 +74,24 @@ export function WorkbenchThreePreviewViewport({ controller, compact = false, int
         className="three-preview-canvas-wrap workbench-three-canvas-wrap"
         style={{ pointerEvents: interactive ? 'auto' : 'none' }}
       >
-        <canvas ref={canvasRef} className="three-preview-canvas" />
+        <canvas
+          ref={canvasRef}
+          className="three-preview-canvas"
+          onPointerDown={(event) => {
+            // Only claim the gesture while a seam tool is active; otherwise the
+            // pointer belongs to the orbit controls.
+            if (!interactive || !seamToolActive || event.button !== 0) {
+              return
+            }
+            if (onViewportSeamPick(event.clientX, event.clientY)) {
+              event.stopPropagation()
+            }
+          }}
+        />
       </div>
+      {interactive && seamToolActive && seamToolStatus ? (
+        <p className="hint workbench-three-seam-hint">{seamToolStatus}</p>
+      ) : null}
       {invalidPatternPieces.length > 0 && !compact && (
         <p className="hint workbench-three-warning">
           {invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.
@@ -114,6 +133,12 @@ export function WorkbenchThreePreviewInspector({
     visiblePatternPieces,
     piecePlacementById,
     updatePlacement,
+    assemblyAngleDeg,
+    seamSewPlan,
+    sewProgress,
+    seamPlacementStatus,
+    handleSolvePlacementFromSeams: onSolvePlacementFromSeams,
+    handleSetAssemblyAngle: onSetAssemblyAngle,
     handleSpreadPieces,
     handleStackByLayer,
     handleMirrorPairLayout,
@@ -550,6 +575,112 @@ export function WorkbenchThreePreviewInspector({
         ) : (
           <>
             <p className="hint">{`${visiblePatternPieces.length} piece${visiblePatternPieces.length === 1 ? '' : 's'} in the current 3D view.`}</p>
+
+            <div className="fold-control-card">
+              <strong>Assemble from seams</strong>
+              <p className="hint">
+                Places every piece so its seam edges meet the edges they are sewn to. The angle
+                opens each seam: 0 lays the pieces out flat and connected, 90 stands them up,
+                180 folds them closed.
+              </p>
+              <label className="field-row">
+                <span>Assembly angle</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={180}
+                  step={5}
+                  value={assemblyAngleDeg}
+                  onChange={(event) => onSetAssemblyAngle(Number(event.target.value))}
+                />
+              </label>
+              <p className="hint">{`${assemblyAngleDeg}°`}</p>
+              <div className="button-row">
+                <button onClick={() => onSolvePlacementFromSeams()}>Solve From Seams</button>
+              </div>
+              {seamPlacementStatus ? <p className="hint">{seamPlacementStatus}</p> : null}
+            </div>
+
+            <div className="fold-control-card">
+              <strong>Sew order</strong>
+              {seamSewPlan.stitchCount === 0 ? (
+                <p className="hint">
+                  No sewn seams to walk yet. Seams marked aligned carry no stitches; use the seam
+                  tool to sew two edges together.
+                </p>
+              ) : (
+                <>
+                  <p className="hint">
+                    Walks the seams in the order they are sewn. Drag back and the project comes
+                    apart seam by seam; drag forward and it closes again.
+                  </p>
+                  <label className="field-row">
+                    <span>Sewn up to</span>
+                    <input
+                      aria-label="Sewn up to stitch"
+                      type="range"
+                      min={0}
+                      max={seamSewPlan.stitchCount}
+                      step={1}
+                      value={sewProgress.sewnStitchCount}
+                      onChange={(event) =>
+                        onSetThreePreviewSettings((previous) => ({
+                          ...previous,
+                          sewnStitchCount: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <p className="hint">
+                    {sewProgress.activeSeam
+                      ? `Stitch ${sewProgress.sewnStitchCount} of ${seamSewPlan.stitchCount} · sewing ${sewProgress.activeSeam.name}`
+                      : `Stitch ${sewProgress.sewnStitchCount} of ${seamSewPlan.stitchCount} · ${
+                          sewProgress.completedSeamIds.length === seamSewPlan.ranges.length
+                            ? 'all seams closed'
+                            : 'not started'
+                        }`}
+                  </p>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetThreePreviewSettings((previous) => ({ ...previous, sewnStitchCount: 0 }))
+                      }
+                    >
+                      Unsewn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetThreePreviewSettings((previous) => ({
+                          ...previous,
+                          sewnStitchCount: Math.round(seamSewPlan.stitchCount / 2),
+                        }))
+                      }
+                    >
+                      Half Sewn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetThreePreviewSettings((previous) => ({
+                          ...previous,
+                          sewnStitchCount: seamSewPlan.stitchCount,
+                        }))
+                      }
+                    >
+                      Fully Sewn
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <details className="control-block inspector-disclosure">
+              <summary>
+                <h3>Place pieces by hand</h3>
+                <span>{visiblePatternPieces.length}</span>
+              </summary>
             {visiblePatternPieces.map((piece) => {
               const placement = piecePlacementById[piece.id] ?? defaultPiecePlacement(piece.id)
               return (
@@ -624,11 +755,12 @@ export function WorkbenchThreePreviewInspector({
               )
             })}
             <div className="button-row">
-              <button onClick={handleSpreadPieces}>Spread Pieces</button>
-              <button onClick={handleStackByLayer}>Stack by Layer</button>
-              <button onClick={handleMirrorPairLayout}>Mirror Pair Layout</button>
-              <button onClick={handleResetAssembly}>Reset Assembly</button>
-            </div>
+                <button onClick={handleSpreadPieces}>Spread Pieces</button>
+                <button onClick={handleStackByLayer}>Stack by Layer</button>
+                <button onClick={handleMirrorPairLayout}>Mirror Pair Layout</button>
+                <button onClick={handleResetAssembly}>Reset Assembly</button>
+              </div>
+            </details>
           </>
         )}
       </details>

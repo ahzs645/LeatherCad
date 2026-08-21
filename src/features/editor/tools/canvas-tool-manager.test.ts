@@ -228,12 +228,16 @@ describe('tool executor', () => {
 
     executeToolPointerDown('seam', { x: 5, y: 0 }, runtime)
 
-    expect(toolSession.getPendingSeamSelection()).toEqual({
-      pieceId: 'piece-a',
-      pieceName: 'Piece A',
-      edgeIndex: 0,
-    })
-    expect(status).toContain('Seam start set')
+    expect(toolSession.getSeamToolState().from).toEqual([
+      {
+        pieceId: 'piece-a',
+        pieceName: 'Piece A',
+        edgeIndex: 0,
+        boundaryShapeId: 'shape-a',
+        reversed: false,
+      },
+    ])
+    expect(status).toContain('Seam start')
   })
 
   it('parses typed circle radius commands through the tool executor', () => {

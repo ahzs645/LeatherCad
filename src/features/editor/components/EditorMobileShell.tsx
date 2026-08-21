@@ -32,7 +32,11 @@ export function EditorMobileShell({
       <EditorTopbar {...topbarProps} />
 
       <main ref={workspaceRef} className={workspaceClassName}>
-        <div className="canvas-stage">
+        {/* The stage wrapper — not just the pane inside it — has to go when the 2D
+            lane is hidden. It is a grid item, so leaving it mounted lets it claim
+            the workspace's only explicit row and pushes the 3D pane into an
+            auto-sized implicit row. On a phone that cost the 3D canvas 170px. */}
+        <div className={`canvas-stage ${hideCanvasPane ? 'panel-hidden' : ''}`}>
           <ErrorBoundary>
             <EditorCanvasPane {...canvasPaneProps} hideCanvasPane={hideCanvasPane} />
           </ErrorBoundary>

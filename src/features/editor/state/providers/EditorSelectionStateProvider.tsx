@@ -10,6 +10,7 @@ const initialEditorSelectionState: EditorSelectionState = {
   selectedShapeIds: [],
   selectedStitchHoleId: null,
   selectedHardwareMarkerId: null,
+  selectedSeamId: null,
   clipboardPayload: null,
 }
 
@@ -21,6 +22,8 @@ function createEditorSelectionStateActions(dispatch: React.Dispatch<PropertyActi
       dispatch({ type: 'selectedStitchHoleId', value }),
     setSelectedHardwareMarkerId: (value: React.SetStateAction<EditorSelectionState['selectedHardwareMarkerId']>) =>
       dispatch({ type: 'selectedHardwareMarkerId', value }),
+    setSelectedSeamId: (value: React.SetStateAction<EditorSelectionState['selectedSeamId']>) =>
+      dispatch({ type: 'selectedSeamId', value }),
     setClipboardPayload: (value: React.SetStateAction<EditorSelectionState['clipboardPayload']>) =>
       dispatch({ type: 'clipboardPayload', value }),
   }

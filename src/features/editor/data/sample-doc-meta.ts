@@ -24,6 +24,22 @@ export const PRESET_META: PresetMeta[] = [
     id: 'folding-box-net',
     label: 'Open Box Tray Net',
   },
+  {
+    id: 'card-case',
+    label: 'Two-Panel Card Case',
+  },
+  {
+    id: 'boxed-pouch',
+    label: 'Boxed Zip Pouch',
+  },
+  {
+    id: 'dice-cup',
+    label: 'Round Dice Cup',
+  },
+  {
+    id: 'tote-bag',
+    label: 'Tote Bag',
+  },
 ]
 
 export const DEFAULT_PRESET_ID = 'trifold'

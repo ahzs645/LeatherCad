@@ -30,8 +30,10 @@ export function WorkbenchThreeWorkspace({
       <ErrorBoundary>
         <WorkbenchThreePreviewViewport
           controller={controller}
-          compact={workspaceMode !== '3d'}
-          interactive={workspaceMode === '3d'}
+          compact={workspaceMode === '2d'}
+          // Side by side, the model is live: it is where the second half of a
+          // seam gets picked.
+          interactive={workspaceMode !== '2d'}
         />
       </ErrorBoundary>
     ),

@@ -9,8 +9,10 @@
     font-size: 16px;
   }
 
-  /* Bigger tap targets across all interactive controls */
+  /* Tap targets at the 44px platform floor, in both axes — a 40px-tall button
+     that is 34px wide still misses. */
   button,
+  select,
   .button-like-file-input,
   .tool-icon-button,
   .desktop-ribbon-tabs button,
@@ -18,7 +20,16 @@
   .workbench-mode-toggle button,
   .view-mode-toggle button,
   .side-panel-tabs button {
-    min-height: 40px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* The zoom in/out pair is narrowed to 34px by a nth-child rule in the base
+     stylesheet. Match its specificity rather than leaving a sub-thumb target. */
+  .canvas-view-controls button:nth-child(1),
+  .canvas-view-controls button:nth-child(2) {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Disable text selection on UI chrome so taps feel native */
@@ -54,6 +65,11 @@
     grid-template-columns: 1fr;
   }
 
+  /* Single-lane modes declare exactly one row. The hidden lane is display:none
+     (see EditorMobileShell), so the one remaining grid item is auto-placed into
+     that row and takes the full height. A second 1fr row here would hand half
+     the workspace to nothing — fr distributes free space whether or not the row
+     holds an item. */
   .workspace.mobile-editor,
   .workspace.mobile-preview {
     grid-template-rows: minmax(0, 1fr);
@@ -61,6 +77,14 @@
 
   .workspace.mobile-split {
     grid-template-rows: minmax(0, 1fr) minmax(220px, 38vh);
+  }
+
+  /* Landscape phones have too little height for a 220px floor to leave the 2D
+     lane anything usable — measured 68px at 844x390. Split the space instead. */
+  @media (max-height: 560px) {
+    .workspace.mobile-split {
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    }
   }
 
   .canvas-pane {
@@ -78,7 +102,8 @@
   }
 
   .canvas-view-controls button {
-    min-width: 36px;
+    min-width: 44px;
+    min-height: 44px;
     padding: 6px 8px;
   }
 
@@ -189,6 +214,59 @@
   }
 }
 
+/* === Medium density: tablets keep the workbench (768px - 1100px) === */
+@media (min-width: 768px) and (max-width: 1100px) {
+  /* The docks become edge sheets over the canvas rather than columns beside it.
+     A tablet has room for the workbench but not for three columns at once, and
+     folding the docks away entirely is what used to cost tablets the only route
+     to pattern pieces and seams. */
+  .app-shell-workbench .workbench-main {
+    position: relative;
+  }
+
+  .app-shell-workbench .workbench-main > .workbench-surface.in-main {
+    grid-column: 1 / -1;
+  }
+
+  .app-shell-workbench .workbench-main > .workbench-browser-dock,
+  .app-shell-workbench .workbench-main > .workbench-inspector-dock {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 20;
+    width: min(340px, 72vw);
+    overflow: auto;
+    background: var(--surface-panel);
+    box-shadow: 0 0 24px rgb(0 0 0 / 18%);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-shell-workbench .workbench-main > .workbench-browser-dock {
+    left: 0;
+    border-right: 1px solid var(--border-soft);
+  }
+
+  .app-shell-workbench .workbench-main > .workbench-inspector-dock {
+    right: 0;
+    border-left: 1px solid var(--border-soft);
+  }
+
+  /* The restore tab stays pinned to the edge so the inspector is reachable
+     again once it has been closed. */
+  .app-shell-workbench .workbench-main > .workbench-inspector-restore {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 21;
+  }
+
+  /* Splitters have nothing to split once the docks float. */
+  .app-shell-workbench .workbench-main > .browser-splitter,
+  .app-shell-workbench .workbench-main > .inspector-splitter {
+    display: none;
+  }
+}
+
 /* === Phones (≤ 800px) === */
 @media (max-width: 800px) {
   /* Make all selects span their container & boost min size */
@@ -214,21 +292,25 @@
     padding-right: max(8px, env(safe-area-inset-right));
   }
 
-  /* Re-flow the tool group into stacked rows on narrow screens */
+  /* One row: tool, view tabs, settings, Options. Everything else moved into
+     MobileQuickActions behind the Options toggle. */
   .topbar-mobile .tool-group {
-    grid-template-columns: 1fr 1fr;
-    grid-auto-flow: row;
-    grid-auto-rows: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 6px;
   }
 
   .topbar-mobile .tool-group > .tool-select-mobile {
-    grid-column: 1 / -1;
+    flex: 1 1 120px;
+    min-width: 0;
   }
 
   .topbar-mobile .tool-group > .mobile-view-inline-tabs {
-    grid-column: 1 / -1;
+    flex: 1 1 150px;
+    display: flex;
     justify-content: stretch;
+    min-width: 0;
   }
 
   .topbar-mobile .tool-group > .mobile-view-inline-tabs button {
@@ -236,14 +318,84 @@
     min-width: 0;
   }
 
-  .topbar-mobile .tool-group > button {
-    min-height: 42px;
+  .topbar-mobile .tool-group > button,
+  .topbar-mobile .tool-group > .mobile-help-toggle {
+    flex: 0 0 auto;
+    min-height: 44px;
   }
 
-  .topbar-mobile .mobile-help-toggle,
-  .topbar-mobile .mobile-menu-toggle {
-    justify-self: stretch;
+  /* Quick actions and options tabs only exist while the menu is open, so they
+     can afford a full row each. */
+  .topbar-mobile .mobile-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .topbar-mobile .mobile-quick-actions button {
+    min-height: 44px;
+  }
+
+  /* Pieces + Seams tab. It scrolls within a capped height so opening it never
+     pushes the drawing surface off the screen. */
+  .topbar-mobile .mobile-pieces-section {
+    display: grid;
+    gap: 8px;
+    max-height: 46dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .topbar-mobile .mobile-pieces-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .topbar-mobile .mobile-pieces-heading {
+    margin: 4px 0 0;
+    font-size: 13px;
+  }
+
+  .topbar-mobile .mobile-pieces-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .topbar-mobile .mobile-pieces-list li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px;
+  }
+
+  .topbar-mobile .mobile-pieces-list li > button:first-child {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+    min-height: 44px;
     width: 100%;
+  }
+
+  .topbar-mobile .mobile-pieces-list li > button:first-child span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-mobile .mobile-pieces-meta {
+    flex: 0 0 auto;
+    opacity: 0.65;
+    font-size: 12px;
+  }
+
+  .topbar-mobile .mobile-pieces-delete {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .tool-select-mobile {
@@ -265,9 +417,9 @@
   .topbar-mobile .tool-group .help-button {
     padding: 0;
     font-size: 18px;
-    width: 38px;
-    min-width: 38px;
-    height: 38px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
   }
 
   /* Hide the (already hidden) statusbar; keep .three-preview-controls compact */
@@ -506,8 +658,8 @@
 
   /* Better hit target for floating canvas controls */
   .canvas-view-controls button {
-    min-width: 38px;
-    min-height: 38px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   /* Modal action buttons span full row */

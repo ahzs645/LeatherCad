@@ -66,10 +66,10 @@ export function EditorDesktopShell({
 
   const routePrompt = (
     <div className="workbench-empty-state">
-      <strong>3D workspace is isolated behind its own route.</strong>
-      <p>Open the assembly workspace to load the 3D preview lane and related tools.</p>
+      <strong>The model is not loaded in this mode.</strong>
+      <p>Switch to Both or 3D Assembly to load the model and its tools.</p>
       <button type="button" onClick={onOpenThreeWorkspace}>
-        Open 3D Workspace
+        Show the model
       </button>
     </div>
   )

@@ -4,6 +4,7 @@ import { cleanupRender, click, renderForTest } from '../../../test/render'
 import type { LineType, Shape } from '../cad/cad-types'
 import { DEFAULT_SNAP_SETTINGS } from '../editor-constants'
 import { EditorPanelStateProvider } from '../state/providers/EditorPanelStateProvider'
+import { EditorToolSessionProvider } from '../state/providers/EditorToolSessionProvider'
 import { EditorToolStateProvider, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { EditorUIStateProvider } from '../state/providers/EditorUIStateProvider'
 import { useCanvasInteractions } from './useCanvasInteractions'
@@ -167,7 +168,11 @@ function renderHarness(props?: HarnessProps) {
       createElement(
         EditorPanelStateProvider,
         null,
-        createElement(EditorToolStateProvider, null, createElement(Harness, props)),
+        createElement(
+          EditorToolStateProvider,
+          null,
+          createElement(EditorToolSessionProvider, null, createElement(Harness, props)),
+        ),
       ),
     ),
   )

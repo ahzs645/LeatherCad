@@ -322,6 +322,7 @@ describe('buildCanvasRenderModel', () => {
         id: 'open-chain',
         shapeIds: ['shape'],
         polygon: [{ x: 0, y: 0 }, { x: 20, y: 0 }],
+        segments: [],
         isClosed: false,
         area: 0,
       }],

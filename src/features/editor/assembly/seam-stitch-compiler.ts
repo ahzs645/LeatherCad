@@ -1,7 +1,13 @@
 import type { SeamConnection, StitchHole } from '../cad/cad-types'
 import type { StitchChain, StitchPair } from '../three/final-product-types'
 import type { PieceMeshData, PieceOutlineEdge } from '../three/piece-mesh'
-import { buildPieceMeshMap, resolvePieceEdge, type AssemblyDiagnostic } from './assembly-diagnostics'
+import { buildPieceMeshMap, type AssemblyDiagnostic } from './assembly-diagnostics'
+import {
+  flipStretch,
+  resolveConnectionSide,
+  sampleSide,
+  type SeamSideStretch,
+} from './seam-geometry'
 
 const DEFAULT_STITCH_SPACING_MM = 4
 const MIN_EXPLICIT_SEAM_SAMPLES = 2
@@ -29,33 +35,25 @@ function edgeDirection(edge: PieceOutlineEdge, reversed: boolean) {
   return { x: dx / length, y: dy / length }
 }
 
-function makeHole(params: {
-  id: string
-  chainId: string
-  connectionId: string
-  edge: PieceOutlineEdge
-  sequence: number
-  count: number
-  reversed: boolean
-  t0?: number
-  t1?: number
-}): StitchHole {
-  const rawT = params.count <= 1 ? 0 : params.sequence / (params.count - 1)
-  const start = params.t0 ?? 0
-  const end = params.t1 ?? 1
-  const rangedT = start + (end - start) * rawT
-  const t = params.reversed ? 1 - rangedT : rangedT
-  const point = interpolateEdge(params.edge, t)
-  const direction = edgeDirection(params.edge, params.reversed)
+function makeSideChain(id: string, holes: StitchHole[], lengthMm: number): StitchChain {
+  const first = holes[0]
+  const last = holes[holes.length - 1]
+  const dx = last.point.x - first.point.x
+  const dy = last.point.y - first.point.y
+  const span = Math.hypot(dx, dy)
   return {
-    id: params.id,
-    shapeId: `explicit-seam-${params.connectionId}`,
-    chainId: params.chainId,
-    connectionId: params.connectionId,
-    point,
-    angleDeg: (Math.atan2(direction.y, direction.x) * 180) / Math.PI,
-    holeType: 'round',
-    sequence: params.sequence,
+    id,
+    holes,
+    pointCount: holes.length,
+    pitchMm: holes.length <= 1 ? lengthMm : lengthMm / (holes.length - 1),
+    lengthMm,
+    start: first.point,
+    end: last.point,
+    // Chord direction across the whole side; a multi-span or curved side has no
+    // single edge direction to borrow.
+    direction: span <= 1e-9 ? { x: 1, y: 0 } : { x: dx / span, y: dy / span },
+    bounds: boundsForHoles(holes),
+    explicit: true,
   }
 }
 
@@ -68,31 +66,42 @@ function boundsForHoles(holes: StitchHole[]) {
   }
 }
 
-function makeChain(params: {
-  id: string
-  holes: StitchHole[]
-  edge: PieceOutlineEdge
-  reversed: boolean
-}): StitchChain {
-  const direction = edgeDirection(params.edge, params.reversed)
-  return {
-    id: params.id,
-    holes: params.holes,
-    pointCount: params.holes.length,
-    pitchMm: params.holes.length <= 1 ? params.edge.lengthMm : params.edge.lengthMm / (params.holes.length - 1),
-    lengthMm: params.edge.lengthMm,
-    start: params.holes[0].point,
-    end: params.holes[params.holes.length - 1].point,
-    direction,
-    bounds: boundsForHoles(params.holes),
-    explicit: true,
-  }
-}
-
 function sampleCountForConnection(connection: SeamConnection, leftLengthMm: number, rightLengthMm: number) {
   const spacingMm = Math.max(0.1, connection.stitchSpacingMm ?? DEFAULT_STITCH_SPACING_MM)
   const seamLengthMm = Math.max(leftLengthMm, rightLengthMm)
+  // Degenerate geometry produces a non-finite length. Falling through with it
+  // yields an empty hole array and takes the whole 3D preview down on the first
+  // hole access, so clamp to the minimum sample count instead.
+  if (!Number.isFinite(seamLengthMm) || seamLengthMm <= 0) {
+    return MIN_EXPLICIT_SEAM_SAMPLES
+  }
   return Math.max(MIN_EXPLICIT_SEAM_SAMPLES, Math.round(seamLengthMm / spacingMm) + 1)
+}
+
+function holeAlongSide(params: {
+  id: string
+  chainId: string
+  connectionId: string
+  stretches: SeamSideStretch[]
+  lengthMm: number
+  sequence: number
+  count: number
+}): StitchHole {
+  const ratio = params.count <= 1 ? 0 : params.sequence / (params.count - 1)
+  const { stretch, t } = sampleSide(params.stretches, params.lengthMm * ratio)
+  const point = interpolateEdge(stretch.edge, t)
+  const forward = stretch.t1 >= stretch.t0
+  const direction = edgeDirection(stretch.edge, !forward)
+  return {
+    id: params.id,
+    shapeId: `explicit-seam-${params.connectionId}`,
+    chainId: params.chainId,
+    connectionId: params.connectionId,
+    point,
+    angleDeg: (Math.atan2(direction.y, direction.x) * 180) / Math.PI,
+    holeType: 'round',
+    sequence: params.sequence,
+  }
 }
 
 export function compileExplicitSeams(params: {
@@ -109,41 +118,41 @@ export function compileExplicitSeams(params: {
       continue
     }
 
-    const left = resolvePieceEdge(pieceMeshesById, connection.from)
-    const right = resolvePieceEdge(pieceMeshesById, connection.to)
+    const left = resolveConnectionSide(pieceMeshesById, connection, 'from')
+    const right = resolveConnectionSide(pieceMeshesById, connection, 'to')
     if (!left || !right) {
       continue
     }
 
-    const count = sampleCountForConnection(connection, left.edge.lengthMm, right.edge.lengthMm)
+    const count = sampleCountForConnection(connection, left.lengthMm, right.lengthMm)
     const leftChainId = `explicit-seam-${connection.id}-from`
     const rightChainId = `explicit-seam-${connection.id}-to`
-    const rightReversed = connection.reversed === true
+    // Sewing runs the two sides against each other, so the second side is walked
+    // end-to-start unless the seam says otherwise.
+    const rightStretches = connection.reversed === true
+      ? [...right.stretches].reverse().map(flipStretch)
+      : right.stretches
 
     const leftHoles = Array.from({ length: count }, (_, index) =>
-      makeHole({
+      holeAlongSide({
         id: `${leftChainId}-${index}`,
         chainId: leftChainId,
         connectionId: connection.id,
-        edge: left.edge,
+        stretches: left.stretches,
+        lengthMm: left.lengthMm,
         sequence: index,
         count,
-        reversed: false,
-        t0: connection.fromSpan?.t0,
-        t1: connection.fromSpan?.t1,
       }),
     )
     const rightHoles = Array.from({ length: count }, (_, index) =>
-      makeHole({
+      holeAlongSide({
         id: `${rightChainId}-${index}`,
         chainId: rightChainId,
         connectionId: connection.id,
-        edge: right.edge,
+        stretches: rightStretches,
+        lengthMm: right.lengthMm,
         sequence: index,
         count,
-        reversed: rightReversed,
-        t0: connection.toSpan?.t0,
-        t1: connection.toSpan?.t1,
       }),
     )
 
@@ -152,8 +161,8 @@ export function compileExplicitSeams(params: {
       rightHoles[index].pairedHoleId = leftHoles[index].id
     }
 
-    const leftChain = makeChain({ id: leftChainId, holes: leftHoles, edge: left.edge, reversed: false })
-    const rightChain = makeChain({ id: rightChainId, holes: rightHoles, edge: right.edge, reversed: rightReversed })
+    const leftChain = makeSideChain(leftChainId, leftHoles, left.lengthMm)
+    const rightChain = makeSideChain(rightChainId, rightHoles, right.lengthMm)
     chains.push(leftChain, rightChain)
     pairs.push({
       id: `explicit-stitch-pair-${connection.id}`,
@@ -161,7 +170,7 @@ export function compileExplicitSeams(params: {
       right: rightChain,
       reversed: false,
       score: 1,
-      rmsErrorMm: Math.abs(left.edge.lengthMm - right.edge.lengthMm),
+      rmsErrorMm: Math.abs(left.lengthMm - right.lengthMm),
       status: 'paired',
     })
   }

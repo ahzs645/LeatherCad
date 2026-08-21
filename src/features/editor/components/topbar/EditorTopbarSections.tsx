@@ -5,9 +5,131 @@ import type {
   MobileFileAction,
   MobileLayerAction,
 } from '../../editor-types'
+import { describeSeamConnection, seamsInSewOrder } from '../../assembly/seam-spans'
 import { StitchHolePanel } from '../StitchHolePanel'
 import type { EditorTopbarProps } from './EditorTopbar.types'
 import { ThemeModeToggle } from './ThemeModeToggle'
+
+/**
+ * The mobile actions that are useful but not per-stroke. Keeping them out of the
+ * always-visible bar is what lets that bar stay one row tall.
+ */
+export function MobileQuickActions({
+  onOpenPrecisionModal,
+  onOpenProjectMemoModal,
+  onOpenTemplateRepositoryModal,
+}: EditorTopbarProps) {
+  return (
+    <div className="group mobile-quick-actions">
+      <button type="button" onClick={onOpenPrecisionModal}>
+        Precision
+      </button>
+      <button type="button" onClick={onOpenProjectMemoModal}>
+        Project Memo
+      </button>
+      <button type="button" onClick={onOpenTemplateRepositoryModal}>
+        Catalog
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Pieces and seams for the compact shell.
+ *
+ * The workbench's document tree is desktop-only, and every route to creating a
+ * piece or opening the piece inspector ran through it — so on a phone the Seam
+ * tool had nothing to connect and nothing to show. This is the same three
+ * actions in a form the phone can render: make a piece, pick one, and see the
+ * seams that join it.
+ */
+export function MobilePiecesSection({
+  patternPieces,
+  seamConnections,
+  selectedPatternPieceId,
+  selectedSeamId,
+  canCreatePatternPiece,
+  onCreatePatternPieceFromSelection,
+  onSelectPatternPiece,
+  onOpenPieceInspector,
+  onSelectSeam,
+  onDeleteSeamConnection,
+}: EditorTopbarProps) {
+  const pieceNameById = new Map(patternPieces.map((piece) => [piece.id, piece.name]))
+
+  return (
+    <div className="group mobile-pieces-section">
+      <div className="mobile-pieces-actions">
+        <button
+          type="button"
+          onClick={onCreatePatternPieceFromSelection}
+          disabled={!canCreatePatternPiece}
+          title={
+            canCreatePatternPiece
+              ? 'Create a pattern piece from the selected closed outline'
+              : 'Select a closed outline first'
+          }
+        >
+          Create Piece
+        </button>
+        <button type="button" onClick={onOpenPieceInspector} disabled={selectedPatternPieceId === null}>
+          Edit Piece
+        </button>
+      </div>
+
+      {patternPieces.length === 0 ? (
+        <p className="hint">
+          No pattern pieces yet. Select a closed outline on the canvas, then Create Piece.
+        </p>
+      ) : (
+        <ul className="mobile-pieces-list">
+          {patternPieces.map((piece) => (
+            <li key={piece.id}>
+              <button
+                type="button"
+                className={selectedPatternPieceId === piece.id ? 'active' : ''}
+                onClick={() => onSelectPatternPiece(piece.id)}
+              >
+                <span>{piece.name}</span>
+                <span className="mobile-pieces-meta">{piece.code ?? `${piece.quantity}x`}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h3 className="mobile-pieces-heading">{`Seams (${seamConnections.length})`}</h3>
+      {seamConnections.length === 0 ? (
+        <p className="hint">
+          No seams yet. Pick the Seam tool, then tap one piece edge and the edge it joins.
+        </p>
+      ) : (
+        <ul className="mobile-pieces-list">
+          {seamsInSewOrder(seamConnections).map((seam, index) => (
+            <li key={seam.id}>
+              <button
+                type="button"
+                className={selectedSeamId === seam.id ? 'active' : ''}
+                onClick={() => onSelectSeam(seam.id)}
+              >
+                <span>{`${index + 1}. ${describeSeamConnection(seam, pieceNameById)}`}</span>
+                <span className="mobile-pieces-meta">{seam.kind}</span>
+              </button>
+              <button
+                type="button"
+                className="mobile-pieces-delete"
+                aria-label={`Delete ${describeSeamConnection(seam, pieceNameById)}`}
+                onClick={() => onDeleteSeamConnection(seam.id)}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export function MobileOptionsTabs({
   mobileOptionsTab,

@@ -1,5 +1,7 @@
 import type { FoldLine, HardwareMarker, Layer, PatternPiece, PieceEdgeRef, Point, SeamConnection } from '../cad/cad-types'
-import type { PieceMeshData } from '../three/piece-mesh'
+import { edgeAtIndex, type PieceMeshData } from '../three/piece-mesh'
+import { resolveConnectionSide, seamSideEndpoints, seamSideMidpoint } from './seam-geometry'
+import { resolveSeamSpans } from './seam-spans'
 
 export type AssemblyDiagnosticSeverity = 'fatal' | 'error' | 'warning' | 'info'
 
@@ -49,6 +51,9 @@ export type AssemblyDiagnostic = {
   blocking: boolean
 }
 
+/** Two spans on the same shape must overlap by more than this to conflict. */
+const SPAN_OVERLAP_TOLERANCE = 1e-6
+
 const DEFAULT_SEAM_LENGTH_TOLERANCE_MM = 1
 const DEFAULT_MIN_FOLD_RADIUS_RATIO = 1.5
 
@@ -72,13 +77,13 @@ export function resolvePieceEdge(
   ref: PieceEdgeRef,
 ) {
   const piece = pieceMeshesById.get(ref.pieceId)
-  if (!piece || ref.edgeIndex < 0 || ref.edgeIndex >= piece.edges.length) {
+  if (!piece) {
     return null
   }
-  return {
-    piece,
-    edge: piece.edges[ref.edgeIndex],
-  }
+  // Look up by polygon index, not array position: buildEdges drops degenerate
+  // edges, so the two diverge as soon as a piece has one.
+  const edge = edgeAtIndex(piece, ref.edgeIndex)
+  return edge ? { piece, edge } : null
 }
 
 export function buildSeamAssemblyDiagnostics(params: {
@@ -92,11 +97,19 @@ export function buildSeamAssemblyDiagnostics(params: {
   const pieceById = new Map(patternPieces.map((piece) => [piece.id, piece]))
   const pieceMeshesById = buildPieceMeshMap(pieceMeshes)
   const diagnostics: AssemblyDiagnostic[] = []
-  const sewnEdgeUsers = new Map<string, SeamConnection[]>()
+  const sewnEdgeUsers = new Map<string, Array<{ connection: SeamConnection; t0: number; t1: number }>>()
 
   for (const connection of seamConnections) {
-    const from = resolvePieceEdge(pieceMeshesById, connection.from)
-    const to = resolvePieceEdge(pieceMeshesById, connection.to)
+    // Measure the whole side, not just the first edge: a seam that runs three
+    // panel sides against one gusset edge is not a 270mm mismatch.
+    const fromSide = resolveConnectionSide(pieceMeshesById, connection, 'from')
+    const toSide = resolveConnectionSide(pieceMeshesById, connection, 'to')
+    const from = fromSide
+      ? { piece: pieceMeshesById.get(fromSide.pieceIds[0])!, lengthMm: fromSide.lengthMm, side: fromSide }
+      : null
+    const to = toSide
+      ? { piece: pieceMeshesById.get(toSide.pieceIds[0])!, lengthMm: toSide.lengthMm, side: toSide }
+      : null
 
     if (!from || !to) {
       const missingRef = !from ? connection.from : connection.to
@@ -120,7 +133,7 @@ export function buildSeamAssemblyDiagnostics(params: {
       continue
     }
 
-    const deltaMm = Math.abs(from.edge.lengthMm - to.edge.lengthMm)
+    const deltaMm = Math.abs(from.lengthMm - to.lengthMm)
     const connectionToleranceMm = connection.toleranceMm ?? lengthToleranceMm
     if (deltaMm > connectionToleranceMm) {
       diagnostics.push(diagnostic({
@@ -135,25 +148,27 @@ export function buildSeamAssemblyDiagnostics(params: {
           { kind: 'piece', id: to.piece.pieceId, label: to.piece.name },
         ],
         metrics: {
-          fromLengthMm: from.edge.lengthMm,
-          toLengthMm: to.edge.lengthMm,
+          fromLengthMm: from.lengthMm,
+          toLengthMm: to.lengthMm,
           deltaMm,
           toleranceMm: connectionToleranceMm,
         },
         locations: [
-          { ...from.edge.midpoint, edgeIndex: connection.from.edgeIndex, t: 0.5 },
-          { ...to.edge.midpoint, edgeIndex: connection.to.edgeIndex, t: 0.5 },
+          { ...seamSideMidpoint(from.side), edgeIndex: connection.from.edgeIndex, t: 0.5 },
+          { ...seamSideMidpoint(to.side), edgeIndex: connection.to.edgeIndex, t: 0.5 },
         ],
         blocking: deltaMm > connectionToleranceMm * 4,
       }))
     }
 
+    const fromEnds = seamSideEndpoints(from.side)
+    const toEnds = seamSideEndpoints(to.side)
     const directEndpointError =
-      Math.hypot(from.edge.start.x - to.edge.start.x, from.edge.start.y - to.edge.start.y) +
-      Math.hypot(from.edge.end.x - to.edge.end.x, from.edge.end.y - to.edge.end.y)
+      Math.hypot(fromEnds.start.x - toEnds.start.x, fromEnds.start.y - toEnds.start.y) +
+      Math.hypot(fromEnds.end.x - toEnds.end.x, fromEnds.end.y - toEnds.end.y)
     const reversedEndpointError =
-      Math.hypot(from.edge.start.x - to.edge.end.x, from.edge.start.y - to.edge.end.y) +
-      Math.hypot(from.edge.end.x - to.edge.start.x, from.edge.end.y - to.edge.start.y)
+      Math.hypot(fromEnds.start.x - toEnds.end.x, fromEnds.start.y - toEnds.end.y) +
+      Math.hypot(fromEnds.end.x - toEnds.start.x, fromEnds.end.y - toEnds.start.y)
     if (connection.reversed !== true && reversedEndpointError + connectionToleranceMm < directEndpointError) {
       diagnostics.push(diagnostic({
         id: `seam-direction-crossed-${connection.id}`,
@@ -172,16 +187,30 @@ export function buildSeamAssemblyDiagnostics(params: {
     }
 
     if (connection.kind === 'sewn') {
-      for (const ref of [connection.from, connection.to]) {
-        const key = `${ref.pieceId}:${ref.edgeIndex}`
+      for (const ref of [...resolveSeamSpans(connection, 'from'), ...resolveSeamSpans(connection, 'to')]) {
+        // Key on the authored shape where there is one, so a curved side is not
+        // treated as ~48 independently sewable edges.
+        const key = `${ref.pieceId}:${ref.boundaryShapeId ?? ref.edgeIndex}`
         const users = sewnEdgeUsers.get(key) ?? []
-        users.push(connection)
+        users.push({ connection, t0: Math.min(ref.t0, ref.t1), t1: Math.max(ref.t0, ref.t1) })
         sewnEdgeUsers.set(key, users)
       }
     }
   }
 
-  for (const [key, users] of sewnEdgeUsers) {
+  for (const [key, entries] of sewnEdgeUsers) {
+    // Two seams may share a boundary shape as long as they cover different
+    // stretches of it — a handle tacked down at each end is one shape, two
+    // seams, and no conflict.
+    const overlapping = entries.filter((entry, index) =>
+      entries.some(
+        (other, otherIndex) =>
+          otherIndex !== index &&
+          other.connection.id !== entry.connection.id &&
+          Math.min(entry.t1, other.t1) - Math.max(entry.t0, other.t0) > SPAN_OVERLAP_TOLERANCE,
+      ),
+    )
+    const users = Array.from(new Map(overlapping.map((entry) => [entry.connection.id, entry.connection])).values())
     if (users.length <= 1) {
       continue
     }
@@ -191,12 +220,12 @@ export function buildSeamAssemblyDiagnostics(params: {
       code: 'seam.duplicate_connection',
       severity: 'error',
       gate: 'assembly-preflight',
-      message: `"${pieceLabel(pieceById, pieceId)}" edge ${Number(edgeIndex) + 1} is sewn more than once.`,
+      message: `"${pieceLabel(pieceById, pieceId)}" edge ${Number.isFinite(Number(edgeIndex)) ? Number(edgeIndex) + 1 : edgeIndex} is sewn more than once.`,
       entityRefs: [
         { kind: 'piece', id: pieceId, label: pieceLabel(pieceById, pieceId) },
         ...users.map((connection) => ({ kind: 'seam' as const, id: connection.id })),
       ],
-      metrics: { edgeIndex: Number(edgeIndex), seamCount: users.length },
+      metrics: { seamCount: users.length },
       suggestedFixes: [{
         action: 'delete-duplicate-seam',
         label: 'Keep one seam connection for this edge',

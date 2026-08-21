@@ -1,9 +1,156 @@
-import type { HardwareMarker, SeamConnection } from '../cad/cad-types'
+import type { HardwareMarker, PieceEdgeSpan, SeamConnection } from '../cad/cad-types'
 import { HARDWARE_PRESETS } from '../editor-constants'
-import { findNearestPatternPieceEdge, resolvePatternPieceChains } from '../ops/pattern-piece-ops'
+import { shapeIdForEdgeIndex, shapeParameterForEdge } from '../ops/outline-detection'
+import {
+  findNearestPatternPieceEdge,
+  getPatternPieceChain,
+  resolvePatternPieceChains,
+} from '../ops/pattern-piece-ops'
 import { findNearestStitchAnchor, createPrickingIronStitchHoles } from '../ops/stitch-hole-ops'
-import { clamp, pickToolPoint, uid } from './tool-helpers'
-import type { ToolDefinition } from './tool-types'
+import { withMirroredSingleRefs } from '../assembly/seam-spans'
+import {
+  advanceSeamToolPhase,
+  applySeamPick,
+  seamToolHint,
+  type SeamPick,
+  type SeamToolKind,
+} from './seam-tool-state'
+import { clamp, edgePickOptions, pickToolPoint, uid } from './tool-helpers'
+import type { ToolDefinition, ToolRuntime } from './tool-types'
+
+function spanFromPick(pick: SeamPick): PieceEdgeSpan {
+  return {
+    pieceId: pick.pieceId,
+    edgeIndex: pick.edgeIndex,
+    boundaryShapeId: pick.boundaryShapeId,
+    t0: 0,
+    t1: 1,
+    reversed: pick.reversed,
+  }
+}
+
+function seamAlreadyExists(runtime: ToolRuntime, from: SeamPick[], to: SeamPick[]) {
+  const key = (spans: SeamPick[]) =>
+    spans
+      .map((span) => `${span.pieceId}:${span.edgeIndex}`)
+      .sort()
+      .join('|')
+  const candidate = [key(from), key(to)].sort().join('~')
+  return runtime.seamConnections.some((connection) => {
+    const existingFrom = (connection.fromSpans ?? [connection.fromSpan ?? connection.from]).map((span) => ({
+      pieceId: span.pieceId,
+      edgeIndex: span.edgeIndex,
+    })) as SeamPick[]
+    const existingTo = (connection.toSpans ?? [connection.toSpan ?? connection.to]).map((span) => ({
+      pieceId: span.pieceId,
+      edgeIndex: span.edgeIndex,
+    })) as SeamPick[]
+    return [key(existingFrom), key(existingTo)].sort().join('~') === candidate
+  })
+}
+
+/**
+ * Turns a click into a pick that names the authored boundary shape, not just an
+ * index into the sampled polygon, and infers the seam direction from where along
+ * that shape the click landed.
+ */
+function resolveSeamPick(point: { x: number; y: number }, runtime: ToolRuntime): SeamPick | null {
+  const pieceChains = resolvePatternPieceChains(runtime.stitchTargetShapes, Object.values(runtime.lineTypesById))
+  const nearest = findNearestPatternPieceEdge(
+    point,
+    runtime.patternPieces,
+    pieceChains.byShapeId,
+    edgePickOptions(runtime),
+  )
+  if (!nearest) {
+    return null
+  }
+
+  const chain = getPatternPieceChain(nearest.piece, pieceChains.byShapeId)
+  const alongShape = chain ? shapeParameterForEdge(chain, nearest.edgeIndex, nearest.t) : null
+  // A curve samples to 48 chords, so `t` within one chord says nothing about
+  // which end of the side was pointed at. Use the position along the whole
+  // authored shape when we can resolve it.
+  const parameter = alongShape ? alongShape.parameter : nearest.t
+
+  return {
+    pieceId: nearest.piece.id,
+    pieceName: nearest.piece.name,
+    edgeIndex: nearest.edgeIndex,
+    boundaryShapeId: alongShape?.shapeId ?? (chain ? shapeIdForEdgeIndex(chain, nearest.edgeIndex) ?? undefined : undefined),
+    reversed: parameter > 0.5,
+  }
+}
+
+function buildSeamTool(kind: SeamToolKind): ToolDefinition {
+  const commit = (runtime: ToolRuntime, from: SeamPick[], to: SeamPick[]) => {
+    if (seamAlreadyExists(runtime, from, to)) {
+      runtime.setStatus('A seam already joins those edges')
+      return
+    }
+    const fromSpans = from.map(spanFromPick)
+    const toSpans = to.map(spanFromPick)
+    const base: SeamConnection = {
+      id: uid(),
+      from: { pieceId: fromSpans[0].pieceId, edgeIndex: fromSpans[0].edgeIndex },
+      to: { pieceId: toSpans[0].pieceId, edgeIndex: toSpans[0].edgeIndex },
+      kind: 'sewn',
+      // The two sides are stitched together, so they are traversed in opposite
+      // directions unless exactly one of them was picked back to front.
+      reversed: fromSpans[0].reversed !== toSpans[0].reversed,
+    }
+    runtime.setSeamConnections((previous) => [...previous, withMirroredSingleRefs(base, fromSpans, toSpans)])
+    const describe = (spans: SeamPick[]) =>
+      spans.length === 1
+        ? `${spans[0].pieceName} edge ${spans[0].edgeIndex + 1}`
+        : `${spans.length} edges on ${Array.from(new Set(spans.map((span) => span.pieceName))).join(' + ')}`
+    runtime.setStatus(`Created seam: ${describe(from)} to ${describe(to)}`)
+  }
+
+  return {
+    onPointerDown(point, runtime) {
+      if (!runtime.ensureActiveLayerWritable()) {
+        return
+      }
+
+      const pick = resolveSeamPick(point, runtime)
+      if (!pick) {
+        runtime.setStatus('Seam: click a pattern piece edge')
+        return
+      }
+
+      const result = applySeamPick(kind, runtime.toolSession.getSeamToolState(), pick)
+      runtime.toolSession.setSeamToolState(result.state)
+      pickToolPoint(runtime, point)
+      if (result.commit) {
+        commit(runtime, result.commit.from, result.commit.to)
+        return
+      }
+      if (result.message) {
+        runtime.setStatus(result.message)
+      }
+    },
+    onCommand(command, context) {
+      const normalized = command.trim().toLowerCase()
+      if (!['next', 'finish', 'done', 'enter'].includes(normalized)) {
+        return ''
+      }
+      const result = advanceSeamToolPhase(context.runtime.toolSession.getSeamToolState())
+      context.runtime.toolSession.setSeamToolState(result.state)
+      if (result.commit) {
+        commit(context.runtime, result.commit.from, result.commit.to)
+        return 'Seam created'
+      }
+      return result.message ?? ''
+    },
+    getHint() {
+      return seamToolHint(kind, { from: [], to: [], phase: 'from' })
+    },
+    resetSession(session, nextTool) {
+      session.resetForTool(nextTool)
+    },
+  }
+}
 
 export const stitchHardwareToolDefinitions = {
   'stitch-hole': {
@@ -91,82 +238,6 @@ export const stitchHardwareToolDefinitions = {
       runtime.setStatus(`Placed hardware marker (${marker.kind})`)
     },
   },
-  seam: {
-    onPointerDown(point, runtime) {
-      if (!runtime.ensureActiveLayerWritable()) {
-        return
-      }
-
-      const pieceChains = resolvePatternPieceChains(runtime.stitchTargetShapes, Object.values(runtime.lineTypesById))
-      const nearest = findNearestPatternPieceEdge(point, runtime.patternPieces, pieceChains.byShapeId)
-      if (!nearest) {
-        runtime.setStatus('Seam: click a pattern piece edge')
-        return
-      }
-
-      const pending = runtime.toolSession.getPendingSeamSelection()
-      const selectedEdge = {
-        pieceId: nearest.piece.id,
-        pieceName: nearest.piece.name,
-        edgeIndex: nearest.edgeIndex,
-      }
-
-      if (!pending) {
-        runtime.toolSession.setPendingSeamSelection(selectedEdge)
-        pickToolPoint(runtime, point)
-        runtime.setStatus(`Seam start set: ${nearest.piece.name} edge ${nearest.edgeIndex + 1}. Click the matching edge.`)
-        return
-      }
-
-      if (pending.pieceId === selectedEdge.pieceId && pending.edgeIndex === selectedEdge.edgeIndex) {
-        runtime.toolSession.clearPendingSeamSelection()
-        runtime.setStatus('Seam selection cleared')
-        return
-      }
-
-      const duplicate = runtime.seamConnections.some(
-        (connection) =>
-          (connection.from.pieceId === pending.pieceId &&
-            connection.from.edgeIndex === pending.edgeIndex &&
-            connection.to.pieceId === selectedEdge.pieceId &&
-            connection.to.edgeIndex === selectedEdge.edgeIndex) ||
-          (connection.to.pieceId === pending.pieceId &&
-            connection.to.edgeIndex === pending.edgeIndex &&
-            connection.from.pieceId === selectedEdge.pieceId &&
-            connection.from.edgeIndex === selectedEdge.edgeIndex),
-      )
-
-      if (duplicate) {
-        runtime.toolSession.clearPendingSeamSelection()
-        runtime.setStatus('A seam connection already exists between those edges')
-        return
-      }
-
-      const connection: SeamConnection = {
-        id: uid(),
-        from: {
-          pieceId: pending.pieceId,
-          edgeIndex: pending.edgeIndex,
-        },
-        to: {
-          pieceId: selectedEdge.pieceId,
-          edgeIndex: selectedEdge.edgeIndex,
-        },
-        kind: 'sewn',
-        reversed: false,
-      }
-      runtime.setSeamConnections((previous) => [...previous, connection])
-      runtime.toolSession.clearPendingSeamSelection()
-      pickToolPoint(runtime, point)
-      runtime.setStatus(
-        `Created seam: ${pending.pieceName} edge ${pending.edgeIndex + 1} to ${selectedEdge.pieceName} edge ${selectedEdge.edgeIndex + 1}`,
-      )
-    },
-    getHint() {
-      return 'Seam: click one piece edge, then the matching edge to create a seam'
-    },
-    resetSession(session, nextTool) {
-      session.resetForTool(nextTool)
-    },
-  },
+  seam: buildSeamTool('single'),
+  'seam-multi': buildSeamTool('multi'),
 } satisfies Partial<Record<string, ToolDefinition>>

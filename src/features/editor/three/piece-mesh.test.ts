@@ -39,6 +39,7 @@ describe('buildPieceMeshes', () => {
     const outer: OutlineChain = {
       id: 'outer',
       shapeIds: ['outer-shape'],
+      segments: [{ shapeId: 'outer-shape', startIndex: 0, endIndex: 4, reversed: false }],
       polygon: [
         { x: 0, y: 0 },
         { x: 40, y: 0 },
@@ -52,6 +53,7 @@ describe('buildPieceMeshes', () => {
     const inner: OutlineChain = {
       id: 'inner',
       shapeIds: ['inner-hole'],
+      segments: [{ shapeId: 'inner-hole', startIndex: 0, endIndex: 4, reversed: false }],
       polygon: [
         { x: 10, y: 5 },
         { x: 18, y: 5 },

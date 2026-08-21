@@ -21,6 +21,14 @@ import { buildFinalProductDocumentBounds } from '../three/final-product-document
 import { analyzeFinalProductFoldSweep } from '../three/final-product-fold-sweep'
 import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct } from '../three/final-product-solver'
+import { solveSeamDrivenPlacements } from '../three/seam-driven-placement'
+import { useEditorDocumentActions } from '../state/providers/EditorDocumentStateProvider'
+import { useEditorToolSession } from '../state/providers/EditorToolSessionProvider'
+import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
+import { applySeamPick, seamToolHint, type SeamPick } from '../tools/seam-tool-state'
+import { buildSeamSewPlan, resolveSewProgress } from '../assembly/seam-sew-order'
+import { withMirroredSingleRefs } from '../assembly/seam-spans'
+import { uid } from '../cad/cad-geometry'
 import type { FinalProductDiagnostic } from '../three/final-product-types'
 import { buildFoldTimelinePreview } from '../three/fold-timeline'
 import { LEATHER_PRESETS } from '../three/material-presets'
@@ -204,6 +212,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       result.push({
         polygon: chain.polygon,
         shapeIds: chain.shapeIds,
+        segments: chain.segments,
         layerId: firstShape.layerId,
       })
     }
@@ -211,6 +220,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
   }, [shapesIn3dView, lineTypes])
 
   const {
+    pieceMeshes,
     effectiveSeamConnections,
     explicitSeams,
     assemblyDiagnostics,
@@ -224,6 +234,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     outlinePolygons,
     shapesIn3dView,
     layersFor3d,
+    lineTypes,
     threePreviewSettings,
   })
 
@@ -334,6 +345,20 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     [selectedShapeIds, closedShapeIdSet],
   )
 
+  /**
+   * The seams laid end to end on one stitch axis, so the scrubber's range and
+   * its caption both come from the same place the renderer clips against.
+   */
+  const seamSewPlan = useMemo(
+    () => buildSeamSewPlan({ seamConnections: effectiveSeamConnections, stitchPairs: explicitSeams.pairs }),
+    [effectiveSeamConnections, explicitSeams],
+  )
+
+  const sewProgress = useMemo(
+    () => resolveSewProgress(seamSewPlan, threePreviewSettings.sewnStitchCount ?? seamSewPlan.stitchCount),
+    [seamSewPlan, threePreviewSettings.sewnStitchCount],
+  )
+
   const documentState = useMemo<ThreeBridgeDocument>(
     () => ({
       layers: layersFor3d,
@@ -346,6 +371,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       piecePlacements3d,
       seamConnections: effectiveSeamConnections,
       avatars,
+      stitchPairs: explicitSeams.pairs,
     }),
     [
       layersFor3d,
@@ -358,6 +384,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       piecePlacements3d,
       effectiveSeamConnections,
       avatars,
+      explicitSeams,
     ],
   )
 
@@ -545,7 +572,125 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     })
   }
 
+  // The 2D canvas and this view share one seam-tool state machine, so a seam can
+  // be started by clicking a flat edge and finished by clicking the matching
+  // edge on the assembled model.
+  const toolSession = useEditorToolSession()
+  const { setSeamConnections } = useEditorDocumentActions()
+  const activeTool = useEditorToolSelector((state) => state.tool)
+  const seamToolKind = activeTool === 'seam-multi' ? 'multi' : activeTool === 'seam' ? 'single' : null
+  const [seamPickStatus, setSeamPickStatus] = useState<string | null>(null)
+
+  const commitSeamFromPicks = (from: SeamPick[], to: SeamPick[]) => {
+    const spanFor = (pick: SeamPick) => ({
+      pieceId: pick.pieceId,
+      edgeIndex: pick.edgeIndex,
+      boundaryShapeId: pick.boundaryShapeId,
+      t0: 0,
+      t1: 1,
+      reversed: pick.reversed,
+    })
+    const fromSpans = from.map(spanFor)
+    const toSpans = to.map(spanFor)
+    setSeamConnections((previous) => [
+      ...previous,
+      withMirroredSingleRefs(
+        {
+          id: uid(),
+          from: { pieceId: fromSpans[0].pieceId, edgeIndex: fromSpans[0].edgeIndex },
+          to: { pieceId: toSpans[0].pieceId, edgeIndex: toSpans[0].edgeIndex },
+          kind: 'sewn',
+          reversed: fromSpans[0].reversed !== toSpans[0].reversed,
+        },
+        fromSpans,
+        toSpans,
+      ),
+    ])
+    setSeamPickStatus(`Created seam: ${from[0].pieceName} to ${to[to.length - 1].pieceName}`)
+  }
+
+  const handleViewportSeamPick = (clientX: number, clientY: number) => {
+    if (!seamToolKind) {
+      return false
+    }
+    const picked = bridgeRef.current?.pickSeamEdgeAt(clientX, clientY) ?? null
+    if (!picked) {
+      setSeamPickStatus('Seam: click an edge of a piece in the model')
+      return false
+    }
+
+    const result = applySeamPick(seamToolKind, toolSession.getSeamToolState(), {
+      pieceId: picked.pieceId,
+      pieceName: picked.pieceName,
+      edgeIndex: picked.edgeIndex,
+      boundaryShapeId: picked.boundaryShapeId,
+      // Same rule the 2D tool uses: past the midpoint means the far end was
+      // pointed at, so the edge runs backwards.
+      reversed: picked.parameter > 0.5,
+    })
+    toolSession.setSeamToolState(result.state)
+    if (result.commit) {
+      commitSeamFromPicks(result.commit.from, result.commit.to)
+    } else if (result.message) {
+      setSeamPickStatus(result.message)
+    }
+    return true
+  }
+
+  const seamToolActive = seamToolKind !== null
+  const seamToolStatus = seamToolActive
+    ? (seamPickStatus ?? seamToolHint(seamToolKind, toolSession.getSeamToolState()))
+    : null
+
+  const [assemblyAngleDeg, setAssemblyAngleDeg] = useState(0)
+  const [seamPlacementStatus, setSeamPlacementStatus] = useState<string | null>(null)
+
+  /**
+   * Place every piece from the seams that join them, instead of asking for six
+   * numbers each. Angle 0 lays the pieces out flat and connected; raising it
+   * rotates each piece about the seam it hangs from.
+   */
+  const handleSolvePlacementFromSeams = (angleDeg = assemblyAngleDeg) => {
+    const result = solveSeamDrivenPlacements({
+      pieceMeshes,
+      seamConnections: effectiveSeamConnections,
+      options: { assemblyAngleDeg: angleDeg },
+    })
+
+    if (result.placements.length === 0) {
+      setSeamPlacementStatus('No seams connect the visible pieces yet.')
+      return
+    }
+
+    const solvedIds = new Set(result.placements.map((entry) => entry.pieceId))
+    onSetPiecePlacements3d((previous) => [
+      ...previous.filter((entry) => !solvedIds.has(entry.pieceId)),
+      ...result.placements,
+    ])
+
+    const notes: string[] = [`Placed ${result.placements.length} piece(s) from seams`]
+    if (result.unplacedPieceIds.length > 0) {
+      notes.push(`${result.unplacedPieceIds.length} not reached by a seam`)
+    }
+    const creases = result.diagnostics.filter((entry) => entry.requiresCrease)
+    if (creases.length > 0) {
+      // Honest rather than silent: a straight strip meeting a run that turns
+      // corners cannot close rigidly, and the maker creases it there.
+      notes.push(`${creases.length} seam(s) need a crease to close`)
+    }
+    if (result.skippedSeamIds.length > 0) {
+      notes.push(`${result.skippedSeamIds.length} seam(s) could not be resolved`)
+    }
+    setSeamPlacementStatus(notes.join(' · '))
+  }
+
+  const handleSetAssemblyAngle = (angleDeg: number) => {
+    setAssemblyAngleDeg(angleDeg)
+    handleSolvePlacementFromSeams(angleDeg)
+  }
+
   const handleResetAssembly = () => {
+    setSeamPlacementStatus(null)
     onSetPiecePlacements3d((previous) => previous.filter((entry) => !visiblePatternPieces.some((piece) => piece.id === entry.pieceId)))
   }
 
@@ -709,6 +854,15 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     materialState,
     setMaterialState,
     updatePlacement,
+    seamToolActive,
+    seamToolStatus,
+    onViewportSeamPick: handleViewportSeamPick,
+    assemblyAngleDeg,
+    seamSewPlan,
+    sewProgress,
+    seamPlacementStatus,
+    handleSolvePlacementFromSeams,
+    handleSetAssemblyAngle,
     handleSpreadPieces,
     handleStackByLayer,
     handleMirrorPairLayout,

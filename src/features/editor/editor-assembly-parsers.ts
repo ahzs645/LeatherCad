@@ -17,6 +17,9 @@ export function parsePieceEdgeSpan(value: unknown): PieceEdgeSpan | null {
   return {
     pieceId: candidate.pieceId,
     edgeIndex: Math.max(0, Math.round(candidate.edgeIndex)),
+    // The durable half of the reference. Dropping it here would leave every
+    // loaded seam pinned to a positional index again.
+    boundaryShapeId: typeof candidate.boundaryShapeId === 'string' ? candidate.boundaryShapeId : undefined,
     t0: clamp(candidate.t0, 0, 1),
     t1: clamp(candidate.t1, 0, 1),
     reversed: candidate.reversed === true,

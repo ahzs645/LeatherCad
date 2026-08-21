@@ -1,4 +1,4 @@
-import type { Dispatch, PointerEventHandler, RefObject, SetStateAction } from 'react'
+import type { Dispatch, PointerEventHandler, SetStateAction } from 'react'
 import type { Layer, LineType, Shape, StitchHole, Tool } from '../../cad/cad-types'
 import type { ResolvedThemeMode, ThemeMode } from '../../editor-types'
 import { toolLabel } from '../../editor-utils'
@@ -12,7 +12,9 @@ type WorkbenchControllerModel = ReturnType<typeof useEditorWorkbenchController>
 
 type BuildWorkbenchPropsParams = {
   controller: WorkbenchControllerModel
-  shellRef: RefObject<HTMLElement | null>
+  /** Callback ref: the observer has to follow the element, which is replaced
+   *  when a lazily-loaded surface suspends and resolves. */
+  shellRef: (node: HTMLElement | null) => void
   workspaceMode: EditorWorkbenchProps['workspaceMode']
   secondaryPreviewMode: EditorWorkbenchProps['secondaryPreviewMode']
   showPeek: boolean
@@ -94,7 +96,6 @@ export function buildWorkbenchProps({
     quickActions: controller.quickActions,
     onInvokeQuickAction: controller.handleWorkbenchQuickAction,
     onSetWorkspaceMode: controller.handleSetWorkbenchMode,
-    onTogglePeek: controller.handleToggleWorkbenchPeek,
     activeRibbonTab,
     themeMode,
     ribbonGroups: controller.ribbonGroups,

@@ -26,7 +26,8 @@ test('mobile shell renders with topbar, canvas, and tool selector', async ({ pag
 test('mobile Options modal scrolls and closes', async ({ page }) => {
   await page.goto('/')
 
-  // Open the precision modal as a representative dialog.
+  // Precision lives behind Options so the always-visible bar stays one row tall.
+  await page.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('button', { name: 'Precision' }).click()
   const heading = page.getByRole('heading', { name: /Precision/ })
   await expect(heading).toBeVisible()
@@ -44,8 +45,9 @@ test('mobile Options modal scrolls and closes', async ({ page }) => {
     }
   }
 
-  // Close the modal.
-  await page.getByRole('button', { name: /^Close$/ }).first().click()
+  // Scope the close to the modal: the Options toggle also reads "Close" while
+  // the menu is open, and it sits behind the modal backdrop.
+  await modal.getByRole('button', { name: /^Close$/ }).click()
   await expect(heading).toBeHidden()
 })
 
@@ -78,4 +80,71 @@ test('direct deep link to /workbench/split opens the mobile Split tab', async ({
 
   await expect(page.locator('select.tool-select-mobile')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Split', exact: true })).toHaveClass(/active/)
+})
+
+
+test('the mobile bar stays one row and the 3D tab keeps most of the screen', async ({ page }) => {
+  await page.goto('/workbench/3d')
+  await page.locator('canvas.three-preview-canvas').waitFor()
+
+  const viewport = page.viewportSize()
+  expect(viewport).not.toBeNull()
+  const viewportHeight = viewport?.height ?? 0
+
+  // The bar was five stacked rows — 245px of a 664px phone — before Precision,
+  // Project Memo and Catalog moved behind Options.
+  const topbar = await page.locator('.topbar').boundingBox()
+  expect(topbar?.height ?? 0).toBeLessThan(140)
+
+  // The hidden 2D lane must not hold a grid row open.
+  await expect(page.locator('.canvas-stage')).toBeHidden()
+
+  // The 3D canvas used to get 195px of 664 — 29%.
+  const canvas3d = await page.locator('.three-preview-canvas-wrap').boundingBox()
+  expect((canvas3d?.height ?? 0) / viewportHeight).toBeGreaterThan(0.6)
+})
+
+test('every touch target on the mobile shell clears 44px', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('select.tool-select-mobile').waitFor()
+
+  const controls = page.locator('button:visible, select:visible')
+  const undersized: string[] = []
+  for (const control of await controls.all()) {
+    const box = await control.boundingBox()
+    if (!box || box.width === 0 || box.height === 0) continue
+    if (box.height < 44 || box.width < 44) {
+      const label = (await control.textContent())?.trim().slice(0, 20) ?? ''
+      undersized.push(`${label} ${Math.round(box.width)}x${Math.round(box.height)}`)
+    }
+  }
+
+  expect(undersized).toEqual([])
+})
+
+
+test('the phone can create a pattern piece and read its seams', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Options' }).click()
+  await page.getByRole('button', { name: 'Pieces + Seams' }).click()
+
+  // Every route to a pattern piece used to run through the workbench document
+  // tree, which the compact shell does not render — so the Seam tool was in the
+  // tool list with nothing to connect and nothing to show.
+  const createPiece = page.getByRole('button', { name: 'Create Piece' })
+  await expect(createPiece).toBeVisible()
+  await expect(createPiece).toBeDisabled()
+  await expect(page.getByText('Select a closed outline on the canvas')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Edit Piece' })).toBeVisible()
+  await expect(page.getByText(/^Seams \(\d+\)$/)).toBeVisible()
+})
+
+test('the phone tool list offers both seam tools', async ({ page }) => {
+  await page.goto('/')
+
+  const options = await page.locator('select.tool-select-mobile option').allTextContents()
+
+  expect(options).toContain('Tool: Seam')
+  expect(options).toContain('Tool: Seam (Multi-Edge)')
 })

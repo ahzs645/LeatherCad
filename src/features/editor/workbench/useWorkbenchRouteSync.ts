@@ -3,29 +3,28 @@ import type { MobileViewMode } from '../editor-types'
 import type { WorkbenchInspectorTab, WorkspaceMode } from './workbench-types'
 
 /**
- * The URL vocabulary for the workspace. Desktop only ever produces/consumes the
- * two-value `WorkspaceMode` contract; the mobile shell adds a third tab (split
- * 2D + 3D) which gets its own path so every mobile tab is deep-linkable and the
- * Back button round-trips losslessly. A desktop client that opens a `split`
- * link degrades to the 3D workspace (see `resolveWorkbenchWorkspaceMode`).
+ * The URL vocabulary for the workspace. `/workbench/split` is one path meaning
+ * "show me both", and it now means that on desktop too — a side-by-side lane
+ * pair — rather than degrading to the 3D workspace as it did when desktop only
+ * had a two-value mode.
  */
-export type WorkbenchRouteMode = WorkspaceMode | 'split'
+export type WorkbenchRouteMode = WorkspaceMode
 
 const ROUTE_SEGMENTS: Record<Exclude<WorkbenchRouteMode, '2d'>, string> = {
   '3d': 'workbench/3d',
-  split: 'workbench/split',
+  both: 'workbench/split',
 }
 
 const MOBILE_VIEW_MODE_BY_ROUTE_MODE: Record<WorkbenchRouteMode, MobileViewMode> = {
   '2d': 'editor',
   '3d': 'preview',
-  split: 'split',
+  both: 'split',
 }
 
 const ROUTE_MODE_BY_MOBILE_VIEW_MODE: Record<MobileViewMode, WorkbenchRouteMode> = {
   editor: '2d',
   preview: '3d',
-  split: 'split',
+  split: 'both',
 }
 
 function normalizePath(path: string) {
@@ -58,8 +57,8 @@ export function resolveWorkbenchRouteMode(
   if (normalizedPath === normalizePath(buildWorkbenchRoutePath('3d', basePath))) {
     return '3d'
   }
-  if (normalizedPath === normalizePath(buildWorkbenchRoutePath('split', basePath))) {
-    return 'split'
+  if (normalizedPath === normalizePath(buildWorkbenchRoutePath('both', basePath))) {
+    return 'both'
   }
   return '2d'
 }
@@ -69,9 +68,9 @@ export function buildWorkbenchWorkspacePath(mode: WorkspaceMode, basePath = impo
   return buildWorkbenchRoutePath(mode, basePath)
 }
 
-/** Desktop path resolver — `/workbench/split` degrades to the 3D workspace. */
+/** Desktop path resolver. Every route mode is now a workspace mode. */
 export function resolveWorkbenchWorkspaceMode(pathname: string, basePath = import.meta.env.BASE_URL): WorkspaceMode {
-  return resolveWorkbenchRouteMode(pathname, basePath) === '2d' ? '2d' : '3d'
+  return resolveWorkbenchRouteMode(pathname, basePath)
 }
 
 export function buildMobileViewModePath(mode: MobileViewMode, basePath = import.meta.env.BASE_URL) {

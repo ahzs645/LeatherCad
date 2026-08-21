@@ -1,6 +1,7 @@
 import { act, createElement, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanupRender, click, renderForTest } from '../../../test/render'
+import { EditorStateProviders } from '../state/providers/EditorStateProviders'
 import type {
   AvatarSpec,
   FoldLine,
@@ -154,7 +155,9 @@ function createHarness() {
     )
   }
 
-  return createElement(Harness)
+  // The controller now reads the editor's shared tool session, so a seam started
+  // on the 2D canvas can be finished on the model.
+  return createElement(EditorStateProviders, null, createElement(Harness))
 }
 
 describe('useThreePreviewController', () => {

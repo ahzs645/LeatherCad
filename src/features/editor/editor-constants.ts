@@ -6,7 +6,20 @@ export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 40
 export const GRID_SPACING_OPTIONS = [1, 2, 5, 10, 25, 50, 100] as const
 export const DEFAULT_GRID_SPACING = 10
-export const MOBILE_MEDIA_QUERY = '(max-width: 1100px)'
+/**
+ * Below this, the editor falls back to the compact single-pane shell.
+ *
+ * This used to be 1100px, which put every tablet on the phone side of a hard
+ * fork: a 1024x768 iPad lost the ribbon, the document tree, the tool rail and
+ * all four inspectors, and with them the only route to creating a pattern piece
+ * or editing a seam. 768 is the boundary where a docked inspector genuinely
+ * stops fitting; between the two the workbench stays, with its inspector as an
+ * edge sheet (see the medium-density rules in _responsive.scss).
+ */
+export const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
+
+/** Workbench, but with the inspector and rails folded away. */
+export const MEDIUM_DENSITY_MEDIA_QUERY = '(min-width: 768px) and (max-width: 1100px)'
 export const DEFAULT_FRONT_LAYER_COLOR = '#60a5fa'
 export const DEFAULT_BACK_LAYER_COLOR = '#f97316'
 export const STITCH_COLOR_DARK = '#f59e0b'
@@ -69,6 +82,7 @@ export const TOOL_OPTIONS: Array<{ value: Tool; label: string }> = [
   { value: 'stitch-hole', label: 'Stitch Hole' },
   { value: 'hardware', label: 'Hardware' },
   { value: 'seam', label: 'Seam' },
+  { value: 'seam-multi', label: 'Seam (Multi-Edge)' },
   { value: 'piece-notch', label: 'Piece Notch' },
   { value: 'text', label: 'Text' },
   { value: 'freehand', label: 'Freehand' },
@@ -91,6 +105,7 @@ export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSr
   { value: 'stitch-hole', label: 'Stitch', iconSrc: `${base}icons/jsketcher/dot.png` },
   { value: 'hardware', label: 'Hardware', iconSrc: `${base}icons/leathercad/hardware.svg` },
   { value: 'seam', label: 'Seam', iconSrc: `${base}icons/jsketcher/p2p.png` },
+  { value: 'seam-multi', label: 'Seam+', iconSrc: `${base}icons/jsketcher/p2p.png` },
   { value: 'piece-notch', label: 'Notch', iconSrc: `${base}icons/jsketcher/dot.png` },
   { value: 'text', label: 'Text', iconSrc: `${base}icons/leathercad/text.svg` },
   { value: 'freehand', label: 'Freehand', iconSrc: `${base}icons/leathercad/bezier.svg` },
@@ -99,6 +114,7 @@ export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSr
 
 export const MOBILE_OPTIONS_TABS: Array<{ value: MobileOptionsTab; label: string }> = [
   { value: 'view', label: 'View + Layers' },
+  { value: 'pieces', label: 'Pieces + Seams' },
   { value: 'file', label: 'File' },
 ]
 

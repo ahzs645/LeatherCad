@@ -5,9 +5,12 @@ import type { PieceMeshData } from './piece-mesh-data'
 export {
   buildPieceMeshData,
   buildPieceMeshes,
+  edgeAtIndex,
+  edgesForShape,
   normalizeClosedPolygon,
   type PieceMeshData,
   type PieceOutlineEdge,
+  type PieceShapeSegment,
 } from './piece-mesh-data'
 
 export function createPieceShape(
