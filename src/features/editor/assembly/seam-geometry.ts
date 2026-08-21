@@ -138,6 +138,23 @@ export function seamSideEndpoints(side: ResolvedSeamSide) {
   return { start: at(first, first.t0), end: at(last, last.t1) }
 }
 
+/**
+ * The seam side as an ordered polyline: one point per stretch boundary, in
+ * stitching order. A side that runs along several boundary shapes turns corners,
+ * and those corners are exactly what a rigid piece cannot follow without
+ * creasing — so callers need the turns, not just the two ends.
+ */
+export function seamSidePolyline(side: ResolvedSeamSide) {
+  const at = (stretch: SeamSideStretch, t: number) => ({
+    x: stretch.edge.start.x + (stretch.edge.end.x - stretch.edge.start.x) * t,
+    y: stretch.edge.start.y + (stretch.edge.end.y - stretch.edge.start.y) * t,
+  })
+  const points = side.stretches.map((stretch) => at(stretch, stretch.t0))
+  const last = side.stretches[side.stretches.length - 1]
+  points.push(at(last, last.t1))
+  return points
+}
+
 /** Midpoint of a seam side, for pointing a diagnostic at something visible. */
 export function seamSideMidpoint(side: ResolvedSeamSide) {
   const { stretch, t } = sampleSide(side.stretches, side.lengthMm / 2)

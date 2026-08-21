@@ -114,6 +114,10 @@ export function WorkbenchThreePreviewInspector({
     visiblePatternPieces,
     piecePlacementById,
     updatePlacement,
+    assemblyAngleDeg,
+    seamPlacementStatus,
+    handleSolvePlacementFromSeams: onSolvePlacementFromSeams,
+    handleSetAssemblyAngle: onSetAssemblyAngle,
     handleSpreadPieces,
     handleStackByLayer,
     handleMirrorPairLayout,
@@ -550,6 +554,37 @@ export function WorkbenchThreePreviewInspector({
         ) : (
           <>
             <p className="hint">{`${visiblePatternPieces.length} piece${visiblePatternPieces.length === 1 ? '' : 's'} in the current 3D view.`}</p>
+
+            <div className="fold-control-card">
+              <strong>Assemble from seams</strong>
+              <p className="hint">
+                Places every piece so its seam edges meet the edges they are sewn to. The angle
+                opens each seam: 0 lays the pieces out flat and connected, 90 stands them up,
+                180 folds them closed.
+              </p>
+              <label className="field-row">
+                <span>Assembly angle</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={180}
+                  step={5}
+                  value={assemblyAngleDeg}
+                  onChange={(event) => onSetAssemblyAngle(Number(event.target.value))}
+                />
+              </label>
+              <p className="hint">{`${assemblyAngleDeg}°`}</p>
+              <div className="button-row">
+                <button onClick={() => onSolvePlacementFromSeams()}>Solve From Seams</button>
+              </div>
+              {seamPlacementStatus ? <p className="hint">{seamPlacementStatus}</p> : null}
+            </div>
+
+            <details className="control-block inspector-disclosure">
+              <summary>
+                <h3>Place pieces by hand</h3>
+                <span>{visiblePatternPieces.length}</span>
+              </summary>
             {visiblePatternPieces.map((piece) => {
               const placement = piecePlacementById[piece.id] ?? defaultPiecePlacement(piece.id)
               return (
@@ -624,11 +659,12 @@ export function WorkbenchThreePreviewInspector({
               )
             })}
             <div className="button-row">
-              <button onClick={handleSpreadPieces}>Spread Pieces</button>
-              <button onClick={handleStackByLayer}>Stack by Layer</button>
-              <button onClick={handleMirrorPairLayout}>Mirror Pair Layout</button>
-              <button onClick={handleResetAssembly}>Reset Assembly</button>
-            </div>
+                <button onClick={handleSpreadPieces}>Spread Pieces</button>
+                <button onClick={handleStackByLayer}>Stack by Layer</button>
+                <button onClick={handleMirrorPairLayout}>Mirror Pair Layout</button>
+                <button onClick={handleResetAssembly}>Reset Assembly</button>
+              </div>
+            </details>
           </>
         )}
       </details>

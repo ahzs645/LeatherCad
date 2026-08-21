@@ -21,6 +21,7 @@ import { buildFinalProductDocumentBounds } from '../three/final-product-document
 import { analyzeFinalProductFoldSweep } from '../three/final-product-fold-sweep'
 import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct } from '../three/final-product-solver'
+import { solveSeamDrivenPlacements } from '../three/seam-driven-placement'
 import type { FinalProductDiagnostic } from '../three/final-product-types'
 import { buildFoldTimelinePreview } from '../three/fold-timeline'
 import { LEATHER_PRESETS } from '../three/material-presets'
@@ -204,6 +205,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
       result.push({
         polygon: chain.polygon,
         shapeIds: chain.shapeIds,
+        segments: chain.segments,
         layerId: firstShape.layerId,
       })
     }
@@ -211,6 +213,7 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
   }, [shapesIn3dView, lineTypes])
 
   const {
+    pieceMeshes,
     effectiveSeamConnections,
     explicitSeams,
     assemblyDiagnostics,
@@ -546,7 +549,55 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     })
   }
 
+  const [assemblyAngleDeg, setAssemblyAngleDeg] = useState(0)
+  const [seamPlacementStatus, setSeamPlacementStatus] = useState<string | null>(null)
+
+  /**
+   * Place every piece from the seams that join them, instead of asking for six
+   * numbers each. Angle 0 lays the pieces out flat and connected; raising it
+   * rotates each piece about the seam it hangs from.
+   */
+  const handleSolvePlacementFromSeams = (angleDeg = assemblyAngleDeg) => {
+    const result = solveSeamDrivenPlacements({
+      pieceMeshes,
+      seamConnections: effectiveSeamConnections,
+      options: { assemblyAngleDeg: angleDeg },
+    })
+
+    if (result.placements.length === 0) {
+      setSeamPlacementStatus('No seams connect the visible pieces yet.')
+      return
+    }
+
+    const solvedIds = new Set(result.placements.map((entry) => entry.pieceId))
+    onSetPiecePlacements3d((previous) => [
+      ...previous.filter((entry) => !solvedIds.has(entry.pieceId)),
+      ...result.placements,
+    ])
+
+    const notes: string[] = [`Placed ${result.placements.length} piece(s) from seams`]
+    if (result.unplacedPieceIds.length > 0) {
+      notes.push(`${result.unplacedPieceIds.length} not reached by a seam`)
+    }
+    const creases = result.diagnostics.filter((entry) => entry.requiresCrease)
+    if (creases.length > 0) {
+      // Honest rather than silent: a straight strip meeting a run that turns
+      // corners cannot close rigidly, and the maker creases it there.
+      notes.push(`${creases.length} seam(s) need a crease to close`)
+    }
+    if (result.skippedSeamIds.length > 0) {
+      notes.push(`${result.skippedSeamIds.length} seam(s) could not be resolved`)
+    }
+    setSeamPlacementStatus(notes.join(' · '))
+  }
+
+  const handleSetAssemblyAngle = (angleDeg: number) => {
+    setAssemblyAngleDeg(angleDeg)
+    handleSolvePlacementFromSeams(angleDeg)
+  }
+
   const handleResetAssembly = () => {
+    setSeamPlacementStatus(null)
     onSetPiecePlacements3d((previous) => previous.filter((entry) => !visiblePatternPieces.some((piece) => piece.id === entry.pieceId)))
   }
 
@@ -710,6 +761,10 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     materialState,
     setMaterialState,
     updatePlacement,
+    assemblyAngleDeg,
+    seamPlacementStatus,
+    handleSolvePlacementFromSeams,
+    handleSetAssemblyAngle,
     handleSpreadPieces,
     handleStackByLayer,
     handleMirrorPairLayout,

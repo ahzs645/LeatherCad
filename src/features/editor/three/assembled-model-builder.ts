@@ -16,6 +16,7 @@ import {
   ShapeGeometry,
   Sprite,
   SpriteMaterial,
+  Vector2,
   Vector3,
 } from 'three'
 import type { PatternPiece, PiecePlacement3D, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
@@ -28,6 +29,21 @@ import { addPanelOutline } from './outline-renderer'
 import { buildThreadSegments, chainRunSegments } from './stitch-thread'
 
 const DEFAULT_THICKNESS_WORLD = 0.005
+
+/**
+ * A projected flat point in viewport coordinates.
+ *
+ * `createPieceShape` feeds `projectPiecePoint` output into an ExtrudeGeometry
+ * that is then rotated -90 degrees about X, which negates the projected Y on the
+ * way to world Z. Anything drawn alongside a piece body — its outline, its
+ * stitch holes, its edge labels, the seam indicators — has to apply the same
+ * negation or it lands mirrored about the document's Y axis. It did not, so on
+ * any piece that is not symmetric in document Y those overlays sat on the wrong
+ * side of the leather.
+ */
+function flatToWorld(projected: Vector2, y: number) {
+  return new Vector3(projected.x, y, -projected.y)
+}
 
 function explodedOffsetForIndex(index: number, total: number, previewSettings: ThreePreviewSettings, transform: ModelTransform) {
   if (total <= 1) {
@@ -42,6 +58,17 @@ function explodedOffsetForIndex(index: number, total: number, previewSettings: T
   )
 }
 
+/**
+ * Position and orient a piece group.
+ *
+ * The rotation pivots on the piece's own centroid rather than the group origin.
+ * The group origin is the document centre, shared by every piece, so rotating
+ * about it swung a piece in an arc around the whole drawing instead of turning
+ * it in place — surprising when typed into the inspector, and impossible to
+ * solve for, since the required translation would then depend on a document
+ * centre that changes as pieces are shown and hidden. A piece with no placement
+ * still lands exactly where it did.
+ */
 function applyPlacementTransform(
   group: Group,
   placement: PiecePlacement3D,
@@ -49,12 +76,13 @@ function applyPlacementTransform(
   total: number,
   previewSettings: ThreePreviewSettings,
   transform: ModelTransform,
+  pivot: Vector3,
 ) {
   const exploded = explodedOffsetForIndex(index, total, previewSettings, transform)
   group.position.set(
-    placement.translationMm.x * transform.scale + exploded.x,
-    placement.translationMm.y * transform.scale + exploded.y,
-    -placement.translationMm.z * transform.scale + exploded.z,
+    pivot.x + placement.translationMm.x * transform.scale + exploded.x,
+    pivot.y + placement.translationMm.y * transform.scale + exploded.y,
+    pivot.z - placement.translationMm.z * transform.scale + exploded.z,
   )
   group.rotation.set(
     MathUtils.degToRad(placement.rotationDeg.x),
@@ -64,6 +92,26 @@ function applyPlacementTransform(
   if (placement.flipped) {
     group.scale.x = -1
   }
+}
+
+/** The piece's centroid in viewport coordinates — the pivot its rotation uses. */
+function pieceCentroidWorld(pieceMesh: PieceMeshData, transform: ModelTransform) {
+  if (pieceMesh.outer.length === 0) {
+    return new Vector3()
+  }
+  let x = 0
+  let y = 0
+  for (const point of pieceMesh.outer) {
+    x += point.x
+    y += point.y
+  }
+  const centroid = projectPiecePoint(
+    { x: x / pieceMesh.outer.length, y: y / pieceMesh.outer.length },
+    transform.scale,
+    transform.centerX,
+    transform.centerY,
+  )
+  return flatToWorld(centroid, 0)
 }
 
 function placementForPiece(pieceId: string, piecePlacements3d: PiecePlacement3D[]) {
@@ -138,7 +186,8 @@ function addAssembledStitchHoles(
   holes.forEach((hole, index) => {
     const projected = projectPiecePoint(hole.point, transform.scale, transform.centerX, transform.centerY)
     matrix.makeRotationX(Math.PI / 2)
-    matrix.setPosition(projected.x, topY + 0.0025, projected.y)
+    const world = flatToWorld(projected, topY + 0.0025)
+    matrix.setPosition(world.x, world.y, world.z)
     instances.setMatrixAt(index, matrix)
   })
   instances.instanceMatrix.needsUpdate = true
@@ -149,7 +198,7 @@ function addAssembledStitchHoles(
   for (const chain of chains) {
     const points = chain.holes.map((hole) => {
       const projected = projectPiecePoint(hole.point, transform.scale, transform.centerX, transform.centerY)
-      return new Vector3(projected.x, topY + 0.0025, projected.y)
+      return flatToWorld(projected, topY + 0.0025)
     })
     const runs = buildThreadSegments(chainRunSegments(points), material, 0.0035, `assembled-stitch-run-${piece.id}-${chain.id}`)
     if (runs) {
@@ -209,22 +258,32 @@ function createAssembledPieceGroup({
   const backMesh = new Mesh(backGeometry, materials.assembledBackMaterial)
   group.add(backMesh)
 
-  const outlinePoints = pieceMesh.outer.map((point) =>
-    projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY),
-  )
+  const outlinePoints = pieceMesh.outer.map((point) => {
+    const projected = projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY)
+    // addPanelOutline maps (x, y) to (x, yOffset, y) and the fold builder
+    // depends on that, so the negation happens here rather than in the shared
+    // helper.
+    return new Vector2(projected.x, -projected.y)
+  })
   addPanelOutline(outlinePoints, group, '#e2e8f0', halfThickness + 0.0015)
 
   if (previewSettings.showEdgeLabels) {
     pieceMesh.edges.forEach((edge) => {
       const midpoint = projectPiecePoint(edge.midpoint, transform.scale, transform.centerX, transform.centerY)
-      addEdgeLabel(group, `${edge.index + 1}`, new Vector3(midpoint.x, halfThickness + 0.02, midpoint.y), '#f8fafc')
+      addEdgeLabel(group, `${edge.index + 1}`, flatToWorld(midpoint, halfThickness + 0.02), '#f8fafc')
     })
   }
 
   addAssembledStitchHoles(group, piece, halfThickness, stitchHoles, threadColor, transform)
 
   const placement = placementForPiece(piece.id, piecePlacements3d)
-  applyPlacementTransform(group, placement, index, total, previewSettings, transform)
+  // Offset the contents by the pivot so the group's own origin sits on the
+  // piece centroid; applyPlacementTransform adds the pivot back to the position.
+  const pivot = pieceCentroidWorld(pieceMesh, transform)
+  group.children.forEach((child) => {
+    child.position.sub(pivot)
+  })
+  applyPlacementTransform(group, placement, index, total, previewSettings, transform, pivot)
   group.updateMatrixWorld(true)
 
   return group
@@ -236,8 +295,7 @@ function edgeMidpointWorld(group: Group, pieceMesh: PieceMeshData, edgeIndex: nu
     return null
   }
   const midpoint = projectPiecePoint(edge.midpoint, transform.scale, transform.centerX, transform.centerY)
-  const point = new Vector3(midpoint.x, 0, midpoint.y)
-  return point.applyMatrix4(group.matrixWorld)
+  return flatToWorld(midpoint, 0).applyMatrix4(group.matrixWorld)
 }
 
 function edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number, transform: ModelTransform) {

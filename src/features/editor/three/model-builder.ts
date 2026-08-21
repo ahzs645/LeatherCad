@@ -71,10 +71,10 @@ function buildChainsByShapeId(outlinePolygons: OutlinePolygon[]) {
       id: outline.shapeIds[0] ?? outline.layerId,
       shapeIds: outline.shapeIds,
       polygon: outline.polygon,
-      // An OutlinePolygon arrives already merged, so which authored shape owns
-      // which vertex is genuinely unknown here. Report that rather than guessing
-      // — the shape-id lookups return null and callers fall back to indices.
-      segments: [],
+      // Carried through from the outline chain where the caller had it. Without
+      // it every seam side collapses to its first edge, which quietly disables
+      // multi-span and curved seams in the live 3D view.
+      segments: outline.segments ?? [],
       isClosed: true,
       area: Math.abs(ShapeUtils.area(outline.polygon.map((point) => new Vector2(point.x, point.y)))),
     }

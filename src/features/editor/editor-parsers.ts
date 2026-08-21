@@ -278,18 +278,39 @@ export function parseSeamConnection(value: unknown): SeamConnection | null {
     return null
   }
 
+  // A multi-span side is only meaningful if every span in it survives, so a
+  // list with an unparseable entry is discarded rather than silently shortened.
+  const parseSpanList = (value: unknown) => {
+    if (!Array.isArray(value) || value.length === 0) {
+      return undefined
+    }
+    const spans = value.map(parsePieceEdgeSpan)
+    return spans.every((span): span is NonNullable<typeof span> => span !== null) ? spans : undefined
+  }
+
   return {
     id: candidate.id,
+    name: typeof candidate.name === 'string' ? candidate.name : undefined,
     from: {
       pieceId: candidate.from.pieceId,
       edgeIndex: Math.max(0, Math.round(candidate.from.edgeIndex)),
+      boundaryShapeId:
+        typeof candidate.from.boundaryShapeId === 'string' ? candidate.from.boundaryShapeId : undefined,
     },
     to: {
       pieceId: candidate.to.pieceId,
       edgeIndex: Math.max(0, Math.round(candidate.to.edgeIndex)),
+      boundaryShapeId:
+        typeof candidate.to.boundaryShapeId === 'string' ? candidate.to.boundaryShapeId : undefined,
     },
     fromSpan: parsePieceEdgeSpan(candidate.fromSpan) ?? undefined,
     toSpan: parsePieceEdgeSpan(candidate.toSpan) ?? undefined,
+    fromSpans: parseSpanList(candidate.fromSpans),
+    toSpans: parseSpanList(candidate.toSpans),
+    sequence:
+      typeof candidate.sequence === 'number' && Number.isFinite(candidate.sequence)
+        ? candidate.sequence
+        : undefined,
     sourceConnectionId: typeof candidate.sourceConnectionId === 'string' ? candidate.sourceConnectionId : undefined,
     edgeLengthDeltaMm:
       typeof candidate.edgeLengthDeltaMm === 'number' && Number.isFinite(candidate.edgeLengthDeltaMm)
