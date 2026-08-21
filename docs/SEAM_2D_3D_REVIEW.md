@@ -1,5 +1,12 @@
 # Seam · 2D · 3D — mobile and desktop review
 
+> **Status: acted on.** Every stage in the plan below has been implemented on
+> `claude/seam-2d-3d-review-xbacze`, along with four sample patterns that
+> exercise the seam pipeline. See [What shipped](#what-shipped) at the end for
+> the mapping from findings to commits, and for the defects that only surfaced
+> once the work was running in the app. The findings themselves are left as they
+> were measured, so the before/after is legible.
+
 **Date:** 2026-08-21 · **Branch:** `claude/seam-2d-3d-review-xbacze`
 **Scope:** LeatherCad's seam authoring and 2D↔3D workflow, measured on real
 viewports, compared against Seamer Studio's equivalent pipeline.
@@ -419,3 +426,72 @@ Reference implementations in the sibling checkouts:
 `seamer-studio/src/lib/components/PatternScene3D.svelte`,
 `atelier/packages/viewport/src/picking.ts`,
 `atelier/packages/viewport/src/gizmo.ts`.
+
+
+---
+
+## What shipped
+
+Eight commits, ~4,900 lines. Tests went 593 → 661; e2e 7 → 16. Typecheck, lint,
+unit and e2e all green.
+
+| Finding | Where it landed |
+|---|---|
+| 3D tab got 29% of a phone screen (2.1) | `058e8f1` — 195px → 495px of 664, topbar 245px → 111px |
+| Landscape split left 68px of 2D (2.1) | `058e8f1` — the two lanes share the height below 560px tall |
+| Touch targets under 44px (2.5) | `058e8f1` — three separate rules were holding them down |
+| Pick radius in millimetres, not pixels (2.4) | `058e8f1` — screen-space constant, widened for touch |
+| Edge indices are positional (4.1) | `202c912` — outline chains carry a per-shape segment map; seams name the shape and reconcile on read |
+| One edge to one edge (4.2) | `202c912` — multi-span sides, with the single-edge form kept and kept populated |
+| Direction guessed as `false` (4.3) | `202c912` — inferred from the click, plus a `seam-multi` tool |
+| Seams had no home of their own | `6402ee1` — a Seams section, named, in sewing order, with `selectedSeamId` |
+| Sample document had 0 pieces (3.6) | `3ef453e` — card case, boxed pouch, dice cup, tote bag |
+| 3D placement was six typed numbers | `01449b5` — Solve From Seams, plus one assembly-angle scrubber |
+| 3D view is read-only (4.4) | `c6b4936` — raycast picking; a seam can start in 2D and finish on the model |
+| An iPad is treated as a phone (3.1) | `21ec262` — breakpoint at 768px, workbench with edge-sheet docks between 768 and 1100 |
+| Pieces and seams unreachable on mobile (2.3) | `21ec262` — a Pieces + Seams tab in Options |
+
+### Not done
+
+**Desktop side-by-side 2D + 3D (3.3)** and the **duplicate mode controls (3.4)**
+are still open. Both are desktop layout work that the seam changes did not
+depend on, and neither blocks anything above.
+
+**Sew-order timeline (4b)** is half done: seams carry a `sequence`, the document
+tree and the placement solver both walk them in sewing order, and the sample
+patterns declare one. What is missing is driving the fold scrubber from it so a
+garment visibly zips shut.
+
+### Defects found while building
+
+Five bugs surfaced that the original review did not catch, because they were
+only visible once the new work was running against real multi-piece geometry:
+
+- **The document parser dropped every new seam field on load.** It rebuilds each
+  seam field by field, so `boundaryShapeId`, the span lists, the name and the
+  sequence were discarded. Every test passed while the running app kept the old
+  single-edge behaviour. Now covered by `editor-seam-parsers.test.ts`.
+- **Assembled-mode overlays were mirrored.** The piece body is extruded and
+  rotated -90° about X, which negates the projected Y on the way to world Z; the
+  outline, the stitch holes, the edge labels and the seam indicators skipped that
+  negation. Invisible on the bundled trifold, which is near enough symmetric.
+- **The assembled camera framed flat models edge-on.** The model root's tilt and
+  the orbit offset cancelled to within a degree, so a correctly-placed flat
+  layout rendered as a hairline.
+- **`resolvePieceEdge` indexed the edge array by array position** while
+  `buildEdges` drops degenerate edges, so the two diverge for any piece that has
+  one.
+- **Rotation pivoted on the document centre**, so typing a rotation swung a piece
+  in an arc around the whole drawing instead of turning it in place.
+
+Two diagnostics were also still measuring single edges and would have failed
+every multi-span seam: the length-mismatch check read a 110mm panel side against
+a 380mm gusset edge as a 270mm error, and the duplicate-edge check treated two
+handle tabs on opposite ends of one edge as sewing it twice.
+
+### One thing the review under-called
+
+Curves sample at 48 segments, so a four-sided piece with one arc side has **51**
+polygon edges. An `edgeIndex` therefore named a 1/48 chord, which meant a curved
+seam could not be expressed at all — not merely that it was fragile. That is why
+the fix had to be a shape-level reference rather than a more careful index.
