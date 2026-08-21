@@ -1,4 +1,4 @@
-import { Group, Material } from 'three'
+import { Group, Material, Raycaster, Vector2 } from 'three'
 import type {
   AvatarSpec,
   FoldLine,
@@ -26,6 +26,12 @@ import {
 import { ThreeMaterialManager } from './material-manager'
 import type { PieceMeshData } from './piece-mesh'
 import { EngineRuntime } from './engine-runtime'
+import {
+  nearestBoundaryEdge,
+  pieceIdForObject,
+  worldPointToDocument,
+  type PickedSeamEdge,
+} from './seam-edge-picking'
 import type {
   OutlinePolygon,
   ThreeBridgeDocument,
@@ -77,6 +83,7 @@ export class ThreeBridge {
     usePhysicsRelaxation: true,
   }
   private pieceMeshes: PieceMeshData[] = []
+  private readonly seamPickRaycaster = new Raycaster()
   private fitAfterRebuild = true
   private transform: ModelTransform = {
     scale: 1,
@@ -556,4 +563,52 @@ export class ThreeBridge {
     this.materialManager.dispose()
     this.runtimeManager.dispose()
   }
+  /**
+   * Resolve a pointer position over the viewport to a boundary edge on the
+   * assembled model, or null when the ray misses every piece.
+   *
+   * This is what lets a seam be started on the flat canvas and finished on the
+   * model: both views feed the same seam-tool state machine.
+   */
+  pickSeamEdgeAt(clientX: number, clientY: number): PickedSeamEdge | null {
+    const camera = this.runtimeManager.camera
+    const canvas = this.runtimeManager.renderer.domElement
+    if (!camera || this.assembledGroup.children.length === 0) {
+      return null
+    }
+
+    const rect = canvas.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) {
+      return null
+    }
+    const pointer = new Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    )
+
+    this.modelRoot.updateMatrixWorld(true)
+    this.seamPickRaycaster.setFromCamera(pointer, camera)
+    const hits = this.seamPickRaycaster.intersectObject(this.assembledGroup, true)
+
+    for (const hit of hits) {
+      const pieceId = pieceIdForObject(hit.object)
+      if (!pieceId) {
+        continue
+      }
+      const pieceMesh = this.pieceMeshes.find((entry) => entry.pieceId === pieceId)
+      const pieceGroup = this.assembledGroup.children.find(
+        (child) => child.userData?.pieceId === pieceId,
+      )
+      if (!pieceMesh || !pieceGroup) {
+        continue
+      }
+      const documentPoint = worldPointToDocument(hit.point, pieceGroup as Group, this.transform)
+      const edge = nearestBoundaryEdge(pieceMesh, documentPoint)
+      if (edge) {
+        return edge
+      }
+    }
+    return null
+  }
+
 }

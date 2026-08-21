@@ -4,6 +4,7 @@ import { EditorHistoryStateProvider } from './EditorHistoryStateProvider'
 import { EditorLayerStateProvider } from './EditorLayerStateProvider'
 import { EditorPanelStateProvider } from './EditorPanelStateProvider'
 import { EditorSelectionStateProvider } from './EditorSelectionStateProvider'
+import { EditorToolSessionProvider } from './EditorToolSessionProvider'
 import { EditorToolStateProvider } from './EditorToolStateProvider'
 import { EditorUIStateProvider } from './EditorUIStateProvider'
 
@@ -16,7 +17,7 @@ export function EditorStateProviders({ children }: { children: ReactNode }) {
             <EditorToolStateProvider>
               <EditorHistoryStateProvider>
                 <EditorSelectionStateProvider>
-                  {children}
+                  <EditorToolSessionProvider>{children}</EditorToolSessionProvider>
                 </EditorSelectionStateProvider>
               </EditorHistoryStateProvider>
             </EditorToolStateProvider>

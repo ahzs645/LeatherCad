@@ -50,6 +50,9 @@ export function WorkbenchThreePreviewViewport({ controller, compact = false, int
     shapesIn3dView,
     threePreviewSettings,
     visiblePatternPieces,
+    seamToolActive,
+    seamToolStatus,
+    onViewportSeamPick,
   } = controller
   const showFinalFoldDrawer = !compact && interactive && threePreviewSettings.mode === 'final'
   const showFinalFoldModeTab = !compact && interactive && threePreviewSettings.mode === 'fold' && foldLines.length > 0
@@ -71,8 +74,24 @@ export function WorkbenchThreePreviewViewport({ controller, compact = false, int
         className="three-preview-canvas-wrap workbench-three-canvas-wrap"
         style={{ pointerEvents: interactive ? 'auto' : 'none' }}
       >
-        <canvas ref={canvasRef} className="three-preview-canvas" />
+        <canvas
+          ref={canvasRef}
+          className="three-preview-canvas"
+          onPointerDown={(event) => {
+            // Only claim the gesture while a seam tool is active; otherwise the
+            // pointer belongs to the orbit controls.
+            if (!interactive || !seamToolActive || event.button !== 0) {
+              return
+            }
+            if (onViewportSeamPick(event.clientX, event.clientY)) {
+              event.stopPropagation()
+            }
+          }}
+        />
       </div>
+      {interactive && seamToolActive && seamToolStatus ? (
+        <p className="hint workbench-three-seam-hint">{seamToolStatus}</p>
+      ) : null}
       {invalidPatternPieces.length > 0 && !compact && (
         <p className="hint workbench-three-warning">
           {invalidPatternPieces.length} piece(s) are missing valid closed boundaries for 3D.

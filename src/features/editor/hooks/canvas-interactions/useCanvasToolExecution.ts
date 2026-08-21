@@ -1,7 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import type { Point, Tool } from '../../cad/cad-types'
-import { DefaultEditorToolSession } from '../../tools/tool-session'
 import { executeToolCommand, executeToolPointerDown, getToolHint, resetToolSession } from '../../tools/tool-executor'
+import { useEditorToolSession } from '../../state/providers/EditorToolSessionProvider'
 import type { ToolRuntime } from '../../tools/tool-types'
 
 type UseCanvasToolExecutionParams = {
@@ -11,7 +11,9 @@ type UseCanvasToolExecutionParams = {
 }
 
 export function useCanvasToolExecution({ tool, createToolRuntime, setStatus }: UseCanvasToolExecutionParams) {
-  const toolSession = useMemo(() => new DefaultEditorToolSession(), [])
+  // Shared with the 3D preview so a seam can be started in one view and
+  // finished in the other.
+  const toolSession = useEditorToolSession()
 
   useEffect(() => {
     resetToolSession(toolSession, tool)

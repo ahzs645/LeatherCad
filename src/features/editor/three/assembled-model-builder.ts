@@ -235,6 +235,8 @@ function createAssembledPieceGroup({
   threadColor: string
 }) {
   const group = new Group()
+  // Tagged so a raycast hit can be traced back to the piece it belongs to.
+  group.userData.pieceId = piece.id
   const pieceShape = createPieceShape(pieceMesh, transform.scale, transform.centerX, transform.centerY)
   const thicknessWorld = Math.max(previewSettings.thicknessMm * transform.scale, DEFAULT_THICKNESS_WORLD)
   const halfThickness = thicknessWorld / 2
