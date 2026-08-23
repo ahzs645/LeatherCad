@@ -34,6 +34,8 @@ export type FoldHingeStep = {
   end: Point
   /** Signed rotation about that axis, in degrees. */
   angleDeg: number
+  /** Radius the mid-surface turns through, from the fold line's own setting. */
+  bendRadiusMm: number
 }
 
 export type AssembledFoldRegion = {
@@ -127,6 +129,7 @@ export function splitPieceByFolds(outer: Point[], foldLines: FoldLine[]): Assemb
         start: fold.start,
         end: fold.end,
         angleDeg: signedAngleDeg(fold),
+        bendRadiusMm: Math.max(0, fold.radiusMm ?? 0),
       }
       next.push({ polygon: stays, hinges: region.hinges })
       next.push({ polygon: swings, hinges: [...region.hinges, hinge] })

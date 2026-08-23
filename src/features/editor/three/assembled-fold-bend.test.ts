@@ -1,6 +1,6 @@
 import { Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
-import { BEND_SEGMENTS, buildBendGeometry } from './assembled-fold-bend'
+import { BEND_SEGMENTS, bendCentre, buildBendGeometry, minimumBendRadiusMm } from './assembled-fold-bend'
 
 const start = new Vector3(0, 0, 0)
 const end = new Vector3(1, 0, 0)
@@ -71,5 +71,52 @@ describe('buildBendGeometry', () => {
     const fine = build()!
     expect(coarse.frontTriangles).toHaveLength(2 * 6)
     expect(fine.frontTriangles).toHaveLength(BEND_SEGMENTS * 6)
+  })
+})
+
+describe('bend radius', () => {
+  it('carries the half that swings a bend diameter clear of the half that stays', () => {
+    const bendRadius = 0.5
+    const bend = build({ angleRad: Math.PI, bendRadius })!
+    // Fully closed, the mid-surface has come round a diameter — 1.0 — and the
+    // outer surface sits a half thickness beyond that. This gap is the whole
+    // point: it is the room a flap has to close over what is sewn under it.
+    const last = bend.frontTriangles[bend.frontTriangles.length - 1]
+    expect(last.y).toBeCloseTo(-(2 * bendRadius + 0.05), 6)
+  })
+
+  it('keeps the outer surface a half thickness proud of the arc', () => {
+    const bendRadius = 0.5
+    const bend = build({ angleRad: Math.PI / 2, bendRadius })!
+    const centre = bendCentre(new Vector3(0, 0, 0), Math.PI / 2, bendRadius)
+    for (const point of bend.frontTriangles) {
+      expect(Math.hypot(point.y - centre.y, point.z - centre.z)).toBeCloseTo(bendRadius + 0.05, 10)
+    }
+  })
+
+  it('keeps the inner surface a half thickness inside the arc', () => {
+    const bendRadius = 0.5
+    const bend = build({ angleRad: Math.PI / 2, bendRadius })!
+    const centre = bendCentre(new Vector3(0, 0, 0), Math.PI / 2, bendRadius)
+    for (const point of bend.backTriangles) {
+      expect(Math.hypot(point.y - centre.y, point.z - centre.z)).toBeCloseTo(bendRadius - 0.05, 10)
+    }
+  })
+
+  it('creases to a point at radius zero, as it did before', () => {
+    expect(build({ bendRadius: 0 })!.frontTriangles[0].toArray()).toEqual([0, 0.05, 0])
+  })
+})
+
+describe('minimumBendRadiusMm', () => {
+  it('clears the fold’s own two halves when nothing is inside it', () => {
+    // 1.8mm leather: a fully closed fold has to hold 1.8mm of itself, which a
+    // 0.9mm radius supplies as a 1.8mm diameter.
+    expect(minimumBendRadiusMm(0.9, 0)).toBeCloseTo(0.9, 10)
+  })
+
+  it('grows to clear what the fold closes over', () => {
+    // The same leather folding over a 1.8mm pocket needs 3.6mm of gap.
+    expect(minimumBendRadiusMm(0.9, 1.8)).toBeCloseTo(1.8, 10)
   })
 })

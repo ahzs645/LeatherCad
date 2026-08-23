@@ -343,6 +343,25 @@ export function WorkbenchThreePreviewInspector({
           />
           <span>Relax seam welds</span>
         </label>
+        {(threePreviewSettings.mode === 'assembled' || threePreviewSettings.mode === 'final') && (
+          <div className="field-row">
+            <span>View</span>
+            <div className="button-row">
+              {(['orbit', 'side', 'front', 'top'] as const).map((cameraPreset) => (
+                <button
+                  key={cameraPreset}
+                  type="button"
+                  className={threePreviewSettings.finalFoldCamera === cameraPreset ? 'active' : ''}
+                  onClick={() =>
+                    onSetThreePreviewSettings((previous) => ({ ...previous, finalFoldCamera: cameraPreset }))
+                  }
+                >
+                  {cameraPreset[0].toUpperCase() + cameraPreset.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <label className="layer-toggle-item">
           <input
             type="checkbox"

@@ -15,7 +15,9 @@ import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { detectOutlines } from '../ops/outline-detection'
 import { buildModelLayout } from './model-builder'
-import { rebuildAssembledModel } from './assembled-model-builder'
+import { rebuildAssembledModel, wrappedThicknessMm } from './assembled-model-builder'
+import { minimumBendRadiusMm } from './assembled-fold-bend'
+import { splitPieceByFolds } from './assembled-fold-regions'
 import type { ModelBuilderMaterials } from './model-builder-types'
 import type { OutlinePolygon } from './three-bridge-types'
 
@@ -131,5 +133,39 @@ describe('the imported wallet folds', () => {
   it('wraps each crease in leather once the fold is dialled up', () => {
     expect(bendMeshes(buildWallet(0))).toHaveLength(0)
     expect(bendMeshes(buildWallet(90)).length).toBeGreaterThan(0)
+  })
+
+  it('closes the flap over the card pocket rather than through it', () => {
+    const doc = loadWallet()
+    const thicknessMm = doc.threePreviewSettings?.thicknessMm ?? DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm
+    const { pieceMeshes, transform } = buildModelLayout({
+      patternPieces: doc.patternPieces ?? [],
+      outlinePolygons: outlinePolygons(doc),
+      shapes: doc.objects,
+      foldLines: doc.foldLines,
+    })
+    const pieceMeshById = new Map(pieceMeshes.map((mesh) => [mesh.pieceId, mesh]))
+    const body = doc.foldLines.find((foldLine) => foldLine.pieceId === 'piece-a')
+    expect(body).toBeDefined()
+
+    const regions = splitPieceByFolds(pieceMeshById.get('piece-a')!.outer, [body!])
+    const flap = regions.find((region) => region.hinges.length > 0)
+    expect(flap).toBeDefined()
+
+    const wrapped = wrappedThicknessMm({
+      region: flap!,
+      pieceId: 'piece-a',
+      seamConnections: doc.seamConnections ?? [],
+      pieceMeshById,
+      materialThicknessMm: thicknessMm,
+    })
+    // The card slot panel is sewn to the body's base, so the flap folds over it.
+    expect(wrapped).toBeCloseTo(thicknessMm, 6)
+
+    // Closed, the fold has to hold the body's own thickness plus the pocket's.
+    const needed = minimumBendRadiusMm(thicknessMm / 2, wrapped)
+    expect(needed).toBeCloseTo(thicknessMm, 6)
+    expect(2 * needed).toBeGreaterThanOrEqual(2 * thicknessMm)
+    expect(transform.scale).toBeGreaterThan(0)
   })
 })

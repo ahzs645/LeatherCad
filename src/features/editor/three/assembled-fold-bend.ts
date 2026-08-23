@@ -13,16 +13,21 @@
  * The fix is the one PackCAD's renderer uses (`getOffsetPVertexPosition` plus
  * its bend radius) and that this repo's own Final Product mode already respects
  * in `isFoldEdge`: fold the mid-surface, offset each half along its own normal,
- * and bridge the two offset surfaces with an arc swept about the crease. The
- * arc has radius equal to the offset, so it starts exactly on one half's
- * surface and ends exactly on the other's — no gap to close and no inset to
- * tune. It also encloses both slabs' crease walls, which is why nothing has to
- * be cut away from them.
+ * and bridge the two offset surfaces with an arc swept about the bend.
+ *
+ * The bend has a radius. Leather does not crease to a point — it rolls, and how
+ * tightly depends on the temper and on what is inside the fold — so the fold
+ * line carries a `radiusMm` that Fold and Final Product modes already honour.
+ * Honouring it here does more than round the spine: the mid-surface follows an
+ * arc of that radius, which means the half that swings is carried a bend
+ * diameter clear of the half that stays. That gap is what a wallet's flap needs
+ * to close over the pocket sewn to its body instead of passing through it.
  *
  * Everything here is expressed in the frame of the half that stays put, where
  * the unfolded surface normal is +Y. The half that swings is that frame rotated
- * about the crease by the fold angle, so the arc's far end lands on it by
- * construction.
+ * about the bend centre by the fold angle, so the arc's far end lands on it by
+ * construction. With a radius of zero the centre is the crease itself and this
+ * degenerates to the sharp-crease shell PackCAD builds.
  */
 
 import { Vector3 } from 'three'
@@ -33,6 +38,21 @@ export const BEND_SEGMENTS = 10
 const SURFACE_NORMAL = new Vector3(0, 1, 0)
 /** Below this the crease is a point, or the fold is not a fold. */
 const EPSILON = 1e-9
+
+/**
+ * The radius a fold has to turn through so it does not close on top of itself.
+ *
+ * A fold carries the half that swings a bend diameter clear of the half that
+ * stays. Fully closed, that gap is all the room there is, so it has to hold the
+ * two halves' own thickness plus anything sewn between them: a wallet flap
+ * closing over a card pocket needs to clear the pocket, not pass through it.
+ *
+ * The authored radius wins when it is already generous — a maker who dials a
+ * soft roll gets a soft roll — and this is only the floor under it.
+ */
+export function minimumBendRadiusMm(halfThicknessMm: number, wrappedThicknessMm: number) {
+  return Math.max(0, halfThicknessMm) + Math.max(0, wrappedThicknessMm) / 2
+}
 
 export type BendGeometry = {
   /** Triangle vertices for the bend's grain-side surface. */
@@ -48,11 +68,40 @@ export type BendGeometry = {
   capTriangles: Vector3[]
 }
 
-function arcPoint(base: Vector3, axis: Vector3, angleRad: number, offset: number, t: number) {
+/**
+ * Where the bend turns.
+ *
+ * The material wraps towards the side the swinging half moves to, so the centre
+ * of curvature is a radius away on the opposite side of the surface. At radius
+ * zero it is the crease itself.
+ */
+export function bendCentre(creasePoint: Vector3, angleRad: number, bendRadius: number) {
   return SURFACE_NORMAL.clone()
+    .multiplyScalar(-Math.sign(angleRad) * bendRadius)
+    .add(creasePoint)
+}
+
+/**
+ * A point on the bend, `offset` from the mid-surface, a fraction `t` through the
+ * turn.
+ *
+ * Measured from the bend centre rather than from the crease, so the surfaces
+ * come out at radius `bendRadius ± halfThickness` and the inside of the fold
+ * stays inside.
+ */
+function arcPoint(
+  creasePoint: Vector3,
+  axis: Vector3,
+  angleRad: number,
+  bendRadius: number,
+  offset: number,
+  t: number,
+) {
+  const centre = bendCentre(creasePoint, angleRad, bendRadius)
+  return SURFACE_NORMAL.clone()
+    .multiplyScalar(Math.sign(angleRad) * bendRadius + offset)
     .applyAxisAngle(axis, angleRad * t)
-    .multiplyScalar(offset)
-    .add(base)
+    .add(centre)
 }
 
 /** Two triangles spanning the quad a→b→d→c, wound consistently. */
@@ -84,12 +133,15 @@ export function buildBendGeometry({
   end,
   angleRad,
   halfThickness,
+  bendRadius = 0,
   segments = BEND_SEGMENTS,
 }: {
   start: Vector3
   end: Vector3
   angleRad: number
   halfThickness: number
+  /** Radius of the mid-surface through the turn. Zero creases to a point. */
+  bendRadius?: number
   segments?: number
 }): BendGeometry | null {
   const axisRaw = end.clone().sub(start)
@@ -104,10 +156,10 @@ export function buildBendGeometry({
   const endBack: Vector3[] = []
   for (let step = 0; step <= segments; step += 1) {
     const t = step / segments
-    startFront.push(arcPoint(start, axis, angleRad, halfThickness, t))
-    endFront.push(arcPoint(end, axis, angleRad, halfThickness, t))
-    startBack.push(arcPoint(start, axis, angleRad, -halfThickness, t))
-    endBack.push(arcPoint(end, axis, angleRad, -halfThickness, t))
+    startFront.push(arcPoint(start, axis, angleRad, bendRadius, halfThickness, t))
+    endFront.push(arcPoint(end, axis, angleRad, bendRadius, halfThickness, t))
+    startBack.push(arcPoint(start, axis, angleRad, bendRadius, -halfThickness, t))
+    endBack.push(arcPoint(end, axis, angleRad, bendRadius, -halfThickness, t))
   }
 
   const frontTriangles: Vector3[] = []

@@ -25,7 +25,7 @@ import {
 } from './model-builder'
 import { ThreeMaterialManager } from './material-manager'
 import type { PieceMeshData } from './piece-mesh'
-import { EngineRuntime } from './engine-runtime'
+import { EngineRuntime, type CameraFitMode } from './engine-runtime'
 import {
   nearestBoundaryEdge,
   pieceIdForObject,
@@ -59,6 +59,20 @@ function withoutScrubSettings(settings: ThreePreviewSettings) {
     rest[key] = (settings as unknown as Record<string, unknown>)[key]
   }
   return JSON.stringify(rest)
+}
+
+/**
+ * The camera the preview frames a mode with.
+ *
+ * The stored setting is still called `finalFoldCamera` because Final Product
+ * mode was the only one that offered it, but which way you look at a model is a
+ * property of looking, not of the mode. Assembled mode needs it most of all: a
+ * fold read from a three-quarter view is a shape, and read from the side it is
+ * an angle you can compare against the one you typed. Fold mode drives its own
+ * pivot camera and Avatar mode wants to orbit a figure, so both keep the orbit.
+ */
+export function cameraForMode(settings: ThreePreviewSettings): CameraFitMode {
+  return settings.mode === 'final' || settings.mode === 'assembled' ? settings.finalFoldCamera : 'orbit'
 }
 
 export function isOnlyScrubChange(previous: ThreePreviewSettings, next: ThreePreviewSettings) {
@@ -167,10 +181,7 @@ export class ThreeBridge {
     if (!this.fitAfterRebuild) {
       return
     }
-    this.runtimeManager.fitControlsToModel(
-      this.modelRoot,
-      this.threePreviewSettings.mode === 'final' ? this.threePreviewSettings.finalFoldCamera : 'orbit',
-    )
+    this.runtimeManager.fitControlsToModel(this.modelRoot, cameraForMode(this.threePreviewSettings))
   }
 
   private async rebuildAvatarModel() {

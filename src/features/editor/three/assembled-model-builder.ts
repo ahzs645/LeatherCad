@@ -41,7 +41,7 @@ import {
   type AssembledFoldRegion,
   type FoldHingeStep,
 } from './assembled-fold-regions'
-import { buildBendGeometry } from './assembled-fold-bend'
+import { bendCentre, buildBendGeometry, minimumBendRadiusMm } from './assembled-fold-bend'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
@@ -313,15 +313,76 @@ function foldLinesForPiece(piece: PatternPiece, foldLines: FoldLine[], pieceMesh
   })
 }
 
-/** A hinge's axis in the piece's flat frame, projected into the scene. */
-function hingeAxis(hinge: FoldHingeStep, transform: ModelTransform) {
+/**
+ * How much material a fold closes over.
+ *
+ * Not a search of the flat pattern: pieces are laid out apart on the sheet and
+ * only come together once the seams place them, so a pocket and the panel it is
+ * sewn to overlap in the assembly and nowhere in the document. What the fold
+ * shuts against is what is sewn to the half that stays — for a wallet, the card
+ * pocket stitched to the body the flap closes over.
+ *
+ * Every piece in the preview is cut from the same stock, so this counts those
+ * pieces rather than measuring them. A seam landing on the half that swings
+ * travels with the fold and is not inside it.
+ */
+export function wrappedThicknessMm(params: {
+  /** The half that swings; a seam on this one moves with the fold. */
+  region: AssembledFoldRegion
+  pieceId: string
+  seamConnections: SeamConnection[]
+  pieceMeshById: Map<string, PieceMeshData>
+  materialThicknessMm: number
+}) {
+  const { region, pieceId, seamConnections, pieceMeshById, materialThicknessMm } = params
+  const wrapped = new Set<string>()
+
+  for (const connection of seamConnections) {
+    const side = connection.from.pieceId === pieceId ? 'from' : connection.to.pieceId === pieceId ? 'to' : null
+    if (!side) {
+      continue
+    }
+    const counterpart = side === 'from' ? connection.to.pieceId : connection.from.pieceId
+    if (counterpart === pieceId) {
+      continue
+    }
+    const resolved = resolveConnectionSide(pieceMeshById, connection, side)
+    // Without a resolvable span the seam's position is unknown; count it, since
+    // a fold that turns too wide only looks a little soft and one that turns
+    // too tight passes through the leather it should be closing over.
+    if (resolved && regionContains(region, seamSideMidpoint(resolved))) {
+      continue
+    }
+    wrapped.add(counterpart)
+  }
+
+  return wrapped.size * Math.max(0, materialThicknessMm)
+}
+
+/** The radius a hinge actually turns through: what was authored, or enough to clear the fold. */
+function hingeBendRadiusMm(hinge: FoldHingeStep, wrappedMm: number, halfThicknessMm: number) {
+  return Math.max(hinge.bendRadiusMm, minimumBendRadiusMm(halfThicknessMm, wrappedMm))
+}
+
+/**
+ * A hinge's axis in the piece's flat frame, projected into the scene.
+ *
+ * The origin is the bend centre, not the crease: with a radius the mid-surface
+ * turns about a point a radius off the surface, which is what carries the half
+ * that swings clear of the half that stays.
+ */
+function hingeAxis(hinge: FoldHingeStep, transform: ModelTransform, bendRadiusWorld: number) {
   const start = flatToWorld(projectPiecePoint(hinge.start, transform.scale, transform.centerX, transform.centerY), 0)
   const end = flatToWorld(projectPiecePoint(hinge.end, transform.scale, transform.centerX, transform.centerY), 0)
   const direction = end.clone().sub(start)
   if (direction.lengthSq() <= 0) {
     return null
   }
-  return { origin: start, direction: direction.normalize() }
+  return {
+    origin: bendCentre(start, MathUtils.degToRad(hinge.angleDeg), bendRadiusWorld),
+    crease: start,
+    direction: direction.normalize(),
+  }
 }
 
 /**
@@ -344,13 +405,14 @@ function regionFrame(
   transform: ModelTransform,
   pivotCache: Map<string, Group>,
   contentCache: Map<string, Group>,
+  bendRadiusWorld: (hinge: FoldHingeStep) => number,
 ) {
   let parent = group
   let parentOrigin = new Vector3()
   let key = ''
 
   for (const hinge of region.hinges) {
-    const axis = hingeAxis(hinge, transform)
+    const axis = hingeAxis(hinge, transform, bendRadiusWorld(hinge))
     if (!axis) {
       continue
     }
@@ -469,12 +531,13 @@ function addFoldBend(params: {
   hinge: FoldHingeStep
   foldLine: FoldLine
   halfThickness: number
+  bendRadiusWorld: number
   transform: ModelTransform
   frontMaterial: Material
   backMaterial: Material
   edgeMaterial: Material
 }) {
-  const { parent, region, hinge, foldLine, halfThickness, transform } = params
+  const { parent, region, hinge, foldLine, halfThickness, bendRadiusWorld, transform } = params
   const toWorld = (point: Point) =>
     flatToWorld(projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY), 0)
 
@@ -484,6 +547,7 @@ function addFoldBend(params: {
       end: toWorld(b),
       angleRad: MathUtils.degToRad(hinge.angleDeg),
       halfThickness,
+      bendRadius: bendRadiusWorld,
     })
     if (!bend) {
       continue
@@ -599,6 +663,8 @@ function createAssembledPieceGroup({
   hasActiveTexture,
   materials,
   foldLines,
+  seamConnections,
+  pieceMeshById,
   stitchHoles,
   threadColor,
 }: {
@@ -613,6 +679,9 @@ function createAssembledPieceGroup({
   hasActiveTexture: boolean
   materials: ModelBuilderMaterials
   foldLines: FoldLine[]
+  /** Seams and meshes, so a fold can tell what it is closing over. */
+  seamConnections: SeamConnection[]
+  pieceMeshById: Map<string, PieceMeshData>
   stitchHoles: StitchHole[]
   threadColor: string
 }) {
@@ -644,8 +713,29 @@ function createAssembledPieceGroup({
   const contentCache = new Map<string, Group>()
   const frames: AssembledPieceFrame[] = []
 
+  // How far each crease has to turn, in scene units. Resolved once per piece so
+  // the pivot chain and the bend surface can never disagree about it.
+  const halfThicknessMm = Math.max(previewSettings.thicknessMm, 0) / 2
+  const radiusByFoldId = new Map<string, number>()
+  for (const region of regions) {
+    for (const hinge of region.hinges) {
+      if (radiusByFoldId.has(hinge.foldLineId)) {
+        continue
+      }
+      const wrappedMm = wrappedThicknessMm({
+        region,
+        pieceId: piece.id,
+        seamConnections,
+        pieceMeshById,
+        materialThicknessMm: previewSettings.thicknessMm,
+      })
+      radiusByFoldId.set(hinge.foldLineId, hingeBendRadiusMm(hinge, wrappedMm, halfThicknessMm) * transform.scale)
+    }
+  }
+  const bendRadiusWorld = (hinge: FoldHingeStep) => radiusByFoldId.get(hinge.foldLineId) ?? 0
+
   regions.forEach((region, regionIndex) => {
-    const { content: target } = regionFrame(region, group, transform, pivotCache, contentCache)
+    const { content: target } = regionFrame(region, group, transform, pivotCache, contentCache, bendRadiusWorld)
     frames.push({ region, object: target })
     const shape = createRegionShape(region, pieceMesh.holes, transform)
 
@@ -687,6 +777,7 @@ function createAssembledPieceGroup({
       hinge,
       foldLine,
       halfThickness,
+      bendRadiusWorld: bendRadiusWorld(hinge),
       transform,
       frontMaterial: bendFrontMaterial,
       backMaterial: bendBackMaterial,
@@ -960,6 +1051,8 @@ export function rebuildAssembledModel({
         hasActiveTexture,
         materials,
         foldLines,
+        seamConnections,
+        pieceMeshById,
         stitchHoles,
         threadColor,
       })

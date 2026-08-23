@@ -1,6 +1,6 @@
 import { Box3, BufferAttribute, DoubleSide, Group, InstancedMesh, Line, LineBasicMaterial, Material, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import type { FoldLine, Layer, PatternPiece, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import type { FoldLine, Layer, PatternPiece, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
 import { ThreeAvatarManager } from './avatar-manager'
 import { rebuildAssembledModel } from './assembled-model-builder'
@@ -88,6 +88,7 @@ function runBuilder({
   mode,
   foldLines = [],
   stitchHoles = [],
+  seamConnections = [],
   settings,
 }: {
   patternPieces: PatternPiece[]
@@ -95,6 +96,7 @@ function runBuilder({
   mode: ThreePreviewSettings['mode']
   foldLines?: FoldLine[]
   stitchHoles?: StitchHole[]
+  seamConnections?: SeamConnection[]
   settings?: Partial<ThreePreviewSettings>
 }) {
   const assembledGroup = new Group()
@@ -111,7 +113,7 @@ function runBuilder({
     outlinePolygons: [],
     patternPieces,
     piecePlacements3d: [],
-    seamConnections: [],
+    seamConnections,
     previewSettings: previewSettings({ mode, ...settings }),
     pieceMeshes,
     transform: TRANSFORM,
@@ -420,37 +422,88 @@ describe('rebuildAssembledModel', () => {
       expect(bendVertices(build(90))).toBeGreaterThan(0)
     })
 
-    it('keeps every point of the bend a half thickness from the crease', () => {
+    it('turns the bend about a centre a radius off the surface', () => {
       const { piece, pieceMesh } = squarePiece()
+      const bendRadiusMm = 3
       const group = runBuilder({
         patternPieces: [piece],
         pieceMeshes: [pieceMesh],
         mode: 'assembled',
-        foldLines: [foldLine({ angleDeg: 90 })],
+        foldLines: [foldLine({ angleDeg: 90, radiusMm: bendRadiusMm })],
       }).assembledGroup
 
       const halfThickness = (2 * TRANSFORM.scale) / 2
+      const radius = bendRadiusMm * TRANSFORM.scale
       const distances: number[] = []
       group.traverse((object) => {
         if (!(object instanceof Mesh) || !(object.material instanceof MeshStandardMaterial)) {
           return
         }
-        if (object.material.side !== DoubleSide) {
+        const position = (object as Mesh).geometry.getAttribute('position')
+        if (object.material.side !== DoubleSide || position.count === 0) {
           return
         }
-        const position = (object as Mesh).geometry.getAttribute('position')
         for (let index = 0; index < position.count; index += 1) {
           const point = new Vector3().fromBufferAttribute(position, index)
           // The crease runs along document y = 20, which the projection puts on
-          // world z = 0; the bend is an arc of radius halfThickness about it.
-          distances.push(Math.hypot(point.y, point.z))
+          // world (y, z) = (0, 0); a valley fold turns about a centre one radius
+          // below it.
+          distances.push(Math.hypot(point.y + radius, point.z))
         }
       })
 
       expect(distances.length).toBeGreaterThan(0)
+      // Every bend vertex is on the inner surface, the outer surface, or the
+      // cut cross-section that spans them.
       for (const distance of distances) {
-        expect(distance).toBeCloseTo(halfThickness, 6)
+        expect(distance).toBeGreaterThanOrEqual(radius - halfThickness - 1e-6)
+        expect(distance).toBeLessThanOrEqual(radius + halfThickness + 1e-6)
       }
+      expect(Math.max(...distances)).toBeCloseTo(radius + halfThickness, 6)
+      expect(Math.min(...distances)).toBeCloseTo(radius - halfThickness, 6)
+    })
+
+    it('closes over what is sewn under it instead of through it', () => {
+      const { piece, pieceMesh } = squarePiece()
+      // A pocket sewn to the half that stays: the fold has to clear it.
+      const pocket = {
+        piece: { ...piece, id: 'piece-2', name: 'Pocket', boundaryShapeId: 'shape-2' },
+        pieceMesh: { ...pieceMesh, pieceId: 'piece-2', name: 'Pocket' },
+      }
+      // The crease is y = 20 and the larger-area half stays, so y > 20 is the
+      // half that stays put. Edge 2 runs along y = 40, on that half — a pocket
+      // sewn there is inside the fold when it closes.
+      const onTheHalfThatStays: SeamConnection = {
+        id: 'seam-1',
+        from: { pieceId: 'piece-1', edgeIndex: 2 },
+        to: { pieceId: 'piece-2', edgeIndex: 0 },
+        kind: 'sewn',
+      }
+      // Edge 0 runs along y = 0, on the half that swings: a pocket sewn there
+      // travels with the flap and is not something the fold closes over.
+      const onTheHalfThatSwings: SeamConnection = {
+        ...onTheHalfThatStays,
+        id: 'seam-2',
+        from: { pieceId: 'piece-1', edgeIndex: 0 },
+      }
+      const lowestFoldedY = (seamConnections: SeamConnection[]) =>
+        new Box3()
+          .setFromObject(
+            runBuilder({
+              patternPieces: [piece, pocket.piece],
+              pieceMeshes: [pieceMesh, pocket.pieceMesh],
+              mode: 'assembled',
+              foldLines: [foldLine({ angleDeg: 180 })],
+              seamConnections,
+            }).assembledGroup,
+          )
+          .min.y
+
+      // Folded flat on itself the flap stands off by its own thickness; folded
+      // over a pocket it stands off by that pocket as well, so the closed fold
+      // reaches exactly one more stock thickness — 2mm at this scale.
+      expect(lowestFoldedY([]) - lowestFoldedY([onTheHalfThatStays])).toBeCloseTo(2 * TRANSFORM.scale, 6)
+      expect(lowestFoldedY([onTheHalfThatSwings])).toBeCloseTo(lowestFoldedY([]), 6)
     })
 
     it('draws no outline along a crease', () => {
