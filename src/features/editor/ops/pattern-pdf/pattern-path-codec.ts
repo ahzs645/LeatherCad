@@ -127,6 +127,8 @@ export function encodePatternPaths(
             text: item.text,
             position: { x: round(item.position.x), y: round(item.position.y) },
             heightMm: round(item.heightMm),
+            rotationDeg: round(item.rotationDeg),
+            widthMm: round(item.widthMm),
           })),
         }
       : {}),

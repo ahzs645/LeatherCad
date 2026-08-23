@@ -46,6 +46,7 @@ export type PdfPageLike = {
 type RawTextItem = {
   str: string
   transform: number[]
+  width?: number
 }
 
 function isTextItem(item: unknown): item is RawTextItem {
@@ -61,8 +62,10 @@ function isTextItem(item: unknown): item is RawTextItem {
  * Reads a page's type, in millimetres from the top-left.
  *
  * The transform pdf.js reports has the text matrix and the CTM already in it,
- * so `e`/`f` are where the baseline starts on the page and the scale of the
- * first column is the rendered font size — no separate matrix walk needed.
+ * so `e`/`f` are where the baseline starts on the page, the length of the first
+ * column is the rendered font size, and its angle is the baseline's — no
+ * separate matrix walk needed. The angle is negated on the way out because PDF
+ * space has y running up and the document has it running down.
  */
 function readText(items: unknown[], pageBox: PdfPageBox): PdfTextItem[] {
   const [boxX0, , , boxY1] = pageBox
@@ -75,6 +78,8 @@ function readText(items: unknown[], pageBox: PdfPageBox): PdfTextItem[] {
       text: item.str,
       position: { x: (e - boxX0) * PT_TO_MM, y: (boxY1 - f) * PT_TO_MM },
       heightMm: Math.hypot(a, b) * PT_TO_MM,
+      rotationDeg: (-Math.atan2(b, a) * 180) / Math.PI,
+      widthMm: (item.width ?? 0) * PT_TO_MM,
     })
   }
   return text

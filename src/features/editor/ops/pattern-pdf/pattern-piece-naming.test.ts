@@ -2,8 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { looksLikeMeasurement, namePiecesFromLabels } from './pattern-piece-naming'
 import type { PdfTextItem } from './pdf-vector-paths'
 
-function label(text: string, x: number, y: number): PdfTextItem {
-  return { text, position: { x, y }, heightMm: 3.5 }
+function label(text: string, x: number, y: number, rotationDeg = 0): PdfTextItem {
+  return {
+    text,
+    position: { x, y },
+    heightMm: 3.5,
+    rotationDeg,
+    widthMm: text.length * 3.5 * 0.6,
+  }
 }
 
 describe('namePiecesFromLabels', () => {
@@ -43,6 +49,28 @@ describe('namePiecesFromLabels', () => {
     )
 
     expect(names.get('tab')).toBe('KEYCHAIN ATTACHMENT')
+  })
+
+  it('reads a sideways label block down the block, not down the page', () => {
+    // A sheet that turns a panel's label 90 degrees to fit it advances its
+    // lines along x. Reading the page's way would return them shuffled.
+    const names = namePiecesFromLabels(
+      new Map([
+        [
+          'pocket',
+          [
+            // -90 is what the reader emits for a quarter turn: PDF space has
+            // y running up, the document has it running down.
+            label('MAKESUPPLY', 168, 121, -90),
+            label('CARD SLOT', 177, 125, -90),
+            label('PANEL', 181, 120, -90),
+          ],
+        ],
+        ['back', [label('MAKESUPPLY', 20, 20)]],
+      ]),
+    )
+
+    expect(names.get('pocket')).toBe('CARD SLOT PANEL')
   })
 
   it('gives no name to a piece whose only label is its size', () => {

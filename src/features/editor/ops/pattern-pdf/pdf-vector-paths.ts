@@ -63,6 +63,15 @@ export type PdfTextItem = {
   position: Point
   /** Cap height in millimetres, i.e. the font size. */
   heightMm: number
+  /**
+   * Baseline direction, in degrees clockwise from east in the y-down document
+   * frame. Sheets routinely set a panel's label sideways to fit it on the
+   * piece, and placing that block horizontally stacks its lines on top of each
+   * other.
+   */
+  rotationDeg: number
+  /** Measured advance of the string, so the run does not have to be guessed. */
+  widthMm: number
 }
 
 export type PdfVectorPath = {

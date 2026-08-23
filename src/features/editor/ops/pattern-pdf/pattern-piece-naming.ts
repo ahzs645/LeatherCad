@@ -31,9 +31,25 @@ function normalise(line: string) {
   return line.trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
-/** Labels top to bottom, then left to right — the order they are read in. */
+/**
+ * The order a person reads the block in: line by line, then along each line.
+ *
+ * Sorting by y then x only works for horizontal text. A sheet that sets a
+ * panel's label sideways to fit it on the piece advances its lines along x
+ * instead, and sorting the page's way returns them shuffled. Both axes come
+ * from the baseline angle, so either orientation reads correctly.
+ */
 function inReadingOrder(labels: PdfTextItem[]) {
-  return [...labels].sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x)
+  const radians = ((labels[0]?.rotationDeg ?? 0) * Math.PI) / 180
+  const along = { x: Math.cos(radians), y: Math.sin(radians) }
+  // Line advance is the baseline turned a quarter turn, which in a y-down frame
+  // points down the block.
+  const down = { x: -along.y, y: along.x }
+  const project = (label: PdfTextItem, axis: { x: number; y: number }) =>
+    label.position.x * axis.x + label.position.y * axis.y
+  return [...labels].sort(
+    (a, b) => project(a, down) - project(b, down) || project(a, along) - project(b, along),
+  )
 }
 
 /**

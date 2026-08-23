@@ -209,10 +209,13 @@ type RenderTextShapeOptions = {
   viewportScale?: number
 }
 
-// Clamp the on-screen glyph size so text stays readable across the same zoom
-// range as grid labels. The inner <g transform="scale(viewport.scale)"> makes
-// world-space fonts shrink when zoomed out and balloon when zoomed in, so we
-// adapt the world-space font size to a stable screen-space range.
+// Clamp the on-screen glyph size so *annotation* text stays readable across the
+// same zoom range as grid labels. The inner <g transform="scale(viewport.scale)">
+// makes world-space fonts shrink when zoomed out and balloon when zoomed in, so
+// the world-space font size is adapted to a stable screen-space range.
+//
+// Only for annotations — labels *about* the drawing, whose position is a hint.
+// Text that is part of the drawing goes through `resolveTextShapeFontSize`.
 const TEXT_MIN_SCREEN_PX = 11
 const TEXT_MAX_SCREEN_PX = 14
 const TEXT_MIN_WORLD_MM = 0.01
@@ -230,10 +233,29 @@ export function resolveAdaptiveTextFontSize(
   return round(Math.max(TEXT_MIN_WORLD_MM, Math.min(Math.max(safeFontSizeMm, minWorldFontSize), maxWorldFontSize)))
 }
 
+/**
+ * Font size for text that is part of the drawing, in world millimetres.
+ *
+ * Deliberately not adaptive. A text shape is drawn content — it prints, or gets
+ * stamped into the leather, at the size it was authored — so rendering it at
+ * some other size misreports the drawing. It also breaks the spacing the author
+ * set: lines a millimetre apart cannot be redrawn twice as tall and still clear
+ * each other, which is how an imported sheet's four-line label ends up as one
+ * illegible smear at anything below a 3x zoom.
+ *
+ * Text too small to read at the current zoom is correct, and is what zooming is
+ * for. Annotations, whose position is only a hint, still adapt — see
+ * `resolveAdaptiveTextFontSize`.
+ */
+export function resolveTextShapeFontSize(fontSizeMm: number) {
+  const safe = Number.isFinite(fontSizeMm) && fontSizeMm > 0 ? fontSizeMm : 2
+  return round(Math.max(TEXT_MIN_WORLD_MM, safe))
+}
+
 export function renderTextShape(shape: TextShape, options: RenderTextShapeOptions) {
   const normalized = options.normalizeTextShape(shape)
   const scale = options.viewportScale && options.viewportScale > 0 ? options.viewportScale : 1
-  const fontSize = resolveAdaptiveTextFontSize(normalized.fontSizeMm, scale)
+  const fontSize = resolveTextShapeFontSize(normalized.fontSizeMm)
   const haloStrokeWidth = round(Math.max(0.8, 3 / scale))
   const trackingMm = typeof normalized.trackingMm === 'number' && Number.isFinite(normalized.trackingMm)
     ? normalized.trackingMm

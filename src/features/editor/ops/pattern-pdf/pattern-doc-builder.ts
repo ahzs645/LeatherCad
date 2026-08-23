@@ -145,7 +145,9 @@ function hardwareFor(piece: AnalyzedPiece, layerId: string, offset: Point): Hard
     holeDiameterMm: hole.diameterMm,
     spacingMm: 0,
     visible: true,
-    notes: `Imported ${hole.diameterMm.toFixed(2)} mm hole`,
+    // No notes: the canvas draws a marker's notes as a second label beside the
+    // one it already draws from `label` and `holeDiameterMm`, so restating the
+    // diameter here just prints it twice, on top of itself.
   }))
 }
 
@@ -153,23 +155,30 @@ function hardwareFor(piece: AnalyzedPiece, layerId: string, offset: Point): Hard
  * The sheet's own type, kept as text.
  *
  * On a guide line type, so it prints with the pattern but is never mistaken
- * for something to cut, and never chained into a boundary. The width is
- * estimated from the font size — the glyphs are not measured here — which is
- * enough for a label a user can drag or retype.
+ * for something to cut, and never chained into a boundary. The end point runs
+ * along the baseline the sheet set it on, at the width pdf.js measured, because
+ * the editor reads a text shape's angle from `start` → `end` — laying a sideways
+ * label out horizontally would stack its lines on top of each other.
  */
 function labelShapes(
   labels: PdfTextItem[],
   params: { idPrefix: string; layerId: string },
   offset: Point,
 ): Shape[] {
-  return labels.map((label, index) => ({
+  return labels.map((label, index) => {
+    const radians = (label.rotationDeg * Math.PI) / 180
+    const widthMm = label.widthMm > 0 ? label.widthMm : label.text.length * label.heightMm * 0.6
+    return {
     id: `${params.idPrefix}-label-${index + 1}`,
     type: 'text' as const,
     layerId: params.layerId,
     lineTypeId: GUIDE_LINE_TYPE_ID,
     start: translate(label.position, offset),
     end: translate(
-      { x: label.position.x + label.text.length * label.heightMm * 0.6, y: label.position.y },
+      {
+        x: label.position.x + Math.cos(radians) * widthMm,
+        y: label.position.y + Math.sin(radians) * widthMm,
+      },
       offset,
     ),
     text: label.text,
@@ -178,7 +187,8 @@ function labelShapes(
     transform: 'none' as const,
     radiusMm: 0,
     sweepDeg: 0,
-  }))
+  }
+  })
 }
 
 function layerFor(index: number, name: string): Layer {

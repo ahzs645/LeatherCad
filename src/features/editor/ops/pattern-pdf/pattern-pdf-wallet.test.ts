@@ -19,6 +19,45 @@ import { analyzePatternPaths } from './pattern-pdf-analysis'
 import { decodePatternPaths, type PatternPathsFile } from './pattern-path-codec'
 import { detectOutlines } from '../outline-detection'
 import { GUIDE_LINE_TYPE_ID } from '../../cad/line-types'
+import type { Point, TextShape } from '../../cad/cad-types'
+
+/**
+ * The four corners of a label's box: along the baseline for its measured
+ * width, and up from it by the cap height.
+ */
+function labelCorners(shape: TextShape): Point[] {
+  const dx = shape.end.x - shape.start.x
+  const dy = shape.end.y - shape.start.y
+  const length = Math.hypot(dx, dy) || 1
+  // Perpendicular to the baseline, pointing up out of it in a y-down frame.
+  const up = { x: (dy / length) * shape.fontSizeMm, y: (-dx / length) * shape.fontSizeMm }
+  return [
+    shape.start,
+    shape.end,
+    { x: shape.end.x + up.x, y: shape.end.y + up.y },
+    { x: shape.start.x + up.x, y: shape.start.y + up.y },
+  ]
+}
+
+/** Separating-axis test for two convex polygons. */
+function convexShapesOverlap(a: Point[], b: Point[]) {
+  const gap = 1e-6
+  for (const polygon of [a, b]) {
+    for (let i = 0; i < polygon.length; i += 1) {
+      const current = polygon[i]
+      const next = polygon[(i + 1) % polygon.length]
+      const axis = { x: -(next.y - current.y), y: next.x - current.x }
+      const project = (points: Point[]) => {
+        const values = points.map((point) => point.x * axis.x + point.y * axis.y)
+        return { min: Math.min(...values), max: Math.max(...values) }
+      }
+      const left = project(a)
+      const right = project(b)
+      if (left.max <= right.min + gap || right.max <= left.min + gap) return false
+    }
+  }
+  return true
+}
 
 const fixturePath = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -178,6 +217,62 @@ describe('the project built from it', () => {
     const notesLayer = built.doc.layers.find((layer) => layer.name === 'Sheet notes')
     expect(notesLayer).toBeDefined()
     expect(labels.filter((shape) => shape.layerId === notesLayer?.id)).toHaveLength(3)
+  })
+
+  it('keeps a sideways label sideways', () => {
+    // The sheet turns the card slot panel's label a quarter turn to fit it on
+    // the piece. The editor reads a text shape's angle from start → end, so a
+    // dropped rotation lays the block out horizontally and stacks its four
+    // lines on top of each other.
+    const cardSlot = built.doc.objects.find(
+      (shape) => shape.type === 'text' && shape.text === 'CARD SLOT PANEL',
+    )
+    expect(cardSlot?.type).toBe('text')
+    if (cardSlot?.type !== 'text') return
+    const angleDeg = (Math.atan2(cardSlot.end.y - cardSlot.start.y, cardSlot.end.x - cardSlot.start.x) * 180) / Math.PI
+    expect(angleDeg).toBeCloseTo(-90, 3)
+
+    // And a horizontal one horizontal.
+    const mainBody = built.doc.objects.find(
+      (shape) => shape.type === 'text' && shape.text === 'MAIN BODY PANEL',
+    )
+    if (mainBody?.type !== 'text') throw new Error('expected the body label')
+    expect(mainBody.end.y).toBeCloseTo(mainBody.start.y, 6)
+    expect(mainBody.end.x).toBeGreaterThan(mainBody.start.x)
+  })
+
+  it('lays the imported labels out so none of them overlap', () => {
+    // Text shapes render at their authored size at every zoom, so their
+    // relative geometry is fixed: proving they clear each other in millimetres
+    // proves it for every zoom level. That only holds because the rotation is
+    // carried through — laid out flat, the card slot panel's four lines land on
+    // top of each other.
+    const boxes = built.doc.objects
+      .filter((shape) => shape.type === 'text')
+      .map((shape) => {
+        if (shape.type !== 'text') throw new Error('unreachable')
+        return { text: shape.text, corners: labelCorners(shape) }
+      })
+
+    expect(boxes.length).toBeGreaterThan(10)
+    const collisions: string[] = []
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        if (convexShapesOverlap(boxes[i].corners, boxes[j].corners)) {
+          collisions.push(`"${boxes[i].text}" ⨯ "${boxes[j].text}"`)
+        }
+      }
+    }
+    expect(collisions).toEqual([])
+  })
+
+  it('does not print a hardware marker twice', () => {
+    // The canvas draws a marker's notes as a second label beside the one it
+    // draws from the label and diameter, so notes restating the diameter land
+    // on top of it.
+    for (const marker of built.doc.hardwareMarkers ?? []) {
+      expect(marker.notes).toBeUndefined()
+    }
   })
 
   it('says plainly that nothing joins the keychain tab to the rest', () => {

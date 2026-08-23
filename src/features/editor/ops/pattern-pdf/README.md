@@ -63,7 +63,9 @@ separate them — a line printed on more than one piece is nobody's name, and a
 line that is only a measurement is a dimension — and what survives is joined in
 reading order, which is how "KEYCHAIN" over "ATTACHMENT" comes back whole. The
 rest of the type is kept too, as text on a guide line type: piece labels on their
-piece, and the sheet's own notes ("print at 100%") on a layer of their own.
+piece, and the sheet's own notes ("print at 100%") on a layer of their own. The
+baseline angle comes with it — sheets turn a panel's label sideways to fit it,
+and laid out flat those four lines land on top of each other.
 
 **Folds** are the one thing inferred rather than read, because sheets do not draw
 them. Two runs on one piece that pair can only meet if the piece folds, and the
