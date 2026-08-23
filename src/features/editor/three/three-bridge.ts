@@ -147,7 +147,13 @@ export class ThreeBridge {
     this.modelRoot.add(this.avatarGroup)
     this.modelRoot.add(this.finalProductGroup)
     this.modelRoot.position.set(0, -0.08, 0.1)
-    this.modelRoot.rotation.x = -0.7
+    // Not tilted. Every mode but `final` used to lean the whole model 40
+    // degrees (-0.7 rad) so a flat pattern was not seen edge-on by a camera
+    // that sat in a fixed spot. The camera frames itself now, and the lean cost
+    // two things: the leather stopped lying in the plane of the floor grid it
+    // is drawn on — which is the one thing a flat pattern is — and it left the
+    // default three-quarter offset about a degree off the plate's own plane, so
+    // a correctly placed layout framed itself as a hairline.
     this.scene.add(this.modelRoot)
 
     // The engine renders while the runtime holds its render lease; no
@@ -163,10 +169,6 @@ export class ThreeBridge {
       this.modelRoot,
       this.threePreviewSettings.mode === 'final' ? this.threePreviewSettings.finalFoldCamera : 'orbit',
     )
-  }
-
-  private syncModelRootPresentation() {
-    this.modelRoot.rotation.x = this.threePreviewSettings.mode === 'final' ? 0 : -0.7
   }
 
   private async rebuildAvatarModel() {
@@ -191,7 +193,6 @@ export class ThreeBridge {
   }
 
   private rebuildModel() {
-    this.syncModelRootPresentation()
     const { pieceMeshes, transform, documentBounds } = buildModelLayout({
       patternPieces: this.patternPieces,
       outlinePolygons: this.outlinePolygons,
