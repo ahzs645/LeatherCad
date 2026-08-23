@@ -15,6 +15,11 @@
  * 180 folds a lining back onto its panel. That single scrubber is what turns the
  * net into the object.
  *
+ * Pieces are zero-thickness sheets to the rotation, and stacked by
+ * `materialThicknessMm` afterwards: without that a lining folded flat onto its
+ * panel shares the panel's plane exactly, and two layers sewn together render
+ * as one.
+ *
  * Coordinates here are document millimetres in the viewport's axis convention:
  * X is document X, Z is document Y, and Y is up out of the flat plane.
  */
@@ -59,6 +64,16 @@ export type SeamDrivenPlacementOptions = {
   assemblyAngleDeg?: number
   /** Piece to hold fixed. Defaults to the one with the largest area. */
   rootPieceId?: string
+  /**
+   * Leather thickness, in millimetres.
+   *
+   * The solve treats pieces as zero-thickness sheets, which is right for
+   * deciding where a seam puts them and wrong for how they stack: a lining
+   * folded onto its panel about their shared seam lands exactly in the panel's
+   * plane, so the two occupy the same space and the assembly reads as one
+   * sheet. Real leather sits one thickness up. Zero keeps the old behaviour.
+   */
+  materialThicknessMm?: number
 }
 
 function toVector(point: { x: number; y: number }) {
@@ -171,6 +186,10 @@ export function solveSeamDrivenPlacements(params: {
 }): SeamDrivenPlacementResult {
   const { pieceMeshes, seamConnections } = params
   const assemblyAngle = ((params.options?.assemblyAngleDeg ?? 0) * Math.PI) / 180
+  const materialThicknessMm = Math.max(0, params.options?.materialThicknessMm ?? 0)
+  // How much of a thickness the fold has stacked the child onto its parent:
+  // none edge-to-edge, half standing it up, a full thickness laid back down.
+  const stackLiftMm = materialThicknessMm * Math.sin(assemblyAngle / 2) ** 2
   const pieceMeshesById = new Map(pieceMeshes.map((mesh) => [mesh.pieceId, mesh]))
   const centroidById = new Map(pieceMeshes.map((mesh) => [mesh.pieceId, polygonCentroid(mesh.outer)]))
 
@@ -253,6 +272,7 @@ export function solveSeamDrivenPlacements(params: {
       const childEnd = childSide.points[1] ?? childSide.points[childSide.points.length - 1]
 
       let transform = alignSegments(childStart, childEnd, targetStart, targetEnd)
+      let seatedTransform = transform
 
       const axis = targetEnd.clone().sub(targetStart)
       const hasAxis = axis.length() > MIN_AXIS_LENGTH
@@ -280,13 +300,28 @@ export function solveSeamDrivenPlacements(params: {
         if (Math.abs(assemblyAngle) > 1e-9) {
           transform = rotationAboutLine(targetStart, axis, assemblyAngle).multiply(transform)
         }
+        // Measured before the lift: the lift is deliberate, and counting it as
+        // a gap would report every stacked seam as one that failed to close.
+        seatedTransform = transform.clone()
+        if (stackLiftMm > 1e-9) {
+          // Off the parent's face, along its normal, so a chain of pieces
+          // stacks: the child lands on a seam the parent's own lift already
+          // raised, and adds its own on top.
+          transform = new Matrix4()
+            .makeTranslation(
+              parentNormal.x * stackLiftMm,
+              parentNormal.y * stackLiftMm,
+              parentNormal.z * stackLiftMm,
+            )
+            .multiply(transform)
+        }
       }
 
       transforms.set(childPieceId, transform)
       consumedSeamIds.add(connection.id)
       progressed = true
 
-      const placedChildFar = childSide.points[childSide.points.length - 1].clone().applyMatrix4(transform)
+      const placedChildFar = childSide.points[childSide.points.length - 1].clone().applyMatrix4(seatedTransform)
       const targetFar = targetPath[targetPath.length - 1]
       const residualGapMm = placedChildFar.distanceTo(targetFar)
       // Same length, different shape: the run turns and the piece would have to

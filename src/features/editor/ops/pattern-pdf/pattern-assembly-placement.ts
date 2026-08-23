@@ -30,7 +30,12 @@ export function assemblePatternDoc(doc: DocFile, assemblyAngleDeg = 180): Patter
   const placement = solveSeamDrivenPlacements({
     pieceMeshes,
     seamConnections: doc.seamConnections ?? [],
-    options: { assemblyAngleDeg },
+    options: {
+      assemblyAngleDeg,
+      // The preview's own thickness, so the layers stack the way they will be
+      // drawn rather than sharing one plane.
+      materialThicknessMm: doc.threePreviewSettings?.thicknessMm,
+    },
   })
   return {
     doc: { ...doc, piecePlacements3d: placement.placements },
