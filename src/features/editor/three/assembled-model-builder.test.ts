@@ -1,4 +1,4 @@
-import { Box3, Group, InstancedMesh, Line, LineBasicMaterial, Material, Mesh, MeshStandardMaterial, Vector3 } from 'three'
+import { Box3, BufferAttribute, DoubleSide, Group, InstancedMesh, Line, LineBasicMaterial, Material, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
 import type { FoldLine, Layer, PatternPiece, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
@@ -393,6 +393,95 @@ describe('rebuildAssembledModel', () => {
       })
 
       expect(modelHeight(result.assembledGroup)).toBeLessThan(FLAT_HEIGHT)
+    })
+
+    it('wraps the crease in leather rather than leaving two cut edges', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const build = (angleDeg: number) =>
+        runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg })],
+        }).assembledGroup
+
+      const bendVertices = (group: Group) => {
+        let count = 0
+        group.traverse((object) => {
+          if (object instanceof Mesh && object.material instanceof MeshStandardMaterial && object.material.side === DoubleSide) {
+            count += (object as Mesh).geometry.getAttribute('position').count
+          }
+        })
+        return count
+      }
+
+      // Flat, the two halves are one surface and there is nothing to wrap.
+      expect(bendVertices(build(0))).toBe(0)
+      expect(bendVertices(build(90))).toBeGreaterThan(0)
+    })
+
+    it('keeps every point of the bend a half thickness from the crease', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const group = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        foldLines: [foldLine({ angleDeg: 90 })],
+      }).assembledGroup
+
+      const halfThickness = (2 * TRANSFORM.scale) / 2
+      const distances: number[] = []
+      group.traverse((object) => {
+        if (!(object instanceof Mesh) || !(object.material instanceof MeshStandardMaterial)) {
+          return
+        }
+        if (object.material.side !== DoubleSide) {
+          return
+        }
+        const position = (object as Mesh).geometry.getAttribute('position')
+        for (let index = 0; index < position.count; index += 1) {
+          const point = new Vector3().fromBufferAttribute(position, index)
+          // The crease runs along document y = 20, which the projection puts on
+          // world z = 0; the bend is an arc of radius halfThickness about it.
+          distances.push(Math.hypot(point.y, point.z))
+        }
+      })
+
+      expect(distances.length).toBeGreaterThan(0)
+      for (const distance of distances) {
+        expect(distance).toBeCloseTo(halfThickness, 6)
+      }
+    })
+
+    it('draws no outline along a crease', () => {
+      const { piece, pieceMesh } = squarePiece()
+      // The crease is document y = 20, which is this transform's centre, so the
+      // projection puts it on world z = 0.
+      const onCrease = (z: number) => Math.abs(z) < 1e-6
+      const outlineSegments = (foldLines: FoldLine[]) => {
+        const group = runBuilder({ patternPieces: [piece], pieceMeshes: [pieceMesh], mode: 'assembled', foldLines }).assembledGroup
+        const segments: Array<{ alongCrease: boolean }> = []
+        group.traverse((object) => {
+          if (!(object instanceof Line)) {
+            return
+          }
+          const position = (object as Line).geometry.getAttribute('position') as BufferAttribute
+          for (let index = 0; index + 1 < position.count; index += 2) {
+            segments.push({ alongCrease: onCrease(position.getZ(index)) && onCrease(position.getZ(index + 1)) })
+          }
+        })
+        return segments
+      }
+
+      // The square's four sides, once.
+      expect(outlineSegments([])).toHaveLength(4)
+      // Halved, each region keeps its own three cut sides and drops the crease:
+      // six segments, not eight, and none of them along the fold.
+      for (const angleDeg of [0, 90]) {
+        const segments = outlineSegments([foldLine({ angleDeg })])
+        expect(segments).toHaveLength(6)
+        expect(segments.some((segment) => segment.alongCrease)).toBe(false)
+      }
     })
 
     it('keeps the seam picker in step with the folded geometry', () => {

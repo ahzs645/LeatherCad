@@ -3,6 +3,7 @@ import {
   CanvasTexture,
   Color,
   CylinderGeometry,
+  DoubleSide,
   ExtrudeGeometry,
   Group,
   InstancedMesh,
@@ -11,6 +12,7 @@ import {
   LineSegments,
   LineDashedMaterial,
   MathUtils,
+  Material,
   Matrix4,
   Mesh,
   MeshStandardMaterial,
@@ -39,10 +41,10 @@ import {
   type AssembledFoldRegion,
   type FoldHingeStep,
 } from './assembled-fold-regions'
+import { buildBendGeometry } from './assembled-fold-bend'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
-import { addPanelOutline } from './outline-renderer'
 import { buildSeamSewPlan, connectionIdForPair, sewnFractionForSeam } from '../assembly/seam-sew-order'
 import type { StitchPair } from './final-product-types'
 import { buildThreadSegments, saddleStitchSegments } from './stitch-thread'
@@ -81,6 +83,8 @@ const PIECE_OUTLINE_NEUTRAL_COLOR = '#e2e8f0'
 export const ASSEMBLED_REGION_GROUP_PREFIX = 'assembled-region-'
 /** How much burnishing darkens the leather's own colour. */
 const BURNISH_DARKEN = 0.45
+/** How far off a fold line a boundary edge may sit and still count as its crease. */
+const EDGE_ON_FOLD_TOLERANCE_MM = 1e-4
 
 /**
  * A projected flat point in viewport coordinates.
@@ -339,6 +343,7 @@ function regionFrame(
   group: Group,
   transform: ModelTransform,
   pivotCache: Map<string, Group>,
+  contentCache: Map<string, Group>,
 ) {
   let parent = group
   let parentOrigin = new Vector3()
@@ -366,11 +371,148 @@ function regionFrame(
     parentOrigin = axis.origin
   }
 
+  const cachedContent = contentCache.get(key)
+  if (cachedContent) {
+    return { content: cachedContent, key }
+  }
   const content = new Group()
   content.name = `${ASSEMBLED_REGION_GROUP_PREFIX}${key || 'body'}`
   content.position.copy(parentOrigin).negate()
   parent.add(content)
-  return content
+  contentCache.set(key, content)
+  return { content, key }
+}
+
+/**
+ * Whether a boundary edge of a region lies along a crease rather than a cut.
+ *
+ * The split clips against the infinite line through a fold line, so the shared
+ * edge it produces can run past the drawn fold's own endpoints; testing the
+ * distance to that line rather than to the segment is what recognises the whole
+ * of it. Both this repo's Final Product renderer and PackCAD's turn on the same
+ * question: a crease gets no cut band, no edge treatment and no outline,
+ * because the leather was never cut there.
+ */
+function edgeLiesOnFold(a: Point, b: Point, foldLines: FoldLine[]) {
+  return foldLines.some((foldLine) => {
+    const dx = foldLine.end.x - foldLine.start.x
+    const dy = foldLine.end.y - foldLine.start.y
+    const length = Math.hypot(dx, dy)
+    if (length <= EDGE_ON_FOLD_TOLERANCE_MM) {
+      return false
+    }
+    const distance = (point: Point) =>
+      Math.abs((point.x - foldLine.start.x) * dy - (point.y - foldLine.start.y) * dx) / length
+    return distance(a) <= EDGE_ON_FOLD_TOLERANCE_MM && distance(b) <= EDGE_ON_FOLD_TOLERANCE_MM
+  })
+}
+
+/** The edges of a region that sit on one particular crease. */
+function creaseEdges(region: AssembledFoldRegion, foldLine: FoldLine) {
+  const edges: Array<[Point, Point]> = []
+  const polygon = region.polygon
+  for (let index = 0; index < polygon.length; index += 1) {
+    const a = polygon[index]
+    const b = polygon[(index + 1) % polygon.length]
+    if (edgeLiesOnFold(a, b, [foldLine])) {
+      edges.push([a, b])
+    }
+  }
+  return edges
+}
+
+/**
+ * Draw a region's boundary, skipping the creases.
+ *
+ * `addPanelOutline` closes the loop, which is right for a panel and wrong for a
+ * region: a fold is not a boundary, and outlining it draws a line across
+ * leather that is continuous there.
+ */
+function addRegionOutline(
+  target: Group,
+  region: AssembledFoldRegion,
+  foldLines: FoldLine[],
+  transform: ModelTransform,
+  color: string,
+  yOffset: number,
+) {
+  const points: Vector3[] = []
+  const polygon = region.polygon
+  for (let index = 0; index < polygon.length; index += 1) {
+    const a = polygon[index]
+    const b = polygon[(index + 1) % polygon.length]
+    if (edgeLiesOnFold(a, b, foldLines)) {
+      continue
+    }
+    const project = (point: Point) =>
+      flatToWorld(projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY), yOffset + 0.004)
+    points.push(project(a), project(b))
+  }
+  if (points.length === 0) {
+    return
+  }
+  target.add(
+    new LineSegments(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color })),
+  )
+}
+
+/**
+ * Bridge the two halves of a crease with the leather that wraps around it.
+ *
+ * Built in the frame of the half that stays, where the arc's far end lands
+ * exactly on the half that swings — that half's group is the same frame turned
+ * by the same signed angle about the same axis.
+ */
+function addFoldBend(params: {
+  parent: Group
+  region: AssembledFoldRegion
+  hinge: FoldHingeStep
+  foldLine: FoldLine
+  halfThickness: number
+  transform: ModelTransform
+  frontMaterial: Material
+  backMaterial: Material
+  edgeMaterial: Material
+}) {
+  const { parent, region, hinge, foldLine, halfThickness, transform } = params
+  const toWorld = (point: Point) =>
+    flatToWorld(projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY), 0)
+
+  for (const [a, b] of creaseEdges(region, foldLine)) {
+    const bend = buildBendGeometry({
+      start: toWorld(a),
+      end: toWorld(b),
+      angleRad: MathUtils.degToRad(hinge.angleDeg),
+      halfThickness,
+    })
+    if (!bend) {
+      continue
+    }
+    const addSurface = (vertices: Vector3[], material: Material) => {
+      if (vertices.length === 0) {
+        return
+      }
+      const geometry = new BufferGeometry().setFromPoints(vertices)
+      geometry.computeVertexNormals()
+      parent.add(new Mesh(geometry, material))
+    }
+    addSurface(bend.frontTriangles, params.frontMaterial)
+    addSurface(bend.backTriangles, params.backMaterial)
+    addSurface(bend.capTriangles, params.edgeMaterial)
+  }
+}
+
+/**
+ * A double-sided copy of a surface material, for the bend.
+ *
+ * The bend's winding flips with the fold's direction, and the reference
+ * renderer solves that the same way: make the material double-sided so a fixed
+ * triangle order is safe either way.
+ */
+function bendSurfaceMaterial(source: Material) {
+  const material = source.clone()
+  material.side = DoubleSide
+  return material
 }
 
 /**
@@ -489,7 +631,8 @@ function createAssembledPieceGroup({
   // A piece with a crease is two pieces of leather that happen to be one: the
   // part the seams hold, and the part that swings. Splitting here means the rest
   // of this function draws each part the way it used to draw the whole piece.
-  const regions = splitPieceByFolds(pieceMesh.outer, foldLinesForPiece(piece, foldLines, pieceMesh))
+  const pieceFolds = foldLinesForPiece(piece, foldLines, pieceMesh)
+  const regions = splitPieceByFolds(pieceMesh.outer, pieceFolds)
   const pieceShapeIdSet = new Set([piece.boundaryShapeId, ...piece.internalShapeIds])
   const pieceHoles = stitchHoles.filter((entry) => pieceShapeIdSet.has(entry.shapeId))
   const holeBuckets = regions.map<StitchHole[]>(() => [])
@@ -498,10 +641,11 @@ function createAssembledPieceGroup({
   }
 
   const pivotCache = new Map<string, Group>()
+  const contentCache = new Map<string, Group>()
   const frames: AssembledPieceFrame[] = []
 
   regions.forEach((region, regionIndex) => {
-    const target = regionFrame(region, group, transform, pivotCache)
+    const { content: target } = regionFrame(region, group, transform, pivotCache, contentCache)
     frames.push({ region, object: target })
     const shape = createRegionShape(region, pieceMesh.holes, transform)
 
@@ -515,17 +659,40 @@ function createAssembledPieceGroup({
     backGeometry.translate(0, -halfThickness - 0.0008, 0)
     target.add(new Mesh(backGeometry, materials.assembledBackMaterial))
 
-    const outlinePoints = region.polygon.map((point) => {
-      const projected = projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY)
-      // addPanelOutline maps (x, y) to (x, yOffset, y) and the fold builder
-      // depends on that, so the negation happens here rather than in the shared
-      // helper.
-      return new Vector2(projected.x, -projected.y)
-    })
-    addPanelOutline(outlinePoints, target, outlineColor, halfThickness + 0.0015)
+    addRegionOutline(target, region, pieceFolds, transform, outlineColor, halfThickness + 0.0015)
 
     addAssembledStitchHoles(target, piece, halfThickness, holeBuckets[regionIndex], threadColor, transform)
   })
+
+  // The leather that wraps the crease. It belongs to neither half, so it is
+  // built once per crease in the frame of the half that stays; the extruded
+  // slabs' own crease walls end up enclosed by it, which is why they are left
+  // alone rather than cut away.
+  const bendFrontMaterial = bendSurfaceMaterial(frontMaterial)
+  const bendBackMaterial = bendSurfaceMaterial(materials.assembledBackMaterial)
+  const bendEdgeMaterial = bendSurfaceMaterial(sideMaterial)
+  for (const region of regions) {
+    const hinge = region.hinges[region.hinges.length - 1]
+    if (!hinge) {
+      continue
+    }
+    const foldLine = pieceFolds.find((entry) => entry.id === hinge.foldLineId)
+    const parent = contentCache.get(region.hinges.slice(0, -1).map((entry) => entry.foldLineId).join('|'))
+    if (!foldLine || !parent) {
+      continue
+    }
+    addFoldBend({
+      parent,
+      region,
+      hinge,
+      foldLine,
+      halfThickness,
+      transform,
+      frontMaterial: bendFrontMaterial,
+      backMaterial: bendBackMaterial,
+      edgeMaterial: bendEdgeMaterial,
+    })
+  }
 
   if (previewSettings.showEdgeLabels) {
     pieceMesh.edges.forEach((edge) => {

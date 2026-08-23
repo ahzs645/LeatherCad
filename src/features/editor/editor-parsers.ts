@@ -52,10 +52,15 @@ export function parseFoldLine(value: unknown): FoldLine | null {
     name?: unknown
     start?: unknown
     end?: unknown
+    pieceId?: unknown
+    interfaceId?: unknown
     angleDeg?: unknown
     maxAngleDeg?: unknown
     direction?: unknown
     radiusMm?: unknown
+    foldAllowanceMm?: unknown
+    bendRadiusMm?: unknown
+    lockedHinge?: unknown
     thicknessMm?: unknown
     neutralAxisRatio?: unknown
     stiffness?: unknown
@@ -71,6 +76,16 @@ export function parseFoldLine(value: unknown): FoldLine | null {
     name: typeof candidate.name === 'string' && candidate.name.length > 0 ? candidate.name : 'Fold',
     start: candidate.start,
     end: candidate.end,
+    // Which piece a crease bends, and the interface it was authored from.
+    // Dropping these used to cost the fold its attribution on every save and
+    // reload: the 3D view then had to guess from geometry which piece a crease
+    // belonged to, and a crease drawn between two pieces belonged to neither.
+    pieceId: typeof candidate.pieceId === 'string' && candidate.pieceId.length > 0 ? candidate.pieceId : undefined,
+    interfaceId:
+      typeof candidate.interfaceId === 'string' && candidate.interfaceId.length > 0 ? candidate.interfaceId : undefined,
+    foldAllowanceMm: typeof candidate.foldAllowanceMm === 'number' ? candidate.foldAllowanceMm : undefined,
+    bendRadiusMm: typeof candidate.bendRadiusMm === 'number' ? candidate.bendRadiusMm : undefined,
+    lockedHinge: candidate.lockedHinge === true ? true : undefined,
     angleDeg: typeof candidate.angleDeg === 'number' ? candidate.angleDeg : 0,
     maxAngleDeg: typeof candidate.maxAngleDeg === 'number' ? candidate.maxAngleDeg : 180,
     direction: candidate.direction as FoldLine['direction'],
