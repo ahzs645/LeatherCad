@@ -1,0 +1,266 @@
+{
+  "source": "makesupply-keychain-snap-wallet-LETTER.pdf",
+  "page": {
+    "number": 1,
+    "count": 1,
+    "widthMm": 215.89999999999998,
+    "heightMm": 279.4
+  },
+  "stitching": {
+    "pitchMm": 4.972828718230184,
+    "stitchesPerInch": 5.107756860171889,
+    "holeDiameterMm": 1.1286131339187593,
+    "totalHoles": 96,
+    "runCount": 4
+  },
+  "ignoredPathCount": 64,
+  "strayDotCount": 29,
+  "pieces": [
+    {
+      "id": "pdf-path-89",
+      "widthMm": 107.94999999999999,
+      "heightMm": 128.50645412868923,
+      "areaMm2": 12426.572157441842,
+      "sides": 14,
+      "cutouts": 0,
+      "hardwareHoles": [
+        {
+          "diameterMm": 2.3445268471469265,
+          "cut": true
+        }
+      ],
+      "stitchRuns": [
+        {
+          "id": "pdf-path-89-1",
+          "holeCount": 45,
+          "pitchMm": 4.972387949634919,
+          "pitchSpreadMm": 0.05455802024304468,
+          "stitchesPerInch": 5.1082096283064375,
+          "lengthMm": 218.78506978393642,
+          "holeDiameterMm": 1.128630231900438,
+          "closed": false,
+          "cornerCount": 2,
+          "spans": [
+            {
+              "sideId": "pdf-path-89-side-14",
+              "t0": 0.06834690641632724,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-89-side-1",
+              "t0": 0,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-89-side-2",
+              "t0": 0,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-89-side-3",
+              "t0": 0,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-89-side-4",
+              "t0": 0,
+              "t1": 0.9316830639144744,
+              "reversed": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pdf-path-3",
+      "widthMm": 69.85,
+      "heightMm": 107.95,
+      "areaMm2": 6930.588107702675,
+      "sides": 8,
+      "cutouts": 0,
+      "hardwareHoles": [
+        {
+          "diameterMm": 2.3445754553613547,
+          "cut": true
+        }
+      ],
+      "stitchRuns": [
+        {
+          "id": "pdf-path-3-1",
+          "holeCount": 45,
+          "pitchMm": 4.972386714771862,
+          "pitchSpreadMm": 0.05439657001632092,
+          "stitchesPerInch": 5.108210896900317,
+          "lengthMm": 218.78501544996195,
+          "holeDiameterMm": 1.128612948809289,
+          "closed": false,
+          "cornerCount": 2,
+          "spans": [
+            {
+              "sideId": "pdf-path-3-side-5",
+              "t0": 0,
+              "t1": 1,
+              "reversed": true
+            },
+            {
+              "sideId": "pdf-path-3-side-4",
+              "t0": 0,
+              "t1": 1,
+              "reversed": true
+            },
+            {
+              "sideId": "pdf-path-3-side-3",
+              "t0": 0,
+              "t1": 1,
+              "reversed": true
+            },
+            {
+              "sideId": "pdf-path-3-side-2",
+              "t0": 0,
+              "t1": 1,
+              "reversed": true
+            },
+            {
+              "sideId": "pdf-path-3-side-1",
+              "t0": 0,
+              "t1": 1,
+              "reversed": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pdf-path-139",
+      "widthMm": 39.51111111111112,
+      "heightMm": 15.874999999999993,
+      "areaMm2": 592.2975726013233,
+      "sides": 8,
+      "cutouts": 0,
+      "hardwareHoles": [],
+      "stitchRuns": [
+        {
+          "id": "pdf-path-139-1",
+          "holeCount": 3,
+          "pitchMm": 4.9794406903230986,
+          "pitchSpreadMm": 0.0016404125453455265,
+          "stitchesPerInch": 5.100974502891786,
+          "lengthMm": 9.958881380646197,
+          "holeDiameterMm": 1.1284702659616304,
+          "closed": false,
+          "cornerCount": 0,
+          "spans": [
+            {
+              "sideId": "pdf-path-139-side-8",
+              "t0": 0.9034490132974956,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-139-side-2",
+              "t0": 0,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-139-side-4",
+              "t0": 0,
+              "t1": 0.09655098670250443,
+              "reversed": false
+            }
+          ]
+        },
+        {
+          "id": "pdf-path-139-2",
+          "holeCount": 3,
+          "pitchMm": 4.979458326941067,
+          "pitchSpreadMm": 0.0016580491633142458,
+          "stitchesPerInch": 5.100956435878736,
+          "lengthMm": 9.958916653882135,
+          "holeDiameterMm": 1.1285023087927624,
+          "closed": false,
+          "cornerCount": 0,
+          "spans": [
+            {
+              "sideId": "pdf-path-139-side-8",
+              "t0": 0,
+              "t1": 0.09654999988079109,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-139-side-6",
+              "t0": 0,
+              "t1": 1,
+              "reversed": false
+            },
+            {
+              "sideId": "pdf-path-139-side-4",
+              "t0": 0.9034500001192088,
+              "t1": 1,
+              "reversed": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "seams": [
+    {
+      "id": "seam-1",
+      "from": {
+        "pieceId": "pdf-path-139",
+        "chainId": "pdf-path-139-1"
+      },
+      "to": {
+        "pieceId": "pdf-path-139",
+        "chainId": "pdf-path-139-2"
+      },
+      "reversed": false,
+      "holeCount": 3,
+      "lengthMm": 9.958899017264166,
+      "lengthDeltaMm": 0.000035273235937438585,
+      "pitchMm": 4.979449508632083,
+      "turnMismatchDeg": 0,
+      "fold": true
+    },
+    {
+      "id": "seam-2",
+      "from": {
+        "pieceId": "pdf-path-89",
+        "chainId": "pdf-path-89-1"
+      },
+      "to": {
+        "pieceId": "pdf-path-3",
+        "chainId": "pdf-path-3-1"
+      },
+      "reversed": false,
+      "holeCount": 45,
+      "lengthMm": 218.78504261694917,
+      "lengthDeltaMm": 0.00005433397447518473,
+      "pitchMm": 4.9723873322033905,
+      "turnMismatchDeg": 0.00006935394005556173,
+      "fold": false
+    }
+  ],
+  "build": {
+    "warnings": [
+      "piece-c: no run on this piece pairs with one on another, so nothing joins it to the assembly"
+    ],
+    "unplacedPieceIds": [
+      "piece-c"
+    ],
+    "skippedSeamIds": [],
+    "diagnostics": [
+      {
+        "seamId": "seam-1",
+        "pieceId": "piece-b",
+        "residualGapMm": 0.09206503699272149,
+        "requiresCrease": false
+      }
+    ]
+  }
+}
