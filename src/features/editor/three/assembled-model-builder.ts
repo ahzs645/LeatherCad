@@ -469,7 +469,22 @@ function edgeLiesOnFold(a: Point, b: Point, foldLines: FoldLine[]) {
   })
 }
 
-/** The edges of a region that sit on one particular crease. */
+/**
+ * Point a crease edge the way its fold line runs.
+ *
+ * A region's boundary winds however the clip left it, so its crease edge can
+ * run against the fold line — on the imported wallet it does. The hinge turns
+ * the swinging half about the fold line's own direction, and an arc swept about
+ * the reverse of that direction turns the other way: it leaves the crease and
+ * curves off into space, so the two halves are drawn unjoined with the bend
+ * stranded beside them. Both have to sweep about the same axis.
+ */
+export function orientCreaseEdge(a: Point, b: Point, axisStart: Point, axisEnd: Point): [Point, Point] {
+  const along = (b.x - a.x) * (axisEnd.x - axisStart.x) + (b.y - a.y) * (axisEnd.y - axisStart.y)
+  return along < 0 ? [b, a] : [a, b]
+}
+
+/** The edges of a region that sit on one particular crease, each pointing along it. */
 function creaseEdges(region: AssembledFoldRegion, foldLine: FoldLine) {
   const edges: Array<[Point, Point]> = []
   const polygon = region.polygon
@@ -477,7 +492,7 @@ function creaseEdges(region: AssembledFoldRegion, foldLine: FoldLine) {
     const a = polygon[index]
     const b = polygon[(index + 1) % polygon.length]
     if (edgeLiesOnFold(a, b, [foldLine])) {
-      edges.push([a, b])
+      edges.push(orientCreaseEdge(a, b, foldLine.start, foldLine.end))
     }
   }
   return edges
@@ -541,7 +556,9 @@ function addFoldBend(params: {
   const toWorld = (point: Point) =>
     flatToWorld(projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY), 0)
 
-  for (const [a, b] of creaseEdges(region, foldLine)) {
+  for (const [a, b] of creaseEdges(region, foldLine).map(([start, end]) =>
+    orientCreaseEdge(start, end, hinge.start, hinge.end),
+  )) {
     const bend = buildBendGeometry({
       start: toWorld(a),
       end: toWorld(b),

@@ -1,9 +1,10 @@
 import { Box3, BufferAttribute, DoubleSide, Group, InstancedMesh, Line, LineBasicMaterial, Material, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import type { FoldLine, Layer, PatternPiece, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import type { FoldLine, Layer, PatternPiece, Point, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
 import { ThreeAvatarManager } from './avatar-manager'
 import { rebuildAssembledModel } from './assembled-model-builder'
+import { ASSEMBLED_REGION_GROUP_PREFIX } from './assembled-model-builder'
 import { pieceFrameForObject, worldPointToDocument } from './seam-edge-picking'
 
 function createMaterials() {
@@ -461,6 +462,60 @@ describe('rebuildAssembledModel', () => {
       }
       expect(Math.max(...distances)).toBeCloseTo(radius + halfThickness, 6)
       expect(Math.min(...distances)).toBeCloseTo(radius - halfThickness, 6)
+    })
+
+    it('joins the bend to both halves, whichever way the crease edge runs', () => {
+      const { piece, pieceMesh } = squarePiece()
+      // The region's boundary winds however the clip left it, so a crease edge
+      // can run either way against its fold line. The bend has to land on the
+      // leather in both cases; swept about the reversed axis it curves off into
+      // space and the halves are drawn unjoined.
+      const bendToSwingingHalf = (start: Point, end: Point) => {
+        const group = runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg: 90, radiusMm: 6, start, end })],
+        }).assembledGroup
+
+        const bend: Vector3[] = []
+        const swingingSlab: Vector3[] = []
+        group.traverse((object) => {
+          if (!(object instanceof Mesh)) {
+            return
+          }
+          // The bend is the only double-sided surface. The slab it has to reach
+          // is the extruded body inside the region group the hinge created —
+          // that one carries a material per face group, so it comes as an array.
+          const material = (object as Mesh).material
+          const isBend = material instanceof MeshStandardMaterial && material.side === DoubleSide
+          const onSwingingHalf = pieceFrameForObject(object)?.name === `${ASSEMBLED_REGION_GROUP_PREFIX}fold-1`
+          const into = isBend ? bend : onSwingingHalf && Array.isArray(material) ? swingingSlab : null
+          if (!into) {
+            return
+          }
+          const position = (object as Mesh).geometry.getAttribute('position')
+          for (let index = 0; index < position.count; index += 1) {
+            into.push(new Vector3().fromBufferAttribute(position, index).applyMatrix4(object.matrixWorld))
+          }
+        })
+        expect(bend.length).toBeGreaterThan(0)
+        expect(swingingSlab.length).toBeGreaterThan(0)
+
+        // The arc ends exactly on the swinging half's own crease face, so the
+        // closest the two ever come is zero. A bend swept the wrong way never
+        // reaches it at all.
+        let nearest = Number.POSITIVE_INFINITY
+        for (const point of bend) {
+          for (const other of swingingSlab) {
+            nearest = Math.min(nearest, point.distanceTo(other))
+          }
+        }
+        return nearest
+      }
+
+      expect(bendToSwingingHalf({ x: 0, y: 20 }, { x: 40, y: 20 })).toBeLessThan(1e-6)
+      expect(bendToSwingingHalf({ x: 40, y: 20 }, { x: 0, y: 20 })).toBeLessThan(1e-6)
     })
 
     it('closes over what is sewn under it instead of through it', () => {
