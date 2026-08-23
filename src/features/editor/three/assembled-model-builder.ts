@@ -20,7 +20,7 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import type { PatternPiece, PiecePlacement3D, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import type { Point, PatternPiece, PiecePlacement3D, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import { resolveConnectionSide, seamSideMidpoint } from '../assembly/seam-geometry'
 import { scoreSeamStress } from '../assembly/stress-score'
 import { createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
@@ -295,13 +295,34 @@ function createAssembledPieceGroup({
   return group
 }
 
+/**
+ * A point on a piece, in world space.
+ *
+ * `createAssembledPieceGroup` subtracts the piece centroid from every child and
+ * `applyPlacementTransform` adds it back through the group's own position, so
+ * the group's matrix expects pivot-relative input. Handing it an unpivoted
+ * point rotates the pivot along with the point and lands it `R·pivot - pivot`
+ * away — which is why the seam overlays used to trail off across the grid
+ * instead of sitting on the seam.
+ */
+export function piecePointWorld(
+  point: Point,
+  pieceMesh: PieceMeshData,
+  group: Group,
+  transform: ModelTransform,
+) {
+  const projected = projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY)
+  return flatToWorld(projected, 0)
+    .sub(pieceCentroidWorld(pieceMesh, transform))
+    .applyMatrix4(group.matrixWorld)
+}
+
 function edgeMidpointWorld(group: Group, pieceMesh: PieceMeshData, edgeIndex: number, transform: ModelTransform) {
   const edge = pieceMesh.edges[Math.max(0, Math.min(pieceMesh.edges.length - 1, edgeIndex))]
   if (!edge) {
     return null
   }
-  const midpoint = projectPiecePoint(edge.midpoint, transform.scale, transform.centerX, transform.centerY)
-  return flatToWorld(midpoint, 0).applyMatrix4(group.matrixWorld)
+  return piecePointWorld(edge.midpoint, pieceMesh, group, transform)
 }
 
 function edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number, transform: ModelTransform) {
@@ -334,14 +355,8 @@ function seamSideWorld(params: {
     const midpoint = edgeMidpointWorld(group, piece, edgeIndex, transform)
     return midpoint ? { midpoint, lengthWorld: edgeLengthWorld(piece, edgeIndex, transform) } : null
   }
-  const projected = projectPiecePoint(
-    seamSideMidpoint(resolved),
-    transform.scale,
-    transform.centerX,
-    transform.centerY,
-  )
   return {
-    midpoint: flatToWorld(projected, 0).applyMatrix4(group.matrixWorld),
+    midpoint: piecePointWorld(seamSideMidpoint(resolved), piece, group, transform),
     lengthWorld: resolved.lengthMm * transform.scale,
   }
 }
@@ -396,12 +411,14 @@ function addSeamStitching(
     pairs: StitchPair[]
     fromGroup: Group
     toGroup: Group
+    fromPiece: PieceMeshData
+    toPiece: PieceMeshData
     transform: ModelTransform
     color: Color
     sewnFraction: number
   },
 ) {
-  const { pairs, fromGroup, toGroup, transform, color, sewnFraction } = params
+  const { pairs, fromGroup, toGroup, fromPiece, toPiece, transform, color, sewnFraction } = params
   if (pairs.length === 0 || sewnFraction <= 0) {
     return
   }
@@ -411,14 +428,10 @@ function addSeamStitching(
     const count = Math.min(pair.left.holes.length, pair.right.holes.length)
     const sewnCount = Math.max(1, Math.round(count * Math.min(sewnFraction, 1)))
     for (let index = 0; index < sewnCount; index += 1) {
-      const left = flatToWorld(
-        projectPiecePoint(pair.left.holes[index].point, transform.scale, transform.centerX, transform.centerY),
-        0,
-      ).applyMatrix4(fromGroup.matrixWorld)
-      const right = flatToWorld(
-        projectPiecePoint(pair.right.holes[index].point, transform.scale, transform.centerX, transform.centerY),
-        0,
-      ).applyMatrix4(toGroup.matrixWorld)
+      // On a closed seam these two land on top of each other, so the segment
+      // between them is invisible. A visible one means the sides have not met.
+      const left = piecePointWorld(pair.left.holes[index].point, fromPiece, fromGroup, transform)
+      const right = piecePointWorld(pair.right.holes[index].point, toPiece, toGroup, transform)
       points.push(left, right)
     }
   }
@@ -532,6 +545,8 @@ export function rebuildAssembledModel({
           pairs: (stitchPairs ?? []).filter((pair) => connectionIdForPair(pair) === connection.id),
           fromGroup,
           toGroup,
+          fromPiece,
+          toPiece,
           transform,
           color,
           sewnFraction,
