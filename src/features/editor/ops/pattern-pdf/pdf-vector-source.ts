@@ -6,7 +6,7 @@
  * this file is only the pdf.js plumbing around it.
  */
 
-import { getDocument } from 'pdfjs-dist'
+import { getDocument } from '../pdfjs'
 
 import {
   buildVectorPaths,

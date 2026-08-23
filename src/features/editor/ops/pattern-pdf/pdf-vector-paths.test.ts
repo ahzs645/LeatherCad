@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OPS } from 'pdfjs-dist'
+import { OPS } from '../pdfjs'
 import {
   buildVectorPaths,
   dehydrateVectorPaths,

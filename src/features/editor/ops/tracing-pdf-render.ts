@@ -1,10 +1,6 @@
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import { getDocument } from './pdfjs'
+import './pdf-worker'
 import { canvasToTracingPngDataUrl, dataUrlToUint8Array } from './tracing-asset-ops'
-
-if (GlobalWorkerOptions.workerSrc !== pdfWorkerUrl) {
-  GlobalWorkerOptions.workerSrc = pdfWorkerUrl
-}
 
 export type PdfRenderResult = {
   renderDataUrl: string

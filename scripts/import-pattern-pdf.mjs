@@ -12,9 +12,9 @@
  *   <name>.doc.json      an assembled LeatherCad project, ready to open
  *
  * The app's modules are TypeScript, so this loads them through Vite's SSR
- * pipeline rather than duplicating them. pdf.js is aliased to its legacy build
- * for the same reason the loader takes a page object: the default build wants
- * browser globals Node does not have.
+ * pipeline rather than duplicating them. The app already talks to pdf.js's
+ * legacy build (see `src/features/editor/ops/pdfjs.ts`), which is also the one
+ * that runs in Node, so nothing has to be swapped out here.
  */
 
 import fs from 'node:fs'
@@ -59,7 +59,6 @@ const server = await createServer({
   logLevel: 'silent',
   appType: 'custom',
   server: { middlewareMode: true },
-  resolve: { alias: { 'pdfjs-dist': 'pdfjs-dist/legacy/build/pdf.mjs' } },
   ssr: { noExternal: true },
 })
 const loaded = await Promise.all(MODULES.map((entry) => server.ssrLoadModule(entry)))

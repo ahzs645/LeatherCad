@@ -12,7 +12,7 @@
  * carried and the consumer picks.
  */
 
-import { OPS } from 'pdfjs-dist'
+import { OPS } from '../pdfjs'
 
 import type { Point } from '../../cad/cad-types'
 

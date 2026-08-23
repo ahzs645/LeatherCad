@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
+import { manualChunks } from './vite-manual-chunks'
+
 // The Atelier engine is consumed as TypeScript source through `link:` symlinks
 // into ../atelier, so it needs the same two accommodations Seamer Studio makes.
 const ATELIER = [
@@ -32,39 +34,13 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
-            return 'react-vendor'
-          }
-          if (id.includes('node_modules/three/examples/jsm/loaders/')) {
-            return 'three-loaders-vendor'
-          }
-          if (id.includes('node_modules/three/examples/jsm/controls/')) {
-            return 'three-controls-vendor'
-          }
-          if (id.includes('node_modules/three/examples/jsm/')) {
-            return 'three-examples-vendor'
-          }
-          if (id.includes('node_modules/three')) {
-            return 'three-core-vendor'
-          }
-          if (id.includes('node_modules/pdfjs-dist')) {
-            return 'pdf-vendor'
-          }
-          if (id.includes('node_modules/opentype.js')) {
-            return 'opentype-vendor'
-          }
-          if (id.includes('node_modules/clipper-lib')) {
-            return 'clipper-vendor'
-          }
-          return undefined
-        },
-      },
+      // Kept in its own module so the chunk boundaries can be tested. Drawing
+      // one through an import cycle builds cleanly and then throws on load.
+      output: { manualChunks },
     },
   },
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'vite-manual-chunks.test.ts'],
   },
 })
