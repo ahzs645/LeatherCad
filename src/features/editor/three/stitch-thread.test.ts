@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Matrix4, Quaternion, Vector3 } from 'three'
-import { buildThreadSegments, chainRunSegments, createThreadMaterial } from './stitch-thread'
+import { buildThreadSegments, chainRunSegments, createThreadMaterial, saddleStitchSegments } from './stitch-thread'
 
 describe('chainRunSegments', () => {
   it('links consecutive holes into runs', () => {
@@ -63,5 +63,41 @@ describe('buildThreadSegments', () => {
     // The unit-height cylinder's Y axis must land on the segment direction.
     const axis = new Vector3(0, 1, 0).applyQuaternion(rotation)
     expect(Math.abs(axis.dot(new Vector3(1, 0, 0)))).toBeCloseTo(1, 6)
+  })
+})
+
+describe('saddleStitchSegments', () => {
+  const run = [
+    new Vector3(0, 0, 0),
+    new Vector3(1, 0, 0),
+    new Vector3(2, 0, 0),
+    new Vector3(3, 0, 0),
+    new Vector3(4, 0, 0),
+  ]
+
+  it('shows every other gap, the way one face of a saddle stitch does', () => {
+    const shown = saddleStitchSegments(run)
+
+    // Four gaps between five holes; two of them carry visible thread.
+    expect(shown).toHaveLength(2)
+    expect(shown[0].start.x).toBe(0)
+    expect(shown[0].end.x).toBe(1)
+    expect(shown[1].start.x).toBe(2)
+    expect(shown[1].end.x).toBe(3)
+  })
+
+  it('shows the complement on the other face', () => {
+    const front = saddleStitchSegments(run, 0)
+    const back = saddleStitchSegments(run, 1)
+
+    // Between them they cover the run exactly once — no gap doubled, none lost.
+    expect(front.length + back.length).toBe(chainRunSegments(run).length)
+    expect(back[0].start.x).toBe(1)
+    expect(back[0].end.x).toBe(2)
+  })
+
+  it('leaves a run too short to stitch alone', () => {
+    expect(saddleStitchSegments([new Vector3(0, 0, 0)])).toHaveLength(0)
+    expect(saddleStitchSegments([])).toHaveLength(0)
   })
 })

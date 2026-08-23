@@ -30,7 +30,7 @@ import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams
 import { addPanelOutline } from './outline-renderer'
 import { buildSeamSewPlan, connectionIdForPair, sewnFractionForSeam } from '../assembly/seam-sew-order'
 import type { StitchPair } from './final-product-types'
-import { buildThreadSegments, chainRunSegments } from './stitch-thread'
+import { buildThreadSegments, saddleStitchSegments } from './stitch-thread'
 
 const DEFAULT_THICKNESS_WORLD = 0.005
 
@@ -204,7 +204,7 @@ function addAssembledStitchHoles(
       const projected = projectPiecePoint(hole.point, transform.scale, transform.centerX, transform.centerY)
       return flatToWorld(projected, topY + 0.0025)
     })
-    const runs = buildThreadSegments(chainRunSegments(points), material, 0.0035, `assembled-stitch-run-${piece.id}-${chain.id}`)
+    const runs = buildThreadSegments(saddleStitchSegments(points), material, 0.0035, `assembled-stitch-run-${piece.id}-${chain.id}`)
     if (runs) {
       group.add(runs)
     }

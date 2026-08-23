@@ -69,11 +69,27 @@ export function buildThreadSegments(
   return mesh
 }
 
-/** Consecutive-hole runs along one face of the leather (the visible stitch line). */
+/** Every gap between consecutive holes, as if one cord ran through all of them. */
 export function chainRunSegments(points: Vector3[]): ThreadSegment[] {
   const segments: ThreadSegment[] = []
   for (let index = 0; index + 1 < points.length; index += 1) {
     segments.push({ start: points[index], end: points[index + 1] })
   }
   return segments
+}
+
+/**
+ * The stretches of thread a saddle stitch actually shows on one face.
+ *
+ * Two needles go through every hole from opposite sides, so from either face
+ * the thread lies across one gap, disappears through the next, and comes back
+ * for the one after. That alternation is what hand-sewn leather looks like.
+ * Drawing every gap instead gives an unbroken cord — a machine lockstitch seen
+ * from the top — which reads as a piped edge rather than as stitching.
+ *
+ * `phase` picks which set shows: 0 for one face, 1 for the other.
+ */
+export function saddleStitchSegments(points: Vector3[], phase = 0): ThreadSegment[] {
+  const parity = ((phase % 2) + 2) % 2
+  return chainRunSegments(points).filter((_, index) => index % 2 === parity)
 }
