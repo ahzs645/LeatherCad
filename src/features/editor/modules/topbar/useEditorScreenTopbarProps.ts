@@ -81,7 +81,7 @@ export function useEditorScreenTopbarProps({
     setSelectedSeamId,
   } = selectionState
   const { setShowLayerColorModal } = panelState
-  const { fileInputRef, svgInputRef, tracingInputRef, translationInputRef } = screenRefs
+  const { fileInputRef, svgInputRef, tracingInputRef, patternPdfInputRef, translationInputRef } = screenRefs
   const {
     activeLayer,
     layerStackLevels,
@@ -200,6 +200,7 @@ export function useEditorScreenTopbarProps({
   const { patternPieces, seamConnections } = documentState
   const topbarViewModel = useEditorTopbarViewModel({
     tracingInputRef,
+    patternPdfInputRef,
     translationInputRef,
     shapes,
     stitchHoles,

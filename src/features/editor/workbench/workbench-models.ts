@@ -472,6 +472,7 @@ export function buildRibbonModel(params: {
           { id: 'local-projects', label: 'Projects', icon: 'open' },
           { id: 'load-json', label: 'Open', icon: 'open' },
           { id: 'import-svg', label: 'SVG In', icon: 'import' },
+          { id: 'import-pattern-pdf', label: 'Pattern PDF', icon: 'import' },
         ],
       },
       {

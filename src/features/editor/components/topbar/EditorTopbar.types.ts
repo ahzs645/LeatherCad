@@ -219,6 +219,7 @@ export type EditorTopbarProps = {
   selectedCatalogShopId: string | null
   onSelectCatalogShop: (shopId: string) => void
   onOpenTracingImport: () => void
+  onOpenPatternPdfImport: () => void
   onOpenTracingModal: () => void
   hasTracingOverlays: boolean
   onOpenPrintPreviewModal: () => void

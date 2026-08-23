@@ -78,6 +78,7 @@ export type MobileFileAction =
   | 'template-repository'
   | 'pattern-tools'
   | 'import-tracing'
+  | 'import-pattern-pdf'
   | 'print-preview'
   | 'undo'
   | 'redo'

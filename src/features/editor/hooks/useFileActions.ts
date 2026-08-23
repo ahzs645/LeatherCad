@@ -334,6 +334,59 @@ export function useFileActions(params: UseFileActionsParams) {
     }
   }
 
+  /**
+   * Open a published pattern sheet as a project.
+   *
+   * Distinct from tracing import, which rasterises the page into a backdrop to
+   * draw over: this reads the vectors, so the pieces, stitch holes, and seams
+   * arrive as geometry rather than as a picture of geometry. It replaces the
+   * document for the same reason loading an LCC does — a sheet brings its own
+   * pieces, layers, and seams, and merging those into an open project would
+   * leave two patterns' pieces in one document.
+   */
+  const handleImportPatternPdf = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) {
+      return
+    }
+
+    const lowerName = file.name.toLowerCase()
+    if (!(lowerName.endsWith('.pdf') || file.type === 'application/pdf')) {
+      setStatus(`"${file.name}" is not a PDF. Use "Load JSON / LCC" or "Import SVG" instead.`)
+      return
+    }
+
+    setStatus(`Reading "${file.name}"…`)
+    try {
+      const { importPatternPdf } = await import('../ops/pattern-pdf/pattern-pdf-import')
+      const documentName = resolveDocumentNameFromFileName(file.name) ?? 'Imported pattern'
+      const result = await importPatternPdf(new Uint8Array(await file.arrayBuffer()), { documentName })
+
+      if (result.analysis.pieces.length === 0) {
+        // Nothing usable came off the page — say why rather than replacing the
+        // user's document with an empty one.
+        setStatus(
+          `No pattern pieces found on page ${result.pageNumber} of "${file.name}". ` +
+            (result.pageCount > 1
+              ? `The sheet has ${result.pageCount} pages — the pieces may be on another one.`
+              : 'Try "Import Tracing" to trace it by hand instead.'),
+        )
+        return
+      }
+
+      const pageNote = result.pageCount > 1 ? `, page ${result.pageNumber} of ${result.pageCount}` : ''
+      applyLoadedDocument(result.doc, `Imported "${file.name}"${pageNote} — ${result.summary}`)
+      for (const warning of result.warnings) {
+        console.warn(`[pattern-pdf] ${warning}`)
+      }
+      void createLocalProjectFromLoadedDoc(result.doc, file.name)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error'
+      setStatus(`Could not read "${file.name}" as a pattern: ${message}`)
+    }
+  }
+
   const handleLoadPreset = async (presetId?: string) => {
     try {
       const { DEFAULT_PRESET_ID, PRESET_DOCS } = await import('../data/sample-doc')
@@ -415,6 +468,7 @@ export function useFileActions(params: UseFileActionsParams) {
     handleExportGarmentJson,
     handleLoadJson,
     handleImportSvg,
+    handleImportPatternPdf,
     handleLoadPreset,
     handleOpenInNewTab,
     handleSaveLocalProject,

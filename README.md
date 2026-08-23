@@ -8,7 +8,7 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - Constraint solver for parametric dimensions
 - Pattern grading
 - Geometry import: JSON, LCC, and SVG
-- Pattern PDF import: reads a published template sheet as pieces, stitch runs, seams, and folds
+- Pattern PDF import (**Output → Pattern PDF**): reads a published template sheet as pieces, stitch runs, seams, and folds
 - Tracing import (reference overlays only, not editable geometry): raster images and PDF
 - Export: SVG, PDF, DXF, JSON, and LCC
 - 3D preview via Three.js

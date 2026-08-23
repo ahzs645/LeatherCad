@@ -29,6 +29,7 @@ be tested, replaced, or run on stored data without a PDF.
 | `pattern-doc-builder` | analysis → a LeatherCad project |
 | `pattern-assembly-placement` | project → pieces placed in 3D from its seams |
 | `pattern-path-codec` | extracted paths ↔ a compact file |
+| `pattern-pdf-import` | the browser's entry point: all of it, plus a one-line summary |
 
 ## How the labelling is recovered
 
@@ -63,6 +64,14 @@ joining those ends.
 
 ## Running it
 
+In the editor: **Output → Pattern PDF**. The sheet replaces the open document,
+because it brings its own pieces, layers, and seams, and the status line says
+what came off it — piece count, pitch, seams — so you can tell at a glance
+whether the import understood the template. Anything it could not resolve is
+logged rather than swallowed.
+
+From the command line, over any PDF:
+
 ```bash
 node scripts/import-pattern-pdf.mjs <pattern.pdf> --name "Card Case"
 # or: pnpm pattern:pdf <pattern.pdf> --name "Card Case"
@@ -74,13 +83,14 @@ Writes three files to `docs/fixtures/pattern-pdf/`:
 - `*.report.json` — pieces, runs, pitch, seams, and any warnings
 - `*.doc.json` — a LeatherCad project, pieces placed, openable with **Open**
 
-pdf.js needs browser globals Node does not have, so the script aliases it to its
-legacy build and loads the app's TypeScript through Vite's SSR pipeline rather
-than duplicating any of it.
+The script loads the app's TypeScript through Vite's SSR pipeline rather than
+duplicating any of it. The app already talks to pdf.js's legacy build (see
+`ops/pdfjs.ts`), which is also the one that runs under Node, so the two paths
+read a sheet through exactly the same code.
 
 ## Testing
 
-`pattern-pdf-import.test.ts` runs everything downstream of the reader against a
+`pattern-pdf-wallet.test.ts` runs everything downstream of the reader against a
 real template — MAKESUPPLY's free Keychain Snap Wallet, replayed from its stored
 path file — and asserts what a maker would measure: 5 mm pitch, 1.1 mm holes, 45
 of them down each side of the one seam, two snap holes, and a seam that closes to

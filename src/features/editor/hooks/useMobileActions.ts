@@ -7,6 +7,7 @@ type UseMobileActionsParams = {
   fileInputRef: RefObject<HTMLInputElement | null>
   svgInputRef: RefObject<HTMLInputElement | null>
   tracingInputRef: RefObject<HTMLInputElement | null>
+  patternPdfInputRef: RefObject<HTMLInputElement | null>
   handleAddLayer: () => void
   handleRenameActiveLayer: () => void
   handleToggleLayerVisibility: () => void
@@ -45,6 +46,7 @@ export function useMobileActions(params: UseMobileActionsParams) {
     fileInputRef,
     svgInputRef,
     tracingInputRef,
+    patternPdfInputRef,
     handleAddLayer,
     handleRenameActiveLayer,
     handleToggleLayerVisibility,
@@ -198,6 +200,11 @@ export function useMobileActions(params: UseMobileActionsParams) {
 
     if (mobileFileAction === 'import-tracing') {
       tracingInputRef.current?.click()
+      return
+    }
+
+    if (mobileFileAction === 'import-pattern-pdf') {
+      patternPdfInputRef.current?.click()
       return
     }
 

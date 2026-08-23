@@ -105,6 +105,7 @@ export function resolveRibbonCommandIcon(item: Pick<RibbonCommandItem, 'id' | 'i
     case 'load-json':
       return 'open'
     case 'import-svg':
+    case 'import-pattern-pdf':
       return 'import'
     case 'export-center':
       return 'export'

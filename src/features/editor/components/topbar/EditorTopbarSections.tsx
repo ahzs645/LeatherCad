@@ -666,6 +666,7 @@ export function FileSection({
   onOpenImportSvg,
   onLoadPreset,
   onOpenTracingImport,
+  onOpenPatternPdfImport,
   showThreePreview,
   onOpenInNewTab,
   onOpenExportModal,
@@ -701,6 +702,7 @@ export function FileSection({
               <option value="import-svg">Import SVG</option>
               <option value="load-preset">Load Preset</option>
               <option value="import-tracing">Import Image / PDF Tracing</option>
+              <option value="import-pattern-pdf">Import Pattern PDF</option>
             </optgroup>
             <optgroup label="Exports">
               <option value="save-json">Save JSON</option>
@@ -739,6 +741,7 @@ export function FileSection({
               <button onClick={onOpenImportSvg}>Import SVG</button>
               <button onClick={onLoadPreset}>Load Preset</button>
               <button onClick={onOpenTracingImport}>Import Tracing (Image / PDF)</button>
+              <button onClick={onOpenPatternPdfImport}>Import Pattern PDF</button>
             </div>
           </div>
           <div className="file-action-cluster" role="group" aria-label="Export actions">

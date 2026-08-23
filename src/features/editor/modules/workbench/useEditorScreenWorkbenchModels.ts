@@ -143,7 +143,7 @@ export function useEditorScreenWorkbenchModels({
     toolRailWidth,
     inspectorRestoreWidth,
   } = workbenchShellState
-  const { fileInputRef, svgInputRef } = screenRefs
+  const { fileInputRef, svgInputRef, patternPdfInputRef } = screenRefs
   const {
     activeLayer,
     activeLineType,
@@ -371,6 +371,7 @@ export function useEditorScreenWorkbenchModels({
     handleClearAllStitchHoles,
     fileInputRef,
     svgInputRef,
+    patternPdfInputRef,
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
