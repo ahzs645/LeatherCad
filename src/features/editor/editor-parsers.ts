@@ -11,6 +11,7 @@ import type {
   Layer,
   PatternPiece,
   ParametricConstraint,
+  PieceEdgeFinish,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
@@ -259,6 +260,19 @@ export function parsePatternPiece(value: unknown): PatternPiece | null {
     locked: candidate.locked === true,
     color: typeof candidate.color === 'string' ? candidate.color : undefined,
     fill: typeof candidate.fill === 'string' ? candidate.fill : undefined,
+    edgeFinish: parsePieceEdgeFinish(candidate.edgeFinish),
+  }
+}
+
+function parsePieceEdgeFinish(value: unknown): PieceEdgeFinish | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined
+  }
+  const candidate = value as Partial<PieceEdgeFinish>
+  return {
+    enabled: candidate.enabled === true,
+    style: candidate.style === 'paint' ? 'paint' : 'burnish',
+    color: typeof candidate.color === 'string' && candidate.color.trim().length > 0 ? candidate.color.trim() : undefined,
   }
 }
 

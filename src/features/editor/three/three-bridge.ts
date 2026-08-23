@@ -29,6 +29,7 @@ import { EngineRuntime } from './engine-runtime'
 import {
   nearestBoundaryEdge,
   pieceIdForObject,
+  pieceFrameForObject,
   worldPointToDocument,
   type PickedSeamEdge,
 } from './seam-edge-picking'
@@ -102,6 +103,7 @@ export class ThreeBridge {
     thicknessMm: 1.8,
     showSeams: true,
     showEdgeLabels: false,
+    showPieceOutlines: false,
     showStressOverlay: true,
     usePhysicsRelaxation: true,
   }
@@ -631,7 +633,10 @@ export class ThreeBridge {
       if (!pieceMesh || !pieceGroup) {
         continue
       }
-      const documentPoint = worldPointToDocument(hit.point, pieceGroup as Group, this.transform)
+      // The region group the hit landed in, so a click on a folded flap maps
+      // back through the fold rather than through the piece's flat pose.
+      const frame = pieceFrameForObject(hit.object) ?? pieceGroup
+      const documentPoint = worldPointToDocument(hit.point, frame, this.transform)
       const edge = nearestBoundaryEdge(pieceMesh, documentPoint)
       if (edge) {
         return edge

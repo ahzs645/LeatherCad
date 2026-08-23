@@ -152,6 +152,7 @@ export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): Three
         : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
     showSeams: value.showSeams !== false,
     showEdgeLabels: value.showEdgeLabels === true,
+    showPieceOutlines: value.showPieceOutlines === true,
     showStressOverlay: value.showStressOverlay !== false,
     usePhysicsRelaxation: value.usePhysicsRelaxation !== false,
     // Left undefined rather than defaulted: no sew scrubber in play means the
@@ -182,6 +183,7 @@ export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings 
       typeof candidate.thicknessMm === 'number' ? candidate.thicknessMm : DEFAULT_THREE_PREVIEW_SETTINGS.thicknessMm,
     showSeams: candidate.showSeams !== false,
     showEdgeLabels: candidate.showEdgeLabels === true,
+    showPieceOutlines: candidate.showPieceOutlines === true,
     showStressOverlay: candidate.showStressOverlay !== false,
     usePhysicsRelaxation: candidate.usePhysicsRelaxation !== false,
     sewnStitchCount: typeof candidate.sewnStitchCount === 'number' ? candidate.sewnStitchCount : undefined,

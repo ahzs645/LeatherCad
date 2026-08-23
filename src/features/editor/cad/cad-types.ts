@@ -389,6 +389,12 @@ export type ThreePreviewSettings = {
   thicknessMm: number
   showSeams: boolean
   showEdgeLabels: boolean
+  /**
+   * Draw every piece's boundary in that piece's own colour, so two pieces of
+   * leather stacked flesh-to-grain can be told apart in a render where they are
+   * the same tan and a millimetre and a half apart.
+   */
+  showPieceOutlines: boolean
   showStressOverlay: boolean
   /**
    * Stitches sewn so far, along the axis `buildSeamSewPlan` lays the seams on.
@@ -397,6 +403,23 @@ export type ThreePreviewSettings = {
   sewnStitchCount?: number
   usePhysicsRelaxation: boolean
   avatarId?: string
+}
+
+/**
+ * How a piece's cut edges are finished.
+ *
+ * Burnishing compresses and darkens the edge; edge paint lays a different
+ * colour over it. Both change what the exposed side faces of the leather look
+ * like and nothing else, so this is rendering intent attached to the piece
+ * rather than geometry.
+ */
+export type PieceEdgeFinishStyle = 'burnish' | 'paint'
+
+export type PieceEdgeFinish = {
+  enabled: boolean
+  style: PieceEdgeFinishStyle
+  /** Paint colour. Ignored when burnishing, which darkens the piece's own colour. */
+  color?: string
 }
 
 export type PatternPiece = {
@@ -419,6 +442,7 @@ export type PatternPiece = {
   locked: boolean
   color?: string
   fill?: string
+  edgeFinish?: PieceEdgeFinish
 }
 
 export type PieceGrainline = {

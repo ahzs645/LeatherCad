@@ -1,9 +1,10 @@
-import { Group, Material, MeshStandardMaterial } from 'three'
+import { Box3, Group, InstancedMesh, Line, LineBasicMaterial, Material, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import type { Layer, PatternPiece, ThreePreviewSettings } from '../cad/cad-types'
+import type { FoldLine, Layer, PatternPiece, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
 import { ThreeAvatarManager } from './avatar-manager'
 import { rebuildAssembledModel } from './assembled-model-builder'
+import { pieceFrameForObject, worldPointToDocument } from './seam-edge-picking'
 
 function createMaterials() {
   return {
@@ -19,6 +20,9 @@ function createMaterials() {
 
 const layer: Layer = { id: 'layer-1', name: 'Front', visible: true, locked: false }
 
+/** The document-to-scene mapping every build in this file uses. */
+const TRANSFORM = { scale: 0.02, centerX: 20, centerY: 20 }
+
 function previewSettings(overrides: Partial<ThreePreviewSettings> = {}): ThreePreviewSettings {
   return {
     mode: 'avatar',
@@ -28,6 +32,7 @@ function previewSettings(overrides: Partial<ThreePreviewSettings> = {}): ThreePr
     thicknessMm: 2,
     showSeams: false,
     showEdgeLabels: false,
+    showPieceOutlines: false,
     showStressOverlay: false,
     usePhysicsRelaxation: true,
     ...overrides,
@@ -81,10 +86,16 @@ function runBuilder({
   patternPieces,
   pieceMeshes,
   mode,
+  foldLines = [],
+  stitchHoles = [],
+  settings,
 }: {
   patternPieces: PatternPiece[]
   pieceMeshes: PieceMeshData[]
   mode: ThreePreviewSettings['mode']
+  foldLines?: FoldLine[]
+  stitchHoles?: StitchHole[]
+  settings?: Partial<ThreePreviewSettings>
 }) {
   const assembledGroup = new Group()
   const avatarGroup = new Group()
@@ -95,15 +106,15 @@ function runBuilder({
     layers: [layer],
     lineTypes: [],
     shapes: [],
-    foldLines: [],
-    stitchHoles: [],
+    foldLines,
+    stitchHoles,
     outlinePolygons: [],
     patternPieces,
     piecePlacements3d: [],
     seamConnections: [],
-    previewSettings: previewSettings({ mode }),
+    previewSettings: previewSettings({ mode, ...settings }),
     pieceMeshes,
-    transform: { scale: 0.02, centerX: 20, centerY: 20 },
+    transform: TRANSFORM,
     documentBounds: { minX: 0, maxX: 40, minY: 0, maxY: 40 },
     threadColor: '#fb923c',
     texturedShapeIdSet: new Set(),
@@ -121,6 +132,43 @@ function runBuilder({
   })
 
   return { assembledGroup, avatarGroup, fitControlsToModel, rebuildAvatarModel }
+}
+
+function foldLine(overrides: Partial<FoldLine> = {}): FoldLine {
+  return {
+    id: 'fold-1',
+    name: 'Wallet spine',
+    pieceId: 'piece-1',
+    start: { x: 0, y: 20 },
+    end: { x: 40, y: 20 },
+    angleDeg: 90,
+    maxAngleDeg: 180,
+    direction: 'valley',
+    ...overrides,
+  }
+}
+
+/**
+ * Tallest a flat build of the fixture gets: 2mm of leather at the 0.02 scale
+ * this transform uses, plus the hairline offsets the outline and back face sit
+ * at. Anything above this is leather standing up.
+ */
+const FLAT_HEIGHT = 0.06
+
+/** Height of the built leather, in scene units. */
+function modelHeight(group: Group) {
+  const box = new Box3().setFromObject(group)
+  return box.max.y - box.min.y
+}
+
+function meshes(group: Group) {
+  const found: Mesh[] = []
+  group.traverse((object) => {
+    if (object instanceof Mesh) {
+      found.push(object as Mesh)
+    }
+  })
+  return found
 }
 
 describe('rebuildAssembledModel', () => {
@@ -169,7 +217,7 @@ describe('rebuildAssembledModel', () => {
       seamConnections: [],
       previewSettings: settings,
       pieceMeshes: [],
-      transform: { scale: 0.02, centerX: 20, centerY: 20 },
+      transform: TRANSFORM,
       documentBounds: { minX: 0, maxX: 40, minY: 0, maxY: 40 },
       threadColor: '#fb923c',
       texturedShapeIdSet: new Set(),
@@ -218,7 +266,7 @@ describe('rebuildAssembledModel', () => {
       seamConnections: [],
       previewSettings: settings,
       pieceMeshes: [],
-      transform: { scale: 0.02, centerX: 20, centerY: 20 },
+      transform: TRANSFORM,
       documentBounds: { minX: 0, maxX: 40, minY: 0, maxY: 40 },
       threadColor: '#fb923c',
       texturedShapeIdSet: new Set(),
@@ -260,7 +308,7 @@ describe('rebuildAssembledModel', () => {
       piecePlacements3d: [],
       seamConnections: [],
       previewSettings: previewSettings(),
-      transform: { scale: 0.02, centerX: 20, centerY: 20 },
+      transform: TRANSFORM,
       documentBounds: { minX: 0, maxX: 40, minY: 0, maxY: 40 },
       threadColor: '#fb923c',
       texturedShapeIdSet: new Set<string>(),
@@ -283,5 +331,215 @@ describe('rebuildAssembledModel', () => {
     rebuildAssembledModel({ ...shared, patternPieces: [], pieceMeshes: [] })
     expect(assembledGroup.children).toHaveLength(0)
     expect(avatarGroup.children).toHaveLength(0)
+  })
+  describe('folds', () => {
+    it('leaves a piece flat when no fold line reaches it', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({ patternPieces: [piece], pieceMeshes: [pieceMesh], mode: 'assembled' })
+
+      // 2mm of leather at the 0.02 scale of this fixture, plus the hairline
+      // offsets the outline and back face sit at.
+      expect(modelHeight(result.assembledGroup)).toBeLessThan(FLAT_HEIGHT)
+    })
+
+    it('stays flat while the crease is dialled to zero', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        foldLines: [foldLine({ angleDeg: 0 })],
+      })
+
+      expect(modelHeight(result.assembledGroup)).toBeLessThan(FLAT_HEIGHT)
+    })
+
+    it('lifts the half past the crease when the fold angle is dialled up', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        foldLines: [foldLine({ angleDeg: 90 })],
+      })
+
+      // The swinging half is 20mm deep, so folding it to a right angle stands
+      // 20mm of leather up: 0.4 at this fixture's scale.
+      expect(modelHeight(result.assembledGroup)).toBeGreaterThan(0.35)
+      expect(result.assembledGroup.getObjectByName('assembled-fold-fold-1')).toBeDefined()
+    })
+
+    it('ignores a crease belonging to another piece', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        foldLines: [foldLine({ pieceId: 'piece-2' })],
+      })
+
+      expect(modelHeight(result.assembledGroup)).toBeLessThan(FLAT_HEIGHT)
+    })
+
+    it('ignores an unattributed crease drawn outside the piece', () => {
+      // The split clips against the infinite line through the crease, so a
+      // crease that merely lines up with this piece must not slice it.
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        foldLines: [foldLine({ pieceId: undefined, start: { x: 200, y: 20 }, end: { x: 240, y: 20 } })],
+      })
+
+      expect(modelHeight(result.assembledGroup)).toBeLessThan(FLAT_HEIGHT)
+    })
+
+    it('keeps the seam picker in step with the folded geometry', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        foldLines: [foldLine({ angleDeg: 90 })],
+      })
+
+      const mapped: Array<{ x: number; y: number }> = []
+      result.assembledGroup.traverse((object) => {
+        if (!(object instanceof Mesh)) {
+          return
+        }
+        const frame = pieceFrameForObject(object)
+        expect(frame).not.toBeNull()
+        const position = (object as Mesh).geometry.getAttribute('position')
+        for (let index = 0; index < position.count; index += 1) {
+          const world = new Vector3().fromBufferAttribute(position, index).applyMatrix4(object.matrixWorld)
+          mapped.push(worldPointToDocument(world, frame as Group, TRANSFORM))
+        }
+      })
+
+      // Every vertex of the folded model maps back onto the 40mm square it was
+      // cut from. Inverting the piece group instead of the region the hit
+      // landed in lands them a centroid away, which is a seam picked on the
+      // wrong edge.
+      expect(mapped.length).toBeGreaterThan(0)
+      for (const point of mapped) {
+        expect(point.x).toBeGreaterThan(-1)
+        expect(point.x).toBeLessThan(41)
+        expect(point.y).toBeGreaterThan(-1)
+        expect(point.y).toBeLessThan(41)
+      }
+    })
+
+    it('carries the stitch holes on the folded half up with it', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const holes: StitchHole[] = [
+        { id: 'hole-1', shapeId: 'shape-1', point: { x: 20, y: 4 }, angleDeg: 0, holeType: 'round', sequence: 0 },
+        { id: 'hole-2', shapeId: 'shape-1', point: { x: 20, y: 36 }, angleDeg: 0, holeType: 'round', sequence: 1 },
+      ]
+      const flat = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        stitchHoles: holes,
+      })
+      const folded = runBuilder({
+        patternPieces: [piece],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+        stitchHoles: holes,
+        foldLines: [foldLine({ angleDeg: 90 })],
+      })
+
+      const holeHeight = (group: Group) => {
+        const instanced = meshes(group).filter((mesh) => mesh instanceof InstancedMesh)
+        expect(instanced.length).toBeGreaterThan(0)
+        const box = new Box3()
+        for (const mesh of instanced) {
+          box.union(new Box3().setFromObject(mesh))
+        }
+        return box.max.y - box.min.y
+      }
+
+      // Flat, both holes sit on one plane. Folded, one of them has gone up with
+      // the leather it is punched through.
+      expect(holeHeight(flat.assembledGroup)).toBeLessThan(FLAT_HEIGHT)
+      expect(holeHeight(folded.assembledGroup)).toBeGreaterThan(0.25)
+    })
+  })
+
+  describe('edges', () => {
+    const materialColors = (group: Group) =>
+      meshes(group)
+        .flatMap((mesh) => (Array.isArray(mesh.material) ? mesh.material : [mesh.material]))
+        .filter((material): material is MeshStandardMaterial => material instanceof MeshStandardMaterial)
+        .map((material) => material.color.getHexString())
+
+    it('leaves the shared side material alone when no edge finish is set', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const materials = createMaterials()
+      const result = runBuilder({ patternPieces: [piece], pieceMeshes: [pieceMesh], mode: 'assembled' })
+
+      expect(materialColors(result.assembledGroup)).toContain(materials.assembledSideMaterial.color.getHexString())
+    })
+
+    it('paints the cut faces the chosen colour', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [{ ...piece, edgeFinish: { enabled: true, style: 'paint', color: '#ff0000' } }],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+      })
+
+      expect(materialColors(result.assembledGroup)).toContain('ff0000')
+    })
+
+    it('darkens the cut faces with the piece colour when burnishing', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const result = runBuilder({
+        patternPieces: [{ ...piece, color: '#ffffff', edgeFinish: { enabled: true, style: 'burnish' } }],
+        pieceMeshes: [pieceMesh],
+        mode: 'assembled',
+      })
+
+      const burnished = materialColors(result.assembledGroup).filter((color) => color !== 'ffffff')
+      expect(burnished.length).toBeGreaterThan(0)
+      // White leather burnishes to a mid grey, not to white and not to black.
+      expect(burnished).toContain('b3b3b3')
+    })
+
+    it('outlines each piece in its own highlight colour only when the highlight is on', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const second = {
+        piece: { ...piece, id: 'piece-2', name: 'Back Panel' },
+        pieceMesh: { ...pieceMesh, pieceId: 'piece-2', name: 'Back Panel' },
+      }
+      const outlineColors = (group: Group) => {
+        const colors: string[] = []
+        group.traverse((object) => {
+          if (object instanceof Line && object.material instanceof LineBasicMaterial) {
+            colors.push(object.material.color.getHexString())
+          }
+        })
+        return colors
+      }
+      const build = (settings?: Partial<ThreePreviewSettings>) =>
+        outlineColors(
+          runBuilder({
+            patternPieces: [piece, second.piece],
+            pieceMeshes: [pieceMesh, second.pieceMesh],
+            mode: 'assembled',
+            settings,
+          }).assembledGroup,
+        )
+
+      // Off, both pieces draw the same neutral hairline.
+      expect(new Set(build())).toEqual(new Set(['e2e8f0']))
+      // On, the two pieces are told apart — which is the whole point, and is
+      // why this does not use the pieces' own leather colours.
+      const highlighted = build({ showPieceOutlines: true })
+      expect(highlighted).toContain('38bdf8')
+      expect(highlighted).toContain('f472b6')
+    })
   })
 })

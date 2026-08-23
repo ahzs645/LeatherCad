@@ -58,6 +58,7 @@ const previewSettings: ThreePreviewSettings = {
   thicknessMm: 1.8,
   showSeams: true,
   showEdgeLabels: false,
+  showPieceOutlines: false,
   showStressOverlay: true,
   usePhysicsRelaxation: true,
 }

@@ -13,7 +13,8 @@
  * the nearest one in plain 2D.
  */
 
-import { Matrix4, Vector3, type Group, type Object3D } from 'three'
+import { Matrix4, Vector3, type Object3D } from 'three'
+import { ASSEMBLED_REGION_GROUP_PREFIX } from './assembled-model-builder'
 import type { PieceMeshData } from './piece-mesh'
 import type { ModelTransform } from './model-builder-types'
 
@@ -42,18 +43,41 @@ export function pieceIdForObject(object: Object3D | null): string | null {
 }
 
 /**
+ * The frame a raycast hit's geometry is expressed in.
+ *
+ * A folded piece is drawn a region at a time, each in its own group, so the
+ * group that carries a hit is the one whose matrix has to be undone: reading
+ * the piece group instead would map a click on a raised flap back to wherever
+ * that flap would be if it were still lying flat.
+ */
+export function pieceFrameForObject(object: Object3D | null): Object3D | null {
+  let current: Object3D | null = object
+  while (current) {
+    if (current.name.startsWith(ASSEMBLED_REGION_GROUP_PREFIX)) {
+      return current
+    }
+    current = current.parent
+  }
+  return null
+}
+
+/**
  * Undo the viewport's flat-to-world mapping for a point on a placed piece.
  *
  * `projectPiecePoint` scales and centres, and the body geometry's -90 degree X
  * rotation negates the projected Y on the way to world Z, so document Y comes
  * back from world Z directly.
+ *
+ * `frame` must be a group whose local space holds the piece's flat coordinates
+ * — a region group, from `pieceFrameForObject`. The piece group is not one: its
+ * children are offset by the centroid its rotation pivots on.
  */
 export function worldPointToDocument(
   worldPoint: Vector3,
-  pieceGroup: Group,
+  frame: Object3D,
   transform: ModelTransform,
 ) {
-  const local = worldPoint.clone().applyMatrix4(new Matrix4().copy(pieceGroup.matrixWorld).invert())
+  const local = worldPoint.clone().applyMatrix4(new Matrix4().copy(frame.matrixWorld).invert())
   const scale = transform.scale === 0 ? 1 : transform.scale
   return {
     x: local.x / scale + transform.centerX,

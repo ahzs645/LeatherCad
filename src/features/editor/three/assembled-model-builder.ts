@@ -20,10 +20,25 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import type { Point, PatternPiece, PiecePlacement3D, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import type {
+  FoldLine,
+  Point,
+  PatternPiece,
+  PiecePlacement3D,
+  SeamConnection,
+  StitchHole,
+  ThreePreviewSettings,
+} from '../cad/cad-types'
 import { resolveConnectionSide, seamSideMidpoint } from '../assembly/seam-geometry'
 import { scoreSeamStress } from '../assembly/stress-score'
-import { createPieceShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
+import { DEFAULT_EDGE_PAINT_COLOR } from '../editor-constants'
+import { createPolygonShape, projectPiecePoint, type PieceMeshData } from './piece-mesh'
+import {
+  regionContains,
+  splitPieceByFolds,
+  type AssembledFoldRegion,
+  type FoldHingeStep,
+} from './assembled-fold-regions'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
@@ -33,6 +48,39 @@ import type { StitchPair } from './final-product-types'
 import { buildThreadSegments, saddleStitchSegments } from './stitch-thread'
 
 const DEFAULT_THICKNESS_WORLD = 0.005
+/**
+ * Outline colours for the piece highlight, cycled by piece order.
+ *
+ * Deliberately not the piece's own colour: a piece is coloured to look like the
+ * leather it will be cut from, so a document's pieces are usually three browns a
+ * few degrees of hue apart. Outlining each in its own colour draws three
+ * hairlines nobody can tell from each other or from the leather under them.
+ * These read against tan and against the grey ground.
+ */
+const PIECE_OUTLINE_PALETTE = [
+  '#38bdf8',
+  '#f472b6',
+  '#a3e635',
+  '#c084fc',
+  '#2563eb',
+  '#22d3ee',
+  '#f87171',
+  '#14b8a6',
+]
+/** Outline colour when piece outlines are off — the neutral hairline this always drew. */
+const PIECE_OUTLINE_NEUTRAL_COLOR = '#e2e8f0'
+/**
+ * Name prefix on the group holding one region's geometry.
+ *
+ * Everything inside such a group is expressed in the piece's own flat
+ * coordinates, so inverting its `matrixWorld` takes a world point straight back
+ * to the document — which is what the seam picker needs, and what the piece
+ * group cannot give it, because the piece group's local space is offset by the
+ * centroid its rotation pivots on.
+ */
+export const ASSEMBLED_REGION_GROUP_PREFIX = 'assembled-region-'
+/** How much burnishing darkens the leather's own colour. */
+const BURNISH_DARKEN = 0.45
 
 /**
  * A projected flat point in viewport coordinates.
@@ -164,16 +212,202 @@ function addEdgeLabel(group: Group, text: string, point: Vector3, color: string)
   group.add(sprite)
 }
 
+/** Vertex average of a polygon — good enough to tell two fold regions apart. */
+function polygonCentroid(polygon: Point[]): Point {
+  if (polygon.length === 0) {
+    return { x: 0, y: 0 }
+  }
+  let x = 0
+  let y = 0
+  for (const point of polygon) {
+    x += point.x
+    y += point.y
+  }
+  return { x: x / polygon.length, y: y / polygon.length }
+}
+
+/**
+ * Which fold region a flat point belongs to.
+ *
+ * A point on a shared boundary — a stitch hole punched along the crease, a seam
+ * midpoint at the root of a flap — can fail the containment test from both
+ * sides. Falling back to the nearest region keeps it on the leather instead of
+ * dropping it, which is the difference between a fold that carries its stitching
+ * and one that appears to shed it.
+ */
+function regionIndexForPoint(regions: AssembledFoldRegion[], point: Point) {
+  if (regions.length <= 1) {
+    return 0
+  }
+  const containing = regions.findIndex((region) => regionContains(region, point))
+  if (containing >= 0) {
+    return containing
+  }
+  let best = 0
+  let bestDistance = Number.POSITIVE_INFINITY
+  regions.forEach((region, index) => {
+    const centre = polygonCentroid(region.polygon)
+    const distance = Math.hypot(centre.x - point.x, centre.y - point.y)
+    if (distance < bestDistance) {
+      best = index
+      bestDistance = distance
+    }
+  })
+  return best
+}
+
+/** A piece region and the object whose frame its geometry lives in. */
+export type AssembledPieceFrame = {
+  region: AssembledFoldRegion
+  object: Group
+}
+
+/** The frame a flat point on a piece moves with, once the piece's folds are applied. */
+export function frameForPoint(frames: AssembledPieceFrame[], point: Point) {
+  if (frames.length === 0) {
+    return null
+  }
+  return frames[regionIndexForPoint(frames.map((frame) => frame.region), point)].object
+}
+
+/**
+ * Build an extrudable shape from one region of a piece.
+ *
+ * A region only carries the cutouts that fall inside it. A hole handed to the
+ * wrong region sits outside its outline, and the triangulator either ignores it
+ * or fans stray faces across the leather.
+ */
+function createRegionShape(region: AssembledFoldRegion, holes: Point[][], transform: ModelTransform) {
+  return createPolygonShape(
+    region.polygon,
+    holes.filter((hole) => hole.length >= 3 && regionContains(region, polygonCentroid(hole))),
+    transform.scale,
+    transform.centerX,
+    transform.centerY,
+  )
+}
+
+/**
+ * The fold lines that bend this piece.
+ *
+ * A crease names its piece when the document knows which one it was drawn on.
+ * When it does not, the crease belongs to whichever piece it sits inside: the
+ * split clips against the infinite line through the crease, so an unattributed
+ * crease would otherwise also slice a piece three sheets away that happens to
+ * lie in line with it.
+ */
+function foldLinesForPiece(piece: PatternPiece, foldLines: FoldLine[], pieceMesh: PieceMeshData) {
+  const outline: AssembledFoldRegion = { polygon: pieceMesh.outer, hinges: [] }
+  return foldLines.filter((foldLine) => {
+    if (foldLine.pieceId) {
+      return foldLine.pieceId === piece.id
+    }
+    return regionContains(outline, {
+      x: (foldLine.start.x + foldLine.end.x) / 2,
+      y: (foldLine.start.y + foldLine.end.y) / 2,
+    })
+  })
+}
+
+/** A hinge's axis in the piece's flat frame, projected into the scene. */
+function hingeAxis(hinge: FoldHingeStep, transform: ModelTransform) {
+  const start = flatToWorld(projectPiecePoint(hinge.start, transform.scale, transform.centerX, transform.centerY), 0)
+  const end = flatToWorld(projectPiecePoint(hinge.end, transform.scale, transform.centerX, transform.centerY), 0)
+  const direction = end.clone().sub(start)
+  if (direction.lengthSq() <= 0) {
+    return null
+  }
+  return { origin: start, direction: direction.normalize() }
+}
+
+/**
+ * The frame one region's geometry is drawn in.
+ *
+ * Every region gets a content group, folded or not, and every content group
+ * holds geometry in the piece's own flat coordinates. That uniformity is what
+ * lets the seam overlays push a flat point through `matrixWorld` and land on the
+ * leather wherever the folds have taken it, instead of needing one rule for the
+ * part that stays put and another for the part that swings.
+ *
+ * The chain is cached by fold-line prefix so a piece folded twice nests one
+ * pivot inside the other: the second crease turns in the frame the first left
+ * behind, which is what an accordion does and what a flat list of rotations
+ * about document-space axes cannot express.
+ */
+function regionFrame(
+  region: AssembledFoldRegion,
+  group: Group,
+  transform: ModelTransform,
+  pivotCache: Map<string, Group>,
+) {
+  let parent = group
+  let parentOrigin = new Vector3()
+  let key = ''
+
+  for (const hinge of region.hinges) {
+    const axis = hingeAxis(hinge, transform)
+    if (!axis) {
+      continue
+    }
+    key = key.length > 0 ? `${key}|${hinge.foldLineId}` : hinge.foldLineId
+    const cached = pivotCache.get(key)
+    if (cached) {
+      parent = cached
+      parentOrigin = axis.origin
+      continue
+    }
+    const pivot = new Group()
+    pivot.name = `assembled-fold-${hinge.foldLineId}`
+    pivot.position.copy(axis.origin).sub(parentOrigin)
+    pivot.quaternion.setFromAxisAngle(axis.direction, MathUtils.degToRad(hinge.angleDeg))
+    parent.add(pivot)
+    pivotCache.set(key, pivot)
+    parent = pivot
+    parentOrigin = axis.origin
+  }
+
+  const content = new Group()
+  content.name = `${ASSEMBLED_REGION_GROUP_PREFIX}${key || 'body'}`
+  content.position.copy(parentOrigin).negate()
+  parent.add(content)
+  return content
+}
+
+/**
+ * The material for a piece's cut edges.
+ *
+ * Burnishing compresses and darkens the leather's own colour; edge paint lays a
+ * different colour over it. A piece with no finish keeps the shared side
+ * material, so nothing is allocated until someone asks for a finish.
+ */
+function edgeMaterialForPiece(piece: PatternPiece, materials: ModelBuilderMaterials) {
+  const finish = piece.edgeFinish
+  if (!finish?.enabled) {
+    return materials.assembledSideMaterial
+  }
+  if (finish.style === 'paint') {
+    return new MeshStandardMaterial({
+      color: new Color(finish.color ?? DEFAULT_EDGE_PAINT_COLOR),
+      roughness: 0.34,
+      metalness: 0.02,
+    })
+  }
+  const base = piece.color ? new Color(piece.color) : materials.assembledSideMaterial.color.clone()
+  return new MeshStandardMaterial({
+    color: base.multiplyScalar(BURNISH_DARKEN),
+    roughness: 0.24,
+    metalness: 0.04,
+  })
+}
+
 function addAssembledStitchHoles(
   group: Group,
   piece: PatternPiece,
   topY: number,
-  stitchHoles: StitchHole[],
+  holes: StitchHole[],
   threadColor: string,
   transform: ModelTransform,
 ) {
-  const pieceShapeIdSet = new Set([piece.boundaryShapeId, ...piece.internalShapeIds])
-  const holes = stitchHoles.filter((entry) => pieceShapeIdSet.has(entry.shapeId))
   if (holes.length === 0) {
     return
   }
@@ -222,6 +456,7 @@ function createAssembledPieceGroup({
   texturedShapeIdSet,
   hasActiveTexture,
   materials,
+  foldLines,
   stitchHoles,
   threadColor,
 }: {
@@ -235,43 +470,62 @@ function createAssembledPieceGroup({
   texturedShapeIdSet: Set<string>
   hasActiveTexture: boolean
   materials: ModelBuilderMaterials
+  foldLines: FoldLine[]
   stitchHoles: StitchHole[]
   threadColor: string
 }) {
   const group = new Group()
   // Tagged so a raycast hit can be traced back to the piece it belongs to.
   group.userData.pieceId = piece.id
-  const pieceShape = createPieceShape(pieceMesh, transform.scale, transform.centerX, transform.centerY)
   const thicknessWorld = Math.max(previewSettings.thicknessMm * transform.scale, DEFAULT_THICKNESS_WORLD)
   const halfThickness = thicknessWorld / 2
   const usesTexture = pieceUsesTexture(piece, texturedShapeIdSet, hasActiveTexture)
   const frontMaterial = usesTexture ? materials.leftTextureMaterial : materials.assembledFrontMaterial
-  const sideMaterial = materials.assembledSideMaterial
+  const sideMaterial = usesTexture ? materials.leftTextureMaterial : edgeMaterialForPiece(piece, materials)
+  const outlineColor = previewSettings.showPieceOutlines
+    ? PIECE_OUTLINE_PALETTE[index % PIECE_OUTLINE_PALETTE.length]
+    : PIECE_OUTLINE_NEUTRAL_COLOR
 
-  const bodyGeometry = new ExtrudeGeometry(pieceShape, {
-    depth: thicknessWorld,
-    bevelEnabled: false,
-    steps: 1,
+  // A piece with a crease is two pieces of leather that happen to be one: the
+  // part the seams hold, and the part that swings. Splitting here means the rest
+  // of this function draws each part the way it used to draw the whole piece.
+  const regions = splitPieceByFolds(pieceMesh.outer, foldLinesForPiece(piece, foldLines, pieceMesh))
+  const pieceShapeIdSet = new Set([piece.boundaryShapeId, ...piece.internalShapeIds])
+  const pieceHoles = stitchHoles.filter((entry) => pieceShapeIdSet.has(entry.shapeId))
+  const holeBuckets = regions.map<StitchHole[]>(() => [])
+  for (const hole of pieceHoles) {
+    holeBuckets[regionIndexForPoint(regions, hole.point)].push(hole)
+  }
+
+  const pivotCache = new Map<string, Group>()
+  const frames: AssembledPieceFrame[] = []
+
+  regions.forEach((region, regionIndex) => {
+    const target = regionFrame(region, group, transform, pivotCache)
+    frames.push({ region, object: target })
+    const shape = createRegionShape(region, pieceMesh.holes, transform)
+
+    const bodyGeometry = new ExtrudeGeometry(shape, { depth: thicknessWorld, bevelEnabled: false, steps: 1 })
+    bodyGeometry.rotateX(-Math.PI / 2)
+    bodyGeometry.translate(0, -halfThickness, 0)
+    target.add(new Mesh(bodyGeometry, [frontMaterial, sideMaterial]))
+
+    const backGeometry = new ShapeGeometry(shape)
+    backGeometry.rotateX(-Math.PI / 2)
+    backGeometry.translate(0, -halfThickness - 0.0008, 0)
+    target.add(new Mesh(backGeometry, materials.assembledBackMaterial))
+
+    const outlinePoints = region.polygon.map((point) => {
+      const projected = projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY)
+      // addPanelOutline maps (x, y) to (x, yOffset, y) and the fold builder
+      // depends on that, so the negation happens here rather than in the shared
+      // helper.
+      return new Vector2(projected.x, -projected.y)
+    })
+    addPanelOutline(outlinePoints, target, outlineColor, halfThickness + 0.0015)
+
+    addAssembledStitchHoles(target, piece, halfThickness, holeBuckets[regionIndex], threadColor, transform)
   })
-  bodyGeometry.rotateX(-Math.PI / 2)
-  bodyGeometry.translate(0, -halfThickness, 0)
-  const bodyMesh = new Mesh(bodyGeometry, [frontMaterial, sideMaterial])
-  group.add(bodyMesh)
-
-  const backGeometry = new ShapeGeometry(pieceShape)
-  backGeometry.rotateX(-Math.PI / 2)
-  backGeometry.translate(0, -halfThickness - 0.0008, 0)
-  const backMesh = new Mesh(backGeometry, materials.assembledBackMaterial)
-  group.add(backMesh)
-
-  const outlinePoints = pieceMesh.outer.map((point) => {
-    const projected = projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY)
-    // addPanelOutline maps (x, y) to (x, yOffset, y) and the fold builder
-    // depends on that, so the negation happens here rather than in the shared
-    // helper.
-    return new Vector2(projected.x, -projected.y)
-  })
-  addPanelOutline(outlinePoints, group, '#e2e8f0', halfThickness + 0.0015)
 
   if (previewSettings.showEdgeLabels) {
     pieceMesh.edges.forEach((edge) => {
@@ -279,8 +533,6 @@ function createAssembledPieceGroup({
       addEdgeLabel(group, `${edge.index + 1}`, flatToWorld(midpoint, halfThickness + 0.02), '#f8fafc')
     })
   }
-
-  addAssembledStitchHoles(group, piece, halfThickness, stitchHoles, threadColor, transform)
 
   const placement = placementForPiece(piece.id, piecePlacements3d)
   // Offset the contents by the pivot so the group's own origin sits on the
@@ -292,7 +544,7 @@ function createAssembledPieceGroup({
   applyPlacementTransform(group, placement, index, total, previewSettings, transform, pivot)
   group.updateMatrixWorld(true)
 
-  return group
+  return { group, frames }
 }
 
 /**
@@ -317,12 +569,44 @@ export function piecePointWorld(
     .applyMatrix4(group.matrixWorld)
 }
 
-function edgeMidpointWorld(group: Group, pieceMesh: PieceMeshData, edgeIndex: number, transform: ModelTransform) {
+/**
+ * A point on a piece, in world space, on the part of the piece it actually sits
+ * on.
+ *
+ * Every region's content group holds geometry in the piece's own flat
+ * coordinates, so a flat point pushed through the right group's `matrixWorld`
+ * lands wherever the folds have carried that part of the leather. Reading the
+ * piece group instead would draw a seam to where the flap would be if it were
+ * still lying open — the stitches would leave the leather the moment the fold
+ * moved.
+ */
+export function pieceFramePointWorld(
+  point: Point,
+  frames: AssembledPieceFrame[],
+  pieceMesh: PieceMeshData,
+  group: Group,
+  transform: ModelTransform,
+) {
+  const frame = frameForPoint(frames, point)
+  if (!frame) {
+    return piecePointWorld(point, pieceMesh, group, transform)
+  }
+  const projected = projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY)
+  return flatToWorld(projected, 0).applyMatrix4(frame.matrixWorld)
+}
+
+function edgeMidpointWorld(
+  group: Group,
+  frames: AssembledPieceFrame[],
+  pieceMesh: PieceMeshData,
+  edgeIndex: number,
+  transform: ModelTransform,
+) {
   const edge = pieceMesh.edges[Math.max(0, Math.min(pieceMesh.edges.length - 1, edgeIndex))]
   if (!edge) {
     return null
   }
-  return piecePointWorld(edge.midpoint, pieceMesh, group, transform)
+  return pieceFramePointWorld(edge.midpoint, frames, pieceMesh, group, transform)
 }
 
 function edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number, transform: ModelTransform) {
@@ -342,21 +626,22 @@ function edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number, transform:
  */
 function seamSideWorld(params: {
   group: Group
+  frames: AssembledPieceFrame[]
   piece: PieceMeshData
   pieceMeshById: Map<string, PieceMeshData>
   connection: SeamConnection
   side: 'from' | 'to'
   transform: ModelTransform
 }) {
-  const { group, piece, pieceMeshById, connection, side, transform } = params
+  const { group, frames, piece, pieceMeshById, connection, side, transform } = params
   const resolved = resolveConnectionSide(pieceMeshById, connection, side)
   if (!resolved) {
     const edgeIndex = connection[side].edgeIndex
-    const midpoint = edgeMidpointWorld(group, piece, edgeIndex, transform)
+    const midpoint = edgeMidpointWorld(group, frames, piece, edgeIndex, transform)
     return midpoint ? { midpoint, lengthWorld: edgeLengthWorld(piece, edgeIndex, transform) } : null
   }
   return {
-    midpoint: piecePointWorld(seamSideMidpoint(resolved), piece, group, transform),
+    midpoint: pieceFramePointWorld(seamSideMidpoint(resolved), frames, piece, group, transform),
     lengthWorld: resolved.lengthMm * transform.scale,
   }
 }
@@ -411,6 +696,8 @@ function addSeamStitching(
     pairs: StitchPair[]
     fromGroup: Group
     toGroup: Group
+    fromFrames: AssembledPieceFrame[]
+    toFrames: AssembledPieceFrame[]
     fromPiece: PieceMeshData
     toPiece: PieceMeshData
     transform: ModelTransform
@@ -418,7 +705,7 @@ function addSeamStitching(
     sewnFraction: number
   },
 ) {
-  const { pairs, fromGroup, toGroup, fromPiece, toPiece, transform, color, sewnFraction } = params
+  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction } = params
   if (pairs.length === 0 || sewnFraction <= 0) {
     return
   }
@@ -430,8 +717,8 @@ function addSeamStitching(
     for (let index = 0; index < sewnCount; index += 1) {
       // On a closed seam these two land on top of each other, so the segment
       // between them is invisible. A visible one means the sides have not met.
-      const left = piecePointWorld(pair.left.holes[index].point, fromPiece, fromGroup, transform)
-      const right = piecePointWorld(pair.right.holes[index].point, toPiece, toGroup, transform)
+      const left = pieceFramePointWorld(pair.left.holes[index].point, fromFrames, fromPiece, fromGroup, transform)
+      const right = pieceFramePointWorld(pair.right.holes[index].point, toFrames, toPiece, toGroup, transform)
       points.push(left, right)
     }
   }
@@ -452,6 +739,7 @@ export function rebuildAssembledModel({
   patternPieces,
   piecePlacements3d,
   seamConnections,
+  foldLines,
   stitchPairs,
   stitchHoles,
   previewSettings,
@@ -486,13 +774,14 @@ export function rebuildAssembledModel({
   if (pieces.length > 0) {
     const pieceMeshById = new Map(pieceMeshes.map((piece) => [piece.pieceId, piece]))
     const pieceGroupById = new Map<string, Group>()
+    const pieceFramesById = new Map<string, AssembledPieceFrame[]>()
 
     pieces.forEach((piece, index) => {
       const pieceMesh = pieceMeshById.get(piece.id)
       if (!pieceMesh) {
         return
       }
-      const group = createAssembledPieceGroup({
+      const { group, frames } = createAssembledPieceGroup({
         piece,
         pieceMesh,
         index,
@@ -503,10 +792,12 @@ export function rebuildAssembledModel({
         texturedShapeIdSet,
         hasActiveTexture,
         materials,
+        foldLines,
         stitchHoles,
         threadColor,
       })
       pieceGroupById.set(piece.id, group)
+      pieceFramesById.set(piece.id, frames)
       assembledGroup.add(group)
     })
 
@@ -524,8 +815,10 @@ export function rebuildAssembledModel({
           continue
         }
 
-        const fromSide = seamSideWorld({ group: fromGroup, piece: fromPiece, pieceMeshById, connection, side: 'from', transform })
-        const toSide = seamSideWorld({ group: toGroup, piece: toPiece, pieceMeshById, connection, side: 'to', transform })
+        const fromFrames = pieceFramesById.get(connection.from.pieceId) ?? []
+        const toFrames = pieceFramesById.get(connection.to.pieceId) ?? []
+        const fromSide = seamSideWorld({ group: fromGroup, frames: fromFrames, piece: fromPiece, pieceMeshById, connection, side: 'from', transform })
+        const toSide = seamSideWorld({ group: toGroup, frames: toFrames, piece: toPiece, pieceMeshById, connection, side: 'to', transform })
         if (!fromSide || !toSide) {
           continue
         }
@@ -545,6 +838,8 @@ export function rebuildAssembledModel({
           pairs: (stitchPairs ?? []).filter((pair) => connectionIdForPair(pair) === connection.id),
           fromGroup,
           toGroup,
+          fromFrames,
+          toFrames,
           fromPiece,
           toPiece,
           transform,

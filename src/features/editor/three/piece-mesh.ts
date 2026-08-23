@@ -13,8 +13,17 @@ export {
   type PieceShapeSegment,
 } from './piece-mesh-data'
 
-export function createPieceShape(
-  piece: PieceMeshData,
+/**
+ * An extrudable shape from a boundary polygon and the cutouts inside it.
+ *
+ * Split out from `createPieceShape` because a folded piece is drawn one region
+ * at a time: the region has a polygon of its own and only some of the piece's
+ * cutouts. Both callers project the same way, so they share this rather than
+ * each keeping a copy of the mapping.
+ */
+export function createPolygonShape(
+  outer: Point[],
+  holes: Point[][],
   scale: number,
   centerX: number,
   centerY: number,
@@ -22,15 +31,15 @@ export function createPieceShape(
   const toVector2 = (point: Point) =>
     new Vector2((point.x - centerX) * scale, -(point.y - centerY) * scale)
 
-  const outer = piece.outer.map(toVector2)
+  const projectedOuter = outer.map(toVector2)
   const shape = new ThreeShape()
-  shape.moveTo(outer[0].x, outer[0].y)
-  for (let index = 1; index < outer.length; index += 1) {
-    shape.lineTo(outer[index].x, outer[index].y)
+  shape.moveTo(projectedOuter[0].x, projectedOuter[0].y)
+  for (let index = 1; index < projectedOuter.length; index += 1) {
+    shape.lineTo(projectedOuter[index].x, projectedOuter[index].y)
   }
   shape.closePath()
 
-  for (const hole of piece.holes) {
+  for (const hole of holes) {
     const projected = hole.map(toVector2)
     if (projected.length < 3) {
       continue
@@ -45,6 +54,15 @@ export function createPieceShape(
   }
 
   return shape
+}
+
+export function createPieceShape(
+  piece: PieceMeshData,
+  scale: number,
+  centerX: number,
+  centerY: number,
+) {
+  return createPolygonShape(piece.outer, piece.holes, scale, centerX, centerY)
 }
 
 export function projectPiecePoint(
