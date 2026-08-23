@@ -18,6 +18,7 @@ import { buildPatternDoc } from './pattern-doc-builder'
 import { analyzePatternPaths } from './pattern-pdf-analysis'
 import { decodePatternPaths, type PatternPathsFile } from './pattern-path-codec'
 import { detectOutlines } from '../outline-detection'
+import { GUIDE_LINE_TYPE_ID } from '../../cad/line-types'
 
 const fixturePath = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -25,7 +26,7 @@ const fixturePath = resolve(
 )
 const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as PatternPathsFile
 const paths = decodePatternPaths(fixture)
-const analysis = analyzePatternPaths(paths, fixture.page)
+const analysis = analyzePatternPaths(paths, fixture.page, {}, fixture.text)
 
 describe('MAKESUPPLY Keychain Snap Wallet', () => {
   it('reads the sheet as three pieces and nothing else', () => {
@@ -40,6 +41,22 @@ describe('MAKESUPPLY Keychain Snap Wallet', () => {
     expect(sizes[1][1]).toBeCloseTo(107.95, 2)
     expect(sizes[2][0]).toBeCloseTo(39.51, 2)
     expect(sizes[2][1]).toBeCloseTo(15.875, 2)
+  })
+
+  it('names the pieces the way the sheet does', () => {
+    // The sheet prints the maker and the pattern title on both panels and the
+    // panel's own name below them; only the last of those is a piece name.
+    expect(analysis.pieces.map((piece) => piece.name)).toEqual([
+      'MAIN BODY PANEL',
+      'CARD SLOT PANEL',
+      'KEYCHAIN ATTACHMENT',
+    ])
+    // The print-scale warning belongs to the page, not to a piece.
+    expect(analysis.sheetLabels.map((label) => label.text)).toEqual([
+      'IMPORTANT!',
+      'Please make sure that print scale is set to 100%',
+      'and \u201Cauto-scaling\u201D is turned off prior to printing.',
+    ])
   })
 
   it('leaves the logo out of the pattern', () => {
@@ -146,6 +163,21 @@ describe('the project built from it', () => {
     // The tab folds down its middle; the flap hinges across the wallet.
     expect(Math.abs(tabFold.end.y - tabFold.start.y)).toBeCloseTo(15.87, 1)
     expect(Math.abs(flapFold.end.x - flapFold.start.x)).toBeCloseTo(107.95, 1)
+  })
+
+  it('keeps the sheet type as text on the piece it was printed on', () => {
+    const labels = built.doc.objects.filter((shape) => shape.type === 'text')
+
+    // Every line on the sheet, still readable and still where it was printed.
+    expect(labels).toHaveLength(13)
+    expect(labels.map((shape) => shape.text)).toContain('MAIN BODY PANEL')
+    // On a guide line type, so it prints but is never cut and never chains
+    // into a boundary.
+    expect(labels.every((shape) => shape.lineTypeId === GUIDE_LINE_TYPE_ID)).toBe(true)
+    // The page's own notes get a layer of their own.
+    const notesLayer = built.doc.layers.find((layer) => layer.name === 'Sheet notes')
+    expect(notesLayer).toBeDefined()
+    expect(labels.filter((shape) => shape.layerId === notesLayer?.id)).toHaveLength(3)
   })
 
   it('says plainly that nothing joins the keychain tab to the rest', () => {

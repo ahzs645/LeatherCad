@@ -50,6 +50,21 @@ export type PdfSubpath = {
 
 export type PdfPaint = 'stroke' | 'fill' | 'fill-stroke' | 'none'
 
+/**
+ * A line of type on the sheet.
+ *
+ * A template names its own pieces — "MAIN BODY PANEL", "CARD SLOT PANEL" — and
+ * carries the maker's print-scale warning. Dropping the text loses both the
+ * best available piece names and a note the user needs on the paper.
+ */
+export type PdfTextItem = {
+  text: string
+  /** Start of the baseline, in millimetres from the page's top-left. */
+  position: Point
+  /** Cap height in millimetres, i.e. the font size. */
+  heightMm: number
+}
+
 export type PdfVectorPath = {
   id: string
   subpaths: PdfSubpath[]

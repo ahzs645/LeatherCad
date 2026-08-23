@@ -8,9 +8,12 @@
  * against a list of coordinates.
  */
 
+import { pointInPolygon } from '@atelier/geometry'
+
 import type { Point } from '../../cad/cad-types'
-import type { PdfVectorPath } from './pdf-vector-paths'
+import type { PdfTextItem, PdfVectorPath } from './pdf-vector-paths'
 import { outlineSides, type PatternSide } from './pattern-outline-sides'
+import { namePiecesFromLabels } from './pattern-piece-naming'
 import {
   separatePatternPaths,
   type PatternDot,
@@ -69,6 +72,10 @@ export type AnalyzedHole = {
 
 export type AnalyzedPiece = {
   id: string
+  /** What the sheet calls this piece, when it says. */
+  name?: string
+  /** Type printed on the piece, including the lines `name` was drawn from. */
+  labels: PdfTextItem[]
   outline: PatternOutline
   sides: PatternSide[]
   cutouts: PatternOutline[]
@@ -98,6 +105,8 @@ export type PatternPdfAnalysis = {
   ignoredPathCount: number
   /** Punch marks that landed on no piece. Usually part of a logo. */
   strayDotCount: number
+  /** Type that sits on no piece: print-scale warnings, sheet titles. */
+  sheetLabels: PdfTextItem[]
 }
 
 type SideProjection = {
@@ -232,10 +241,25 @@ export function analyzePatternPaths(
   paths: PdfVectorPath[],
   page: { widthMm: number; heightMm: number },
   options: Partial<PatternAnalysisOptions> = {},
+  text: PdfTextItem[] = [],
 ): PatternPdfAnalysis {
   const separation = separatePatternPaths(paths, options.separation)
   const pieces: AnalyzedPiece[] = []
   const chains: ChainOnPiece[] = []
+
+  // Type is filed by where it sits. A label over a piece describes that piece;
+  // anything else is the sheet talking to whoever printed it.
+  const labelsByPieceId = new Map<string, PdfTextItem[]>()
+  const sheetLabels: PdfTextItem[] = []
+  for (const item of text) {
+    const host = separation.pieces.find((piece) => pointInPolygon(item.position, piece.outline.polygon))
+    if (!host) {
+      sheetLabels.push(item)
+      continue
+    }
+    labelsByPieceId.set(host.id, [...(labelsByPieceId.get(host.id) ?? []), item])
+  }
+  const namesByPieceId = namePiecesFromLabels(labelsByPieceId)
 
   for (const piece of separation.pieces) {
     const sides = outlineSides(piece.outline.segments, piece.id)
@@ -250,6 +274,8 @@ export function analyzePatternPaths(
     }
     pieces.push({
       id: piece.id,
+      name: namesByPieceId.get(piece.id),
+      labels: labelsByPieceId.get(piece.id) ?? [],
       outline: piece.outline,
       sides,
       cutouts: piece.cutouts,
@@ -280,5 +306,6 @@ export function analyzePatternPaths(
     },
     ignoredPathCount: separation.ignored.length,
     strayDotCount: separation.strayDots.length,
+    sheetLabels,
   }
 }

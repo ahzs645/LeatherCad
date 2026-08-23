@@ -18,7 +18,7 @@ const fixture = JSON.parse(
 
 describe('describePatternImport', () => {
   it('says what came off the sheet in the terms a maker would check', () => {
-    const analysis = analyzePatternPaths(decodePatternPaths(fixture), fixture.page)
+    const analysis = analyzePatternPaths(decodePatternPaths(fixture), fixture.page, {}, fixture.text)
 
     expect(describePatternImport(analysis, 1)).toBe(
       '3 pieces · 96 stitch holes at 4.97 mm (5.1 SPI) · 1 seam · 1 folded piece · 1 warning',

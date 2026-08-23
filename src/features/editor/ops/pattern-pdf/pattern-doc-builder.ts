@@ -28,6 +28,7 @@ import type {
 import {
   CUT_LINE_TYPE_ID,
   DEFAULT_ACTIVE_LINE_TYPE_ID,
+  GUIDE_LINE_TYPE_ID,
   createDefaultLineTypes,
 } from '../../cad/line-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../../editor-constants'
@@ -35,6 +36,7 @@ import { detectOutlines, edgeRangeForShape, type OutlineChain } from '../outline
 import { inferFoldLines } from './pattern-fold-inference'
 import { outlineSides } from './pattern-outline-sides'
 import type { AnalyzedPiece, AnalyzedStitchRun, PatternPdfAnalysis } from './pattern-pdf-analysis'
+import type { PdfTextItem } from './pdf-vector-paths'
 import { sideToShapes } from './pattern-shape-emitter'
 
 const PIECE_COLORS = ['#b0743a', '#8a5a2b', '#c68642', '#7a4a22', '#d1a05e']
@@ -45,12 +47,15 @@ export type PatternDocBuildOptions = {
   centreOnOrigin: boolean
   /** Emit the fold lines `pattern-fold-inference` derives. */
   inferFoldLines: boolean
+  /** Keep the sheet's printed type as text shapes. */
+  keepSheetText: boolean
 }
 
 export const DEFAULT_PATTERN_DOC_OPTIONS: PatternDocBuildOptions = {
   documentName: 'Imported pattern',
   centreOnOrigin: true,
   inferFoldLines: true,
+  keepSheetText: true,
 }
 
 export type PatternDocBuild = {
@@ -144,6 +149,38 @@ function hardwareFor(piece: AnalyzedPiece, layerId: string, offset: Point): Hard
   }))
 }
 
+/**
+ * The sheet's own type, kept as text.
+ *
+ * On a guide line type, so it prints with the pattern but is never mistaken
+ * for something to cut, and never chained into a boundary. The width is
+ * estimated from the font size — the glyphs are not measured here — which is
+ * enough for a label a user can drag or retype.
+ */
+function labelShapes(
+  labels: PdfTextItem[],
+  params: { idPrefix: string; layerId: string },
+  offset: Point,
+): Shape[] {
+  return labels.map((label, index) => ({
+    id: `${params.idPrefix}-label-${index + 1}`,
+    type: 'text' as const,
+    layerId: params.layerId,
+    lineTypeId: GUIDE_LINE_TYPE_ID,
+    start: translate(label.position, offset),
+    end: translate(
+      { x: label.position.x + label.text.length * label.heightMm * 0.6, y: label.position.y },
+      offset,
+    ),
+    text: label.text,
+    fontFamily: 'Helvetica, Arial, sans-serif',
+    fontSizeMm: label.heightMm,
+    transform: 'none' as const,
+    radiusMm: 0,
+    sweepDeg: 0,
+  }))
+}
+
 function layerFor(index: number, name: string): Layer {
   return { id: `pattern-layer-${index + 1}`, name, visible: true, locked: false, stackLevel: index }
 }
@@ -211,7 +248,8 @@ export function buildPatternDoc(
 
     pieces.push({
       id: pieceId,
-      name: `Piece ${code} — ${piece.widthMm.toFixed(1)} × ${piece.heightMm.toFixed(1)} mm`,
+      // The sheet's own word for the piece beats anything generated from it.
+      name: piece.name ?? `Piece ${code} — ${piece.widthMm.toFixed(1)} × ${piece.heightMm.toFixed(1)} mm`,
       boundaryShapeId: boundaryShapeIds[0],
       internalShapeIds,
       layerId: layer.id,
@@ -223,12 +261,27 @@ export function buildPatternDoc(
       includeInLayout: true,
       locked: false,
       color: PIECE_COLORS[index % PIECE_COLORS.length],
-      notes: `${piece.stitchRuns.reduce((sum, run) => sum + run.holeCount, 0)} stitch holes imported from PDF`,
+      notes:
+        `${piece.widthMm.toFixed(1)} × ${piece.heightMm.toFixed(1)} mm · ` +
+        `${piece.stitchRuns.reduce((sum, run) => sum + run.holeCount, 0)} stitch holes imported from PDF`,
     })
 
     stitchHoles.push(...stitchHolesFor(piece, boundaryShapeIds[0], offset))
     hardwareMarkers.push(...hardwareFor(piece, layer.id, offset))
+    if (config.keepSheetText) {
+      shapes.push(...labelShapes(piece.labels, { idPrefix: pieceId, layerId: layer.id }, offset))
+    }
   })
+
+  if (config.keepSheetText && analysis.sheetLabels.length > 0) {
+    // Print-scale warnings and sheet titles belong to the page, not to a piece,
+    // so they get a layer of their own that can be switched off in one click.
+    const notesLayer = layerFor(layers.length, 'Sheet notes')
+    layers.push(notesLayer)
+    shapes.push(
+      ...labelShapes(analysis.sheetLabels, { idPrefix: 'sheet', layerId: notesLayer.id }, offset),
+    )
+  }
 
   if (config.inferFoldLines) {
     for (const inferred of inferFoldLines(analysis)) {

@@ -77,10 +77,12 @@ const vectorPage = await app.readPdfVectorPage(page, document.numPages)
 await document.destroy()
 
 const label = args.name ?? path.basename(args.pdf, path.extname(args.pdf))
-const analysis = app.analyzePatternPaths(vectorPage.paths, {
-  widthMm: vectorPage.widthMm,
-  heightMm: vectorPage.heightMm,
-})
+const analysis = app.analyzePatternPaths(
+  vectorPage.paths,
+  { widthMm: vectorPage.widthMm, heightMm: vectorPage.heightMm },
+  {},
+  vectorPage.text,
+)
 const built = app.buildPatternDoc(analysis, { documentName: label })
 const assembled = app.assemblePatternDoc(built.doc, args.assemblyAngle)
 
@@ -93,6 +95,7 @@ if (args.writePaths) {
     vectorPage.paths,
     { widthMm: vectorPage.widthMm, heightMm: vectorPage.heightMm },
     path.basename(args.pdf),
+    vectorPage.text,
   )
   fs.writeFileSync(`${base}.paths.json`, `${JSON.stringify(encoded)}\n`)
   written.push(`${base}.paths.json`)
@@ -104,8 +107,11 @@ const report = {
   stitching: analysis.stitching,
   ignoredPathCount: analysis.ignoredPathCount,
   strayDotCount: analysis.strayDotCount,
+  sheetLabels: analysis.sheetLabels.map((label) => label.text),
   pieces: analysis.pieces.map((piece) => ({
     id: piece.id,
+    name: piece.name,
+    labels: piece.labels.map((label) => label.text),
     widthMm: piece.widthMm,
     heightMm: piece.heightMm,
     areaMm2: piece.areaMm2,
@@ -151,7 +157,7 @@ console.log(
 for (const piece of analysis.pieces) {
   const runs = piece.stitchRuns.map((run) => `${run.holeCount}@${run.pitchMm.toFixed(2)}mm`).join(', ') || 'none'
   console.log(
-    `  ${piece.id}: ${piece.widthMm.toFixed(1)} × ${piece.heightMm.toFixed(1)} mm, ` +
+    `  ${piece.name ?? piece.id}: ${piece.widthMm.toFixed(1)} × ${piece.heightMm.toFixed(1)} mm, ` +
       `${piece.sides.length} sides, runs: ${runs}`,
   )
 }

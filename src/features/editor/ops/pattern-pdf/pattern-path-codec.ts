@@ -18,6 +18,7 @@ import {
   hydrateVectorPaths,
   type PdfPaint,
   type PdfPathSegment,
+  type PdfTextItem,
   type PdfVectorPath,
 } from './pdf-vector-paths'
 
@@ -34,6 +35,8 @@ export type PatternPathsFile = {
     /** One SVG path data string per subpath, in millimetres. */
     d: string[]
   }>
+  /** The sheet's printed type — it names the pieces, so it is worth keeping. */
+  text?: PdfTextItem[]
 }
 
 /** Micrometre precision: finer than any punch, and it keeps the file small. */
@@ -112,10 +115,21 @@ export function encodePatternPaths(
   paths: PdfVectorPath[],
   page: { widthMm: number; heightMm: number },
   source?: string,
+  text: PdfTextItem[] = [],
 ): PatternPathsFile {
+  const round = (value: number) => Number(value.toFixed(DECIMALS))
   return {
     version: 1,
     source,
+    ...(text.length > 0
+      ? {
+          text: text.map((item) => ({
+            text: item.text,
+            position: { x: round(item.position.x), y: round(item.position.y) },
+            heightMm: round(item.heightMm),
+          })),
+        }
+      : {}),
     page: { widthMm: Number(page.widthMm.toFixed(DECIMALS)), heightMm: Number(page.heightMm.toFixed(DECIMALS)) },
     paths: paths.map((path) => ({
       id: path.id,

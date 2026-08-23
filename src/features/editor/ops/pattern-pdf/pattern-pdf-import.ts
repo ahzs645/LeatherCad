@@ -85,10 +85,12 @@ export async function importPatternPdf(
 ): Promise<PatternPdfImport> {
   const config = { ...DEFAULT_PATTERN_PDF_IMPORT_OPTIONS, ...options }
   const page = await loadPdfVectorPage(data, config.pageNumber)
-  const analysis = analyzePatternPaths(page.paths, {
-    widthMm: page.widthMm,
-    heightMm: page.heightMm,
-  })
+  const analysis = analyzePatternPaths(
+    page.paths,
+    { widthMm: page.widthMm, heightMm: page.heightMm },
+    {},
+    page.text,
+  )
   const built = buildPatternDoc(analysis, {
     ...config.build,
     ...(config.documentName ? { documentName: config.documentName } : {}),

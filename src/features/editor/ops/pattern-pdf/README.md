@@ -24,6 +24,7 @@ be tested, replaced, or run on stored data without a PDF.
 | `stitch-pattern-detection` | punch marks → stitch runs, in sewing order |
 | `stitch-seam-matching` | runs → the pairs that get sewn together |
 | `pattern-fold-inference` | runs and pairs → where the piece folds |
+| `pattern-piece-naming` | the type printed on a piece → what to call it |
 | `pattern-pdf-analysis` | all of the above, tied together |
 | `pattern-shape-emitter` | outline sides → editable lines and arcs |
 | `pattern-doc-builder` | analysis → a LeatherCad project |
@@ -54,6 +55,15 @@ in the same passes, so the two sides agree to the micrometre; matching the *sign
 turn profile is what stops a mirrored run from pairing with one it could never be
 sewn to, and it also reports which end of one run meets which end of the other. A
 pair on the same piece is a fold rather than a seam.
+
+**Names** come from the sheet, which labels its own pieces. The difficulty is
+that a piece carries more type than its name: the maker's mark and the pattern
+title are printed on every piece, and the piece's size sits under them. Two rules
+separate them — a line printed on more than one piece is nobody's name, and a
+line that is only a measurement is a dimension — and what survives is joined in
+reading order, which is how "KEYCHAIN" over "ATTACHMENT" comes back whole. The
+rest of the type is kept too, as text on a guide line type: piece labels on their
+piece, and the sheet's own notes ("print at 100%") on a layer of their own.
 
 **Folds** are the one thing inferred rather than read, because sheets do not draw
 them. Two runs on one piece that pair can only meet if the piece folds, and the
@@ -93,8 +103,9 @@ read a sheet through exactly the same code.
 `pattern-pdf-wallet.test.ts` runs everything downstream of the reader against a
 real template — MAKESUPPLY's free Keychain Snap Wallet, replayed from its stored
 path file — and asserts what a maker would measure: 5 mm pitch, 1.1 mm holes, 45
-of them down each side of the one seam, two snap holes, and a seam that closes to
-under half a millimetre when the pocket is folded onto the body. The other tests
+of them down each side of the one seam, two snap holes, a seam that closes to
+under half a millimetre when the pocket is folded onto the body, and the three
+pieces coming through under the names the sheet gives them. The other tests
 are synthetic, and each covers the case its stage is easy to get wrong: mirrored
 runs that must not pair, parallel rows that must not merge, a side broken at three
 anchors that is still one side.

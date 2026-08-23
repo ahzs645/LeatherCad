@@ -15,9 +15,21 @@
   },
   "ignoredPathCount": 64,
   "strayDotCount": 29,
+  "sheetLabels": [
+    "IMPORTANT!",
+    "Please make sure that print scale is set to 100%",
+    "and “auto-scaling” is turned off prior to printing."
+  ],
   "pieces": [
     {
       "id": "pdf-path-89",
+      "name": "MAIN BODY PANEL",
+      "labels": [
+        "MAKESUPPLY",
+        "KEYCHAIN SNAP WALLET TEMPLATE",
+        "MAIN BODY PANEL",
+        "4.25” x 3”"
+      ],
       "widthMm": 107.94999999999999,
       "heightMm": 128.50645412868923,
       "areaMm2": 12426.572157441842,
@@ -77,6 +89,13 @@
     },
     {
       "id": "pdf-path-3",
+      "name": "CARD SLOT PANEL",
+      "labels": [
+        "MAKESUPPLY",
+        "KEYCHAIN SNAP WALLET TEMPLATE",
+        "CARD SLOT PANEL",
+        "4.25” x 2.75”"
+      ],
       "widthMm": 69.85,
       "heightMm": 107.95,
       "areaMm2": 6930.588107702675,
@@ -136,6 +155,11 @@
     },
     {
       "id": "pdf-path-139",
+      "name": "KEYCHAIN ATTACHMENT",
+      "labels": [
+        "KEYCHAIN",
+        "ATTACHMENT"
+      ],
       "widthMm": 39.51111111111112,
       "heightMm": 15.874999999999993,
       "areaMm2": 592.2975726013233,
