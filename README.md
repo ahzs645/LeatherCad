@@ -32,7 +32,8 @@ pnpm dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 See [`docs/ATELIER.md`](docs/ATELIER.md) for how the engine is consumed and the
-staged adoption plan.
+staged adoption plan, and [`docs/FOLD_DRAPE_FOLLOW_UPS.md`](docs/FOLD_DRAPE_FOLLOW_UPS.md)
+for the open work on the simulated fold.
 
 ## Native AI Agent
 
