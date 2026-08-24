@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../cad/cad-types'
-import { solveFoldDrape, type DrapeFoldInput } from './assembled-fold-drape'
+import {
+  solveFoldDrape,
+  solveFoldDrapeData,
+  type DrapeFoldInput,
+  type FoldDrapeData,
+} from './assembled-fold-drape'
 
 const SQUARE: Point[] = [
   { x: 0, y: 0 },
@@ -31,6 +36,30 @@ function solve(overrides: Partial<DrapeFoldInput> = {}) {
   })
   expect(result).not.toBeNull()
   return result!
+}
+
+function warmStartFrom(data: FoldDrapeData) {
+  return {
+    positions: data.positions,
+    restPositions: data.restPositions,
+    creases: data.creases,
+  }
+}
+
+/** The vertex that moved most between two solves of the same mesh. */
+function furthestApart(a: FoldDrapeData, b: FoldDrapeData) {
+  let worst = 0
+  for (let index = 0; index < a.positions.length; index += 3) {
+    worst = Math.max(
+      worst,
+      Math.hypot(
+        a.positions[index] - b.positions[index],
+        a.positions[index + 1] - b.positions[index + 1],
+        a.positions[index + 2] - b.positions[index + 2],
+      ),
+    )
+  }
+  return worst
 }
 
 describe('solveFoldDrape', () => {
@@ -114,6 +143,56 @@ describe('solveFoldDrape', () => {
     expect(through!.mapPoint(tip).y).toBeLessThan(obstacleTop - 4)
     expect(draped!.mapPoint(tip).y).toBeGreaterThan(obstacleTop - 1)
     expect(draped!.mapPoint(tip).y).toBeGreaterThan(through!.mapPoint(tip).y + 4)
+  })
+
+  it('lands a warm-started fold where the cold solve lands it', () => {
+    // The scrub's promise: starting from the drape next door has to be a
+    // shortcut to the same leather, not a different answer. The tolerance is
+    // real hysteresis — leather swept down from 180° does not retrace the way
+    // up exactly — and half a millimetre of it on a 40 mm piece is the honest
+    // size of that.
+    const at90 = solveFoldDrapeData({
+      outer: SQUARE, holes: [], folds: [fold({ angleDeg: 90 })], thicknessMm: 2,
+    })
+    expect(at90).not.toBeNull()
+    const warm = solveFoldDrapeData({
+      outer: SQUARE, holes: [], folds: [fold({ angleDeg: 120 })], thicknessMm: 2,
+      warmStart: warmStartFrom(at90!),
+    })
+    const cold = solveFoldDrapeData({
+      outer: SQUARE, holes: [], folds: [fold({ angleDeg: 120 })], thicknessMm: 2,
+    })
+    expect(warm).not.toBeNull()
+    expect(cold).not.toBeNull()
+    expect(warm!.positions.length).toBe(cold!.positions.length)
+    expect(furthestApart(warm!, cold!)).toBeLessThan(1)
+  })
+
+  it('sweeps from flat when the warm start is another mesh', () => {
+    // A cache key can be wrong; a mesh cannot lie about its own rest state.
+    // Seeding one piece's solve with another's has to be caught here, because
+    // what it would produce is leather in the shape of the wrong piece.
+    const wide = solveFoldDrapeData({
+      outer: [
+        { x: 0, y: 0 },
+        { x: 90, y: 0 },
+        { x: 90, y: 40 },
+        { x: 0, y: 40 },
+      ],
+      holes: [],
+      folds: [fold({ angleDeg: 90 })],
+      thicknessMm: 2,
+    })
+    expect(wide).not.toBeNull()
+    const seeded = solveFoldDrapeData({
+      outer: SQUARE, holes: [], folds: [fold({ angleDeg: 90 })], thicknessMm: 2,
+      warmStart: warmStartFrom(wide!),
+    })
+    const cold = solveFoldDrapeData({
+      outer: SQUARE, holes: [], folds: [fold({ angleDeg: 90 })], thicknessMm: 2,
+    })
+    expect(seeded).not.toBeNull()
+    expect(furthestApart(seeded!, cold!)).toBeLessThan(1e-6)
   })
 
   it('returns null when there is nothing to fold', () => {

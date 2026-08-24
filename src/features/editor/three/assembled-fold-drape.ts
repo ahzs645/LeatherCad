@@ -39,6 +39,14 @@ import type { Point } from '../cad/cad-types'
 const MAX_CLOTH_VERTICES = 700
 /** Most steps a sweep takes; a shallow fold sweeps proportionally fewer. */
 const MAX_RAMP_STEPS = 80
+/** Fewest steps a sweep from flat takes, however shallow the fold. */
+const MIN_RAMP_STEPS = 16
+/**
+ * Fewest steps a sweep from an already-solved drape takes. A warm start begins
+ * a fold's width from its answer instead of a half-turn away, so the sweep is
+ * only there to let contact re-catch the leather over a small move.
+ */
+const MIN_WARM_RAMP_STEPS = 6
 /** Steps allowed for the contact-perturbed state to stop moving. */
 const MAX_SETTLE_STEPS = 120
 /** A step that moves nothing farther than this (mm) counts as settled. */
@@ -73,7 +81,42 @@ export type DrapeObstacleMesh = {
   triangles: number[]
 }
 
-export type FoldDrapeResult = {
+/** What the solver is asked for: a piece, its folds, and what is in the way. */
+export type FoldDrapeParams = {
+  outer: Point[]
+  holes: Point[][]
+  folds: DrapeFoldInput[]
+  thicknessMm: number
+  obstacles?: DrapeObstacleMesh[]
+  /** A previous solve of the same mesh to start from. */
+  warmStart?: FoldDrapeWarmStart
+}
+
+/**
+ * A settled drape, offered back to the solver as the starting state for the
+ * next one.
+ *
+ * Consecutive states of a scrub are neighbours: the leather at 91° is the
+ * leather at 90° nudged. Handing the previous solve back turns a sweep from
+ * flat into a sweep across the angle that actually changed. `restPositions` is
+ * what proves the correspondence — two meshes with the same rest state are the
+ * same mesh, vertex for vertex, so a warm start that survives that check
+ * cannot mix two pieces' geometry up.
+ */
+export type FoldDrapeWarmStart = {
+  /** Solved positions of that mesh, x/height/y triples. */
+  positions: Float32Array
+  /** Its flat rest positions, xy pairs. */
+  restPositions: Float32Array
+  /** The pose it settled at, which the next sweep ramps away from. */
+  creases: CreaseFold[]
+}
+
+/**
+ * The drape as plain data: what a solve produces, and all of it survives a
+ * structured clone, so the solve can run in a worker and post this back.
+ */
+export type FoldDrapeData = {
   /** Solved mid-surface, x/height/y triples in the piece's document frame. */
   positions: Float32Array
   /** Flat rest position of each vertex, xy pairs, document millimetres. */
@@ -85,11 +128,19 @@ export type FoldDrapeResult = {
   /** Vertex loops of the cut boundary: the outline first, then each cutout. */
   boundaryLoops: number[][]
   settled: boolean
+  /** The pose solved for, kept so the next solve can warm-start from it. */
+  creases: CreaseFold[]
+}
+
+export type FoldDrapeResult = FoldDrapeData & {
   /** A flat document point carried onto the solved surface. */
   mapPoint(point: Point): { x: number; y: number; z: number }
   /** The solved surface normal under a flat document point. */
   mapNormal(point: Point): { x: number; y: number; z: number }
 }
+
+/** A crease as posed, plus the bend zone the mesh resolves it with. */
+type LatticeCrease = CreaseFold & { latticeZoneWidth: number }
 
 function pointInPolygon(point: Point, polygon: Point[]) {
   let inside = false
@@ -118,8 +169,8 @@ function pointInPolygon(point: Point, polygon: Point[]) {
  * reconciled here and pinned by the builder's fold tests against the rigid
  * transform.
  */
-function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): CreaseFold[] {
-  const creases: CreaseFold[] = []
+function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): LatticeCrease[] {
+  const creases: LatticeCrease[] = []
   for (const fold of folds) {
     const direction = { x: fold.end.x - fold.start.x, y: fold.end.y - fold.start.y }
     const length = Math.hypot(direction.x, direction.y)
@@ -139,6 +190,13 @@ function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): CreaseFo
       end: side > 0 ? fold.end : fold.start,
       angleRad: side * angleRad,
       zoneWidth: Math.max(fold.bendRadiusMm * Math.abs(angleRad), zoneFloorMm),
+      // Meshed for the widest zone the crease can ever open to, not the one it
+      // is dialled to: a lattice that changed with the angle would give every
+      // scrub step a different mesh, and a mesh is what a warm start is
+      // continuous across. The station lines a shallow fold does not need cost
+      // a handful of vertices; re-solving from flat every frame costs the
+      // scrub.
+      latticeZoneWidth: Math.max(fold.bendRadiusMm * Math.PI, zoneFloorMm),
     })
   }
   return creases
@@ -296,13 +354,59 @@ function foldAlignedLattice(
   return lattice
 }
 
-export function solveFoldDrape(params: {
-  outer: Point[]
-  holes: Point[][]
-  folds: DrapeFoldInput[]
-  thicknessMm: number
-  obstacles?: DrapeObstacleMesh[]
-}): FoldDrapeResult | null {
+/**
+ * The previous solve, if it is one this mesh can actually continue from.
+ *
+ * Same rest state, same creases in the same order: anything else — a moved
+ * outline, a new hole, a fold that appeared — is a different mesh, and the
+ * only safe answer is to sweep from flat again.
+ */
+function usableWarmStart(
+  warmStart: FoldDrapeWarmStart | undefined,
+  restPositions: Float32Array,
+  creases: CreaseFold[],
+): FoldDrapeWarmStart | null {
+  if (!warmStart) {
+    return null
+  }
+  const { positions, restPositions: previousRest, creases: previousCreases } = warmStart
+  if (previousRest.length !== restPositions.length) {
+    return null
+  }
+  if (positions.length !== (restPositions.length / 2) * 3) {
+    return null
+  }
+  for (let index = 0; index < restPositions.length; index += 1) {
+    if (previousRest[index] !== restPositions[index]) {
+      return null
+    }
+  }
+  if (previousCreases.length !== creases.length) {
+    return null
+  }
+  for (let index = 0; index < creases.length; index += 1) {
+    const previous = previousCreases[index]
+    const crease = creases[index]
+    if (
+      previous.start.x !== crease.start.x ||
+      previous.start.y !== crease.start.y ||
+      previous.end.x !== crease.end.x ||
+      previous.end.y !== crease.end.y
+    ) {
+      return null
+    }
+  }
+  return warmStart
+}
+
+/**
+ * Solve one piece's fold, as data.
+ *
+ * Split from `solveFoldDrape` because everything here crosses a structured
+ * clone: hand this the same arguments in a worker and post the result back,
+ * and the caller cannot tell which thread settled the leather.
+ */
+export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | null {
   const { outer, holes } = params
   if (outer.length < 3) {
     return null
@@ -334,7 +438,12 @@ export function solveFoldDrape(params: {
     mesh = triangulate({
       outer: resampledOuter,
       holes: resampledHoles,
-      internalPoints: foldAlignedLattice(creases, resampledOuter, resampledHoles, spacing),
+      internalPoints: foldAlignedLattice(
+        creases.map((crease) => ({ ...crease, zoneWidth: crease.latticeZoneWidth })),
+        resampledOuter,
+        resampledHoles,
+        spacing,
+      ),
       spacing: 0,
     })
   } catch {
@@ -390,8 +499,22 @@ export function solveFoldDrape(params: {
     }
   }
 
+  // Where the solve starts: flat, or wherever this mesh last settled. Pinned
+  // vertices start on the pose either way — they are the half that stays, and
+  // a warm start has nothing to say about a particle that cannot move.
+  const warmStart = usableWarmStart(params.warmStart, restPositions, creases)
+  const seeded = embedded.slice()
+  if (warmStart) {
+    for (let index = 0; index < clothCount; index += 1) {
+      if (inverseMasses[index] <= 0) continue
+      seeded[index * 3] = warmStart.positions[index * 3]
+      seeded[index * 3 + 1] = warmStart.positions[index * 3 + 1]
+      seeded[index * 3 + 2] = warmStart.positions[index * 3 + 2]
+    }
+  }
+
   const state = createClothState(
-    [...embedded, ...obstaclePositions],
+    [...seeded, ...obstaclePositions],
     [...inverseMasses, ...new Array<number>(obstaclePositions.length / 3).fill(0)],
   )
   const { constraints } = buildClothConstraints(
@@ -427,16 +550,22 @@ export function solveFoldDrape(params: {
     config: { thickness: Math.max(0.2, params.thicknessMm), friction: 0.2 },
   })
 
+  // The sweep runs from the pose the state is already in to the dialled one:
+  // flat when starting cold, the previous drape's pose when warm-started.
+  const fromAngle = (index: number) => warmStart?.creases[index].angleRad ?? 0
+  const fromZone = (index: number) => warmStart?.creases[index].zoneWidth ?? 0
   const creasesAt = (t: number): CreaseFold[] =>
-    creases.map((crease) => ({
+    creases.map((crease, index) => ({
       ...crease,
-      angleRad: crease.angleRad * t,
-      zoneWidth: Math.max(crease.zoneWidth * t, 1e-6),
+      angleRad: fromAngle(index) + (crease.angleRad - fromAngle(index)) * t,
+      zoneWidth: Math.max(fromZone(index) + (crease.zoneWidth - fromZone(index)) * t, 1e-6),
     }))
   // A shallow fold has less far to sweep; scale the ramp to the largest turn.
-  const largestTurn = Math.max(...creases.map((crease) => Math.abs(crease.angleRad)))
+  const largestTurn = Math.max(
+    ...creases.map((crease, index) => Math.abs(crease.angleRad - fromAngle(index))),
+  )
   const rampSteps = Math.max(
-    16,
+    warmStart ? MIN_WARM_RAMP_STEPS : MIN_RAMP_STEPS,
     Math.round(MAX_RAMP_STEPS * Math.min(1, largestTurn / Math.PI)),
   )
   const result = settleXpbdCloth(
@@ -525,6 +654,28 @@ export function solveFoldDrape(params: {
     if (loop.length >= 3) boundaryLoops.push(loop)
   }
 
+  return {
+    positions,
+    restPositions,
+    triangles,
+    normals,
+    boundaryLoops,
+    settled: result.settled,
+    creases,
+  }
+}
+
+/**
+ * The data with the two lookups a renderer needs put back on it: where a flat
+ * document point went, and which way the leather faces there.
+ *
+ * Kept apart from the solve so a drape that came back from a worker is the
+ * same object as one solved in place.
+ */
+export function hydrateFoldDrape(data: FoldDrapeData): FoldDrapeResult {
+  const { positions, restPositions, triangles, normals, creases } = data
+  const fullPose = creaseChainPose(creases)
+
   const locate = (point: Point) => {
     let bestTriangle = -1
     let bestBary: [number, number, number] = [1, 0, 0]
@@ -572,12 +723,7 @@ export function solveFoldDrape(params: {
   }
 
   return {
-    positions,
-    restPositions,
-    triangles,
-    normals,
-    boundaryLoops,
-    settled: result.settled,
+    ...data,
     mapPoint: (point) => interpolate(positions, point),
     mapNormal: (point) => {
       const normal = interpolate(normals, point)
@@ -587,4 +733,10 @@ export function solveFoldDrape(params: {
         : { x: 0, y: 1, z: 0 }
     },
   }
+}
+
+/** Solve a piece's fold and hand back the drape ready to draw. */
+export function solveFoldDrape(params: FoldDrapeParams): FoldDrapeResult | null {
+  const data = solveFoldDrapeData(params)
+  return data ? hydrateFoldDrape(data) : null
 }

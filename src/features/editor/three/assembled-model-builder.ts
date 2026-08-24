@@ -50,6 +50,7 @@ import {
   type DrapeObstacleMesh,
   type FoldDrapeResult,
 } from './assembled-fold-drape'
+import type { FoldDrapeRequest, FoldDrapeStore } from './fold-drape-store'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
@@ -1043,6 +1044,7 @@ function createAssembledPieceGroup({
   pieceMeshById,
   stitchHoles,
   threadColor,
+  foldDrape,
 }: {
   piece: PatternPiece
   /** Every visible piece, in build order — the fold's collision world. */
@@ -1062,6 +1064,8 @@ function createAssembledPieceGroup({
   pieceMeshById: Map<string, PieceMeshData>
   stitchHoles: StitchHole[]
   threadColor: string
+  /** Where finished drapes are kept. Absent solves each fold in place. */
+  foldDrape?: FoldDrapeStore
 }) {
   const group = new Group()
   // Tagged so a raycast hit can be traced back to the piece it belongs to.
@@ -1135,9 +1139,10 @@ function createAssembledPieceGroup({
       swingSample: polygonCentroid(swingRegion.polygon),
     })
   }
-  const drapeSolve =
+  const drapeRequest: FoldDrapeRequest | null =
     drapeFolds.length > 0
-      ? solveFoldDrape({
+      ? {
+          pieceId: piece.id,
           outer: pieceMesh.outer,
           holes: pieceMesh.holes,
           folds: drapeFolds,
@@ -1153,8 +1158,16 @@ function createAssembledPieceGroup({
             previewSettings,
             transform,
           }),
-        })
+        }
       : null
+  // With a store the drape may be a cached solve, a warm-started one landing
+  // shortly, or the previous one still being drawn; without one the fold
+  // solves here and now, which is what a test or a one-shot render wants.
+  const drapeSolve = !drapeRequest
+    ? null
+    : foldDrape
+      ? foldDrape.resolve(drapeRequest)
+      : solveFoldDrape(drapeRequest)
 
   regions.forEach((region, regionIndex) => {
     const { content: target } = regionFrame(region, group, transform, pivotCache, contentCache, bendRadiusWorld)
@@ -1482,6 +1495,7 @@ export function rebuildAssembledModel({
   foldGuideGroup,
   avatarGroup,
   rebuildAvatarModel,
+  foldDrape,
 }: RebuildAssembledModelParams) {
   clearGroup(assembledGroup, preservedMaterials)
   clearGroup(finalProductGroup, preservedMaterials)
@@ -1523,6 +1537,7 @@ export function rebuildAssembledModel({
         pieceMeshById,
         stitchHoles,
         threadColor,
+        foldDrape,
       })
       pieceGroupById.set(piece.id, group)
       pieceFramesById.set(piece.id, frames)

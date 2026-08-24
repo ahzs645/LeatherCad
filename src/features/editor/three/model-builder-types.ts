@@ -13,6 +13,7 @@ import type {
 import type { PieceMeshData } from './piece-mesh'
 import { ThreeFoldManager } from './fold-manager'
 import type { StitchPair } from './final-product-types'
+import type { FoldDrapeStore } from './fold-drape-store'
 import type { OutlinePolygon } from './three-bridge-types'
 import type { Bounds2 } from './bridge/geometry-utils'
 
@@ -70,6 +71,12 @@ export type CommonRebuildParams = {
 }
 
 export type RebuildAssembledModelParams = CommonRebuildParams & {
+  /**
+   * Where fold drapes are cached and solved. A rebuild without one solves
+   * every fold on the spot, which is the right answer for a test and the
+   * wrong one for a slider.
+   */
+  foldDrape?: FoldDrapeStore
   assembledGroup: Group
   finalProductGroup: Group
   staticSideGroup: Group

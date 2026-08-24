@@ -12,6 +12,7 @@ const ATELIER = [
   '@atelier/io',
   '@atelier/react',
   '@atelier/render',
+  '@atelier/sim',
   '@atelier/viewport',
 ]
 

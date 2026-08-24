@@ -27,6 +27,8 @@ import { ThreeMaterialManager } from './material-manager'
 import type { PieceMeshData } from './piece-mesh'
 import { EngineRuntime, type CameraFitMode } from './engine-runtime'
 import { ASSEMBLED_DRAPE_MESH_NAME } from './assembled-model-builder'
+import { createFoldDrapeStore } from './fold-drape-store'
+import { createFoldDrapeWorkerSolver } from './fold-drape-worker-solver'
 import {
   nearestBoundaryEdge,
   pieceIdForObject,
@@ -123,6 +125,19 @@ export class ThreeBridge {
     usePhysicsRelaxation: true,
   }
   private pieceMeshes: PieceMeshData[] = []
+  /**
+   * Fold drapes: cached, warm-started, and solved in a worker.
+   *
+   * A rebuild asks this for each folded piece instead of settling cloth on the
+   * thread that has to draw the next frame. What comes back is the finished
+   * solve when there is one and the previous drape when there is not, and the
+   * solve that is running lands here — which is what `onSettled` redraws for.
+   */
+  private readonly foldDrape = createFoldDrapeStore({
+    solver: createFoldDrapeWorkerSolver(),
+    onSettled: () => this.redrawSettledDrape(),
+  })
+  private disposed = false
   private readonly seamPickRaycaster = new Raycaster()
   private fitAfterRebuild = true
   private transform: ModelTransform = {
@@ -194,6 +209,30 @@ export class ThreeBridge {
       preservedMaterials: this.preservedMaterials,
       fitControlsToModel: () => this.fitControlsToModel(),
     })
+  }
+
+  /**
+   * A deferred drape landed: draw the assembly again so the leather catches up
+   * with the slider.
+   *
+   * Deliberately without a camera refit. A fold settling a moment after the
+   * angle that asked for it is the normal case, and the model jumping to frame
+   * itself mid-drag is not.
+   */
+  private redrawSettledDrape() {
+    if (this.disposed) {
+      return
+    }
+    if (this.threePreviewSettings.mode !== 'assembled' && this.threePreviewSettings.mode !== 'avatar') {
+      return
+    }
+    const previous = this.fitAfterRebuild
+    this.fitAfterRebuild = false
+    try {
+      this.rebuildModel()
+    } finally {
+      this.fitAfterRebuild = previous
+    }
   }
 
   private clearAllGroups() {
@@ -296,6 +335,7 @@ export class ThreeBridge {
         foldGuideGroup: this.foldGuideGroup,
         avatarGroup: this.avatarGroup,
         rebuildAvatarModel: () => this.rebuildAvatarModel(),
+        foldDrape: this.foldDrape,
       })
       return
     }
@@ -601,6 +641,8 @@ export class ThreeBridge {
   }
 
   dispose() {
+    this.disposed = true
+    this.foldDrape.dispose()
     this.avatarManager.invalidate()
     this.clearAllGroups()
     this.materialManager.dispose()
