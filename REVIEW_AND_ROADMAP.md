@@ -13,8 +13,10 @@
 >   `EditorDesktopShell` / `EditorMobileShell`).
 >
 > For the current, source-backed list of known interface gaps, see
-> [`SOURCE_APP_PARITY_GAPS.md`](./SOURCE_APP_PARITY_GAPS.md). Do not treat
-> the scores or "Glaring Issues" section below as the current state.
+> [`SOURCE_APP_PARITY_GAPS.md`](./SOURCE_APP_PARITY_GAPS.md); for the open
+> work on the simulated fold, see
+> [`docs/FOLD_DRAPE_FOLLOW_UPS.md`](./docs/FOLD_DRAPE_FOLLOW_UPS.md). Do not
+> treat the scores or "Glaring Issues" section below as the current state.
 
 ## Codebase Health Summary (March 2026)
 

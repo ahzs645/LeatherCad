@@ -26,7 +26,7 @@ import { analyzeFinalProductFoldSweep, type FinalProductFoldSweepResult } from '
 import type { CommonRebuildParams } from './model-builder-types'
 import {
   buildThreadSegments,
-  chainRunSegments,
+  saddleStitchSegments,
   createThreadMaterial,
   type ThreadSegment,
 } from './stitch-thread'
@@ -351,7 +351,7 @@ function addStitchHoles(
     }
     // The visible saddle-stitch run between consecutive holes of the chain.
     const runs = buildThreadSegments(
-      chainRunSegments(runPoints),
+      saddleStitchSegments(runPoints),
       material,
       STITCH_THREAD_RADIUS,
       `final-product-stitch-run-${chain.id}`,

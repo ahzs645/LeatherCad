@@ -94,6 +94,7 @@ type UseEditorWorkbenchControllerParams = {
   handleClearAllStitchHoles: () => void
   fileInputRef: React.RefObject<HTMLInputElement | null>
   svgInputRef: React.RefObject<HTMLInputElement | null>
+  patternPdfInputRef: React.RefObject<HTMLInputElement | null>
   handleExportSvg: () => void
   handleExportPdf: () => void
   handleExportDxf: () => void
@@ -196,6 +197,7 @@ export function useEditorWorkbenchController({
   handleClearAllStitchHoles,
   fileInputRef,
   svgInputRef,
+  patternPdfInputRef,
   handleExportSvg,
   handleExportPdf,
   handleExportDxf,
@@ -475,6 +477,9 @@ export function useEditorWorkbenchController({
         break
       case 'import-svg':
         svgInputRef.current?.click()
+        break
+      case 'import-pattern-pdf':
+        patternPdfInputRef.current?.click()
         break
       case 'export-center':
         setShowExportModal(true)

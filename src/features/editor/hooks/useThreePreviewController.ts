@@ -654,7 +654,11 @@ export function useThreePreviewController(props: ThreePreviewControllerProps) {
     const result = solveSeamDrivenPlacements({
       pieceMeshes,
       seamConnections: effectiveSeamConnections,
-      options: { assemblyAngleDeg: angleDeg },
+      options: {
+        assemblyAngleDeg: angleDeg,
+        // So a lining folded onto its panel stacks on it rather than into it.
+        materialThicknessMm: threePreviewSettings.thicknessMm,
+      },
     })
 
     if (result.placements.length === 0) {

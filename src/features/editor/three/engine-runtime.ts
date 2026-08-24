@@ -17,7 +17,19 @@ import { LeatherStage, type StageThemeMode } from './leather-stage'
  * cosine of the angle between the view direction and the plane's normal. About
  * 27 degrees — enough that a flat layout reads as a surface rather than a line.
  */
-const MIN_PLATE_VIEW_ALIGNMENT = 0.45
+/**
+ * How square-on the camera has to sit to a plate's plane before framing it.
+ * Below this the layout is close to edge-on and renders as a hairline.
+ */
+export const MIN_PLATE_VIEW_ALIGNMENT = 0.45
+
+/** Direction of the default three-quarter view, as multiples of the radius. */
+export const ORBIT_OFFSET_RATIOS = new Vector3(0.95, 1.15, 1.3)
+
+/** How far from edge-on a camera direction is to a plate: 0 is in-plane, 1 face-on. */
+export function plateViewAlignment(direction: Vector3, planeNormal: Vector3) {
+  return direction.clone().normalize().dot(planeNormal.clone().normalize())
+}
 
 type Bounds3 = {
   minX: number
@@ -167,17 +179,16 @@ export class EngineRuntime {
       camera.position.set(center.x + radius * 2.2, center.y + radius * 0.15, center.z)
     } else {
       camera.up.set(0, 1, 0)
-      const offset = new Vector3(radius * 0.95, radius * 1.15, radius * 1.3)
-      // Assembled pieces are flat in the model's local XZ plane, and the model
-      // root is tilted to give the scene some perspective. Those two rotations
-      // happened to cancel: the default three-quarter offset landed within a
-      // degree of the plate's own plane, so a correctly-placed layout rendered
-      // as a hairline. Lift the camera off that plane before framing.
+      const offset = ORBIT_OFFSET_RATIOS.clone().multiplyScalar(radius)
+      // A layout lying in its own plane is invisible from a camera sitting in
+      // that plane. With an untilted model root the default three-quarter
+      // offset clears it comfortably, so this is a guard rather than a fix —
+      // it still matters for a plate a placement has stood on its edge.
       const planeNormal = new Vector3(0, 1, 0)
         .applyMatrix4(new Matrix4().extractRotation(modelRoot.matrixWorld))
         .normalize()
       const direction = offset.clone().normalize()
-      const alignment = direction.dot(planeNormal)
+      const alignment = plateViewAlignment(direction, planeNormal)
       if (Math.abs(alignment) < MIN_PLATE_VIEW_ALIGNMENT) {
         const side = alignment >= 0 ? 1 : -1
         direction

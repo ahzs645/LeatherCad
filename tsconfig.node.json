@@ -22,5 +22,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "e2e/**/*.ts"]
+  "include": [
+    "vite.config.ts",
+    "vite-manual-chunks.ts",
+    "vite-manual-chunks.test.ts",
+    "playwright.config.ts",
+    "e2e/**/*.ts"
+  ]
 }

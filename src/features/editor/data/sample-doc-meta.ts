@@ -40,6 +40,12 @@ export const PRESET_META: PresetMeta[] = [
     id: 'tote-bag',
     label: 'Tote Bag',
   },
+  {
+    // Built from a published sheet by `pnpm pattern:pdf`, not drawn in code.
+    // See `imported-pattern-presets.ts`.
+    id: 'makesupply-keychain-snap-wallet',
+    label: 'Keychain Snap Wallet (imported)',
+  },
 ]
 
 export const DEFAULT_PRESET_ID = 'trifold'

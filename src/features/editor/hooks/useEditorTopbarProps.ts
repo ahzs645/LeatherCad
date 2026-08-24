@@ -122,6 +122,7 @@ export type UseEditorTopbarPropsParams = {
   fileInputRef: RefObject<HTMLInputElement | null>
   svgInputRef: RefObject<HTMLInputElement | null>
   tracingInputRef: RefObject<HTMLInputElement | null>
+  patternPdfInputRef: RefObject<HTMLInputElement | null>
   handleExportSvg: () => void
   handleExportPdf: () => void
   handleExportDxf: () => void
@@ -264,6 +265,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Editor
     fileInputRef,
     svgInputRef,
     tracingInputRef,
+    patternPdfInputRef,
     handleExportSvg,
     handleExportPdf,
     handleExportDxf,
@@ -588,6 +590,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Editor
     onOpenPatternToolsModal: () => setShowPatternToolsModal(true),
     onOpenTemplateRepositoryModal: () => setShowTemplateRepositoryModal(true),
     onOpenTracingImport: () => tracingInputRef.current?.click(),
+    onOpenPatternPdfImport: () => patternPdfInputRef.current?.click(),
     onOpenTracingModal: () => setShowTracingModal(true),
     hasTracingOverlays: tracingOverlays.length > 0,
     onOpenPrintPreviewModal: () => setShowPrintPreviewModal(true),

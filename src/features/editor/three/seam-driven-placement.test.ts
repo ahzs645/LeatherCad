@@ -148,6 +148,89 @@ describe('solveSeamDrivenPlacements', () => {
     expect(height(standing)).toBeGreaterThan(50)
   })
 
+  it('stacks a lining onto its panel instead of into it', () => {
+    // Folded flat onto the panel, a zero-thickness sheet lands in the panel's
+    // own plane: two layers sewn together occupy one slab and render as one
+    // piece of leather. They should sit a thickness apart.
+    const { meshes, seams } = meshesFor('card-case')
+
+    const flat = solveSeamDrivenPlacements({
+      pieceMeshes: meshes,
+      seamConnections: seams,
+      options: { assemblyAngleDeg: 180, materialThicknessMm: 0 },
+    })
+    const stacked = solveSeamDrivenPlacements({
+      pieceMeshes: meshes,
+      seamConnections: seams,
+      options: { assemblyAngleDeg: 180, materialThicknessMm: 2 },
+    })
+
+    const pocketFlat = flat.placements.find((entry) => entry.pieceId !== flat.placements[0].pieceId)!
+    const pocketStacked = stacked.placements.find((entry) => entry.pieceId === pocketFlat.pieceId)!
+    expect(pocketFlat.translationMm.y).toBeCloseTo(0, 6)
+    expect(pocketStacked.translationMm.y).toBeCloseTo(2, 6)
+    // Only the height moves; the seam still meets where it met.
+    expect(pocketStacked.translationMm.x).toBeCloseTo(pocketFlat.translationMm.x, 6)
+    expect(pocketStacked.translationMm.z).toBeCloseTo(pocketFlat.translationMm.z, 6)
+  })
+
+  it('does not report the stacking lift as a seam that failed to close', () => {
+    // The lift is deliberate. Counting it would put a one-thickness gap on
+    // every stacked seam and read as an assembly that does not close.
+    const { meshes, seams } = meshesFor('card-case')
+    const gapsAt = (materialThicknessMm: number) =>
+      solveSeamDrivenPlacements({
+        pieceMeshes: meshes,
+        seamConnections: seams,
+        options: { assemblyAngleDeg: 180, materialThicknessMm },
+      }).diagnostics.map((entry) => entry.residualGapMm)
+
+    expect(gapsAt(2)).toEqual(gapsAt(0))
+  })
+
+  it('does not lift a piece the seam lays out edge to edge', () => {
+    // At angle 0 the pieces are a flat net, side by side on the bench. Nothing
+    // is stacked on anything, so nothing is lifted.
+    const { meshes, seams } = meshesFor('card-case')
+
+    const result = solveSeamDrivenPlacements({
+      pieceMeshes: meshes,
+      seamConnections: seams,
+      options: { assemblyAngleDeg: 0, materialThicknessMm: 2 },
+    })
+
+    for (const placement of result.placements) {
+      expect(placement.translationMm.y).toBeCloseTo(0, 6)
+    }
+  })
+
+  it('lifts a standing piece by half a thickness on its way over', () => {
+    // Quarter turn: the piece is on edge, half way between lying beside its
+    // parent and lying on it. Its centroid rises tens of millimetres from the
+    // rotation alone, so the thickness has to be read as the difference the
+    // thickness makes rather than as the height itself.
+    const { meshes, seams } = meshesFor('card-case')
+    const solveAt = (materialThicknessMm: number) =>
+      solveSeamDrivenPlacements({
+        pieceMeshes: meshes,
+        seamConnections: seams,
+        options: { assemblyAngleDeg: 90, materialThicknessMm },
+      })
+
+    const bare = solveAt(0)
+    const thick = solveAt(2)
+
+    const moved = thick.placements.filter((entry) => {
+      const before = bare.placements.find((other) => other.pieceId === entry.pieceId)!
+      return Math.abs(entry.translationMm.y - before.translationMm.y) > 1e-6
+    })
+    expect(moved.length).toBeGreaterThan(0)
+    for (const placement of moved) {
+      const before = bare.placements.find((other) => other.pieceId === placement.pieceId)!
+      expect(placement.translationMm.y - before.translationMm.y).toBeCloseTo(1, 6)
+    }
+  })
+
   it('starts a multi-span seam at the first stretch of the run', () => {
     const { meshes, seams } = meshesFor('boxed-pouch')
     const result = solveSeamDrivenPlacements({ pieceMeshes: meshes, seamConnections: seams })

@@ -25,10 +25,12 @@ import {
 } from './model-builder'
 import { ThreeMaterialManager } from './material-manager'
 import type { PieceMeshData } from './piece-mesh'
-import { EngineRuntime } from './engine-runtime'
+import { EngineRuntime, type CameraFitMode } from './engine-runtime'
+import { ASSEMBLED_DRAPE_MESH_NAME } from './assembled-model-builder'
 import {
   nearestBoundaryEdge,
   pieceIdForObject,
+  pieceFrameForObject,
   worldPointToDocument,
   type PickedSeamEdge,
 } from './seam-edge-picking'
@@ -58,6 +60,20 @@ function withoutScrubSettings(settings: ThreePreviewSettings) {
     rest[key] = (settings as unknown as Record<string, unknown>)[key]
   }
   return JSON.stringify(rest)
+}
+
+/**
+ * The camera the preview frames a mode with.
+ *
+ * The stored setting is still called `finalFoldCamera` because Final Product
+ * mode was the only one that offered it, but which way you look at a model is a
+ * property of looking, not of the mode. Assembled mode needs it most of all: a
+ * fold read from a three-quarter view is a shape, and read from the side it is
+ * an angle you can compare against the one you typed. Fold mode drives its own
+ * pivot camera and Avatar mode wants to orbit a figure, so both keep the orbit.
+ */
+export function cameraForMode(settings: ThreePreviewSettings): CameraFitMode {
+  return settings.mode === 'final' || settings.mode === 'assembled' ? settings.finalFoldCamera : 'orbit'
 }
 
 export function isOnlyScrubChange(previous: ThreePreviewSettings, next: ThreePreviewSettings) {
@@ -102,6 +118,7 @@ export class ThreeBridge {
     thicknessMm: 1.8,
     showSeams: true,
     showEdgeLabels: false,
+    showPieceOutlines: false,
     showStressOverlay: true,
     usePhysicsRelaxation: true,
   }
@@ -147,7 +164,13 @@ export class ThreeBridge {
     this.modelRoot.add(this.avatarGroup)
     this.modelRoot.add(this.finalProductGroup)
     this.modelRoot.position.set(0, -0.08, 0.1)
-    this.modelRoot.rotation.x = -0.7
+    // Not tilted. Every mode but `final` used to lean the whole model 40
+    // degrees (-0.7 rad) so a flat pattern was not seen edge-on by a camera
+    // that sat in a fixed spot. The camera frames itself now, and the lean cost
+    // two things: the leather stopped lying in the plane of the floor grid it
+    // is drawn on — which is the one thing a flat pattern is — and it left the
+    // default three-quarter offset about a degree off the plate's own plane, so
+    // a correctly placed layout framed itself as a hairline.
     this.scene.add(this.modelRoot)
 
     // The engine renders while the runtime holds its render lease; no
@@ -159,14 +182,7 @@ export class ThreeBridge {
     if (!this.fitAfterRebuild) {
       return
     }
-    this.runtimeManager.fitControlsToModel(
-      this.modelRoot,
-      this.threePreviewSettings.mode === 'final' ? this.threePreviewSettings.finalFoldCamera : 'orbit',
-    )
-  }
-
-  private syncModelRootPresentation() {
-    this.modelRoot.rotation.x = this.threePreviewSettings.mode === 'final' ? 0 : -0.7
+    this.runtimeManager.fitControlsToModel(this.modelRoot, cameraForMode(this.threePreviewSettings))
   }
 
   private async rebuildAvatarModel() {
@@ -191,7 +207,6 @@ export class ThreeBridge {
   }
 
   private rebuildModel() {
-    this.syncModelRootPresentation()
     const { pieceMeshes, transform, documentBounds } = buildModelLayout({
       patternPieces: this.patternPieces,
       outlinePolygons: this.outlinePolygons,
@@ -630,7 +645,19 @@ export class ThreeBridge {
       if (!pieceMesh || !pieceGroup) {
         continue
       }
-      const documentPoint = worldPointToDocument(hit.point, pieceGroup as Group, this.transform)
+      // A drape shell is deformed geometry — no frame matrix can undo a
+      // bend — so it carries the document coordinates in its second uv
+      // channel and the raycaster interpolates them at the hit.
+      const drapeUv = hit.object.name === ASSEMBLED_DRAPE_MESH_NAME ? hit.uv1 : undefined
+      const documentPoint = drapeUv
+        ? { x: drapeUv.x, y: drapeUv.y }
+        : worldPointToDocument(
+            hit.point,
+            // The region group the hit landed in, so a click on a folded flap
+            // maps back through the fold rather than the piece's flat pose.
+            pieceFrameForObject(hit.object) ?? pieceGroup,
+            this.transform,
+          )
       const edge = nearestBoundaryEdge(pieceMesh, documentPoint)
       if (edge) {
         return edge

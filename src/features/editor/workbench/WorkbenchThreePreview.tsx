@@ -343,6 +343,38 @@ export function WorkbenchThreePreviewInspector({
           />
           <span>Relax seam welds</span>
         </label>
+        {(threePreviewSettings.mode === 'assembled' || threePreviewSettings.mode === 'final') && (
+          <div className="field-row">
+            <span>View</span>
+            <div className="button-row">
+              {(['orbit', 'side', 'front', 'top'] as const).map((cameraPreset) => (
+                <button
+                  key={cameraPreset}
+                  type="button"
+                  className={threePreviewSettings.finalFoldCamera === cameraPreset ? 'active' : ''}
+                  onClick={() =>
+                    onSetThreePreviewSettings((previous) => ({ ...previous, finalFoldCamera: cameraPreset }))
+                  }
+                >
+                  {cameraPreset[0].toUpperCase() + cameraPreset.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={threePreviewSettings.showPieceOutlines}
+            onChange={(event) =>
+              onSetThreePreviewSettings((previous) => ({
+                ...previous,
+                showPieceOutlines: event.target.checked,
+              }))
+            }
+          />
+          <span>Highlight piece outlines</span>
+        </label>
         <label className="layer-toggle-item">
           <input
             type="checkbox"
@@ -461,7 +493,10 @@ export function WorkbenchThreePreviewInspector({
         )}
       </details>
 
-      <details className="control-block inspector-disclosure" open={threePreviewSettings.mode === 'fold' && foldLines.length > 0}>
+      <details
+        className="control-block inspector-disclosure"
+        open={(threePreviewSettings.mode === 'fold' || threePreviewSettings.mode === 'assembled') && foldLines.length > 0}
+      >
         <summary>
           <h3>Bend Controls</h3>
           <span>{foldLines.length === 0 ? 'None' : `${foldLines.length}`}</span>
@@ -471,8 +506,8 @@ export function WorkbenchThreePreviewInspector({
             <p className="hint">Use the Final Folds drawer at the bottom of the full 3D viewport for crease angles and directions.</p>
             <p className="hint">{`${foldLines.length} crease${foldLines.length === 1 ? '' : 's'} available.`}</p>
           </>
-        ) : threePreviewSettings.mode !== 'fold' ? (
-          <p className="hint">Fold controls are active in Fold and Final Product modes.</p>
+        ) : threePreviewSettings.mode !== 'fold' && threePreviewSettings.mode !== 'assembled' ? (
+          <p className="hint">Fold controls are active in Assembled, Fold and Final Product modes.</p>
         ) : foldLines.length === 0 ? (
           <p className="hint">Use the Fold tool in 2D canvas to assign bend lines.</p>
         ) : (

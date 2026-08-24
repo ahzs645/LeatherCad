@@ -6,6 +6,7 @@ export function useEditorScreenRefs() {
     fileInputRef: useRef<HTMLInputElement | null>(null),
     svgInputRef: useRef<HTMLInputElement | null>(null),
     tracingInputRef: useRef<HTMLInputElement | null>(null),
+    patternPdfInputRef: useRef<HTMLInputElement | null>(null),
     backdropInputRef: useRef<HTMLInputElement | null>(null),
     templateImportInputRef: useRef<HTMLInputElement | null>(null),
     catalogImportInputRef: useRef<HTMLInputElement | null>(null),

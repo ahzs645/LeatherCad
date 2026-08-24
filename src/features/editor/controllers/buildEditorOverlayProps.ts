@@ -200,6 +200,7 @@ export type BuildEditorOverlayPropsParams = {
   fileInputRef: RefObject<HTMLInputElement | null>
   svgInputRef: RefObject<HTMLInputElement | null>
   tracingInputRef: RefObject<HTMLInputElement | null>
+  patternPdfInputRef: RefObject<HTMLInputElement | null>
   svgImportOptionsModalProps: SvgImportOptionsModalProps
   templateImportInputRef: RefObject<HTMLInputElement | null>
   catalogImportInputRef: RefObject<HTMLInputElement | null>
@@ -207,6 +208,7 @@ export type BuildEditorOverlayPropsParams = {
   handleLoadJson: ChangeEventHandler<HTMLInputElement>
   handleImportSvg: ChangeEventHandler<HTMLInputElement>
   handleImportTracing: ChangeEventHandler<HTMLInputElement>
+  handleImportPatternPdf: ChangeEventHandler<HTMLInputElement>
   handleImportTemplateRepositoryFile: ChangeEventHandler<HTMLInputElement>
   handleImportCatalogFile: ChangeEventHandler<HTMLInputElement>
   setTranslationMap: Dispatch<SetStateAction<Record<string, string>>>
@@ -385,6 +387,7 @@ export function buildEditorOverlayProps({
   fileInputRef,
   svgInputRef,
   tracingInputRef,
+  patternPdfInputRef,
   svgImportOptionsModalProps,
   templateImportInputRef,
   catalogImportInputRef,
@@ -392,6 +395,7 @@ export function buildEditorOverlayProps({
   handleLoadJson,
   handleImportSvg,
   handleImportTracing,
+  handleImportPatternPdf,
   handleImportTemplateRepositoryFile,
   handleImportCatalogFile,
   setTranslationMap,
@@ -1005,12 +1009,14 @@ export function buildEditorOverlayProps({
       fileInputRef,
       svgInputRef,
       tracingInputRef,
+      patternPdfInputRef,
       templateImportInputRef,
       catalogImportInputRef,
       translationInputRef,
       onLoadJson: handleLoadJson,
       onImportSvg: handleImportSvg,
       onImportTracing: handleImportTracing,
+      onImportPatternPdf: handleImportPatternPdf,
       onImportTemplateRepositoryFile: handleImportTemplateRepositoryFile,
       onImportCatalogFile: handleImportCatalogFile,
       onImportTranslation: (event: ChangeEvent<HTMLInputElement>) => {

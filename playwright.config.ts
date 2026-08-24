@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const baseURL = 'http://127.0.0.1:41731'
+// A second server for the built bundle. The dev server serves modules
+// unbundled, so it cannot show a chunking fault; this is the only place the
+// app is loaded the way a user loads it.
+const previewURL = 'http://127.0.0.1:41732'
 
 // Environments with a system-provided Chromium (sandboxed CI containers that
 // pre-install browsers) can point the Chromium-based projects at it instead
@@ -24,12 +28,24 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  webServer: {
-    command: `pnpm dev --host 127.0.0.1 --port ${new URL(baseURL).port} --strictPort`,
-    url: baseURL,
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: [
+    {
+      command: `pnpm dev --host 127.0.0.1 --port ${new URL(baseURL).port} --strictPort`,
+      url: baseURL,
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      // `vite build` rather than `pnpm build`: the typecheck already ran as its
+      // own CI step, and repeating it here only slows the suite down.
+      command:
+        `pnpm exec vite build && ` +
+        `pnpm exec vite preview --host 127.0.0.1 --port ${new URL(previewURL).port} --strictPort`,
+      url: previewURL,
+      reuseExistingServer: false,
+      timeout: 240_000,
+    },
+  ],
   projects: [
     {
       name: 'chromium',
@@ -37,7 +53,20 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         ...chromiumLaunchOverride,
       },
-      testIgnore: [/mobile-smoke\.spec\.ts$/, /tablet-smoke\.spec\.ts$/],
+      testIgnore: [
+        /mobile-smoke\.spec\.ts$/,
+        /tablet-smoke\.spec\.ts$/,
+        /production-build\.spec\.ts$/,
+      ],
+    },
+    {
+      name: 'production-build',
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: previewURL,
+        ...chromiumLaunchOverride,
+      },
+      testMatch: /production-build\.spec\.ts$/,
     },
     {
       // Crosses the 1100px mobile breakpoint defined in the editor layout.

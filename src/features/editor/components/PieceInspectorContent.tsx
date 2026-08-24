@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type {
   PatternPiece,
+  PieceEdgeFinish,
   PieceGrainline,
   PieceLabel,
   PiecePlacementLabel,
@@ -9,6 +10,7 @@ import type {
   SeamConnection,
   Shape,
 } from '../cad/cad-types'
+import { DEFAULT_EDGE_PAINT_COLOR } from '../editor-constants'
 import { AVAILABLE_PIECE_LABEL_TOKENS } from '../ops/pattern-piece-ops'
 import { SeamConnectionEditor } from './SeamConnectionEditor'
 
@@ -91,6 +93,10 @@ export function PieceInspectorContent({
     )
   }
 
+  // A piece with no finish authored yet still needs a shape to edit, and the
+  // absent-means-unfinished default is the one the renderer reads.
+  const edgeFinish: PieceEdgeFinish = piece.edgeFinish ?? { enabled: false, style: 'burnish' }
+
   return (
     <>
       <div className="control-block">
@@ -172,6 +178,51 @@ export function PieceInspectorContent({
           <input type="checkbox" checked={piece.locked} onChange={(event) => onUpdatePiece({ locked: event.target.checked })} />
           <span>Lock piece metadata</span>
         </label>
+      </div>
+
+      <div className="control-block">
+        <h3>Edge Finish</h3>
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
+            checked={edgeFinish.enabled}
+            onChange={(event) => onUpdatePiece({ edgeFinish: { ...edgeFinish, enabled: event.target.checked } })}
+          />
+          <span>Finish cut edges</span>
+        </label>
+        {edgeFinish.enabled && (
+          <>
+            <label className="layer-field">
+              <span>Style</span>
+              <select
+                value={edgeFinish.style}
+                onChange={(event) =>
+                  onUpdatePiece({
+                    edgeFinish: { ...edgeFinish, style: event.target.value === 'paint' ? 'paint' : 'burnish' },
+                  })
+                }
+              >
+                <option value="burnish">Burnish</option>
+                <option value="paint">Edge paint</option>
+              </select>
+            </label>
+            {edgeFinish.style === 'paint' && (
+              <label className="layer-field">
+                <span>Paint Color</span>
+                <input
+                  type="color"
+                  value={edgeFinish.color ?? DEFAULT_EDGE_PAINT_COLOR}
+                  onChange={(event) => onUpdatePiece({ edgeFinish: { ...edgeFinish, color: event.target.value } })}
+                />
+              </label>
+            )}
+            <p className="hint">
+              {edgeFinish.style === 'paint'
+                ? 'Edge paint colors this piece\u2019s cut faces in the 3D preview.'
+                : 'Burnishing darkens this piece\u2019s cut faces with its own color in the 3D preview.'}
+            </p>
+          </>
+        )}
       </div>
 
       <div className="control-block">

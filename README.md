@@ -8,6 +8,7 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - Constraint solver for parametric dimensions
 - Pattern grading
 - Geometry import: JSON, LCC, and SVG
+- Pattern PDF import (**Output → Pattern PDF**): reads a published template sheet as pieces, stitch runs, seams, and folds
 - Tracing import (reference overlays only, not editable geometry): raster images and PDF
 - Export: SVG, PDF, DXF, JSON, and LCC
 - 3D preview via Three.js
@@ -31,7 +32,8 @@ pnpm dev
 
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 See [`docs/ATELIER.md`](docs/ATELIER.md) for how the engine is consumed and the
-staged adoption plan.
+staged adoption plan, and [`docs/FOLD_DRAPE_FOLLOW_UPS.md`](docs/FOLD_DRAPE_FOLLOW_UPS.md)
+for the open work on the simulated fold.
 
 ## Native AI Agent
 
@@ -64,6 +66,7 @@ The package exposes a `leathercad` bin, so local `npx`/package-runner workflows 
 | `pnpm test` | Run tests |
 | `pnpm test:ai-builder-benchmarks` | Validate AI Builder swarm benchmark outputs |
 | `pnpm render:ai-builder-benchmarks` | Render swarm benchmark outputs into PNG/HTML previews |
+| `pnpm pattern:pdf <file.pdf>` | Import a pattern PDF into an assembled project |
 | `pnpm test:watch` | Run tests in watch mode |
 
 ## Tech Stack

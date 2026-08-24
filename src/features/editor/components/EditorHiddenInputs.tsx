@@ -4,12 +4,14 @@ export type EditorHiddenInputsProps = {
   fileInputRef: RefObject<HTMLInputElement | null>
   svgInputRef: RefObject<HTMLInputElement | null>
   tracingInputRef: RefObject<HTMLInputElement | null>
+  patternPdfInputRef: RefObject<HTMLInputElement | null>
   templateImportInputRef: RefObject<HTMLInputElement | null>
   catalogImportInputRef: RefObject<HTMLInputElement | null>
   translationInputRef: RefObject<HTMLInputElement | null>
   onLoadJson: ChangeEventHandler<HTMLInputElement>
   onImportSvg: ChangeEventHandler<HTMLInputElement>
   onImportTracing: ChangeEventHandler<HTMLInputElement>
+  onImportPatternPdf: ChangeEventHandler<HTMLInputElement>
   onImportTemplateRepositoryFile: ChangeEventHandler<HTMLInputElement>
   onImportCatalogFile: ChangeEventHandler<HTMLInputElement>
   onImportTranslation: ChangeEventHandler<HTMLInputElement>
@@ -19,12 +21,14 @@ export function EditorHiddenInputs({
   fileInputRef,
   svgInputRef,
   tracingInputRef,
+  patternPdfInputRef,
   templateImportInputRef,
   catalogImportInputRef,
   translationInputRef,
   onLoadJson,
   onImportSvg,
   onImportTracing,
+  onImportPatternPdf,
   onImportTemplateRepositoryFile,
   onImportCatalogFile,
   onImportTranslation,
@@ -39,6 +43,13 @@ export function EditorHiddenInputs({
         accept="image/*,.pdf,application/pdf"
         className="hidden-input"
         onChange={onImportTracing}
+      />
+      <input
+        ref={patternPdfInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        className="hidden-input"
+        onChange={onImportPatternPdf}
       />
       <input
         ref={templateImportInputRef}

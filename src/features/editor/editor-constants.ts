@@ -48,9 +48,13 @@ export const DEFAULT_THREE_PREVIEW_SETTINGS: ThreePreviewSettings = {
   thicknessMm: 1.8,
   showSeams: true,
   showEdgeLabels: false,
+  showPieceOutlines: false,
   showStressOverlay: true,
   usePhysicsRelaxation: true,
 }
+
+/** Edge paint colour a piece falls back to when paint is enabled without a choice. */
+export const DEFAULT_EDGE_PAINT_COLOR = '#111827'
 
 export const HARDWARE_PRESETS: Record<Exclude<HardwareKind, 'custom'>, { label: string; holeDiameterMm: number; spacingMm: number }> = {
   snap: { label: 'Snap', holeDiameterMm: 4, spacingMm: 0 },

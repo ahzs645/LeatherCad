@@ -3,7 +3,7 @@ import type { StitchHole } from '../cad/cad-types'
 import { findPanelContainingPoint } from './final-product-panel-graph'
 import { solvePanelPoint } from './final-product-solver'
 import type { FinalProductSolveResult, SolvedFoldPanel, StitchPair } from './final-product-types'
-import { stepXpbdLite, type XpbdParticleState } from './xpbd-lite'
+import { createClothState, stepXpbdCloth } from '@atelier/sim'
 import { buildXpbdSeamDistanceConstraints } from './xpbd-seam-constraints'
 
 export type XpbdFinalProductRelaxation = {
@@ -86,30 +86,21 @@ export function relaxFinalProductSeamsWithXpbd(result: FinalProductSolveResult):
   }
 
   const particleCount = particleIndexByHoleId.size
-  const state: XpbdParticleState = {
-    positions: new Float32Array(particleCount * 3),
-    previousPositions: new Float32Array(particleCount * 3),
-    velocities: new Float32Array(particleCount * 3),
-    inverseMasses: new Float32Array(particleCount),
-  }
-
+  const seedPositions = new Float32Array(particleCount * 3)
   for (const [holeId, particleIndex] of particleIndexByHoleId) {
     const position = holePositionsById.get(holeId)
     if (!position) {
       continue
     }
     const offset = particleIndex * 3
-    state.positions[offset] = position.x
-    state.positions[offset + 1] = position.y
-    state.positions[offset + 2] = position.z
-    state.previousPositions[offset] = position.x
-    state.previousPositions[offset + 1] = position.y
-    state.previousPositions[offset + 2] = position.z
-    state.inverseMasses[particleIndex] = 1
+    seedPositions[offset] = position.x
+    seedPositions[offset + 1] = position.y
+    seedPositions[offset + 2] = position.z
   }
+  const state = createClothState(seedPositions)
 
   const rmsBeforeMm = pairRms(result.stitchPairs, holePositionsById)
-  stepXpbdLite(state, constraints, {
+  stepXpbdCloth(state, constraints, {
     dt: 1 / 60,
     substeps: 2,
     iterations: 16,
