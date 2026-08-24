@@ -1,10 +1,10 @@
 import { Box3, BufferAttribute, DoubleSide, Group, InstancedMesh, Line, LineBasicMaterial, Material, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import { describe, expect, it, vi } from 'vitest'
-import type { FoldLine, Layer, PatternPiece, Point, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
+import type { FoldLine, Layer, PatternPiece, PiecePlacement3D, Point, SeamConnection, StitchHole, ThreePreviewSettings } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
 import { ThreeAvatarManager } from './avatar-manager'
 import { rebuildAssembledModel } from './assembled-model-builder'
-import { ASSEMBLED_REGION_GROUP_PREFIX } from './assembled-model-builder'
+import { ASSEMBLED_DRAPE_MESH_NAME } from './assembled-model-builder'
 import { pieceFrameForObject, worldPointToDocument } from './seam-edge-picking'
 
 function createMaterials() {
@@ -90,6 +90,7 @@ function runBuilder({
   foldLines = [],
   stitchHoles = [],
   seamConnections = [],
+  piecePlacements3d = [],
   settings,
 }: {
   patternPieces: PatternPiece[]
@@ -98,6 +99,7 @@ function runBuilder({
   foldLines?: FoldLine[]
   stitchHoles?: StitchHole[]
   seamConnections?: SeamConnection[]
+  piecePlacements3d?: PiecePlacement3D[]
   settings?: Partial<ThreePreviewSettings>
 }) {
   const assembledGroup = new Group()
@@ -113,7 +115,7 @@ function runBuilder({
     stitchHoles,
     outlinePolygons: [],
     patternPieces,
-    piecePlacements3d: [],
+    piecePlacements3d,
     seamConnections,
     previewSettings: previewSettings({ mode, ...settings }),
     pieceMeshes,
@@ -336,6 +338,30 @@ describe('rebuildAssembledModel', () => {
     expect(avatarGroup.children).toHaveLength(0)
   })
   describe('folds', () => {
+    /** The drape's mid-surface samples: document uv1 with the world position. */
+    const drapeSamples = (group: Group) => {
+      group.updateMatrixWorld(true)
+      const samples: Array<{ document: { x: number; y: number }; world: Vector3 }> = []
+      group.traverse((object) => {
+        if (!(object instanceof Mesh) || object.name !== ASSEMBLED_DRAPE_MESH_NAME) {
+          return
+        }
+        const mesh = object as Mesh
+        const uvDocument = mesh.geometry.getAttribute('uv1')
+        const position = mesh.geometry.getAttribute('position')
+        if (!uvDocument || !position) {
+          return
+        }
+        for (let index = 0; index < position.count; index += 1) {
+          samples.push({
+            document: { x: uvDocument.getX(index), y: uvDocument.getY(index) },
+            world: new Vector3().fromBufferAttribute(position, index).applyMatrix4(mesh.matrixWorld),
+          })
+        }
+      })
+      return samples
+    }
+
     it('leaves a piece flat when no fold line reaches it', () => {
       const { piece, pieceMesh } = squarePiece()
       const result = runBuilder({ patternPieces: [piece], pieceMeshes: [pieceMesh], mode: 'assembled' })
@@ -423,9 +449,9 @@ describe('rebuildAssembledModel', () => {
       expect(bendVertices(build(90))).toBeGreaterThan(0)
     })
 
-    it('turns the bend about a centre a radius off the surface', () => {
+    it('rolls the crease through an arc instead of a corner', () => {
       const { piece, pieceMesh } = squarePiece()
-      const bendRadiusMm = 3
+      const bendRadiusMm = 4
       const group = runBuilder({
         patternPieces: [piece],
         pieceMeshes: [pieceMesh],
@@ -433,132 +459,130 @@ describe('rebuildAssembledModel', () => {
         foldLines: [foldLine({ angleDeg: 90, radiusMm: bendRadiusMm })],
       }).assembledGroup
 
-      const halfThickness = (2 * TRANSFORM.scale) / 2
+      // The bend zone is the arc's worth of material either side of the
+      // crease. A valley fold carries the flap down, so surface heights in
+      // the zone must pass through the middle of the turn — a knife crease
+      // has no material at intermediate heights at all.
       const radius = bendRadiusMm * TRANSFORM.scale
-      const distances: number[] = []
-      group.traverse((object) => {
-        if (!(object instanceof Mesh) || !(object.material instanceof MeshStandardMaterial)) {
-          return
-        }
-        const position = (object as Mesh).geometry.getAttribute('position')
-        if (object.material.side !== DoubleSide || position.count === 0) {
-          return
-        }
-        for (let index = 0; index < position.count; index += 1) {
-          const point = new Vector3().fromBufferAttribute(position, index)
-          // The crease runs along document y = 20, which the projection puts on
-          // world (y, z) = (0, 0); a valley fold turns about a centre one radius
-          // below it.
-          distances.push(Math.hypot(point.y + radius, point.z))
-        }
-      })
-
-      expect(distances.length).toBeGreaterThan(0)
-      // Every bend vertex is on the inner surface, the outer surface, or the
-      // cut cross-section that spans them.
-      for (const distance of distances) {
-        expect(distance).toBeGreaterThanOrEqual(radius - halfThickness - 1e-6)
-        expect(distance).toBeLessThanOrEqual(radius + halfThickness + 1e-6)
-      }
-      expect(Math.max(...distances)).toBeCloseTo(radius + halfThickness, 6)
-      expect(Math.min(...distances)).toBeCloseTo(radius - halfThickness, 6)
+      const zoneMm = (bendRadiusMm * Math.PI) / 4
+      const samples = drapeSamples(group)
+      expect(samples.length).toBeGreaterThan(0)
+      const zoneHeights = samples
+        .filter((sample) => Math.abs(sample.document.y - 20) <= zoneMm)
+        .map((sample) => sample.world.y)
+      expect(zoneHeights.length).toBeGreaterThan(3)
+      expect(Math.min(...zoneHeights)).toBeLessThan(-radius * 0.2)
+      const midArc = zoneHeights.filter(
+        (height) => height < -radius * 0.15 && height > -radius * 1.1,
+      )
+      expect(midArc.length).toBeGreaterThan(0)
     })
 
-    it('joins the bend to both halves, whichever way the crease edge runs', () => {
+    it('keeps the leather continuous across the crease, whichever way it runs', () => {
       const { piece, pieceMesh } = squarePiece()
-      // The region's boundary winds however the clip left it, so a crease edge
-      // can run either way against its fold line. The bend has to land on the
-      // leather in both cases; swept about the reversed axis it curves off into
-      // space and the halves are drawn unjoined.
-      const bendToSwingingHalf = (start: Point, end: Point) => {
+      // The region's boundary winds however the clip left it, so a crease can
+      // run either way against its fold line. The drape's surface is one mesh
+      // across the fold: points just either side of the crease must stay a
+      // material's breadth apart, not tear open.
+      const crossCreaseGap = (start: Point, end: Point) => {
         const group = runBuilder({
           patternPieces: [piece],
           pieceMeshes: [pieceMesh],
           mode: 'assembled',
           foldLines: [foldLine({ angleDeg: 90, radiusMm: 6, start, end })],
         }).assembledGroup
-
-        const bend: Vector3[] = []
-        const swingingSlab: Vector3[] = []
-        group.traverse((object) => {
-          if (!(object instanceof Mesh)) {
-            return
-          }
-          // The bend is the only double-sided surface. The slab it has to reach
-          // is the extruded body inside the region group the hinge created —
-          // that one carries a material per face group, so it comes as an array.
-          const material = (object as Mesh).material
-          const isBend = material instanceof MeshStandardMaterial && material.side === DoubleSide
-          const onSwingingHalf = pieceFrameForObject(object)?.name === `${ASSEMBLED_REGION_GROUP_PREFIX}fold-1`
-          const into = isBend ? bend : onSwingingHalf && Array.isArray(material) ? swingingSlab : null
-          if (!into) {
-            return
-          }
-          const position = (object as Mesh).geometry.getAttribute('position')
-          for (let index = 0; index < position.count; index += 1) {
-            into.push(new Vector3().fromBufferAttribute(position, index).applyMatrix4(object.matrixWorld))
-          }
-        })
-        expect(bend.length).toBeGreaterThan(0)
-        expect(swingingSlab.length).toBeGreaterThan(0)
-
-        // The arc ends exactly on the swinging half's own crease face, so the
-        // closest the two ever come is zero. A bend swept the wrong way never
-        // reaches it at all.
+        const samples = drapeSamples(group)
+        const above = samples.filter((sample) => sample.document.y > 20.5 && sample.document.y < 26)
+        const below = samples.filter((sample) => sample.document.y < 19.5 && sample.document.y > 14)
+        expect(above.length).toBeGreaterThan(0)
+        expect(below.length).toBeGreaterThan(0)
         let nearest = Number.POSITIVE_INFINITY
-        for (const point of bend) {
-          for (const other of swingingSlab) {
-            nearest = Math.min(nearest, point.distanceTo(other))
+        for (const a of above) {
+          for (const b of below) {
+            nearest = Math.min(nearest, a.world.distanceTo(b.world))
           }
         }
         return nearest
       }
 
-      expect(bendToSwingingHalf({ x: 0, y: 20 }, { x: 40, y: 20 })).toBeLessThan(1e-6)
-      expect(bendToSwingingHalf({ x: 40, y: 20 }, { x: 0, y: 20 })).toBeLessThan(1e-6)
+      const materialBreadth = 12 * TRANSFORM.scale
+      expect(crossCreaseGap({ x: 0, y: 20 }, { x: 40, y: 20 })).toBeLessThan(materialBreadth)
+      expect(crossCreaseGap({ x: 40, y: 20 }, { x: 0, y: 20 })).toBeLessThan(materialBreadth)
     })
 
-    it('closes over what is sewn under it instead of through it', () => {
+    it('drapes over what is in its way whether or not it is sewn there', () => {
       const { piece, pieceMesh } = squarePiece()
-      // A pocket sewn to the half that stays: the fold has to clear it.
+      // Another piece parked where the flap lands. The analytic fold could
+      // only clear what a seam told it about; the simulated fold collides
+      // with the leather itself, so sewn or unsewn makes no difference.
+      // The pocket covers only the base half, the way a card pocket does —
+      // over the whole square it would also roof the flap's own leather in.
+      const pocketOuter = [
+        { x: 2, y: 22 },
+        { x: 38, y: 22 },
+        { x: 38, y: 38 },
+        { x: 2, y: 38 },
+      ]
       const pocket = {
         piece: { ...piece, id: 'piece-2', name: 'Pocket', boundaryShapeId: 'shape-2' },
-        pieceMesh: { ...pieceMesh, pieceId: 'piece-2', name: 'Pocket' },
+        pieceMesh: {
+          ...pieceMesh,
+          pieceId: 'piece-2',
+          name: 'Pocket',
+          outer: pocketOuter,
+          bounds: { minX: 2, minY: 22, maxX: 38, maxY: 38, width: 36, height: 16 },
+          center: { x: 20, y: 30 },
+          edges: pocketOuter.map((start, index) => {
+            const end = pocketOuter[(index + 1) % pocketOuter.length]
+            return {
+              index,
+              start,
+              end,
+              midpoint: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+              lengthMm: Math.hypot(end.x - start.x, end.y - start.y),
+            }
+          }),
+        },
       }
-      // The crease is y = 20 and the larger-area half stays, so y > 20 is the
-      // half that stays put. Edge 2 runs along y = 40, on that half — a pocket
-      // sewn there is inside the fold when it closes.
-      const onTheHalfThatStays: SeamConnection = {
+      const onTopOfTheBase: PiecePlacement3D = {
+        pieceId: 'piece-2',
+        translationMm: { x: 0, y: 2, z: 0 },
+        rotationDeg: { x: 0, y: 0, z: 0 },
+        flipped: false,
+      }
+      const flapHigh = (withPocket: boolean, seamConnections: SeamConnection[]) => {
+        const group = runBuilder({
+          patternPieces: withPocket ? [piece, pocket.piece] : [piece],
+          pieceMeshes: withPocket ? [pieceMesh, pocket.pieceMesh] : [pieceMesh],
+          mode: 'assembled',
+          // A mountain fold carries the flap up and over the base.
+          foldLines: [foldLine({ angleDeg: 180, direction: 'mountain' })],
+          seamConnections,
+          piecePlacements3d: withPocket ? [onTopOfTheBase] : [],
+        }).assembledGroup
+        // The flap's deep end, read off the piece's own drape surface.
+        const heights = drapeSamples(group)
+          .filter((sample) => sample.document.y < 8)
+          .map((sample) => sample.world.y)
+        expect(heights.length).toBeGreaterThan(0)
+        return Math.max(...heights)
+      }
+
+      const sewn: SeamConnection = {
         id: 'seam-1',
         from: { pieceId: 'piece-1', edgeIndex: 2 },
         to: { pieceId: 'piece-2', edgeIndex: 0 },
         kind: 'sewn',
       }
-      // Edge 0 runs along y = 0, on the half that swings: a pocket sewn there
-      // travels with the flap and is not something the fold closes over.
-      const onTheHalfThatSwings: SeamConnection = {
-        ...onTheHalfThatStays,
-        id: 'seam-2',
-        from: { pieceId: 'piece-1', edgeIndex: 0 },
-      }
-      const lowestFoldedY = (seamConnections: SeamConnection[]) =>
-        new Box3()
-          .setFromObject(
-            runBuilder({
-              patternPieces: [piece, pocket.piece],
-              pieceMeshes: [pieceMesh, pocket.pieceMesh],
-              mode: 'assembled',
-              foldLines: [foldLine({ angleDeg: 180 })],
-              seamConnections,
-            }).assembledGroup,
-          )
-          .min.y
-
-      // Folded flat on itself the flap stands off by its own thickness; folded
-      // over a pocket it stands off by that pocket as well, so the closed fold
-      // reaches exactly one more stock thickness — 2mm at this scale.
-      expect(lowestFoldedY([]) - lowestFoldedY([onTheHalfThatStays])).toBeCloseTo(2 * TRANSFORM.scale, 6)
-      expect(lowestFoldedY([onTheHalfThatSwings])).toBeCloseTo(lowestFoldedY([]), 6)
+      const alone = flapHigh(false, [])
+      const overUnsewnPocket = flapHigh(true, [])
+      const overSewnPocket = flapHigh(true, [sewn])
+      // The pocket lies a stock thickness above where the flap would
+      // otherwise rest, so clearing it costs about one more thickness.
+      expect(overUnsewnPocket - alone).toBeGreaterThan(1 * TRANSFORM.scale)
+      expect(overUnsewnPocket - alone).toBeLessThan(4 * TRANSFORM.scale)
+      // Sewing it changes nothing: the leather was already in the way.
+      expect(Math.abs(overSewnPocket - overUnsewnPocket)).toBeLessThan(1.5 * TRANSFORM.scale)
     })
 
     it('draws no outline along a crease', () => {
@@ -583,11 +607,14 @@ describe('rebuildAssembledModel', () => {
 
       // The square's four sides, once.
       expect(outlineSegments([])).toHaveLength(4)
-      // Halved, each region keeps its own three cut sides and drops the crease:
-      // six segments, not eight, and none of them along the fold.
+      // Dialled flat the regions keep their own three cut sides and drop the
+      // crease: six segments, not eight. Folded, the drape draws the outline
+      // along the whole cut boundary at its own sampling; either way no
+      // segment runs along the fold, because the leather was never cut there.
+      expect(outlineSegments([foldLine({ angleDeg: 0 })])).toHaveLength(6)
       for (const angleDeg of [0, 90]) {
         const segments = outlineSegments([foldLine({ angleDeg })])
-        expect(segments).toHaveLength(6)
+        expect(segments.length).toBeGreaterThan(0)
         expect(segments.some((segment) => segment.alongCrease)).toBe(false)
       }
     })
@@ -602,8 +629,19 @@ describe('rebuildAssembledModel', () => {
       })
 
       const mapped: Array<{ x: number; y: number }> = []
+      result.assembledGroup.updateMatrixWorld(true)
       result.assembledGroup.traverse((object) => {
         if (!(object instanceof Mesh)) {
+          return
+        }
+        if (object.name === ASSEMBLED_DRAPE_MESH_NAME) {
+          // Deformed geometry carries its document coordinates in uv1 — the
+          // channel the picker reads — instead of being invertible by frame.
+          const uvDocument = (object as Mesh).geometry.getAttribute('uv1')
+          expect(uvDocument).toBeDefined()
+          for (let index = 0; index < uvDocument.count; index += 1) {
+            mapped.push({ x: uvDocument.getX(index), y: uvDocument.getY(index) })
+          }
           return
         }
         const frame = pieceFrameForObject(object)

@@ -15,7 +15,7 @@ import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { detectOutlines } from '../ops/outline-detection'
 import { buildModelLayout } from './model-builder'
-import { rebuildAssembledModel, wrappedThicknessMm } from './assembled-model-builder'
+import { ASSEMBLED_DRAPE_MESH_NAME, rebuildAssembledModel, wrappedThicknessMm } from './assembled-model-builder'
 import { minimumBendRadiusMm } from './assembled-fold-bend'
 import { splitPieceByFolds } from './assembled-fold-regions'
 import type { ModelBuilderMaterials } from './model-builder-types'
@@ -133,6 +133,22 @@ describe('the imported wallet folds', () => {
   it('wraps each crease in leather once the fold is dialled up', () => {
     expect(bendMeshes(buildWallet(0))).toHaveLength(0)
     expect(bendMeshes(buildWallet(90)).length).toBeGreaterThan(0)
+  })
+
+  it('renders its dialled folds from the simulated drape, not the rigid halves', () => {
+    const drapeMeshes = (group: Group) => {
+      const found: string[] = []
+      group.traverse((object) => {
+        if (object instanceof Mesh && object.name === ASSEMBLED_DRAPE_MESH_NAME) found.push(object.name)
+      })
+      return found
+    }
+    // Flat there is nothing to simulate; folded, every creased piece's
+    // leather comes from the settled cloth — the imported document exercises
+    // the whole pipeline: real outlines, inferred creases, other pieces as
+    // rigid bodies in the fold's way.
+    expect(drapeMeshes(buildWallet(0))).toHaveLength(0)
+    expect(drapeMeshes(buildWallet(180)).length).toBeGreaterThan(0)
   })
 
   it('closes the flap over the card pocket rather than through it', () => {

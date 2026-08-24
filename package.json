@@ -28,6 +28,7 @@
     "@atelier/geometry": "link:../atelier/packages/geometry",
     "@atelier/io": "link:../atelier/packages/io",
     "@atelier/render": "link:../atelier/packages/render",
+    "@atelier/sim": "link:../atelier/packages/sim",
     "@atelier/react": "link:../atelier/packages/react",
     "@atelier/viewport": "link:../atelier/packages/viewport",
     "clipper-lib": "^6.4.2",

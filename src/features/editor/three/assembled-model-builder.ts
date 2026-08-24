@@ -16,7 +16,9 @@ import {
   Matrix4,
   Mesh,
   MeshStandardMaterial,
+  Float32BufferAttribute,
   ShapeGeometry,
+  ShapeUtils,
   Sprite,
   SpriteMaterial,
   Vector2,
@@ -42,6 +44,12 @@ import {
   type FoldHingeStep,
 } from './assembled-fold-regions'
 import { bendCentre, buildBendGeometry, minimumBendRadiusMm } from './assembled-fold-bend'
+import {
+  solveFoldDrape,
+  type DrapeFoldInput,
+  type DrapeObstacleMesh,
+  type FoldDrapeResult,
+} from './assembled-fold-drape'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
@@ -264,6 +272,18 @@ function regionIndexForPoint(regions: AssembledFoldRegion[], point: Point) {
 export type AssembledPieceFrame = {
   region: AssembledFoldRegion
   object: Group
+}
+
+/**
+ * A folded piece's simulated surface, and the group whose frame it is drawn
+ * in. Overlays prefer this over the rigid region frames when it exists: the
+ * drape is where the leather actually is, bend, contact and all.
+ */
+export type AssembledPieceDrape = {
+  solve: FoldDrapeResult
+  object: Group
+  /** Solved document-frame millimetres → the drape group's local space. */
+  toLocal(point: { x: number; y: number; z: number }): Vector3
 }
 
 /** The frame a flat point on a piece moves with, once the piece's folds are applied. */
@@ -597,6 +617,344 @@ function bendSurfaceMaterial(source: Material) {
 }
 
 /**
+ * The matrix that carries one piece's flat-frame geometry into the world.
+ *
+ * `createAssembledPieceGroup` builds children in the piece's flat frame,
+ * shifts them by the centroid pivot, and places the group with
+ * `applyPlacementTransform`; this reproduces that placement on a throwaway
+ * group so another piece's solve can know where this piece's leather sits
+ * without the scene existing yet.
+ */
+function pieceFlatToWorldMatrix(params: {
+  pieceId: string
+  pieceMesh: PieceMeshData
+  index: number
+  total: number
+  piecePlacements3d: PiecePlacement3D[]
+  previewSettings: ThreePreviewSettings
+  transform: ModelTransform
+}) {
+  const proxy = new Group()
+  applyPlacementTransform(
+    proxy,
+    placementForPiece(params.pieceId, params.piecePlacements3d),
+    params.index,
+    params.total,
+    params.previewSettings,
+    params.transform,
+    pieceCentroidWorld(params.pieceMesh, params.transform),
+  )
+  proxy.updateMatrix()
+  return proxy.matrix
+    .clone()
+    .multiply(new Matrix4().makeTranslation(pieceCentroidWorld(params.pieceMesh, params.transform).negate()))
+}
+
+/** Resample a polygon down to at most `count` points, keeping its shape. */
+function decimatePolygon(polygon: Point[], count: number) {
+  if (polygon.length <= count) {
+    return polygon
+  }
+  const decimated: Point[] = []
+  for (let index = 0; index < count; index += 1) {
+    decimated.push(polygon[Math.floor((index * polygon.length) / count)])
+  }
+  return decimated
+}
+
+/**
+ * Every other piece's slab, expressed in one piece's document frame, for the
+ * fold drape to collide with.
+ *
+ * This is what makes the fold general: the drape does not ask what a fold is
+ * sewn to — it is handed where every piece of leather actually sits, and the
+ * flap lands on whatever is in its way. Each slab is its mid-plane sheet plus
+ * side walls; contact keeps mid-surfaces a material thickness apart, so the
+ * mid-plane is the honest collision surface for stock of one thickness.
+ */
+export function drapeObstaclesForPiece(params: {
+  pieceId: string
+  pieces: PatternPiece[]
+  pieceMeshById: Map<string, PieceMeshData>
+  piecePlacements3d: PiecePlacement3D[]
+  previewSettings: ThreePreviewSettings
+  transform: ModelTransform
+}): DrapeObstacleMesh[] {
+  const { pieceId, pieces, pieceMeshById, piecePlacements3d, previewSettings, transform } = params
+  const total = pieces.length
+  const targetIndex = pieces.findIndex((piece) => piece.id === pieceId)
+  const targetMesh = pieceMeshById.get(pieceId)
+  if (targetIndex < 0 || !targetMesh) {
+    return []
+  }
+  const intoTarget = pieceFlatToWorldMatrix({
+    pieceId,
+    pieceMesh: targetMesh,
+    index: targetIndex,
+    total,
+    piecePlacements3d,
+    previewSettings,
+    transform,
+  }).invert()
+  const scale = transform.scale === 0 ? 1 : transform.scale
+  const halfThicknessWorld = Math.max(previewSettings.thicknessMm * scale, DEFAULT_THICKNESS_WORLD) / 2
+
+  const obstacles: DrapeObstacleMesh[] = []
+  pieces.forEach((piece, index) => {
+    if (piece.id === pieceId) {
+      return
+    }
+    const pieceMesh = pieceMeshById.get(piece.id)
+    if (!pieceMesh || pieceMesh.outer.length < 3) {
+      return
+    }
+    const outline = decimatePolygon(pieceMesh.outer, 40)
+    const fromPiece = pieceFlatToWorldMatrix({
+      pieceId: piece.id,
+      pieceMesh,
+      index,
+      total,
+      piecePlacements3d,
+      previewSettings,
+      transform,
+    })
+    const toTargetDoc = new Matrix4().multiplyMatrices(intoTarget, fromPiece)
+    const localPoint = (point: Point, height: number) =>
+      flatToWorld(projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY), height)
+        .applyMatrix4(toTargetDoc)
+    const docPoint = (point: Point, height: number) => {
+      const local = localPoint(point, height)
+      return [local.x / scale + transform.centerX, local.y / scale, local.z / scale + transform.centerY]
+    }
+
+    const positions: number[] = []
+    const triangles: number[] = []
+    // Mid-plane sheet: the surface the fold must stay a thickness away from.
+    const contour = outline.map((point) =>
+      projectPiecePoint(point, transform.scale, transform.centerX, transform.centerY),
+    )
+    for (const point of outline) {
+      positions.push(...docPoint(point, 0))
+    }
+    for (const face of ShapeUtilsTriangulate(contour)) {
+      triangles.push(face[0], face[1], face[2])
+    }
+    // Side walls between the slab's two faces, so a fold sweeping in sideways
+    // meets the slab's edge instead of slipping under its surface.
+    const wallBase = positions.length / 3
+    for (const point of outline) {
+      positions.push(...docPoint(point, halfThicknessWorld))
+      positions.push(...docPoint(point, -halfThicknessWorld))
+    }
+    for (let index2 = 0; index2 < outline.length; index2 += 1) {
+      const next = (index2 + 1) % outline.length
+      const topA = wallBase + index2 * 2
+      const bottomA = topA + 1
+      const topB = wallBase + next * 2
+      const bottomB = topB + 1
+      triangles.push(topA, topB, bottomB, topA, bottomB, bottomA)
+    }
+    obstacles.push({ positions, triangles })
+  })
+  return obstacles
+}
+
+/** three's ear-clip triangulation over a projected contour, as index triples. */
+function ShapeUtilsTriangulate(contour: Vector2[]) {
+  return ShapeUtils.triangulateShape(contour, [])
+}
+
+/** Name given to drape shell meshes, so picking knows to read their uv maps. */
+export const ASSEMBLED_DRAPE_MESH_NAME = 'assembled-drape-shell'
+
+/**
+ * The visible leather of a draped piece: the solved mid-surface offset half a
+ * thickness each way, with walls along the cut boundary.
+ *
+ * Unlike the rigid path there is no bend to bridge and no crease to
+ * special-case — the mesh is one continuous surface and the arc is simply
+ * where the solve bent it. Every boundary edge is a genuine cut, so every
+ * wall takes the piece's edge treatment.
+ *
+ * Two uv channels: `uv` carries the projected flat coordinates the extrude
+ * path exposes to textures, so a texture flows unbroken across the fold;
+ * `uv1` carries raw document millimetres, which is what lets a raycast on the
+ * deformed surface come straight back as a document point.
+ */
+function addFoldDrapeShell(params: {
+  parent: Group
+  drape: FoldDrapeResult
+  transform: ModelTransform
+  halfThickness: number
+  frontMaterial: Material
+  backMaterial: Material
+  edgeMaterial: Material
+  outlineColor: string
+}) {
+  const { drape, transform, halfThickness } = params
+  const scale = transform.scale === 0 ? 1 : transform.scale
+  const count = drape.positions.length / 3
+  const local = new Float32Array(count * 3)
+  for (let index = 0; index < count; index += 1) {
+    local[index * 3] = (drape.positions[index * 3] - transform.centerX) * scale
+    local[index * 3 + 1] = drape.positions[index * 3 + 1] * scale
+    local[index * 3 + 2] = (drape.positions[index * 3 + 2] - transform.centerY) * scale
+  }
+
+  const uv = new Float32Array(count * 2)
+  const uvDocument = new Float32Array(count * 2)
+  for (let index = 0; index < count; index += 1) {
+    uv[index * 2] = (drape.restPositions[index * 2] - transform.centerX) * scale
+    uv[index * 2 + 1] = -(drape.restPositions[index * 2 + 1] - transform.centerY) * scale
+    uvDocument[index * 2] = drape.restPositions[index * 2]
+    uvDocument[index * 2 + 1] = drape.restPositions[index * 2 + 1]
+  }
+
+  const surface = (offset: number, reverse: boolean, material: Material) => {
+    const positions = new Float32Array(count * 3)
+    for (let index = 0; index < count; index += 1) {
+      positions[index * 3] = local[index * 3] + drape.normals[index * 3] * offset
+      positions[index * 3 + 1] = local[index * 3 + 1] + drape.normals[index * 3 + 1] * offset
+      positions[index * 3 + 2] = local[index * 3 + 2] + drape.normals[index * 3 + 2] * offset
+    }
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+    geometry.setAttribute('uv', new Float32BufferAttribute(uv.slice(), 2))
+    geometry.setAttribute('uv1', new Float32BufferAttribute(uvDocument.slice(), 2))
+    const order = reverse
+      ? drape.triangles.map((_, i, all) => all[i - (i % 3) + (2 - (i % 3))])
+      : drape.triangles
+    geometry.setIndex(order)
+    geometry.computeVertexNormals()
+    const mesh = new Mesh(geometry, material)
+    mesh.name = ASSEMBLED_DRAPE_MESH_NAME
+    params.parent.add(mesh)
+  }
+  surface(halfThickness, false, params.frontMaterial)
+  surface(-halfThickness, true, params.backMaterial)
+
+  // Cut walls: one quad strip per boundary loop, spanning the two surfaces.
+  const wallPositions: number[] = []
+  const wallUv: number[] = []
+  const wallUvDocument: number[] = []
+  const wallIndex: number[] = []
+  for (const loop of drape.boundaryLoops) {
+    for (let index = 0; index < loop.length; index += 1) {
+      const a = loop[index]
+      const b = loop[(index + 1) % loop.length]
+      const base = wallPositions.length / 3
+      for (const [vertex, offset] of [
+        [a, halfThickness],
+        [b, halfThickness],
+        [b, -halfThickness],
+        [a, -halfThickness],
+      ] as Array<[number, number]>) {
+        wallPositions.push(
+          local[vertex * 3] + drape.normals[vertex * 3] * offset,
+          local[vertex * 3 + 1] + drape.normals[vertex * 3 + 1] * offset,
+          local[vertex * 3 + 2] + drape.normals[vertex * 3 + 2] * offset,
+        )
+        wallUv.push(uv[vertex * 2], uv[vertex * 2 + 1])
+        wallUvDocument.push(uvDocument[vertex * 2], uvDocument[vertex * 2 + 1])
+      }
+      wallIndex.push(base, base + 1, base + 2, base, base + 2, base + 3)
+    }
+  }
+  if (wallIndex.length > 0) {
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new Float32BufferAttribute(wallPositions, 3))
+    geometry.setAttribute('uv', new Float32BufferAttribute(wallUv, 2))
+    geometry.setAttribute('uv1', new Float32BufferAttribute(wallUvDocument, 2))
+    geometry.setIndex(wallIndex)
+    geometry.computeVertexNormals()
+    // The loop's winding decides which way the quads face; double-sided keeps
+    // the cut visible either way, the same accommodation the bend makes.
+    const mesh = new Mesh(geometry, bendSurfaceMaterial(params.edgeMaterial))
+    mesh.name = ASSEMBLED_DRAPE_MESH_NAME
+    params.parent.add(mesh)
+  }
+
+  // The piece outline, following the outer cut edge over the folds.
+  const outer = drape.boundaryLoops[0] ?? []
+  if (outer.length > 1) {
+    const points: Vector3[] = []
+    const lift = halfThickness + 0.0015
+    for (let index = 0; index < outer.length; index += 1) {
+      for (const vertex of [outer[index], outer[(index + 1) % outer.length]]) {
+        points.push(
+          new Vector3(
+            local[vertex * 3] + drape.normals[vertex * 3] * lift,
+            local[vertex * 3 + 1] + drape.normals[vertex * 3 + 1] * lift,
+            local[vertex * 3 + 2] + drape.normals[vertex * 3 + 2] * lift,
+          ),
+        )
+      }
+    }
+    params.parent.add(
+      new LineSegments(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color: params.outlineColor })),
+    )
+  }
+}
+
+/**
+ * Stitch holes and thread runs carried onto the draped surface.
+ *
+ * The flat-path variant places these at a constant height over a flat piece;
+ * here each hole rides the solved surface at its own point, so stitching on a
+ * flap stays on the flap through the bend and over whatever it drapes on.
+ */
+function addDrapedStitchHoles(
+  group: Group,
+  piece: PatternPiece,
+  drape: FoldDrapeResult,
+  transform: ModelTransform,
+  halfThickness: number,
+  holes: StitchHole[],
+  threadColor: string,
+) {
+  if (holes.length === 0) {
+    return
+  }
+  const scale = transform.scale === 0 ? 1 : transform.scale
+  const surfacePoint = (point: Point, extraLift: number) => {
+    const solved = drape.mapPoint(point)
+    const normal = drape.mapNormal(point)
+    const lift = halfThickness + extraLift
+    return new Vector3(
+      (solved.x - transform.centerX) * scale + normal.x * lift,
+      solved.y * scale + normal.y * lift,
+      (solved.z - transform.centerY) * scale + normal.z * lift,
+    )
+  }
+
+  const geometry = new CylinderGeometry(0.006, 0.006, 0.003, 10)
+  const material = new MeshStandardMaterial({
+    color: threadColor,
+    roughness: 0.55,
+    metalness: 0.05,
+  })
+  const instances = new InstancedMesh(geometry, material, holes.length)
+  const matrix = new Matrix4()
+  holes.forEach((hole, index) => {
+    matrix.makeRotationX(Math.PI / 2)
+    const world = surfacePoint(hole.point, 0.0025)
+    matrix.setPosition(world.x, world.y, world.z)
+    instances.setMatrixAt(index, matrix)
+  })
+  instances.instanceMatrix.needsUpdate = true
+  group.add(instances)
+
+  const { chains } = buildStitchChains(holes)
+  for (const chain of chains) {
+    const points = chain.holes.map((hole) => surfacePoint(hole.point, 0.0025))
+    const runs = buildThreadSegments(saddleStitchSegments(points), material, 0.0035, `assembled-stitch-run-${piece.id}-${chain.id}`)
+    if (runs) {
+      group.add(runs)
+    }
+  }
+}
+
+/**
  * The material for a piece's cut edges.
  *
  * Burnishing compresses and darkens the leather's own colour; edge paint lays a
@@ -670,6 +1028,7 @@ function addAssembledStitchHoles(
 
 function createAssembledPieceGroup({
   piece,
+  pieces,
   pieceMesh,
   index,
   total,
@@ -686,6 +1045,8 @@ function createAssembledPieceGroup({
   threadColor,
 }: {
   piece: PatternPiece
+  /** Every visible piece, in build order — the fold's collision world. */
+  pieces: PatternPiece[]
   pieceMesh: PieceMeshData
   index: number
   total: number
@@ -730,13 +1091,13 @@ function createAssembledPieceGroup({
   const contentCache = new Map<string, Group>()
   const frames: AssembledPieceFrame[] = []
 
-  // How far each crease has to turn, in scene units. Resolved once per piece so
-  // the pivot chain and the bend surface can never disagree about it.
+  // How far each crease has to turn. Resolved once per piece so the pivot
+  // chain, the drape and the bend surface can never disagree about it.
   const halfThicknessMm = Math.max(previewSettings.thicknessMm, 0) / 2
-  const radiusByFoldId = new Map<string, number>()
+  const radiusMmByFoldId = new Map<string, number>()
   for (const region of regions) {
     for (const hinge of region.hinges) {
-      if (radiusByFoldId.has(hinge.foldLineId)) {
+      if (radiusMmByFoldId.has(hinge.foldLineId)) {
         continue
       }
       const wrappedMm = wrappedThicknessMm({
@@ -746,14 +1107,63 @@ function createAssembledPieceGroup({
         pieceMeshById,
         materialThicknessMm: previewSettings.thicknessMm,
       })
-      radiusByFoldId.set(hinge.foldLineId, hingeBendRadiusMm(hinge, wrappedMm, halfThicknessMm) * transform.scale)
+      radiusMmByFoldId.set(hinge.foldLineId, hingeBendRadiusMm(hinge, wrappedMm, halfThicknessMm))
     }
   }
-  const bendRadiusWorld = (hinge: FoldHingeStep) => radiusByFoldId.get(hinge.foldLineId) ?? 0
+  const bendRadiusWorld = (hinge: FoldHingeStep) =>
+    (radiusMmByFoldId.get(hinge.foldLineId) ?? 0) * transform.scale
+
+  // The simulated fold. Each fold that is actually dialled becomes a crease
+  // for the drape solver, and every other piece becomes a rigid body in its
+  // way; the pivot-chain path below stays as the fallback when the solve
+  // cannot run — a degenerate mesh, or a piece too big to settle live.
+  const drapeFolds: DrapeFoldInput[] = []
+  for (const foldLine of pieceFolds) {
+    const swingRegion = regions.find((region) =>
+      region.hinges.some((hinge) => hinge.foldLineId === foldLine.id),
+    )
+    const hinge = swingRegion?.hinges.find((entry) => entry.foldLineId === foldLine.id)
+    if (!swingRegion || !hinge || Math.abs(hinge.angleDeg) < 0.5) {
+      continue
+    }
+    drapeFolds.push({
+      foldLineId: foldLine.id,
+      start: hinge.start,
+      end: hinge.end,
+      angleDeg: hinge.angleDeg,
+      bendRadiusMm: radiusMmByFoldId.get(foldLine.id) ?? 0,
+      swingSample: polygonCentroid(swingRegion.polygon),
+    })
+  }
+  const drapeSolve =
+    drapeFolds.length > 0
+      ? solveFoldDrape({
+          outer: pieceMesh.outer,
+          holes: pieceMesh.holes,
+          folds: drapeFolds,
+          thicknessMm: Math.max(
+            previewSettings.thicknessMm,
+            DEFAULT_THICKNESS_WORLD / (transform.scale === 0 ? 1 : transform.scale),
+          ),
+          obstacles: drapeObstaclesForPiece({
+            pieceId: piece.id,
+            pieces,
+            pieceMeshById,
+            piecePlacements3d,
+            previewSettings,
+            transform,
+          }),
+        })
+      : null
 
   regions.forEach((region, regionIndex) => {
     const { content: target } = regionFrame(region, group, transform, pivotCache, contentCache, bendRadiusWorld)
     frames.push({ region, object: target })
+    if (drapeSolve) {
+      // The frames still exist — picking and overlays fall back to them —
+      // but the drape draws the leather.
+      return
+    }
     const shape = createRegionShape(region, pieceMesh.holes, transform)
 
     const bodyGeometry = new ExtrudeGeometry(shape, { depth: thicknessWorld, bevelEnabled: false, steps: 1 })
@@ -771,35 +1181,66 @@ function createAssembledPieceGroup({
     addAssembledStitchHoles(target, piece, halfThickness, holeBuckets[regionIndex], threadColor, transform)
   })
 
-  // The leather that wraps the crease. It belongs to neither half, so it is
-  // built once per crease in the frame of the half that stays; the extruded
-  // slabs' own crease walls end up enclosed by it, which is why they are left
-  // alone rather than cut away.
-  const bendFrontMaterial = bendSurfaceMaterial(frontMaterial)
-  const bendBackMaterial = bendSurfaceMaterial(materials.assembledBackMaterial)
-  const bendEdgeMaterial = bendSurfaceMaterial(sideMaterial)
-  for (const region of regions) {
-    const hinge = region.hinges[region.hinges.length - 1]
-    if (!hinge) {
-      continue
-    }
-    const foldLine = pieceFolds.find((entry) => entry.id === hinge.foldLineId)
-    const parent = contentCache.get(region.hinges.slice(0, -1).map((entry) => entry.foldLineId).join('|'))
-    if (!foldLine || !parent) {
-      continue
-    }
-    addFoldBend({
-      parent,
-      region,
-      hinge,
-      foldLine,
-      halfThickness,
-      bendRadiusWorld: bendRadiusWorld(hinge),
+  let drape: AssembledPieceDrape | null = null
+  if (drapeSolve) {
+    const drapeGroup = new Group()
+    drapeGroup.name = 'assembled-drape'
+    group.add(drapeGroup)
+    addFoldDrapeShell({
+      parent: drapeGroup,
+      drape: drapeSolve,
       transform,
-      frontMaterial: bendFrontMaterial,
-      backMaterial: bendBackMaterial,
-      edgeMaterial: bendEdgeMaterial,
+      halfThickness,
+      frontMaterial,
+      backMaterial: materials.assembledBackMaterial,
+      edgeMaterial: sideMaterial,
+      outlineColor,
     })
+    addDrapedStitchHoles(drapeGroup, piece, drapeSolve, transform, halfThickness, pieceHoles, threadColor)
+    const scale = transform.scale === 0 ? 1 : transform.scale
+    drape = {
+      solve: drapeSolve,
+      object: drapeGroup,
+      toLocal: (point) =>
+        new Vector3(
+          (point.x - transform.centerX) * scale,
+          point.y * scale,
+          (point.z - transform.centerY) * scale,
+        ),
+    }
+  }
+
+  if (!drapeSolve) {
+    // The leather that wraps the crease. It belongs to neither half, so it is
+    // built once per crease in the frame of the half that stays; the extruded
+    // slabs' own crease walls end up enclosed by it, which is why they are
+    // left alone rather than cut away.
+    const bendFrontMaterial = bendSurfaceMaterial(frontMaterial)
+    const bendBackMaterial = bendSurfaceMaterial(materials.assembledBackMaterial)
+    const bendEdgeMaterial = bendSurfaceMaterial(sideMaterial)
+    for (const region of regions) {
+      const hinge = region.hinges[region.hinges.length - 1]
+      if (!hinge) {
+        continue
+      }
+      const foldLine = pieceFolds.find((entry) => entry.id === hinge.foldLineId)
+      const parent = contentCache.get(region.hinges.slice(0, -1).map((entry) => entry.foldLineId).join('|'))
+      if (!foldLine || !parent) {
+        continue
+      }
+      addFoldBend({
+        parent,
+        region,
+        hinge,
+        foldLine,
+        halfThickness,
+        bendRadiusWorld: bendRadiusWorld(hinge),
+        transform,
+        frontMaterial: bendFrontMaterial,
+        backMaterial: bendBackMaterial,
+        edgeMaterial: bendEdgeMaterial,
+      })
+    }
   }
 
   if (previewSettings.showEdgeLabels) {
@@ -819,7 +1260,7 @@ function createAssembledPieceGroup({
   applyPlacementTransform(group, placement, index, total, previewSettings, transform, pivot)
   group.updateMatrixWorld(true)
 
-  return { group, frames }
+  return { group, frames, drape }
 }
 
 /**
@@ -861,7 +1302,11 @@ export function pieceFramePointWorld(
   pieceMesh: PieceMeshData,
   group: Group,
   transform: ModelTransform,
+  drape?: AssembledPieceDrape | null,
 ) {
+  if (drape) {
+    return drape.toLocal(drape.solve.mapPoint(point)).applyMatrix4(drape.object.matrixWorld)
+  }
   const frame = frameForPoint(frames, point)
   if (!frame) {
     return piecePointWorld(point, pieceMesh, group, transform)
@@ -876,12 +1321,13 @@ function edgeMidpointWorld(
   pieceMesh: PieceMeshData,
   edgeIndex: number,
   transform: ModelTransform,
+  drape?: AssembledPieceDrape | null,
 ) {
   const edge = pieceMesh.edges[Math.max(0, Math.min(pieceMesh.edges.length - 1, edgeIndex))]
   if (!edge) {
     return null
   }
-  return pieceFramePointWorld(edge.midpoint, frames, pieceMesh, group, transform)
+  return pieceFramePointWorld(edge.midpoint, frames, pieceMesh, group, transform, drape)
 }
 
 function edgeLengthWorld(pieceMesh: PieceMeshData, edgeIndex: number, transform: ModelTransform) {
@@ -907,16 +1353,17 @@ function seamSideWorld(params: {
   connection: SeamConnection
   side: 'from' | 'to'
   transform: ModelTransform
+  drape?: AssembledPieceDrape | null
 }) {
-  const { group, frames, piece, pieceMeshById, connection, side, transform } = params
+  const { group, frames, piece, pieceMeshById, connection, side, transform, drape } = params
   const resolved = resolveConnectionSide(pieceMeshById, connection, side)
   if (!resolved) {
     const edgeIndex = connection[side].edgeIndex
-    const midpoint = edgeMidpointWorld(group, frames, piece, edgeIndex, transform)
+    const midpoint = edgeMidpointWorld(group, frames, piece, edgeIndex, transform, drape)
     return midpoint ? { midpoint, lengthWorld: edgeLengthWorld(piece, edgeIndex, transform) } : null
   }
   return {
-    midpoint: pieceFramePointWorld(seamSideMidpoint(resolved), frames, piece, group, transform),
+    midpoint: pieceFramePointWorld(seamSideMidpoint(resolved), frames, piece, group, transform, drape),
     lengthWorld: resolved.lengthMm * transform.scale,
   }
 }
@@ -978,9 +1425,11 @@ function addSeamStitching(
     transform: ModelTransform
     color: Color
     sewnFraction: number
+    fromDrape?: AssembledPieceDrape | null
+    toDrape?: AssembledPieceDrape | null
   },
 ) {
-  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction } = params
+  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction, fromDrape, toDrape } = params
   if (pairs.length === 0 || sewnFraction <= 0) {
     return
   }
@@ -992,8 +1441,8 @@ function addSeamStitching(
     for (let index = 0; index < sewnCount; index += 1) {
       // On a closed seam these two land on top of each other, so the segment
       // between them is invisible. A visible one means the sides have not met.
-      const left = pieceFramePointWorld(pair.left.holes[index].point, fromFrames, fromPiece, fromGroup, transform)
-      const right = pieceFramePointWorld(pair.right.holes[index].point, toFrames, toPiece, toGroup, transform)
+      const left = pieceFramePointWorld(pair.left.holes[index].point, fromFrames, fromPiece, fromGroup, transform, fromDrape)
+      const right = pieceFramePointWorld(pair.right.holes[index].point, toFrames, toPiece, toGroup, transform, toDrape)
       points.push(left, right)
     }
   }
@@ -1050,14 +1499,16 @@ export function rebuildAssembledModel({
     const pieceMeshById = new Map(pieceMeshes.map((piece) => [piece.pieceId, piece]))
     const pieceGroupById = new Map<string, Group>()
     const pieceFramesById = new Map<string, AssembledPieceFrame[]>()
+    const pieceDrapeById = new Map<string, AssembledPieceDrape | null>()
 
     pieces.forEach((piece, index) => {
       const pieceMesh = pieceMeshById.get(piece.id)
       if (!pieceMesh) {
         return
       }
-      const { group, frames } = createAssembledPieceGroup({
+      const { group, frames, drape } = createAssembledPieceGroup({
         piece,
+        pieces,
         pieceMesh,
         index,
         total: pieces.length,
@@ -1075,6 +1526,7 @@ export function rebuildAssembledModel({
       })
       pieceGroupById.set(piece.id, group)
       pieceFramesById.set(piece.id, frames)
+      pieceDrapeById.set(piece.id, drape)
       assembledGroup.add(group)
     })
 
@@ -1094,8 +1546,10 @@ export function rebuildAssembledModel({
 
         const fromFrames = pieceFramesById.get(connection.from.pieceId) ?? []
         const toFrames = pieceFramesById.get(connection.to.pieceId) ?? []
-        const fromSide = seamSideWorld({ group: fromGroup, frames: fromFrames, piece: fromPiece, pieceMeshById, connection, side: 'from', transform })
-        const toSide = seamSideWorld({ group: toGroup, frames: toFrames, piece: toPiece, pieceMeshById, connection, side: 'to', transform })
+        const fromDrape = pieceDrapeById.get(connection.from.pieceId) ?? null
+        const toDrape = pieceDrapeById.get(connection.to.pieceId) ?? null
+        const fromSide = seamSideWorld({ group: fromGroup, frames: fromFrames, piece: fromPiece, pieceMeshById, connection, side: 'from', transform, drape: fromDrape })
+        const toSide = seamSideWorld({ group: toGroup, frames: toFrames, piece: toPiece, pieceMeshById, connection, side: 'to', transform, drape: toDrape })
         if (!fromSide || !toSide) {
           continue
         }
@@ -1122,6 +1576,8 @@ export function rebuildAssembledModel({
           transform,
           color,
           sewnFraction,
+          fromDrape,
+          toDrape,
         })
       }
     }

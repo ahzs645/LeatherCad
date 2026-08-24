@@ -26,6 +26,7 @@ import {
 import { ThreeMaterialManager } from './material-manager'
 import type { PieceMeshData } from './piece-mesh'
 import { EngineRuntime, type CameraFitMode } from './engine-runtime'
+import { ASSEMBLED_DRAPE_MESH_NAME } from './assembled-model-builder'
 import {
   nearestBoundaryEdge,
   pieceIdForObject,
@@ -644,10 +645,19 @@ export class ThreeBridge {
       if (!pieceMesh || !pieceGroup) {
         continue
       }
-      // The region group the hit landed in, so a click on a folded flap maps
-      // back through the fold rather than through the piece's flat pose.
-      const frame = pieceFrameForObject(hit.object) ?? pieceGroup
-      const documentPoint = worldPointToDocument(hit.point, frame, this.transform)
+      // A drape shell is deformed geometry — no frame matrix can undo a
+      // bend — so it carries the document coordinates in its second uv
+      // channel and the raycaster interpolates them at the hit.
+      const drapeUv = hit.object.name === ASSEMBLED_DRAPE_MESH_NAME ? hit.uv1 : undefined
+      const documentPoint = drapeUv
+        ? { x: drapeUv.x, y: drapeUv.y }
+        : worldPointToDocument(
+            hit.point,
+            // The region group the hit landed in, so a click on a folded flap
+            // maps back through the fold rather than the piece's flat pose.
+            pieceFrameForObject(hit.object) ?? pieceGroup,
+            this.transform,
+          )
       const edge = nearestBoundaryEdge(pieceMesh, documentPoint)
       if (edge) {
         return edge

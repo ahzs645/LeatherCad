@@ -23,6 +23,9 @@ importers:
       '@atelier/render':
         specifier: link:../atelier/packages/render
         version: link:../atelier/packages/render
+      '@atelier/sim':
+        specifier: link:../atelier/packages/sim
+        version: link:../atelier/packages/sim
       '@atelier/viewport':
         specifier: link:../atelier/packages/viewport
         version: link:../atelier/packages/viewport
