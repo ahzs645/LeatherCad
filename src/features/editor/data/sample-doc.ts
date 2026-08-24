@@ -7,6 +7,7 @@ import {
   createDefaultLineTypes,
 } from '../cad/line-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
+import { IMPORTED_PATTERN_PRESETS } from './imported-pattern-presets'
 import { SEAMED_PATTERN_PRESETS } from './seamed-sample-patterns'
 
 type PresetDefinition = {
@@ -727,6 +728,7 @@ export const PRESET_DOCS: PresetDefinition[] = [
     ),
   },
   ...SEAMED_PATTERN_PRESETS,
+  ...IMPORTED_PATTERN_PRESETS,
 ]
 
 export const DEFAULT_PRESET_ID = 'trifold'
