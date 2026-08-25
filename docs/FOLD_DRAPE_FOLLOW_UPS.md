@@ -183,6 +183,24 @@ difference between the fix working and doing nothing at all.
 | vertices through the half that stays | 1 | 0 |
 | bend crown along the crease | 3.66–7.10 mm | 3.64–3.72 mm |
 
+## 2d. The fold spends no material — **open, and it needs a decision**
+
+The one that survives all the above. Measured: fold a 40 mm square in half and
+the tip lands on the mirror of the flat piece to within 0.03 mm; on the wallet,
+52 flap vertices average 0.02 mm off the mirror. A real bend of radius R
+through angle A eats `A·R` of flat material, so the flap should come to rest
+about `A·R/2 ≈ 2.8 mm` short of where ours puts it. It doesn't come up short at
+all — and the bend region takes the strain instead, which is why the only edges
+above 1% strain anywhere in the mesh are the short ones inside the arc.
+
+The app already carries the parameter: every fold line has a
+`neutralAxisRatio`, which is a K-factor. Only Fold mode reads it.
+
+See [`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md) for what
+the published work does about this, about crease-aligned meshing, and about
+folding over a stack — and for why the fix is a decision about what a drawn
+fold line *means*, not a patch.
+
 ## 3. Couple the pieces: obstacles are rigid today
 
 Each folded piece still solves alone, seeing every *other* piece as a rigid slab
