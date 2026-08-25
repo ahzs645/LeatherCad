@@ -4,53 +4,62 @@ Written because the fold still looks wrong after two rounds of fixing what was
 visibly wrong with it. This is the measurement that says *why*, and what the
 published work does about each part of it.
 
-Short version: our fold is **not simulated, it is prescribed**. Every movable
-vertex is pulled toward a pose computed by rotating the flap rigidly about a
-lifted axis, and the cloth solver's job is only to notice contact. That
-convention has one measurable consequence a maker will care about — the fold
-consumes no material — and it is the reason the leather looks subtly wrong even
-when nothing is obviously broken.
+**Correction, and it is the main finding.** The first version of this note
+claimed the fold spends no material and that the flap over-reaches by about
+`A·R/2`. That was wrong, and the evidence against it was already in the
+previous section's own measurements: the cross-section's arc length is
+preserved to 0.00%, which cannot be true of a fold that stretches to reach.
 
----
-
-## 1. What ours does, measured
-
-**The flap lands on the mirror of the flat piece.** Fold a 40 mm square in half
-at 180°: the tip starts 20 mm from the crease and lands 20 mm past it, to
-within 0.03 mm. Same on the wallet's own body panel — 52 flap vertices, mean
-0.02 mm off the mirror image of the flat pattern.
-
-That is a rigid hinge, not a bend. A real fold spends material on its arc:
+What misled me: at 180° the flap does land on the mirror of the flat piece to
+within 0.03 mm. That is not a missing bend allowance — **it is what a correct
+symmetric fold does.** The arc's material comes half from each side of the
+crease, so the bend bulges out past the crease by exactly as much as it eats,
+and the tip lands back on the mirror. Worked through:
 
 ```
-bend allowance   BA = A · (R + K·T)        A in radians, R inside radius,
-                                            T thickness, K the neutral axis
-mid-surface form BA = A · R                 (K = 0.5, which is what a
-                                            mid-surface model already is)
+half-zone   w = A·R/2                     material each side gives to the arc
+flat part   the half that stays ends at   w from the crease
+arc         radius R, centre at (w, -R),  turning through A
+flap        runs straight off the arc's far end
+at A = pi   arc ends directly above its start; the flap runs back out
+            and its tip lands at -s: the mirror
 ```
 
-For the wallet — A = π, R = 1.8 mm, symmetric bend zone — the flap should come
-to rest about **A·R/2 ≈ 2.8 mm short** of the mirror. It doesn't come up short
-at all. Two things follow, and both are visible:
+**Checked against the solver rather than argued.** Comparing every vertex down
+the middle of a 60 mm panel against that textbook fold, at four combinations of
+angle and radius (90°/1.8, 180°/1.8, 180°/4, 120°/2.5): **mean deviation
+0.068 mm, worst 0.25 mm**, and the worst is the flap's far tip where the
+solver's own contact and settling do their work. The fold's kinematics are
+right, and a test in `assembled-fold-drape.test.ts` now pins them there.
 
-- **The flap over-reaches by ~2.8 mm.** On a piece where the flap's edge is
-  meant to meet a stitch line, that is the difference between meeting it and
-  not.
-- **The bend region takes the strain instead.** The only edges anywhere in the
-  mesh above 1% strain are the ~1.9 mm edges *inside the bend* — three of 1515
-  on a 300 mm panel. The leather is being stretched over the arc to make up the
-  material the pose never spent.
+**And the convention is the standard one.** Sheet-metal practice puts a single
+drawn bend line at *the centre of the bend allowance* — "the bend line should
+be dimensioned to the center of the bend from the nearest edge, which is the
+middle of the bend allowance section". Our bend zone straddles the fold line
+symmetrically and consumes `A·R` of flat material. That is the same
+convention, already implemented, and it is the one a maker wants: draw the line
+where the leather turns, and the two edges meet when it closes.
 
-**The app already owns the missing parameter.** Every fold line carries a
-`neutralAxisRatio` — a K-factor by another name — and `resolveFoldBehavior`
-parses and clamps it. Only Fold mode reads it (`fold-manager.ts`, as a
-`(ratio − 0.5) × thickness` offset). The assembled view, analytic and draped
-alike, ignores it and consumes nothing.
+## 1. What is actually still open
 
-**The drape and the rigid fold share this convention deliberately.** A builder
-test pins the drape against the rigid transform, so this is not a drift between
-two paths — it is one convention, applied consistently, that happens not to
-conserve material.
+Three things, none of them the fold's shape:
+
+- **The fold is prescribed, not simulated.** Every movable vertex is pulled
+  toward a pose computed in advance; the solver's real job is only to notice
+  contact. The shape is right because the pose is right — not because the
+  physics found it. Leather stiffness, the sag of an unsupported flap, and the
+  difference between a soft chrome-tan and a firm veg-tan cannot show up in a
+  fold whose every vertex is already told where to go.
+- **`neutralAxisRatio` is ignored by the assembled view.** A mid-surface model
+  is a K = 0.5 model by construction. Leather compresses on the inside of a
+  bend, so its neutral axis sits inboard of the middle — K nearer 0.35 — which
+  moves the material a bend eats by `A·T·(K − 0.5)`, about 0.85 mm at a full
+  fold in 1.8 mm leather. Small, real, and the slider for it already exists in
+  the document model.
+- **No gravity.** Deliberate, and recorded in the follow-ups, but it is the
+  most likely reason a fold reads as "not quite right" once its geometry is
+  correct: nothing sags, nothing settles, an unsupported flap holds its swept
+  pose exactly.
 
 ## 2. How the published work drives a fold
 
@@ -143,24 +152,23 @@ guarantee, which is why a tight stack is where it will fail first.
 
 ## 5. What to do, in order
 
-1. **Spend the bend allowance.** The cheapest correct fix for the visible
-   error: the pose should carry the moving side toward the crease by the arc's
-   material, `A·R/2` for a symmetric zone, and honour `neutralAxisRatio` while
-   it is at it. This is a change of *convention*, so it lands in the analytic
-   fold and the drape together — the builder test pins them to each other on
-   purpose. **Needs a decision first:** does a drawn fold line mean the apex of
-   the bend (today) or the material that the bend will eat (every leatherworker
-   and every sheet-metal CAD package)?
-2. **Drive the fold by its dihedral, not by dragging every vertex.**
-   `assignCreaseTargets` is already in the engine, and with it the arc, its
-   radius and the material it spends all come out of the physics instead of
-   being drawn. Needs a quasi-static ramp; the naive swap scrolls the flap.
-   This subsumes (1) rather than adding to it.
-3. **Adaptive crease-aligned remeshing**, when oblique or crossing folds
+1. **Drive the fold by its dihedral instead of dragging every vertex to a
+   pose.** This is the one that changes what the simulation *is*: with
+   `assignCreaseTargets` the arc, its radius and the material it spends all
+   come out of the physics, and leather stiffness starts to matter. Already in
+   the engine, never called here. Needs a quasi-static ramp — the naive swap
+   scrolls the flap.
+2. **A little gravity.** The cheapest thing that would make a fold read as
+   leather rather than as geometry, now that the geometry is right. Recorded as
+   a deliberate omission for determinism; item 1's warm start makes it cheap to
+   revisit.
+3. **Honour `neutralAxisRatio`** in the assembled view. Worth about 0.85 mm at
+   a full fold in 1.8 mm leather, and the slider already exists.
+4. **Adaptive crease-aligned remeshing**, when oblique or crossing folds
    matter. Narain et al. is the reference.
-4. **Thickness guarantees**, if folding over deep stacks becomes routine. C-IPC
-   is the target to aim at; the cheap version is to keep growing the radius by
-   the wrapped stack, which we already do.
+5. **Thickness guarantees**, if folding over deep stacks becomes routine.
+   C-IPC is the target; the cheap version — growing the radius by the wrapped
+   stack — is what we already do.
 
 ## Sources
 

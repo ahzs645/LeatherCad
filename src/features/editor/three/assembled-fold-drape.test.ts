@@ -288,6 +288,73 @@ describe('solveFoldDrape', () => {
     expect(otherWay).toBeLessThan(0.2)
   })
 
+  it('folds the way the arithmetic says a bend of that radius folds', () => {
+    // The fold worked out by hand: a bend zone A*R wide centred on the crease,
+    // the half that stays, an arc of radius R, and the flap running straight
+    // off the arc's far end. Position as a function of material distance from
+    // the crease. At a full fold this lands the tip back on the mirror of the
+    // flat piece — the arc bulges past the crease by exactly what it eats —
+    // which is worth stating because it looks like a bend that spends nothing
+    // and is the opposite.
+    const textbook = (s: number, angleRad: number, radius: number) => {
+      const half = (angleRad * radius) / 2
+      if (s <= -half) return { across: s, height: 0 }
+      const centre = { across: -half, height: -radius }
+      const phi = Math.min(angleRad, (s + half) / radius)
+      const point = {
+        across: centre.across + radius * Math.sin(phi),
+        height: centre.height + radius * Math.cos(phi),
+      }
+      if (s <= half) return point
+      const run = s - half
+      return {
+        across: point.across + run * Math.cos(angleRad),
+        height: point.height - run * Math.sin(angleRad),
+      }
+    }
+
+    const size = 60
+    for (const [angleDeg, radius] of [[90, 1.8], [180, 1.8], [180, 4], [120, 2.5]] as const) {
+      const data = solveFoldDrapeData({
+        outer: [
+          { x: 0, y: 0 },
+          { x: size, y: 0 },
+          { x: size, y: size },
+          { x: 0, y: size },
+        ],
+        holes: [],
+        thicknessMm: 1.8,
+        folds: [
+          {
+            foldLineId: 'fold-1',
+            start: { x: 0, y: size / 2 },
+            end: { x: size, y: size / 2 },
+            angleDeg,
+            bendRadiusMm: radius,
+            swingSample: { x: size / 2, y: size / 4 },
+          },
+        ],
+      })
+      expect(data).not.toBeNull()
+      const angleRad = (angleDeg * Math.PI) / 180
+      let worst = 0
+      // A column of vertices down the middle, clear of the outline's own ring.
+      for (let index = 0; index < data!.restPositions.length / 2; index += 1) {
+        if (Math.abs(data!.restPositions[index * 2] - size / 2) > 2) continue
+        const s = size / 2 - data!.restPositions[index * 2 + 1]
+        const expected = textbook(s, angleRad, radius)
+        worst = Math.max(
+          worst,
+          Math.hypot(
+            size / 2 - data!.positions[index * 3 + 2] - expected.across,
+            data!.positions[index * 3 + 1] - expected.height,
+          ),
+        )
+      }
+      expect(worst).toBeLessThan(0.5)
+    }
+  })
+
   it('returns null when there is nothing to fold', () => {
     expect(
       solveFoldDrape({ outer: SQUARE, holes: [], folds: [], thicknessMm: 2 }),

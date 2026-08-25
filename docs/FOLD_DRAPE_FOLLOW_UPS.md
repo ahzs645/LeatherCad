@@ -183,23 +183,24 @@ difference between the fix working and doing nothing at all.
 | vertices through the half that stays | 1 | 0 |
 | bend crown along the crease | 3.66–7.10 mm | 3.64–3.72 mm |
 
-## 2d. The fold spends no material — **open, and it needs a decision**
+## 2d. The fold's kinematics check out — **verified, no change**
 
-The one that survives all the above. Measured: fold a 40 mm square in half and
-the tip lands on the mirror of the flat piece to within 0.03 mm; on the wallet,
-52 flap vertices average 0.02 mm off the mirror. A real bend of radius R
-through angle A eats `A·R` of flat material, so the flap should come to rest
-about `A·R/2 ≈ 2.8 mm` short of where ours puts it. It doesn't come up short at
-all — and the bend region takes the strain instead, which is why the only edges
-above 1% strain anywhere in the mesh are the short ones inside the arc.
+Recorded because it was claimed as a bug first. Every vertex down the middle of
+a 60 mm panel, compared against a fold worked out by hand — a symmetric bend
+zone `A·R` wide, the half that stays, an arc of radius R, the flap running
+straight off its far end — at 90°/1.8 mm, 180°/1.8 mm, 180°/4 mm and
+120°/2.5 mm: **mean 0.068 mm off, worst 0.25 mm** at the flap's tip.
 
-The app already carries the parameter: every fold line has a
-`neutralAxisRatio`, which is a K-factor. Only Fold mode reads it.
+At a full fold the flap lands on the mirror of the flat piece, which looks like
+a bend that consumed no material and is not: the arc takes half its material
+from each side of the crease and bulges past it by as much as it eats. The
+convention matches sheet-metal practice, where a single drawn bend line marks
+the centre of the bend allowance.
 
-See [`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md) for what
-the published work does about this, about crease-aligned meshing, and about
-folding over a stack — and for why the fix is a decision about what a drawn
-fold line *means*, not a patch.
+What that leaves open is not the shape:
+[`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md) — the fold is
+prescribed rather than simulated, `neutralAxisRatio` is unused in the assembled
+view, and there is no gravity.
 
 ## 3. Couple the pieces: obstacles are rigid today
 
