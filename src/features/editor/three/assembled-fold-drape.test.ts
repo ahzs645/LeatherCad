@@ -195,6 +195,51 @@ describe('solveFoldDrape', () => {
     expect(furthestApart(seeded!, cold!)).toBeLessThan(1e-6)
   })
 
+  it('folds to the radius it was given, whatever the piece is meshed at', () => {
+    // What sets the tightness of a closed fold: the leather, or the lattice?
+    // It used to be the lattice — the bend zone was floored at the mesh
+    // spacing, so the same 1.8 mm bend closed to 3.8 mm on a small piece and
+    // 10.3 mm on a big one, and a wallet stood twice as proud as its leather
+    // said. A fold's closed thickness is 2 × its bend radius; that is a
+    // property of the material, and it may not vary with how coarsely the
+    // piece happens to be meshed.
+    const radius = 1.8
+    for (const size of [40, 130, 200]) {
+      const square: Point[] = [
+        { x: 0, y: 0 },
+        { x: size, y: 0 },
+        { x: size, y: size },
+        { x: 0, y: size },
+      ]
+      const data = solveFoldDrapeData({
+        outer: square,
+        holes: [],
+        thicknessMm: 1.8,
+        folds: [
+          {
+            foldLineId: 'fold-1',
+            start: { x: 0, y: size / 2 },
+            end: { x: size, y: size / 2 },
+            angleDeg: 180,
+            bendRadiusMm: radius,
+            swingSample: { x: size / 2, y: size / 4 },
+          },
+        ],
+      })
+      expect(data).not.toBeNull()
+      // Where the swung half comes to rest, well clear of the bend itself.
+      const heights: number[] = []
+      for (let index = 0; index < data!.restPositions.length / 2; index += 1) {
+        if (data!.restPositions[index * 2 + 1] > size / 2 - 12) continue
+        heights.push(Math.abs(data!.positions[index * 3 + 1]))
+      }
+      heights.sort((a, b) => a - b)
+      const rest = heights[Math.floor(heights.length / 2)]
+      expect(rest).toBeGreaterThan(2 * radius * 0.9)
+      expect(rest).toBeLessThan(2 * radius * 1.15)
+    }
+  })
+
   it('returns null when there is nothing to fold', () => {
     expect(
       solveFoldDrape({ outer: SQUARE, holes: [], folds: [], thicknessMm: 2 }),

@@ -53,6 +53,8 @@ const MAX_SETTLE_STEPS = 120
 const REST_DISPLACEMENT_MM = 5e-2
 /** How many of the way an anchor pulls per iteration — weak, so contact wins. */
 const ANCHOR_HOLD_FRACTION = 0.01
+/** Narrowest bend zone the mesher will resolve, whatever the radius asks for. */
+const MIN_BEND_ZONE_MM = 1.5
 /** Rest-space offset that keeps obstacle vertices clear of the mesh filter. */
 const OBSTACLE_REST_OFFSET_MM = 1e5
 
@@ -330,6 +332,15 @@ function foldAlignedLattice(
     for (let row = 0; row <= rows; row += 1) {
       zoneStations.push(centre - crease.zoneWidth / 2 + (row / rows) * crease.zoneWidth)
     }
+    // A tight bend on a coarse piece asks for station lines a fraction of a
+    // millimetre apart inside a lattice pitched at ten or more. Dropping
+    // straight from one to the other hands the triangulator slivers, and
+    // slivers are what an inextensible mesh tears on — 7% strain on a 300 mm
+    // panel before these existed. Step the pitch back up by doubling instead.
+    const zonePitch = crease.zoneWidth / rows
+    for (let step = zonePitch * 2; step < spacing; step *= 2) {
+      zoneStations.push(centre - crease.zoneWidth / 2 - step, centre + crease.zoneWidth / 2 + step)
+    }
   }
   const stations: number[] = [...zoneStations]
   for (let d = minAcross - spacing; d <= maxAcross + spacing; d += spacing) {
@@ -424,7 +435,7 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
   const area = Math.max(1, (maxX - minX) * (maxY - minY))
   const spacing = Math.min(16, Math.max(3, Math.sqrt(area / 140)))
 
-  const creases = creasesForFolds(params.folds, spacing)
+  const creases = creasesForFolds(params.folds, MIN_BEND_ZONE_MM)
   if (creases.length === 0) {
     return null
   }

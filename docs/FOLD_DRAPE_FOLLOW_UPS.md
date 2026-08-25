@@ -114,6 +114,50 @@ source corrected three things this file used to say:
 What remains is filing it upstream and verifying against seamer's own drapes.
 LeatherCad and atelier need nothing from it.
 
+## 2b. The bend the drape actually turns — **fixed**
+
+Driving the app raised a question the tests never asked: is the fold the shape
+the leather says it is? Measured on the wallet's own body panel, it was not.
+A closed fold's two mid-surfaces end up **2 × the bend radius** apart — 3.6 mm
+for this 1.8 mm leather — and the wallet was closing to **6.6 mm**.
+
+The cause was the bend zone's floor. `creasesForFolds` widened every zone to at
+least the mesh spacing, so the radius the fold actually turned at was
+`max(bendRadius, spacing / π)`: the lattice, not the leather. It scaled with
+the piece, which is the tell — the same 1.8 mm bend closed to 3.8 mm on a 40 mm
+panel and **10.3 mm on a 200 mm one**, a 186% error nobody would see as a bug
+because every fold in a document is wrong by the same amount.
+
+The zone now follows the leather (floored only at `MIN_BEND_ZONE_MM`, 1.5 mm,
+where no mesh could resolve it), and the lattice grades into it by doubling
+its pitch outward instead of dropping straight from the zone's stations to the
+regular ones. Measured across panel sizes at a 180° fold:
+
+| panel | before | after | 2 × bend radius |
+|---|---|---|---|
+| 40 mm | 3.80 mm | 3.80 mm | 3.6 mm |
+| 80 mm | 4.44 mm | 3.74 mm | 3.6 mm |
+| 130 mm | 7.15 mm | 3.74 mm | 3.6 mm |
+| 200 mm | 10.31 mm | 3.73 mm | 3.6 mm |
+
+The wallet's closed fold went 6.6 mm → 3.8 mm. What it costs: three edges of
+1515 on a 300 mm panel take more than 1% strain, all of them the 1.9 mm edges
+inside the bend itself — about a tenth of a millimetre of stretch where the
+leather is wrapped hardest, which is where a real hide stretches too. Mean
+strain across the wallet stays at 0.06%, and its cross-section still measures
+127.8 mm folded against 127.8 mm flat: the surface bends without growing.
+
+Two properties worth keeping in mind, both measured and both correct:
+
+- **A bend tighter than the leather cannot happen.** Ask for a 0.5 mm radius in
+  1.8 mm leather and contact holds the halves 1.8 mm apart regardless. The app
+  cannot ask for it anyway — `minimumBendRadiusMm` floors the radius at half
+  the thickness plus whatever the fold wraps.
+- **The turn is where the crease is.** At a full fold the profile turns 190° of
+  its 180° within 8 mm of the crease (the overshoot is the flap curving back
+  down onto the base), against 124° before — the bend is a bend now, not a
+  smear across the whole flap.
+
 ## 3. Couple the pieces: obstacles are rigid today
 
 Each folded piece still solves alone, seeing every *other* piece as a rigid slab
@@ -195,8 +239,9 @@ definition.
   over the same state is straightforward once item 3 exists.
 - **Solver caps.** A piece meshing past `MAX_CLOTH_VERTICES` (700) falls back
   to the rigid pivot-chain path silently. Re-measured after item 1's lattice
-  change: the wallet's folded pieces mesh to 187 and 106 vertices at every
-  angle, so the cap is nowhere near firing on it. Fine as a guard; if it fires
+  change and §2b's grading: the wallet's folded pieces mesh to 187 and 106
+  vertices at every angle, and a 300 mm panel — the largest tested — to 534, so
+  the cap is not close to firing. Fine as a guard; if it fires
   on a real pattern, that pattern is the test case for tuning `spacing` bounds
   rather than raising the cap.
 - **The flaky mobile e2e is still flaky, and it has moved.** The full suite
