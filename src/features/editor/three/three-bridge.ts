@@ -276,6 +276,7 @@ export class ThreeBridge {
         texturedShapeIdSet: this.texturedShapeIdSet,
         hasActiveTexture: this.materialManager.currentAlbedo !== null,
         materials: {
+          shared: this.materialManager.shared,
           leftMaterial: this.materialManager.leftMaterial,
           rightMaterial: this.materialManager.rightMaterial,
           leftTextureMaterial: this.materialManager.leftTextureMaterial,
@@ -318,6 +319,7 @@ export class ThreeBridge {
         texturedShapeIdSet: this.texturedShapeIdSet,
         hasActiveTexture: this.materialManager.currentAlbedo !== null,
         materials: {
+          shared: this.materialManager.shared,
           leftMaterial: this.materialManager.leftMaterial,
           rightMaterial: this.materialManager.rightMaterial,
           leftTextureMaterial: this.materialManager.leftTextureMaterial,
@@ -358,6 +360,7 @@ export class ThreeBridge {
       texturedShapeIdSet: this.texturedShapeIdSet,
       hasActiveTexture: this.materialManager.currentAlbedo !== null,
       materials: {
+        shared: this.materialManager.shared,
         leftMaterial: this.materialManager.leftMaterial,
         rightMaterial: this.materialManager.rightMaterial,
         leftTextureMaterial: this.materialManager.leftTextureMaterial,

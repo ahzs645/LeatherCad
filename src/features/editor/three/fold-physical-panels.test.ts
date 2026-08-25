@@ -2,9 +2,11 @@ import { Group, MeshStandardMaterial, Vector2 } from 'three'
 import { describe, expect, it } from 'vitest'
 import { ThreeFoldManager } from './fold-manager'
 import { buildFoldLayerSlices, renderPhysicalPanelsForLayer } from './fold-physical-panels'
+import { createSharedMaterials } from './shared-materials'
 
 function createMaterials() {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),

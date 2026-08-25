@@ -50,6 +50,16 @@ document per input event of a drag. A scrub was a slideshow.
   because a state resting on leather that is no longer there is not a head
   start.
 
+- **Materials that outlive a rebuild.** Driving the real app turned up what
+  was left once the solve moved off the thread: every rebuild deleted four
+  WebGL programs and linked four new ones, eight shader compiles per input
+  event. three.js refcounts a compiled program by the materials using it, and
+  every material the assembled builder made — outlines, seam guides, seam
+  stitching, stitch thread, edge finishes — was built inside the rebuild and
+  disposed with it. `shared-materials.ts` keeps one of each configuration
+  alive, bounded and disposed with the bridge. Program links per slider event:
+  **four to zero**.
+
 **What it measures now**, wallet document, this container:
 
 | | per input event |
@@ -58,8 +68,15 @@ document per input event of a drag. A scrub was a slideshow.
 | warm-started solve | 130–190 ms, in the worker |
 | angle already dialled | **7–8 ms**, no solve at all |
 
-The main thread's share of a scrub is the 7–8 ms rebuild; the drape catches up
-one debounce plus one warm solve behind the slider, so ~150–200 ms here rather
+Driven for real — the production build, the wallet preset, the Bend Controls
+slider dragged across its range — a fold-angle event costs the main thread a
+**median 35 ms, worst 80 ms**, against 650–1000 ms before the material fix.
+(This container renders through SwiftShader, where linking a program costs
+~350 ms and an idle page paints at 1 fps; on a GPU the program churn was
+smaller but never free, and the 35 ms is app work either way.)
+
+The main thread's share of a scrub is the rebuild; the drape catches up one
+debounce plus one warm solve behind the slider, so ~150–200 ms here rather
 than the ~100 ms this file originally targeted. On a developer machine it will
 be under that; what the target was really asking for — the frame rate holding
 while the leather settles — is what `e2e/fold-drape-worker.spec.ts` pins, by
@@ -69,7 +86,12 @@ main-thread solver would have swallowed.
 **Left over.** A rebuild with no store still solves in place, which is what the
 tests and any non-browser caller want. If the catch-up ever needs to be
 shorter, the next knob is the settle phase after the ramp — a warm start is
-already at equilibrium and spends most of its time proving it.
+already at equilibrium and spends most of its time proving it. And the
+rebuild still rebuilds *everything*: every geometry in the document is
+recreated per input event, which is what the remaining 35 ms is. Geometry is
+cheaper to recreate than a shader program, so it was not worth the same
+treatment yet; if a scrub ever needs to be cheaper still, that is where it
+is.
 
 ## 2. Upstream the two engine bugs to seamer-studio — **written up, not filed**
 

@@ -6,9 +6,11 @@ import { ThreeAvatarManager } from './avatar-manager'
 import { rebuildAssembledModel } from './assembled-model-builder'
 import { ASSEMBLED_DRAPE_MESH_NAME } from './assembled-model-builder'
 import { pieceFrameForObject, worldPointToDocument } from './seam-edge-picking'
+import { createSharedMaterials } from './shared-materials'
 
 function createMaterials() {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),

@@ -11,6 +11,7 @@ import type {
   ThreePreviewSettings,
 } from '../cad/cad-types'
 import type { PieceMeshData } from './piece-mesh'
+import type { SharedMaterials } from './shared-materials'
 import { ThreeFoldManager } from './fold-manager'
 import type { StitchPair } from './final-product-types'
 import type { FoldDrapeStore } from './fold-drape-store'
@@ -37,6 +38,12 @@ export type BuildModelLayoutResult = {
 }
 
 export type ModelBuilderMaterials = {
+  /**
+   * Materials whose configuration repeats every rebuild. Taking them from here
+   * rather than building them per rebuild is what keeps their compiled shader
+   * programs alive across one — see `shared-materials.ts`.
+   */
+  shared: SharedMaterials
   leftMaterial: MeshStandardMaterial
   rightMaterial: MeshStandardMaterial
   leftTextureMaterial: MeshStandardMaterial

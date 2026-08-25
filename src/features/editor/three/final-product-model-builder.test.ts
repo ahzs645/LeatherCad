@@ -2,9 +2,11 @@ import { Group, MeshStandardMaterial } from 'three'
 import { describe, expect, it } from 'vitest'
 import type { FoldLine, StitchHole } from '../cad/cad-types'
 import { rebuildFinalProductModel } from './final-product-model-builder'
+import { createSharedMaterials } from './shared-materials'
 
 function createMaterials() {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),

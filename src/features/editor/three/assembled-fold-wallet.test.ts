@@ -22,11 +22,13 @@ import { createFoldDrapeStore, type FoldDrapeStore } from './fold-drape-store'
 import { splitPieceByFolds } from './assembled-fold-regions'
 import type { ModelBuilderMaterials } from './model-builder-types'
 import type { OutlinePolygon } from './three-bridge-types'
+import { createSharedMaterials } from './shared-materials'
 
 const DOC_PATH = 'docs/fixtures/pattern-pdf/makesupply-keychain-snap-wallet.doc.json'
 
 function materials(): ModelBuilderMaterials {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),

@@ -8,14 +8,11 @@ import {
   Group,
   InstancedMesh,
   Line,
-  LineBasicMaterial,
   LineSegments,
-  LineDashedMaterial,
   MathUtils,
   Material,
   Matrix4,
   Mesh,
-  MeshStandardMaterial,
   Float32BufferAttribute,
   ShapeGeometry,
   ShapeUtils,
@@ -51,6 +48,7 @@ import {
   type FoldDrapeResult,
 } from './assembled-fold-drape'
 import type { FoldDrapeRequest, FoldDrapeStore } from './fold-drape-store'
+import type { SharedMaterials } from './shared-materials'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
@@ -533,6 +531,7 @@ function addRegionOutline(
   transform: ModelTransform,
   color: string,
   yOffset: number,
+  shared: SharedMaterials,
 ) {
   const points: Vector3[] = []
   const polygon = region.polygon
@@ -550,7 +549,7 @@ function addRegionOutline(
     return
   }
   target.add(
-    new LineSegments(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color })),
+    new LineSegments(new BufferGeometry().setFromPoints(points), shared.outline(color)),
   )
 }
 
@@ -791,6 +790,7 @@ function addFoldDrapeShell(params: {
   backMaterial: Material
   edgeMaterial: Material
   outlineColor: string
+  shared: SharedMaterials
 }) {
   const { drape, transform, halfThickness } = params
   const scale = transform.scale === 0 ? 1 : transform.scale
@@ -892,7 +892,7 @@ function addFoldDrapeShell(params: {
       }
     }
     params.parent.add(
-      new LineSegments(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color: params.outlineColor })),
+      new LineSegments(new BufferGeometry().setFromPoints(points), params.shared.outline(params.outlineColor)),
     )
   }
 }
@@ -912,6 +912,7 @@ function addDrapedStitchHoles(
   halfThickness: number,
   holes: StitchHole[],
   threadColor: string,
+  shared: SharedMaterials,
 ) {
   if (holes.length === 0) {
     return
@@ -929,11 +930,7 @@ function addDrapedStitchHoles(
   }
 
   const geometry = new CylinderGeometry(0.006, 0.006, 0.003, 10)
-  const material = new MeshStandardMaterial({
-    color: threadColor,
-    roughness: 0.55,
-    metalness: 0.05,
-  })
+  const material = shared.stitchThread(threadColor)
   const instances = new InstancedMesh(geometry, material, holes.length)
   const matrix = new Matrix4()
   holes.forEach((hole, index) => {
@@ -968,18 +965,10 @@ function edgeMaterialForPiece(piece: PatternPiece, materials: ModelBuilderMateri
     return materials.assembledSideMaterial
   }
   if (finish.style === 'paint') {
-    return new MeshStandardMaterial({
-      color: new Color(finish.color ?? DEFAULT_EDGE_PAINT_COLOR),
-      roughness: 0.34,
-      metalness: 0.02,
-    })
+    return materials.shared.edgePaint(new Color(finish.color ?? DEFAULT_EDGE_PAINT_COLOR))
   }
   const base = piece.color ? new Color(piece.color) : materials.assembledSideMaterial.color.clone()
-  return new MeshStandardMaterial({
-    color: base.multiplyScalar(BURNISH_DARKEN),
-    roughness: 0.24,
-    metalness: 0.04,
-  })
+  return materials.shared.burnishedEdge(base.multiplyScalar(BURNISH_DARKEN))
 }
 
 function addAssembledStitchHoles(
@@ -989,17 +978,14 @@ function addAssembledStitchHoles(
   holes: StitchHole[],
   threadColor: string,
   transform: ModelTransform,
+  shared: SharedMaterials,
 ) {
   if (holes.length === 0) {
     return
   }
 
   const geometry = new CylinderGeometry(0.006, 0.006, 0.003, 10)
-  const material = new MeshStandardMaterial({
-    color: threadColor,
-    roughness: 0.55,
-    metalness: 0.05,
-  })
+  const material = shared.stitchThread(threadColor)
   const instances = new InstancedMesh(geometry, material, holes.length)
   const matrix = new Matrix4()
 
@@ -1189,9 +1175,25 @@ function createAssembledPieceGroup({
     backGeometry.translate(0, -halfThickness - 0.0008, 0)
     target.add(new Mesh(backGeometry, materials.assembledBackMaterial))
 
-    addRegionOutline(target, region, pieceFolds, transform, outlineColor, halfThickness + 0.0015)
+    addRegionOutline(
+      target,
+      region,
+      pieceFolds,
+      transform,
+      outlineColor,
+      halfThickness + 0.0015,
+      materials.shared,
+    )
 
-    addAssembledStitchHoles(target, piece, halfThickness, holeBuckets[regionIndex], threadColor, transform)
+    addAssembledStitchHoles(
+      target,
+      piece,
+      halfThickness,
+      holeBuckets[regionIndex],
+      threadColor,
+      transform,
+      materials.shared,
+    )
   })
 
   let drape: AssembledPieceDrape | null = null
@@ -1208,8 +1210,18 @@ function createAssembledPieceGroup({
       backMaterial: materials.assembledBackMaterial,
       edgeMaterial: sideMaterial,
       outlineColor,
+      shared: materials.shared,
     })
-    addDrapedStitchHoles(drapeGroup, piece, drapeSolve, transform, halfThickness, pieceHoles, threadColor)
+    addDrapedStitchHoles(
+      drapeGroup,
+      piece,
+      drapeSolve,
+      transform,
+      halfThickness,
+      pieceHoles,
+      threadColor,
+      materials.shared,
+    )
     const scale = transform.scale === 0 ? 1 : transform.scale
     drape = {
       solve: drapeSolve,
@@ -1406,10 +1418,15 @@ function seamColorForConnection(
   return safe.lerp(warning, previewSettings.showStressOverlay ? severity : 0.18)
 }
 
-function addSeamGuide(group: Group, from: Vector3, to: Vector3, color: Color, dashed: boolean) {
-  const material = dashed
-    ? new LineDashedMaterial({ color, dashSize: 0.04, gapSize: 0.025 })
-    : new LineBasicMaterial({ color })
+function addSeamGuide(
+  group: Group,
+  from: Vector3,
+  to: Vector3,
+  color: Color,
+  dashed: boolean,
+  shared: SharedMaterials,
+) {
+  const material = shared.seamGuide(color, dashed)
   const line = new Line(new BufferGeometry().setFromPoints([from, to]), material)
   if (line instanceof Line && 'computeLineDistances' in line) {
     line.computeLineDistances()
@@ -1440,9 +1457,10 @@ function addSeamStitching(
     sewnFraction: number
     fromDrape?: AssembledPieceDrape | null
     toDrape?: AssembledPieceDrape | null
+    shared: SharedMaterials
   },
 ) {
-  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction, fromDrape, toDrape } = params
+  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction, fromDrape, toDrape, shared } = params
   if (pairs.length === 0 || sewnFraction <= 0) {
     return
   }
@@ -1463,12 +1481,7 @@ function addSeamStitching(
     return
   }
 
-  group.add(
-    new LineSegments(
-      new BufferGeometry().setFromPoints(points),
-      new LineBasicMaterial({ color, transparent: true, opacity: 0.9 }),
-    ),
-  )
+  group.add(new LineSegments(new BufferGeometry().setFromPoints(points), shared.seamStitch(color)))
 }
 
 export function rebuildAssembledModel({
@@ -1579,7 +1592,14 @@ export function rebuildAssembledModel({
           previewSettings,
           (connection.toleranceMm ?? 1) * transform.scale,
         )
-        addSeamGuide(assembledGroup, fromSide.midpoint, toSide.midpoint, color, connection.kind !== 'aligned')
+        addSeamGuide(
+          assembledGroup,
+          fromSide.midpoint,
+          toSide.midpoint,
+          color,
+          connection.kind !== 'aligned',
+          materials.shared,
+        )
         addSeamStitching(assembledGroup, {
           pairs: (stitchPairs ?? []).filter((pair) => connectionIdForPair(pair) === connection.id),
           fromGroup,
@@ -1593,6 +1613,7 @@ export function rebuildAssembledModel({
           sewnFraction,
           fromDrape,
           toDrape,
+          shared: materials.shared,
         })
       }
     }
