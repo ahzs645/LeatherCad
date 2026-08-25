@@ -240,6 +240,54 @@ describe('solveFoldDrape', () => {
     }
   })
 
+  it('does not flare where the crease runs out to the cut edge', () => {
+    // The ends of a fold are where the cut edge has to turn through the whole
+    // bend in one step, and the outline is sampled for the piece, not for the
+    // crease. On the wallet that left the leather standing 7.1 mm proud of a
+    // 3.7 mm fold at both ends of the crease — a spike you cannot miss
+    // edge-on, and one vertex pushed through the half that stays.
+    const size = 130
+    const radius = 1.8
+    const data = solveFoldDrapeData({
+      outer: [
+        { x: 0, y: 0 },
+        { x: size, y: 0 },
+        { x: size, y: size },
+        { x: 0, y: size },
+      ],
+      holes: [],
+      thicknessMm: 1.8,
+      folds: [
+        {
+          foldLineId: 'fold-1',
+          // Deliberately not through the corners: the crease leaves the piece
+          // part-way along two edges, in the middle of a boundary segment.
+          start: { x: 0, y: size * 0.45 },
+          end: { x: size, y: size * 0.55 },
+          angleDeg: 180,
+          bendRadiusMm: radius,
+          swingSample: { x: size / 2, y: size * 0.2 },
+        },
+      ],
+    })
+    expect(data).not.toBeNull()
+    let highest = 0
+    let lowest = 0
+    for (let index = 0; index < data!.positions.length / 3; index += 1) {
+      const height = data!.positions[index * 3 + 1]
+      highest = Math.max(highest, height)
+      lowest = Math.min(lowest, height)
+    }
+    // The fold occupies one side of the flat half; which side is the sign
+    // convention's business, not this test's.
+    const crown = Math.max(highest, -lowest)
+    const otherWay = crown === highest ? -lowest : highest
+    // Nothing stands past the fold's own crown, and nothing crosses the half
+    // that stays.
+    expect(crown).toBeLessThan(2 * radius * 1.25)
+    expect(otherWay).toBeLessThan(0.2)
+  })
+
   it('returns null when there is nothing to fold', () => {
     expect(
       solveFoldDrape({ outer: SQUARE, holes: [], folds: [], thicknessMm: 2 }),

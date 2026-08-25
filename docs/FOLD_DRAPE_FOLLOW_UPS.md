@@ -158,6 +158,31 @@ Two properties worth keeping in mind, both measured and both correct:
   down onto the base), against 124° before — the bend is a bend now, not a
   smear across the whole flap.
 
+## 2c. The ends of a fold — **fixed**
+
+Seen edge-on, the closed wallet had a spike at each end of its crease. Measured:
+the bend crown ran 3.66–3.90 mm along the whole fold and then **7.10 mm** at the
+last five vertices, with one vertex pushed 1.08 mm through the half that stays.
+Every one of them sat on the outline.
+
+Where a crease runs out to the cut edge, the boundary has to turn through the
+whole bend — but the outline is resampled for the piece, not for the crease.
+The bend zone is 5.7 mm wide and the cut edge crossed it in a single 8.7 mm
+segment with one vertex inside, so the boundary could not follow the arc and
+the leather flared at both ends of the fold.
+
+`resampleLoop` now takes its pitch as a function of position and asks for it
+across a whole segment rather than at its ends — a crease usually crosses the
+edge in the middle of one, with both ends far from the bend. That was the
+difference between the fix working and doing nothing at all.
+
+| | before | after |
+|---|---|---|
+| furthest from the base plane | 7.10 mm | 3.84 mm |
+| vertices outside the fold's own band | 4 | 0 |
+| vertices through the half that stays | 1 | 0 |
+| bend crown along the crease | 3.66–7.10 mm | 3.64–3.72 mm |
+
 ## 3. Couple the pieces: obstacles are rigid today
 
 Each folded piece still solves alone, seeing every *other* piece as a rigid slab

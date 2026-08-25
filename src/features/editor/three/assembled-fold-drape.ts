@@ -55,6 +55,8 @@ const REST_DISPLACEMENT_MM = 5e-2
 const ANCHOR_HOLD_FRACTION = 0.01
 /** Narrowest bend zone the mesher will resolve, whatever the radius asks for. */
 const MIN_BEND_ZONE_MM = 1.5
+/** Closest the cut edge is sampled where it crosses a bend. */
+const MIN_BOUNDARY_PITCH_MM = 0.4
 /** Rest-space offset that keeps obstacle vertices clear of the mesh filter. */
 const OBSTACLE_REST_OFFSET_MM = 1e5
 
@@ -211,8 +213,19 @@ function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): LatticeC
  * particles that buy nothing but constraint iterations. Corners survive
  * because a point only collapses while the run stays within a deviation
  * tolerance of its chord.
+ *
+ * The pitch varies along the loop because one part of it cannot be sampled
+ * like the rest: where a crease runs out to the cut edge, the boundary has to
+ * turn through the whole bend. Sampled at the piece's pitch it spans the arc
+ * in one segment and cannot follow it, and the leather flares at the ends of
+ * the fold — 7 mm proud of a 3.7 mm bend on the wallet, which is exactly the
+ * spike you see edge-on.
  */
-function resampleLoop(loop: Point[], pitch: number) {
+function resampleLoop(
+  loop: Point[],
+  pitchAt: (point: Point) => number,
+  pitchAcross: (a: Point, b: Point) => number,
+) {
   const deviation = 0.3
   const decimated: Point[] = []
   let anchor = loop[0]
@@ -228,7 +241,7 @@ function resampleLoop(loop: Point[], pitch: number) {
         ? Math.abs(chordX * (point.y - anchor.y) - chordY * (point.x - anchor.x)) / chordLength
         : Math.hypot(point.x - anchor.x, point.y - anchor.y)
     const alongChord = Math.hypot(point.x - anchor.x, point.y - anchor.y)
-    if (offChord <= deviation && alongChord < pitch) {
+    if (offChord <= deviation && alongChord < pitchAt(point)) {
       continue
     }
     decimated.push(point)
@@ -240,7 +253,10 @@ function resampleLoop(loop: Point[], pitch: number) {
     const a = decimated[index]
     const b = decimated[(index + 1) % decimated.length]
     const length = Math.hypot(b.x - a.x, b.y - a.y)
-    const steps = Math.max(1, Math.ceil(length / pitch))
+    // Asked of the whole segment, not its ends: a crease usually crosses the
+    // cut edge in the middle of one, and both of its ends can be a long way
+    // from the bend it has to turn through.
+    const steps = Math.max(1, Math.ceil(length / pitchAcross(a, b)))
     for (let step = 0; step < steps; step += 1) {
       resampled.push({
         x: a.x + ((b.x - a.x) * step) / steps,
@@ -440,10 +456,44 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     return null
   }
 
-  const resampledOuter = resampleLoop(outer, spacing * 0.9)
+  // Fine where the boundary crosses a bend, the piece's own pitch elsewhere.
+  const coarsePitch = spacing * 0.9
+  /** Signed distance from a crease's line: sign tells which half it is on. */
+  const offCrease = (crease: CreaseFold, point: Point) => {
+    const dx = crease.end.x - crease.start.x
+    const dy = crease.end.y - crease.start.y
+    const length = Math.hypot(dx, dy)
+    if (length <= 1e-9) return Infinity
+    return (dx * (point.y - crease.start.y) - dy * (point.x - crease.start.x)) / length
+  }
+  const finePitch = (crease: CreaseFold) =>
+    Math.max(MIN_BOUNDARY_PITCH_MM, crease.zoneWidth / 4)
+  const boundaryPitch = (point: Point) => {
+    let pitch = coarsePitch
+    for (const crease of creases) {
+      if (Math.abs(offCrease(crease, point)) <= crease.zoneWidth) {
+        pitch = Math.min(pitch, finePitch(crease))
+      }
+    }
+    return pitch
+  }
+  const boundaryPitchAcross = (a: Point, b: Point) => {
+    let pitch = coarsePitch
+    for (const crease of creases) {
+      const from = offCrease(crease, a)
+      const to = offCrease(crease, b)
+      const crosses = from * to < 0
+      const inside = Math.min(Math.abs(from), Math.abs(to)) <= crease.zoneWidth
+      if (crosses || inside) {
+        pitch = Math.min(pitch, finePitch(crease))
+      }
+    }
+    return pitch
+  }
+  const resampledOuter = resampleLoop(outer, boundaryPitch, boundaryPitchAcross)
   const resampledHoles = holes
     .filter((hole) => hole.length >= 3)
-    .map((hole) => resampleLoop(hole, spacing * 0.9))
+    .map((hole) => resampleLoop(hole, boundaryPitch, boundaryPitchAcross))
   let mesh
   try {
     mesh = triangulate({
