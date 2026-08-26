@@ -41,6 +41,7 @@ import {
   type FoldHingeStep,
 } from './assembled-fold-regions'
 import { bendCentre, buildBendGeometry, minimumBendRadiusMm } from './assembled-fold-bend'
+import { resolveFoldBehavior } from '../ops/fold-line-ops'
 import {
   solveFoldDrape,
   type DrapeFoldInput,
@@ -1116,6 +1117,10 @@ function createAssembledPieceGroup({
     if (!swingRegion || !hinge || Math.abs(hinge.angleDeg) < 0.5) {
       continue
     }
+    // The crease's own material properties travel with it. They are parsed,
+    // clamped and on screen in the Bend Controls panel; before this they
+    // reached Fold mode and stopped there.
+    const behavior = resolveFoldBehavior(foldLine)
     drapeFolds.push({
       foldLineId: foldLine.id,
       start: hinge.start,
@@ -1123,6 +1128,9 @@ function createAssembledPieceGroup({
       angleDeg: hinge.angleDeg,
       bendRadiusMm: radiusMmByFoldId.get(foldLine.id) ?? 0,
       swingSample: polygonCentroid(swingRegion.polygon),
+      stiffness: behavior.stiffness,
+      neutralAxisRatio: behavior.neutralAxisRatio,
+      foldThicknessMm: behavior.thicknessMm,
     })
   }
   const drapeRequest: FoldDrapeRequest | null =

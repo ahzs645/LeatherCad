@@ -76,6 +76,17 @@ export type DrapeFoldInput = {
   bendRadiusMm: number
   /** A point on the half that swings, which fixes the crease's orientation. */
   swingSample: Point
+  /**
+   * The crease's own three material properties, as the document already
+   * carries them. All optional: a caller that omits them gets the behaviour
+   * this module had before they existed.
+   */
+  /** 0–1, the fold's resistance to being deformed away from its pose. */
+  stiffness?: number
+  /** Where the neutral axis sits through the leather, 0–1. 0.5 is the middle. */
+  neutralAxisRatio?: number
+  /** The leather's thickness at the crease — thinner than the panel if skived. */
+  foldThicknessMm?: number
 }
 
 /** A rigid body the fold can land on, in the piece's document frame. */
