@@ -33,7 +33,8 @@
  *     ],
  *     "camera": "Orbit",               // Orbit | Side | Front | Top
  *     "zoom": 36,                      // wheel notches in from the far stop
- *     "hide": ["Piece C"]              // layers to hide, by name
+ *     "hide": ["Piece C"],             // layers to hide, by name
+ *     "toggles": { "Show fold stress tint": true }  // panel checkboxes
  *   }
  *
  * `zoom` is absolute, not a nudge: the camera is wound out to its far stop first
@@ -298,6 +299,24 @@ async function setHiddenLayers(page, hide) {
 }
 
 /**
+ * Put the named checkboxes into the requested state.
+ *
+ * The panel's own toggles — the stress tint among them — are plain labelled
+ * checkboxes, so a shot names them the way a person would read them off the
+ * screen rather than by any id. Setting `checked` directly rather than
+ * clicking keeps a shot idempotent when it is re-taken on a warm page.
+ */
+async function setCheckboxes(page, toggles) {
+  for (const [label, wanted] of Object.entries(toggles ?? {})) {
+    const box = page.getByLabel(label, { exact: false }).first()
+    if ((await box.isChecked()) !== wanted) {
+      await box.setChecked(wanted)
+      await page.waitForTimeout(600)
+    }
+  }
+}
+
+/**
  * How far to wind the wheel back to be sure the camera is against its stop.
  *
  * `engine-runtime.ts` clamps the orbit distance to `[radius * 0.4, radius * 8]`
@@ -453,6 +472,7 @@ async function openPosedPage(context, presetId, settleMs, failures) {
  */
 async function capture(page, canvas, shot, foldNames, settleMs) {
   await setHiddenLayers(page, shot.hide)
+  await setCheckboxes(page, shot.toggles)
 
   for (const slider of shot.sliders ?? []) {
     const scope = slider.fold ? resolveFold(foldNames, slider.fold) : undefined
