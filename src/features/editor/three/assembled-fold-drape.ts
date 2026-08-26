@@ -29,12 +29,15 @@ import {
   createClothState,
   createTriangleCollider,
   creaseChainPose,
+  dihedralAngle,
   settleXpbdCloth,
   type CreaseFold,
   type XpbdAnchorConstraint,
+  type XpbdClothConstraint,
 } from '@atelier/sim'
 import type { Point } from '../cad/cad-types'
 import { DEFAULT_FOLD_STIFFNESS } from '../ops/fold-line-ops'
+import { minimumBendRadiusMm } from './assembled-fold-bend'
 
 /** More vertices than this and the settle would stall the rebuild. */
 const MAX_CLOTH_VERTICES = 700
@@ -75,6 +78,17 @@ const OBSTACLE_REST_OFFSET_MM = 1e5
 const BEND_COMPLIANCE = 5e-3
 /** Bending compliance of a crease dialled all the way to stiff. */
 const STIFF_BEND_COMPLIANCE = 1e-6
+/**
+ * In-plane strain that reads as fully stressed.
+ *
+ * Leather is not elastic the way a knit is. A strap pulled five percent past
+ * the length it was cut at does not come back — it stays long, and the piece
+ * it was cut for no longer fits. Long before that a pattern needing the
+ * leather to grow is a pattern that will not go together. Five percent is
+ * therefore the top of this scale, not the breaking strain: the hide has more
+ * left in it, but the maker has already lost the piece.
+ */
+const MEMBRANE_FULL_SCALE_STRAIN = 0.05
 
 const SOLVE_OPTIONS = {
   dt: 1 / 60,
@@ -103,6 +117,13 @@ export type DrapeFoldInput = {
   neutralAxisRatio?: number
   /** The leather's thickness at the crease — thinner than the panel if skived. */
   foldThicknessMm?: number
+  /**
+   * Leather this fold closes over — the pieces sewn between its two halves,
+   * summed. Not what the fold looks like but what it has room for: with the
+   * crease's own thickness it fixes how tight this fold may close, which is
+   * the threshold the stress map is read against. Nothing wrapped by default.
+   */
+  wrappedThicknessMm?: number
 }
 
 /** A rigid body the fold can land on, in the piece's document frame. */
@@ -164,6 +185,12 @@ export type FoldDrapeData = {
    * through that crease's bend zone — see `skiveProfile`.
    */
   thicknessScale: Float32Array
+  /**
+   * How hard the fold leans on the leather at each vertex, 0 to 1. See
+   * `foldStressPerVertex` for what the number means; 0 is leather doing
+   * nothing it minds, 1 is leather with none of its allowance left.
+   */
+  stress: Float32Array
   settled: boolean
   /** The pose solved for, kept so the next solve can warm-start from it. */
   creases: CreaseFold[]
@@ -184,6 +211,12 @@ type LatticeCrease = CreaseFold & {
   skiveScale: number
   /** Bending compliance of the leather inside this crease's zone. */
   bendCompliance: number
+  /**
+   * Tightest radius this crease may turn through, on the same neutral axis
+   * its bend allowance is measured against. Below it the leather is being
+   * asked to go where there is no room for it.
+   */
+  minimumRadiusMm: number
 }
 
 /**
@@ -307,6 +340,15 @@ function creasesForFolds(
     // zone has to be for the fold to spend the right amount of material.
     const radius = neutralRadiusMm(fold, panelThicknessMm)
     const panel = Math.max(0, panelThicknessMm)
+    // The tightest this crease can close: half the leather at the fold —
+    // less if it is skived, which is the whole point of skiving — plus half
+    // of whatever is sewn in between. Carried onto the neutral axis by the
+    // same correction the bend allowance uses, because that is the axis the
+    // material a hinge spans actually lies on.
+    const clearanceRadiusMm = minimumBendRadiusMm(
+      creaseThicknessMm(fold, panel) / 2,
+      fold.wrappedThicknessMm ?? 0,
+    )
     creases.push({
       start: side > 0 ? fold.start : fold.end,
       end: side > 0 ? fold.end : fold.start,
@@ -321,6 +363,7 @@ function creasesForFolds(
       latticeZoneWidth: Math.max(radius * Math.PI, zoneFloorMm),
       skiveScale: panel > 0 ? creaseThicknessMm(fold, panel) / panel : 1,
       bendCompliance: bendComplianceForStiffness(fold.stiffness),
+      minimumRadiusMm: neutralRadiusMm({ ...fold, bendRadiusMm: clearanceRadiusMm }, panel),
     })
   }
   return creases
@@ -373,6 +416,144 @@ function skiveProfile(creases: LatticeCrease[], restPositions: Float32Array) {
     }
   }
   return scale
+}
+
+/**
+ * How hard the fold leans on the leather at each vertex, 0 to 1.
+ *
+ * Two different things can go wrong at a fold, and a maker treats them
+ * differently, so both are measured and the worse of the two is reported.
+ *
+ * The leather can be pulled or squeezed in its own plane. That is measured
+ * straight off the flat pattern — every mesh edge's solved length against the
+ * length it was cut at — and the solver holds it near zero on purpose, since
+ * `stretchCompliance` is a whisker off rigid. So membrane strain that survives
+ * the settle is the solve reporting that the pose could not be reached without
+ * changing the material's own lengths, which is a pattern problem rather than
+ * a fold one.
+ *
+ * The leather can also be asked to turn tighter than it will turn.
+ * `minimumBendRadiusMm` is this codebase's statement of how tight a given
+ * stack closes: the fold carries the swinging half a bend diameter clear of
+ * the half that stays, and that gap has to hold both halves plus anything sewn
+ * between them. Turn tighter and the leather would have to go where there is
+ * no room for it — which in the shop is exactly when you skive the crease or
+ * move the fold, and skiving shows up here as a lower threshold, because a
+ * thinner spine genuinely does close tighter. The radius is read off the
+ * solved surface rather than off what was authored, because contact can force
+ * a flap tighter than any crease asked for: a hinge turning through φ with a
+ * material span s across it is rolling at s / 2φ, the relation a polygon
+ * inscribed in a circle obeys. That span is rest-space material, so the radius
+ * it recovers is the neutral axis's, which is why the threshold is carried
+ * onto the same axis instead of being left on the mid-surface.
+ *
+ * Both are reported the same way, which is what puts them on one scale: the
+ * fraction of the leather's allowance that has been spent past what it will
+ * give. Zero is leather doing nothing it minds. One means the whole allowance
+ * is gone — a crease turned to a point, with no roll left in it at all, or
+ * leather stretched the full `MEMBRANE_FULL_SCALE_STRAIN` past the shape it
+ * was cut — and values are clamped there, so the top of the scale is a real
+ * place rather than wherever this particular solve happened to peak.
+ *
+ * They are combined with `max` rather than summed or averaged because a heat
+ * map wants the worst thing happening at each spot: a fold that is over-bent
+ * and placid in-plane is the same amount of trouble as one that is over-bent
+ * and also stretched, and averaging would cool the first one down.
+ *
+ * The bend score lands on the hinge's own two vertices rather than being
+ * smeared over the pair opposite it, because the hinge is where the leather
+ * actually turns; the flat leather either side of a crease reads zero and the
+ * tint falls off across one row of triangles.
+ */
+function foldStressPerVertex(params: {
+  positions: Float32Array
+  restPositions: Float32Array
+  edges: ReadonlyArray<readonly [number, number]>
+  constraints: readonly XpbdClothConstraint[]
+  creases: readonly LatticeCrease[]
+  /** Tightest radius plain leather may turn through, away from every crease. */
+  panelRadiusMm: number
+}) {
+  const { positions, restPositions } = params
+  const stress = new Float32Array(restPositions.length / 2)
+  const raise = (vertex: number, score: number) => {
+    if (score > stress[vertex]) {
+      stress[vertex] = score
+    }
+  }
+
+  for (const [a, b] of params.edges) {
+    const rest = Math.hypot(
+      restPositions[a * 2] - restPositions[b * 2],
+      restPositions[a * 2 + 1] - restPositions[b * 2 + 1],
+    )
+    if (rest <= 1e-9) continue
+    const solved = Math.hypot(
+      positions[a * 3] - positions[b * 3],
+      positions[a * 3 + 1] - positions[b * 3 + 1],
+      positions[a * 3 + 2] - positions[b * 3 + 2],
+    )
+    const score = Math.min(1, Math.abs(solved - rest) / rest / MEMBRANE_FULL_SCALE_STRAIN)
+    raise(a, score)
+    raise(b, score)
+  }
+
+  // What the leather at a hinge is allowed. Inside a crease's bend zone it is
+  // that crease's stack: the two halves and everything sewn between them.
+  // Outside, the leather has only itself to clear — a corner of a hanging flap
+  // curls, and calling that a fault because some crease elsewhere on the piece
+  // closes over a card pocket would be nonsense. Two folds' zones can overlap;
+  // the nearer crease owns the hinge, the same rule the compliance uses.
+  const allowanceAt = (x: number, y: number) => {
+    let allowance = params.panelRadiusMm
+    let nearest = Infinity
+    for (const crease of params.creases) {
+      const dx = crease.end.x - crease.start.x
+      const dy = crease.end.y - crease.start.y
+      const length = Math.hypot(dx, dy)
+      if (length <= 1e-9) continue
+      const off = Math.abs(dx * (y - crease.start.y) - dy * (x - crease.start.x)) / length
+      if (off <= crease.zoneWidth / 2 && off < nearest) {
+        nearest = off
+        allowance = crease.minimumRadiusMm
+      }
+    }
+    return allowance
+  }
+
+  const solvedAt = (vertex: number) =>
+    [positions[vertex * 3], positions[vertex * 3 + 1], positions[vertex * 3 + 2]] as const
+
+  for (const constraint of params.constraints) {
+    if (constraint.kind !== 'bend') continue
+    const { a, b, hingeA, hingeB } = constraint
+    const turn = Math.abs(
+      dihedralAngle(solvedAt(a), solvedAt(b), solvedAt(hingeA), solvedAt(hingeB)),
+    )
+    if (turn <= 1e-6) continue
+    // How much leather the turn is spread over: the rest separation of the
+    // opposite pair, taken across the hinge. Only the across component is
+    // material the bend spends — the along component runs with the crease and
+    // turns through nothing.
+    const hingeX = restPositions[hingeB * 2] - restPositions[hingeA * 2]
+    const hingeY = restPositions[hingeB * 2 + 1] - restPositions[hingeA * 2 + 1]
+    const hingeLength = Math.hypot(hingeX, hingeY)
+    if (hingeLength <= 1e-9) continue
+    const spanX = restPositions[b * 2] - restPositions[a * 2]
+    const spanY = restPositions[b * 2 + 1] - restPositions[a * 2 + 1]
+    const span = Math.abs(spanX * hingeY - spanY * hingeX) / hingeLength
+    if (span <= 1e-9) continue
+    const allowance = allowanceAt(
+      (restPositions[hingeA * 2] + restPositions[hingeB * 2]) / 2,
+      (restPositions[hingeA * 2 + 1] + restPositions[hingeB * 2 + 1]) / 2,
+    )
+    if (allowance <= 0) continue
+    const score = Math.min(1, Math.max(0, 1 - span / (2 * turn) / allowance))
+    raise(hingeA, score)
+    raise(hingeB, score)
+  }
+
+  return stress
 }
 
 /**
@@ -747,7 +928,7 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     [...seeded, ...obstaclePositions],
     [...inverseMasses, ...new Array<number>(obstaclePositions.length / 3).fill(0)],
   )
-  const { constraints } = buildClothConstraints(
+  const { constraints, edges } = buildClothConstraints(
     { restPositions, triangles },
     {
       // Not exactly rigid: the boundary ring the outline forces into the
@@ -918,6 +1099,16 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     normals,
     boundaryLoops,
     thicknessScale: skiveProfile(creases, restPositions),
+    stress: foldStressPerVertex({
+      positions,
+      restPositions,
+      edges,
+      constraints,
+      creases,
+      // Leather with no crease through it still cannot roll tighter than its
+      // own thickness, and there is nothing else out there for it to clear.
+      panelRadiusMm: minimumBendRadiusMm(Math.max(0, params.thicknessMm) / 2, 0),
+    }),
     settled: result.settled,
     creases,
   }

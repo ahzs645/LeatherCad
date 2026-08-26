@@ -628,6 +628,32 @@ function bendSurfaceMaterial(source: Material) {
   return material
 }
 
+/** Leather that minds nothing, leather being asked for a lot, leather past it. */
+const STRESS_TINT_STOPS = [new Color('#ffffff'), new Color('#eab308'), new Color('#ef4444')]
+
+/**
+ * Per-vertex tint for a drape's stress values.
+ *
+ * Vertex colours multiply the material, so the calm end of the ramp has to be
+ * white: the overlay is only allowed to say something where there is something
+ * to say, and everywhere else the leather has to come out exactly the colour it
+ * was. From there it climbs through the amber and red the seam overlay already
+ * warns in, so one glance at a model reads the same way in both.
+ */
+function stressTintColors(stress: Float32Array) {
+  const colors = new Float32Array(stress.length * 3)
+  const tint = new Color()
+  for (let index = 0; index < stress.length; index += 1) {
+    const scaled = MathUtils.clamp(stress[index], 0, 1) * (STRESS_TINT_STOPS.length - 1)
+    const stop = Math.min(STRESS_TINT_STOPS.length - 2, Math.floor(scaled))
+    tint.copy(STRESS_TINT_STOPS[stop]).lerp(STRESS_TINT_STOPS[stop + 1], scaled - stop)
+    colors[index * 3] = tint.r
+    colors[index * 3 + 1] = tint.g
+    colors[index * 3 + 2] = tint.b
+  }
+  return colors
+}
+
 /**
  * The matrix that carries one piece's flat-frame geometry into the world.
  *
@@ -808,6 +834,8 @@ function addFoldDrapeShell(params: {
   edgeMaterial: Material
   outlineColor: string
   shared: SharedMaterials
+  /** Tint the leather by how hard the fold is on it. */
+  showStress: boolean
 }) {
   const { drape, transform, halfThickness } = params
   const scale = transform.scale === 0 ? 1 : transform.scale
@@ -832,6 +860,11 @@ function addFoldDrapeShell(params: {
   // whatever the fold is skived to where a crease runs through.
   const halfAt = (vertex: number) => halfThickness * drape.thicknessScale[vertex]
 
+  // Built once and shared by both faces: stress is a property of the
+  // mid-surface, so the grain side and the flesh side of a crease are in
+  // exactly as much trouble as each other.
+  const stressColors = params.showStress ? stressTintColors(drape.stress) : null
+
   const surface = (side: number, reverse: boolean, material: Material) => {
     const positions = new Float32Array(count * 3)
     for (let index = 0; index < count; index += 1) {
@@ -844,6 +877,9 @@ function addFoldDrapeShell(params: {
     geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
     geometry.setAttribute('uv', new Float32BufferAttribute(uv.slice(), 2))
     geometry.setAttribute('uv1', new Float32BufferAttribute(uvDocument.slice(), 2))
+    if (stressColors) {
+      geometry.setAttribute('color', new Float32BufferAttribute(stressColors.slice(), 3))
+    }
     const order = reverse
       ? drape.triangles.map((_, i, all) => all[i - (i % 3) + (2 - (i % 3))])
       : drape.triangles
@@ -853,8 +889,10 @@ function addFoldDrapeShell(params: {
     mesh.name = ASSEMBLED_DRAPE_MESH_NAME
     params.parent.add(mesh)
   }
-  surface(1, false, params.frontMaterial)
-  surface(-1, true, params.backMaterial)
+  const tinted = (material: Material) =>
+    stressColors ? params.shared.vertexTinted(material) : material
+  surface(1, false, tinted(params.frontMaterial))
+  surface(-1, true, tinted(params.backMaterial))
 
   // Cut walls: one quad strip per boundary loop, spanning the two surfaces.
   const wallPositions: number[] = []
@@ -1108,6 +1146,10 @@ function createAssembledPieceGroup({
   // chain, the drape and the bend surface can never disagree about it.
   const halfThicknessMm = Math.max(previewSettings.thicknessMm, 0) / 2
   const radiusMmByFoldId = new Map<string, number>()
+  // Kept as well as the radius it feeds, because the drape needs the stack
+  // itself: the radius is what the fold draws, the stack is what it may not
+  // close tighter than, and the stress map is the difference between them.
+  const wrappedMmByFoldId = new Map<string, number>()
   for (const region of regions) {
     for (const hinge of region.hinges) {
       if (radiusMmByFoldId.has(hinge.foldLineId)) {
@@ -1120,6 +1162,7 @@ function createAssembledPieceGroup({
         pieceMeshById,
         materialThicknessMm: previewSettings.thicknessMm,
       })
+      wrappedMmByFoldId.set(hinge.foldLineId, wrappedMm)
       radiusMmByFoldId.set(hinge.foldLineId, hingeBendRadiusMm(hinge, wrappedMm, halfThicknessMm))
     }
   }
@@ -1153,6 +1196,7 @@ function createAssembledPieceGroup({
       stiffness: behavior.stiffness,
       neutralAxisRatio: behavior.neutralAxisRatio,
       foldThicknessMm: behavior.thicknessMm,
+      wrappedThicknessMm: wrappedMmByFoldId.get(foldLine.id) ?? 0,
     })
   }
   const drapeRequest: FoldDrapeRequest | null =
@@ -1241,6 +1285,7 @@ function createAssembledPieceGroup({
       edgeMaterial: sideMaterial,
       outlineColor,
       shared: materials.shared,
+      showStress: previewSettings.showFoldStressOverlay,
     })
     addDrapedStitchHoles(
       drapeGroup,

@@ -37,6 +37,7 @@ function previewSettings(overrides: Partial<ThreePreviewSettings> = {}): ThreePr
     showEdgeLabels: false,
     showPieceOutlines: false,
     showStressOverlay: false,
+    showFoldStressOverlay: false,
     usePhysicsRelaxation: true,
     ...overrides,
   }
@@ -94,6 +95,7 @@ function runBuilder({
   seamConnections = [],
   piecePlacements3d = [],
   settings,
+  materials = createMaterials(),
 }: {
   patternPieces: PatternPiece[]
   pieceMeshes: PieceMeshData[]
@@ -103,6 +105,7 @@ function runBuilder({
   seamConnections?: SeamConnection[]
   piecePlacements3d?: PiecePlacement3D[]
   settings?: Partial<ThreePreviewSettings>
+  materials?: ReturnType<typeof createMaterials>
 }) {
   const assembledGroup = new Group()
   const avatarGroup = new Group()
@@ -126,7 +129,7 @@ function runBuilder({
     threadColor: '#fb923c',
     texturedShapeIdSet: new Set(),
     hasActiveTexture: false,
-    materials: createMaterials(),
+    materials,
     preservedMaterials: new Set(),
     fitControlsToModel,
     assembledGroup,
@@ -138,7 +141,7 @@ function runBuilder({
     rebuildAvatarModel,
   })
 
-  return { assembledGroup, avatarGroup, fitControlsToModel, rebuildAvatarModel }
+  return { assembledGroup, avatarGroup, fitControlsToModel, rebuildAvatarModel, materials }
 }
 
 function foldLine(overrides: Partial<FoldLine> = {}): FoldLine {
@@ -557,6 +560,51 @@ describe('rebuildAssembledModel', () => {
       const materialBreadth = 12 * TRANSFORM.scale
       expect(crossCreaseGap({ x: 0, y: 20 }, { x: 40, y: 20 })).toBeLessThan(materialBreadth)
       expect(crossCreaseGap({ x: 40, y: 20 }, { x: 0, y: 20 })).toBeLessThan(materialBreadth)
+    })
+
+    it('tints the drape by fold stress only when asked, and never the shared material', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const drapeMeshes = (group: Group) => {
+        const found: Mesh[] = []
+        group.traverse((object) => {
+          if (object instanceof Mesh && object.name === ASSEMBLED_DRAPE_MESH_NAME) {
+            found.push(object as Mesh)
+          }
+        })
+        return found
+      }
+      const build = (showFoldStressOverlay: boolean) =>
+        runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg: 90, radiusMm: 4 })],
+          settings: { showFoldStressOverlay },
+        })
+
+      // Off is the default, and off has to mean the leather is drawn exactly
+      // as it was before any of this existed.
+      const plain = drapeMeshes(build(false).assembledGroup)
+      expect(plain.length).toBeGreaterThan(0)
+      for (const mesh of plain) {
+        expect(mesh.geometry.getAttribute('color')).toBeUndefined()
+      }
+
+      const on = build(true)
+      const tinted = drapeMeshes(on.assembledGroup).filter((mesh) => mesh.geometry.getAttribute('color'))
+      expect(tinted.length).toBeGreaterThan(0)
+      for (const mesh of tinted) {
+        expect((mesh.material as Material).vertexColors).toBe(true)
+        expect(mesh.material).not.toBe(on.materials.assembledFrontMaterial)
+        expect(mesh.material).not.toBe(on.materials.assembledBackMaterial)
+      }
+      // The manager hands one material to every piece and keeps it across
+      // rebuilds. Reading vertex colours is a different shader, so the overlay
+      // has to take a copy — switch it on once and a mutated shared material
+      // would tint every other piece, and go on tinting them after it is
+      // switched off again.
+      expect(on.materials.assembledFrontMaterial.vertexColors).toBe(false)
+      expect(on.materials.assembledBackMaterial.vertexColors).toBe(false)
     })
 
     it('drapes over what is in its way whether or not it is sewn there', () => {

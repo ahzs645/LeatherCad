@@ -22,6 +22,7 @@ function createPreviewSettings(overrides: Partial<ThreePreviewSettings> = {}): T
     showEdgeLabels: false,
     showPieceOutlines: false,
     showStressOverlay: true,
+    showFoldStressOverlay: false,
     usePhysicsRelaxation: true,
     ...overrides,
   }

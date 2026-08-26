@@ -333,6 +333,19 @@ export function WorkbenchThreePreviewInspector({
         <label className="layer-toggle-item">
           <input
             type="checkbox"
+            checked={threePreviewSettings.showFoldStressOverlay}
+            onChange={(event) =>
+              onSetThreePreviewSettings((previous) => ({
+                ...previous,
+                showFoldStressOverlay: event.target.checked,
+              }))
+            }
+          />
+          <span>Show fold stress tint</span>
+        </label>
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
             checked={threePreviewSettings.usePhysicsRelaxation}
             onChange={(event) =>
               onSetThreePreviewSettings((previous) => ({

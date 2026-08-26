@@ -112,6 +112,24 @@ export class SharedMaterials {
     )
   }
 
+  /**
+   * A surface material that takes its tint from the geometry's own colours.
+   *
+   * Vertex colours are part of a shader's configuration, not a uniform, so a
+   * tinted surface is a different program from an untinted one — which is
+   * exactly why it cannot be had by flipping the flag on a material every
+   * other piece is drawn with. The copy is keyed on the source it was taken
+   * from and re-synced from it on each use, so the leather's colour and
+   * texture stay the source's to change while the program stays this cache's
+   * to keep.
+   */
+  vertexTinted(source: Material) {
+    const material = this.reuse(`vertex-tinted:${source.uuid}`, () => source.clone())
+    material.copy(source)
+    material.vertexColors = true
+    return material
+  }
+
   /** A cut edge burnished: the leather's own colour, compressed and darkened. */
   burnishedEdge(color: ColorRepresentation) {
     return this.reuse(

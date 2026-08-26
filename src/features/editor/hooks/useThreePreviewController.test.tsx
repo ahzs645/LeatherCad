@@ -60,6 +60,7 @@ const previewSettings: ThreePreviewSettings = {
   showEdgeLabels: false,
   showPieceOutlines: false,
   showStressOverlay: true,
+  showFoldStressOverlay: false,
   usePhysicsRelaxation: true,
 }
 

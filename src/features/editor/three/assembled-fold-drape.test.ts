@@ -516,6 +516,104 @@ describe('solveFoldDrape', () => {
     expect(bevel.length).toBeGreaterThan(3)
   })
 
+  it('reports a stress value for every vertex, on scale', () => {
+    const result = solve()
+    expect(result.stress).toHaveLength(result.positions.length / 3)
+    for (let index = 0; index < result.stress.length; index += 1) {
+      expect(Number.isFinite(result.stress[index])).toBe(true)
+      expect(result.stress[index]).toBeGreaterThanOrEqual(0)
+      expect(result.stress[index]).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('leaves a fold the leather can make unmarked', () => {
+    // 1.5 mm leather with nothing inside the fold closes to a 0.75 mm radius;
+    // this one rolls at six, eight times the room it needs. Nowhere on the
+    // piece is the leather being asked for anything.
+    const result = solveFoldDrape({
+      outer: SQUARE,
+      holes: [],
+      folds: [fold({ bendRadiusMm: 6 })],
+      thicknessMm: 1.5,
+    })
+    expect(result).not.toBeNull()
+    expect(Math.max(...result!.stress)).toBeLessThan(0.05)
+  })
+
+  it('marks a fold turning tighter than its stack allows, at the crease', () => {
+    // A flap folded flat over a ten-millimetre stack: closed, the bend has to
+    // hold that plus the leather's own thickness, so it cannot roll tighter
+    // than six millimetres — and this one is asked for one.
+    const result = solveFoldDrape({
+      outer: SQUARE,
+      holes: [],
+      folds: [fold({ angleDeg: 180, bendRadiusMm: 1, wrappedThicknessMm: 10 })],
+      thicknessMm: 2,
+    })
+    expect(result).not.toBeNull()
+    const stress = result!.stress
+    const fromCrease = (index: number) => Math.abs(result!.restPositions[index * 2 + 1] - 20)
+
+    // Loud, and loud in the one place a leatherworker would take a skiving
+    // knife to: not merely present somewhere on the piece.
+    let worst = 0
+    for (let index = 1; index < stress.length; index += 1) {
+      if (stress[index] > stress[worst]) worst = index
+    }
+    expect(stress[worst]).toBeGreaterThan(0.6)
+    expect(fromCrease(worst)).toBeLessThan(2)
+
+    const inBend = [...stress.keys()].filter((index) => fromCrease(index) <= 3)
+    expect(inBend.length).toBeGreaterThan(10)
+    const mean = inBend.reduce((total, index) => total + stress[index], 0) / inBend.length
+    expect(mean).toBeGreaterThan(0.3)
+    for (const index of stress.keys()) {
+      if (fromCrease(index) > 4) {
+        expect(stress[index]).toBeLessThan(0.05)
+      }
+    }
+  })
+
+  it('leaves the flat leather either side of the crease alone', () => {
+    // Both halves, well clear of the bend zone: the half that stays never
+    // moved and the half that swings went rigidly, so neither has been
+    // stretched or turned, and both must read as untouched. The wrapped stack
+    // belongs to the crease, not to the panel — leather out here has only its
+    // own thickness to clear.
+    for (const drapeFold of [fold(), fold({ angleDeg: 180, bendRadiusMm: 1, wrappedThicknessMm: 10 })]) {
+      const result = solveFoldDrape({ outer: SQUARE, holes: [], folds: [drapeFold], thicknessMm: 2 })
+      expect(result).not.toBeNull()
+      for (const index of result!.stress.keys()) {
+        const y = result!.restPositions[index * 2 + 1]
+        if (y > 26 || y < 14) {
+          expect(result!.stress[index]).toBeLessThan(0.02)
+        }
+      }
+    }
+  })
+
+  it('reads the fold against the leather at the crease, not the panel', () => {
+    // Four-millimetre leather turning about 1.2 mm is over-bent: half its own
+    // thickness is two, and that is all the room there is inside the turn.
+    // Skive the spine to one millimetre and the same turn is comfortable —
+    // which is the whole reason a leatherworker skives, so the threshold has
+    // to be the leather at the crease and not the leather in the panel. The
+    // fold itself is unchanged: a skive about the mid-surface spends no more
+    // material, so this is the same geometry read against a different limit.
+    const turn = { angleDeg: 90, bendRadiusMm: 1.2 }
+    const panel = solveFoldDrape({ outer: SQUARE, holes: [], folds: [fold(turn)], thicknessMm: 4 })
+    const skived = solveFoldDrape({
+      outer: SQUARE,
+      holes: [],
+      folds: [fold({ ...turn, foldThicknessMm: 1 })],
+      thicknessMm: 4,
+    })
+    expect(panel).not.toBeNull()
+    expect(skived).not.toBeNull()
+    expect(Math.max(...panel!.stress)).toBeGreaterThan(0.3)
+    expect(Math.max(...skived!.stress)).toBeLessThan(0.05)
+  })
+
   it('returns null when there is nothing to fold', () => {
     expect(
       solveFoldDrape({ outer: SQUARE, holes: [], folds: [], thicknessMm: 2 }),

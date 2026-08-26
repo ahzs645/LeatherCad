@@ -101,6 +101,7 @@ describe('final product model builder', () => {
         showEdgeLabels: false,
         showPieceOutlines: false,
         showStressOverlay: true,
+        showFoldStressOverlay: false,
         usePhysicsRelaxation: true,
       },
       pieceMeshes: [],
