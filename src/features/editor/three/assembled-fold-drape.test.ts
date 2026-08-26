@@ -27,6 +27,29 @@ function fold(overrides: Partial<DrapeFoldInput> = {}): DrapeFoldInput {
   }
 }
 
+/**
+ * A slab parked over the base, taller than the fold's own bend diameter and
+ * attached to nothing: a front face at z = 22 and a top at height 14.
+ */
+const SLAB_TOP = 14
+const SLAB = {
+  positions: [
+    5, SLAB_TOP, 22, 35, SLAB_TOP, 22, 5, SLAB_TOP, 38, 35, SLAB_TOP, 38, 5, 0, 22, 35, 0, 22,
+  ],
+  triangles: [0, 1, 3, 0, 3, 2, 4, 1, 0, 4, 5, 1],
+}
+
+/** The fixture folded right over onto the slab, at whatever stiffness is set. */
+function overSlab(overrides: Partial<DrapeFoldInput> = {}) {
+  return {
+    outer: SQUARE,
+    holes: [],
+    folds: [fold({ angleDeg: -180, bendRadiusMm: 3, ...overrides })],
+    thicknessMm: 2,
+    obstacles: [SLAB],
+  }
+}
+
 function solve(overrides: Partial<DrapeFoldInput> = {}) {
   const result = solveFoldDrape({
     outer: SQUARE,
@@ -117,32 +140,58 @@ describe('solveFoldDrape', () => {
   })
 
   it('drapes over an obstacle it is not sewn to', () => {
-    // A slab parked over the base, taller than the fold's own bend diameter,
-    // not attached to anything. The analytic fold cannot know it is there;
-    // the drape lands on it.
-    const obstacleTop = 14
-    const obstacle = {
-      positions: [
-        5, obstacleTop, 22, 35, obstacleTop, 22, 5, obstacleTop, 38, 35, obstacleTop, 38,
-        5, 0, 22, 35, 0, 22,
-      ],
-      triangles: [0, 1, 3, 0, 3, 2, 4, 1, 0, 4, 5, 1],
-    }
+    // The analytic fold cannot know the slab is there; the drape lands on it.
     const through = solveFoldDrape({
       outer: SQUARE, holes: [], folds: [fold({ angleDeg: -180, bendRadiusMm: 3 })], thicknessMm: 2,
     })
-    const draped = solveFoldDrape({
-      outer: SQUARE, holes: [], folds: [fold({ angleDeg: -180, bendRadiusMm: 3 })], thicknessMm: 2,
-      obstacles: [obstacle],
-    })
+    const draped = solveFoldDrape(overSlab())
     expect(through).not.toBeNull()
     expect(draped).not.toBeNull()
     // The wall stands right past the crease, so the near flap tents against
     // it; the flap's far end has to ride up and over the top.
     const tip = { x: 20, y: 2 }
-    expect(through!.mapPoint(tip).y).toBeLessThan(obstacleTop - 4)
-    expect(draped!.mapPoint(tip).y).toBeGreaterThan(obstacleTop - 1)
+    expect(through!.mapPoint(tip).y).toBeLessThan(SLAB_TOP - 4)
+    expect(draped!.mapPoint(tip).y).toBeGreaterThan(SLAB_TOP - 1)
     expect(draped!.mapPoint(tip).y).toBeGreaterThan(through!.mapPoint(tip).y + 4)
+  })
+
+  it('wraps the obstacle with a soft crease and bridges it with a stiff one', () => {
+    // Same slab, same fold, two creases: one dialled limp, one dialled hard.
+    // A soft crease takes the tight arc the pose asks for and spends almost no
+    // leather on it, so the flap still has material to lay across the slab; a
+    // stiff crease refuses that arc, rounds out, and eats the difference in
+    // the bend. It is the difference you see along a wallet spine, and it is
+    // the whole point of the knob: soft leather follows what it lands on,
+    // stiff leather makes what it lands on follow it.
+    const soft = solveFoldDrape(overSlab({ stiffness: 0 }))
+    const stiff = solveFoldDrape(overSlab({ stiffness: 1 }))
+    expect(soft).not.toBeNull()
+    expect(stiff).not.toBeNull()
+    const tip = { x: 20, y: 2 }
+    const corner = { x: 20, y: 5 }
+    // Both get over the top: what differs is how they lie on it, not whether
+    // they arrived.
+    expect(soft!.mapPoint(tip).y).toBeGreaterThan(SLAB_TOP)
+    expect(stiff!.mapPoint(tip).y).toBeGreaterThan(SLAB_TOP)
+    // The soft fold's cut edge lands the better part of two millimetres
+    // further across the slab...
+    expect(soft!.mapPoint(tip).z).toBeGreaterThan(stiff!.mapPoint(tip).z + 1)
+    // ...and where the leather turns the slab's front corner the soft crease
+    // has already come over the top while the stiff one is still on the face.
+    expect(soft!.mapPoint(corner).y).toBeGreaterThan(stiff!.mapPoint(corner).y + 0.5)
+  })
+
+  it('is the fold it always was at the stiffness a fold defaults to', () => {
+    // 0.3 is `DEFAULT_FOLD_STIFFNESS`, which every fold line in every saved
+    // document already carries whether or not anyone has touched the slider.
+    // Dialling it has to be indistinguishable from the knob never having
+    // existed — identical, not close — or shipping it would restate every
+    // model in the library.
+    const dialled = solveFoldDrapeData(overSlab({ stiffness: 0.3 }))
+    const untouched = solveFoldDrapeData(overSlab())
+    expect(dialled).not.toBeNull()
+    expect(untouched).not.toBeNull()
+    expect(furthestApart(dialled!, untouched!)).toBe(0)
   })
 
   it('lands a warm-started fold where the cold solve lands it', () => {

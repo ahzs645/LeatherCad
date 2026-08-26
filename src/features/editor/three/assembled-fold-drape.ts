@@ -34,6 +34,7 @@ import {
   type XpbdAnchorConstraint,
 } from '@atelier/sim'
 import type { Point } from '../cad/cad-types'
+import { DEFAULT_FOLD_STIFFNESS } from '../ops/fold-line-ops'
 
 /** More vertices than this and the settle would stall the rebuild. */
 const MAX_CLOTH_VERTICES = 700
@@ -59,6 +60,10 @@ const MIN_BEND_ZONE_MM = 1.5
 const MIN_BOUNDARY_PITCH_MM = 0.4
 /** Rest-space offset that keeps obstacle vertices clear of the mesh filter. */
 const OBSTACLE_REST_OFFSET_MM = 1e5
+/** Bending compliance of plain leather: everywhere no crease speaks for. */
+const BEND_COMPLIANCE = 5e-3
+/** Bending compliance of a crease dialled all the way to stiff. */
+const STIFF_BEND_COMPLIANCE = 1e-6
 
 const SOLVE_OPTIONS = {
   dt: 1 / 60,
@@ -154,8 +159,43 @@ export type FoldDrapeResult = FoldDrapeData & {
   mapNormal(point: Point): { x: number; y: number; z: number }
 }
 
-/** A crease as posed, plus the bend zone the mesh resolves it with. */
-type LatticeCrease = CreaseFold & { latticeZoneWidth: number }
+/** A crease as posed, plus what the mesh and the solver need beside the pose. */
+type LatticeCrease = CreaseFold & {
+  /** The bend zone the mesh resolves the crease with. */
+  latticeZoneWidth: number
+  /** Bending compliance of the leather inside this crease's zone. */
+  bendCompliance: number
+}
+
+/**
+ * A crease's stiffness as the bending compliance of its own leather.
+ *
+ * Stiffness is what Marvelous Designer calls a fold's strength: how hard the
+ * crease holds its shape when the rest of the assembly pushes back on it. The
+ * elastic reading of that is compliance, a stiffness's reciprocal, so the map
+ * has to be geometric rather than linear — a crease half again as stiff as its
+ * neighbour reads as a different fold, one fifty-one times as stiff instead of
+ * fifty does not, and only a constant ratio per notch of the slider gives the
+ * knob the same authority along its whole travel.
+ *
+ * Two ends fix the curve, and both are where they are because of what the
+ * solver does either side of them. The low end is the compliance this module
+ * has always used, which the document's default has to land on exactly so that
+ * no fold anyone has already drawn moves; there the crease's own bending
+ * stiffness is negligible beside the anchors holding the pose, which is why
+ * softening it further changes nothing and the bottom of the slider is flat.
+ * The high end is where the fold stops answering: by 1e-6 — as rigid as the
+ * distance constraints that make the leather inextensible — the bend zone
+ * refuses the pose's arc outright and rounds out instead, and another decade
+ * past that moves the leather by two hundredths of a millimetre. The slider
+ * runs from one to the other, so the fold's answer arrives over the top half
+ * of the travel — which is the honest shape of the thing, not a compromise.
+ */
+function bendComplianceForStiffness(stiffness: number | undefined) {
+  const dialled = Math.min(1, Math.max(0, stiffness ?? DEFAULT_FOLD_STIFFNESS))
+  const notches = (dialled - DEFAULT_FOLD_STIFFNESS) / (1 - DEFAULT_FOLD_STIFFNESS)
+  return BEND_COMPLIANCE * (STIFF_BEND_COMPLIANCE / BEND_COMPLIANCE) ** notches
+}
 
 function pointInPolygon(point: Point, polygon: Point[]) {
   let inside = false
@@ -212,6 +252,7 @@ function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): LatticeC
       // a handful of vertices; re-solving from flat every frame costs the
       // scrub.
       latticeZoneWidth: Math.max(fold.bendRadiusMm * Math.PI, zoneFloorMm),
+      bendCompliance: bendComplianceForStiffness(fold.stiffness),
     })
   }
   return creases
@@ -596,10 +637,37 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
       // lattice can only follow the fold by giving a whisker, exactly as
       // real leather does.
       stretchCompliance: 1e-6,
-      bendCompliance: 5e-3,
-      bendComplianceBeyond: 5e-3,
+      bendCompliance: BEND_COMPLIANCE,
+      bendComplianceBeyond: BEND_COMPLIANCE,
     },
   )
+  // One compliance came back for the whole piece; each crease answers for the
+  // leather in its own bend zone, which is the band the pose rolls its
+  // curvature across and so the hinges that actually carry the fold. Only the
+  // bending regime is re-dialled: a bend constraint's `complianceBeyond` is
+  // its opposite pair pulling past rest separation, which is stretch, and
+  // stretch is the distance constraints' answer to give.
+  for (const constraint of constraints) {
+    if (constraint.kind !== 'bend') continue
+    const hinge = {
+      x: (restPositions[constraint.hingeA * 2] + restPositions[constraint.hingeB * 2]) / 2,
+      y: (restPositions[constraint.hingeA * 2 + 1] + restPositions[constraint.hingeB * 2 + 1]) / 2,
+    }
+    let owner: LatticeCrease | null = null
+    let nearest = Infinity
+    for (const crease of creases) {
+      // Two folds running close together can have overlapping zones; the
+      // nearer crease owns the hinge.
+      const off = Math.abs(offCrease(crease, hinge))
+      if (off <= crease.zoneWidth / 2 && off < nearest) {
+        nearest = off
+        owner = crease
+      }
+    }
+    if (owner) {
+      constraint.compliance = owner.bendCompliance
+    }
+  }
 
   const subDt = SOLVE_OPTIONS.dt / SOLVE_OPTIONS.substeps
   const anchorCompliance =
