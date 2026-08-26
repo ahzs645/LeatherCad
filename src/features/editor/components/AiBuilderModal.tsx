@@ -21,6 +21,17 @@ import {
   type AiAgentTurnController,
 } from '../ai-builder/ai-agent-client'
 
+/**
+ * How many times a turn may be handed its own preflight errors and asked again.
+ *
+ * Two, because the first repair is where nearly all of the gain is — the model
+ * is being told about mistakes it can see the fix for — and a model that has
+ * failed the same document twice is not converging, it is guessing. Each pass
+ * costs a full generation, so the cap is what keeps a bad prompt from becoming
+ * an unbounded bill.
+ */
+const MAX_REPAIR_PASSES = 2
+
 type AiBuilderModalProps = {
   open: boolean
   onClose: () => void
@@ -80,6 +91,10 @@ export function AiBuilderModal({
   const requestRef = useRef<HTMLTextAreaElement | null>(null)
   const [request, setRequest] = useState('')
   const [rawJson, setRawJson] = useState('')
+  // `handleAgentEvent` is handed to the socket once and closes over the render
+  // it was made in, so the repair pass reads the JSON through a ref rather than
+  // the state it would otherwise see a turn out of date.
+  const rawJsonRef = useRef('')
   const [history, setHistory] = useState(EMPTY_AI_BUILDER_HISTORY)
   const [lastHistoryRawJson, setLastHistoryRawJson] = useState('')
   const [validationState, setValidationState] = useState<ValidationState | null>(null)
@@ -92,6 +107,12 @@ export function AiBuilderModal({
   const [agentRunning, setAgentRunning] = useState(false)
   const [agentLog, setAgentLog] = useState<string[]>([])
   const agentControllerRef = useRef<AiAgentTurnController | null>(null)
+  /** Repair passes already spent on the request currently running. */
+  const repairsSpentRef = useRef(0)
+  /** What the last validated snapshot got wrong, in the app's own words. */
+  const lastIssuesRef = useRef<string[]>([])
+  /** The request the running turn is serving, so a repair can restate it. */
+  const runningRequestRef = useRef('')
   const promptPreview = useMemo(() => renderAiBuilderTurnPrompt({ history, request }), [history, request])
   const savedDocumentCount = history.turns.filter((turn) => turn.role === 'assistant').length
 
@@ -175,10 +196,14 @@ export function AiBuilderModal({
         errors: parseResult.errors,
       })
       onSetStatus(`AI Builder validation failed with ${parseResult.errors.length} error${parseResult.errors.length === 1 ? '' : 's'}`)
+      lastIssuesRef.current = parseResult.errors.map((error) => `${error.path}: ${error.message}`)
       return false
     }
 
     const compileResult = compileAiBuilderDocument(parseResult.document)
+    lastIssuesRef.current = compileResult.preflight
+      .filter((issue) => issue.severity === 'error')
+      .map((issue) => `${issue.code}${issue.ref ? ` (${issue.ref})` : ''}: ${issue.message}`)
     const normalizedRawJson = nextRawJson.trim()
     if (options.remember && normalizedRawJson !== lastHistoryRawJson) {
       const historyRequest = request.trim() || AI_BUILDER_DEFAULT_REQUEST
@@ -222,6 +247,7 @@ export function AiBuilderModal({
         break
       case 'template.snapshot': {
         setRawJson(event.rawJson)
+        rawJsonRef.current = event.rawJson
         const valid = validateAiBuilderJson(event.rawJson, {
           remember: event.final,
           preview: true,
@@ -229,11 +255,33 @@ export function AiBuilderModal({
         appendAgentLog(`${valid ? 'Loaded' : 'Rejected'} snapshot ${event.stage}${event.final ? ' final' : ''}`)
         break
       }
-      case 'turn.completed':
+      case 'turn.completed': {
         setAgentRunning(false)
-        appendAgentLog('Completed')
+        // The whole point of compiling in the browser is that the app already
+        // knows what is wrong with what just arrived. Hand it back rather than
+        // only showing it to whoever is watching, and let the agent try again.
+        const issues = lastIssuesRef.current
+        if (issues.length > 0 && repairsSpentRef.current < MAX_REPAIR_PASSES) {
+          repairsSpentRef.current += 1
+          appendAgentLog(
+            `Completed with ${issues.length} preflight error${issues.length === 1 ? '' : 's'};`
+              + ` repair pass ${repairsSpentRef.current} of ${MAX_REPAIR_PASSES}`,
+          )
+          onSetStatus(`Native AI agent repairing ${issues.length} preflight error${issues.length === 1 ? '' : 's'}`)
+          startTurn(runningRequestRef.current, {
+            currentJson: rawJsonRef.current.trim().length > 0 ? rawJsonRef.current.trim() : undefined,
+            preflightIssues: issues,
+          })
+          break
+        }
+        appendAgentLog(
+          issues.length > 0
+            ? `Completed with ${issues.length} preflight error${issues.length === 1 ? '' : 's'} left after ${repairsSpentRef.current} repair pass${repairsSpentRef.current === 1 ? '' : 'es'}`
+            : 'Completed',
+        )
         onSetStatus('Native AI agent completed')
         break
+      }
       case 'turn.failed':
         setAgentRunning(false)
         appendAgentLog(`Failed: ${event.message}`)
@@ -242,18 +290,17 @@ export function AiBuilderModal({
     }
   }
 
-  const handleRunNativeAgent = () => {
-    if (agentRunning) {
-      return
-    }
-    const agentRequest = request.trim() || AI_BUILDER_DEFAULT_REQUEST
+  const startTurn = (agentRequest: string, options: { currentJson?: string; preflightIssues?: string[] } = {}) => {
+    runningRequestRef.current = agentRequest
+    // A turn that produces no snapshot at all must not be judged on the last
+    // turn's findings, or a failed repair would loop against stale errors.
+    lastIssuesRef.current = []
     setAgentRunning(true)
-    setAgentLog([])
-    setValidationState(null)
     appendAgentLog('Connecting to native agent')
     agentControllerRef.current = startAiAgentTurn({
       request: agentRequest,
-      currentJson: rawJson.trim().length > 0 ? rawJson.trim() : undefined,
+      currentJson: options.currentJson,
+      preflightIssues: options.preflightIssues,
       onEvent: handleAgentEvent,
       onError: (message) => {
         setAgentRunning(false)
@@ -263,6 +310,18 @@ export function AiBuilderModal({
       onClose: () => {
         setAgentRunning(false)
       },
+    })
+  }
+
+  const handleRunNativeAgent = () => {
+    if (agentRunning) {
+      return
+    }
+    repairsSpentRef.current = 0
+    setAgentLog([])
+    setValidationState(null)
+    startTurn(request.trim() || AI_BUILDER_DEFAULT_REQUEST, {
+      currentJson: rawJson.trim().length > 0 ? rawJson.trim() : undefined,
     })
   }
 
@@ -414,6 +473,7 @@ export function AiBuilderModal({
               value={rawJson}
               onChange={(event) => {
                 setRawJson(event.target.value)
+                rawJsonRef.current = event.target.value
                 setValidationState(null)
               }}
               placeholder='{"schema_version":1,"document_name":"example_pattern","units":"mm","layers":[],"entities":[]}'

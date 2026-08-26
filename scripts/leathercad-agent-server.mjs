@@ -557,17 +557,24 @@ function openAiInstructions() {
     'A pattern_piece boundary_entity_id should usually reference a rectangle entity.',
     'For stitch_path, use path_type line/arc/bezier, pitch_mm, and slanted diamond slit holes when relevant.',
     'For refinements, output the full updated JSON document.',
+    'If the request reports preflight issues, fixing every one of them is the first priority.',
   ].join('\n')
 }
 
-async function generateOpenAiJson({ request, currentJson, draftJson }) {
+async function generateOpenAiJson({ request, currentJson, draftJson, preflightIssues }) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) return null
 
   const model = process.env.LEATHERCAD_OPENAI_MODEL || DEFAULT_MODEL
+  const issues = Array.isArray(preflightIssues) ? preflightIssues.filter((issue) => typeof issue === 'string') : []
   const input = [
     `User request:\n${request}`,
     currentJson ? `Current LeatherCad AI Builder JSON to refine:\n${currentJson}` : '',
+    // The app compiled the last attempt and found these. They are the whole
+    // reason a second pass can do better than the first.
+    issues.length > 0
+      ? `The previous attempt compiled with these preflight issues. Fix every one:\n${issues.map((issue) => `- ${issue}`).join('\n')}`
+      : '',
     `Current live draft JSON from deterministic generator:\n${draftJson}`,
     'Improve or replace the draft while preserving the LeatherCad AI Builder schema.',
   ].filter(Boolean).join('\n\n')
@@ -701,11 +708,19 @@ async function runAgentTurn(socket, input) {
   const finalDraftJson = JSON.stringify(snapshots[snapshots.length - 1].document, null, 2)
   if (status.mode === 'openai') {
     try {
-      sendEvent(socket, { type: 'agent.progress', turnId, message: `Refining with OpenAI model ${status.model}.` })
+      const issueCount = Array.isArray(input.preflightIssues) ? input.preflightIssues.length : 0
+      sendEvent(socket, {
+        type: 'agent.progress',
+        turnId,
+        message: issueCount > 0
+          ? `Repairing ${issueCount} preflight issue${issueCount === 1 ? '' : 's'} with OpenAI model ${status.model}.`
+          : `Refining with OpenAI model ${status.model}.`,
+      })
       const refinedJson = await generateOpenAiJson({
         request: input.request ?? '',
         currentJson: input.currentJson,
         draftJson: finalDraftJson,
+        preflightIssues: input.preflightIssues,
       })
       if (refinedJson) {
         sendEvent(socket, {
