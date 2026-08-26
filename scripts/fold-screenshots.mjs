@@ -277,22 +277,50 @@ async function setHiddenLayers(page, hide) {
   }
 }
 
-/** Drop the camera onto a preset, then wind it in over the middle of the model. */
+/**
+ * How far to wind the wheel back to be sure the camera is against its stop.
+ *
+ * `engine-runtime.ts` clamps the orbit distance to `[radius * 0.4, radius * 8]`,
+ * a span of twenty, and a wheel notch dollies by about a tenth — so thirty-odd
+ * notches crosses it from anywhere. Forty, and the arithmetic does not have to
+ * be exactly right.
+ */
+const ZOOM_OUT_TICKS = 40
+
+/**
+ * Put the camera where the shot list says, from a stop rather than from
+ * wherever the last shot left it.
+ *
+ * The preset buttons only turn the camera: `camera.ts` builds the new pose at
+ * "the current camera-to-target distance", and nothing else resets it, so wheel
+ * notches accumulate across a run and the same shot comes out at a different
+ * size depending on what was photographed before it. Winding all the way out to
+ * the far clamp first gives every shot the same starting distance — which is
+ * what makes `zoom` an absolute framing rather than a relative nudge.
+ */
 async function frame(page, canvas, camera, zoom) {
+  const box = await canvas.boundingBox()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  for (let tick = 0; tick < ZOOM_OUT_TICKS; tick += 1) {
+    await page.mouse.wheel(0, 100)
+    await page.waitForTimeout(30)
+  }
+  await page.waitForTimeout(900)
+
   if (camera) {
     await page.getByRole('button', { name: camera, exact: true }).first().click()
     await page.waitForTimeout(1200)
   }
+
   const ticks = Math.abs(zoom ?? 0)
   if (ticks === 0) {
     return
   }
-  const box = await canvas.boundingBox()
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
   const delta = (zoom ?? 0) > 0 ? -100 : 100
   for (let tick = 0; tick < ticks; tick += 1) {
     await page.mouse.wheel(0, delta)
-    await page.waitForTimeout(260)
+    await page.waitForTimeout(120)
   }
 }
 
