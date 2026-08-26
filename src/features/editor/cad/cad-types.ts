@@ -408,6 +408,17 @@ export type ThreePreviewSettings = {
    */
   showFoldStressOverlay: boolean
   /**
+   * Tint the draped leather where it ended up inside another piece.
+   *
+   * Distinct from `showFoldStressOverlay` above, and deliberately a separate
+   * switch rather than another term in it: that one says the leather is being
+   * asked for too much, which is a fact about the pattern, and this one says
+   * the solve did not keep two pieces apart, which is a fact about the solve.
+   * Reading them on one ramp would make the model's colour ambiguous.
+   * Off by default, for the same reason.
+   */
+  showFoldClashOverlay: boolean
+  /**
    * Stitches sewn so far, along the axis `buildSeamSewPlan` lays the seams on.
    * Undefined means the whole project is sewn, which is the resting state.
    */

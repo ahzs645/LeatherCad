@@ -14,6 +14,7 @@ function previewSettings(overrides: Partial<ThreePreviewSettings> = {}): ThreePr
     showPieceOutlines: false,
     showStressOverlay: true,
     showFoldStressOverlay: false,
+    showFoldClashOverlay: false,
     usePhysicsRelaxation: true,
     ...overrides,
   }

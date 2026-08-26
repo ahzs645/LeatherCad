@@ -191,6 +191,13 @@ export type FoldDrapeData = {
    * nothing it minds, 1 is leather with none of its allowance left.
    */
   stress: Float32Array
+  /**
+   * How far each vertex ended up *inside* another piece, in millimetres.
+   *
+   * Zero everywhere the fold cleared what it was folding over, which is what
+   * a settled solve should read. See `clashDepthPerVertex`.
+   */
+  clash: Float32Array
   settled: boolean
   /** The pose solved for, kept so the next solve can warm-start from it. */
   creases: CreaseFold[]
@@ -738,6 +745,107 @@ function foldAlignedLattice(
  * outline, a new hole, a fold that appeared — is a different mesh, and the
  * only safe answer is to sweep from flat again.
  */
+/**
+ * How far each vertex ended up inside another piece, in millimetres.
+ *
+ * The collider is told to hold surfaces one leather-thickness apart, so a
+ * settled fold should read zero: this measures the promise the solve makes,
+ * not a new opinion about geometry. It is a check on the solver rather than
+ * on the pattern, and it is worth having because the two ways it can come
+ * back non-zero are both real. The collider can run out of iterations where a
+ * fold closes hard onto a stack; and an obstacle is the *flat* slab of another
+ * piece, so a fold that closes over a piece which is itself folded is avoiding
+ * a shape that is not where that piece actually went.
+ *
+ * Only the interior of an obstacle triangle counts. A vertex nearest an
+ * obstacle's edge or corner is beside the slab rather than inside it, and
+ * counting those would light up every fold that closes flush to a piece's
+ * cut edge — which is what a well-made one does.
+ */
+function clashDepthPerVertex(params: {
+  positions: Float32Array
+  clothCount: number
+  obstaclePositions: number[]
+  obstacleTriangles: number[]
+  clearanceMm: number
+}) {
+  const { positions, clothCount, obstaclePositions, obstacleTriangles, clearanceMm } = params
+  const depth = new Float32Array(clothCount)
+  if (obstacleTriangles.length === 0 || clearanceMm <= 0) return depth
+  // Obstacle triangles index into the combined particle array, whose cloth
+  // half is `positions`; the slabs start right after it.
+  const corner = (vertex: number, axis: number) =>
+    obstaclePositions[(vertex - clothCount) * 3 + axis]
+  for (let index = 0; index < clothCount; index += 1) {
+    const px = positions[index * 3]
+    const py = positions[index * 3 + 1]
+    const pz = positions[index * 3 + 2]
+    let nearest = Infinity
+    for (let face = 0; face < obstacleTriangles.length; face += 3) {
+      const a = obstacleTriangles[face]
+      const b = obstacleTriangles[face + 1]
+      const c = obstacleTriangles[face + 2]
+      const hit = pointInsideTriangle(
+        px, py, pz,
+        corner(a, 0), corner(a, 1), corner(a, 2),
+        corner(b, 0), corner(b, 1), corner(b, 2),
+        corner(c, 0), corner(c, 1), corner(c, 2),
+      )
+      if (hit !== null && hit < nearest) nearest = hit
+    }
+    depth[index] = nearest < clearanceMm ? clearanceMm - nearest : 0
+  }
+  return depth
+}
+
+/**
+ * Distance from a point to a triangle's interior, or null if the closest
+ * point on that triangle is on one of its edges instead.
+ *
+ * Written out in scalars rather than vectors: this runs over every vertex
+ * against every obstacle face on the solve's hot path.
+ */
+function pointInsideTriangle(
+  px: number, py: number, pz: number,
+  ax: number, ay: number, az: number,
+  bx: number, by: number, bz: number,
+  cx: number, cy: number, cz: number,
+) {
+  const abx = bx - ax
+  const aby = by - ay
+  const abz = bz - az
+  const acx = cx - ax
+  const acy = cy - ay
+  const acz = cz - az
+  let nx = aby * acz - abz * acy
+  let ny = abz * acx - abx * acz
+  let nz = abx * acy - aby * acx
+  const length = Math.hypot(nx, ny, nz)
+  if (length <= 1e-12) return null
+  nx /= length
+  ny /= length
+  nz /= length
+  const apx = px - ax
+  const apy = py - ay
+  const apz = pz - az
+  const signed = apx * nx + apy * ny + apz * nz
+  // The foot of the perpendicular, in the triangle's own barycentric frame.
+  const qx = apx - nx * signed
+  const qy = apy - ny * signed
+  const qz = apz - nz * signed
+  const d00 = abx * abx + aby * aby + abz * abz
+  const d01 = abx * acx + aby * acy + abz * acz
+  const d11 = acx * acx + acy * acy + acz * acz
+  const denominator = d00 * d11 - d01 * d01
+  if (Math.abs(denominator) <= 1e-12) return null
+  const d20 = qx * abx + qy * aby + qz * abz
+  const d21 = qx * acx + qy * acy + qz * acz
+  const v = (d11 * d20 - d01 * d21) / denominator
+  const w = (d00 * d21 - d01 * d20) / denominator
+  if (v < 0 || w < 0 || v + w > 1) return null
+  return Math.abs(signed)
+}
+
 function usableWarmStart(
   warmStart: FoldDrapeWarmStart | undefined,
   restPositions: Float32Array,
@@ -982,10 +1090,11 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     ;(constraints).push(anchor)
   }
 
+  const colliderThicknessMm = Math.max(0.2, params.thicknessMm)
   const collider = createTriangleCollider({
     triangles: [...triangles, ...obstacleTriangles],
     restPositions: [...restPositions, ...obstacleRest],
-    config: { thickness: Math.max(0.2, params.thicknessMm), friction: 0.2 },
+    config: { thickness: colliderThicknessMm, friction: 0.2 },
   })
 
   // The sweep runs from the pose the state is already in to the dialled one:
@@ -1099,6 +1208,15 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     normals,
     boundaryLoops,
     thicknessScale: skiveProfile(creases, restPositions),
+    clash: clashDepthPerVertex({
+      positions,
+      clothCount,
+      obstaclePositions,
+      obstacleTriangles,
+      // The same separation the collider was configured to hold, so a
+      // non-zero reading is the collider not keeping its own promise.
+      clearanceMm: colliderThicknessMm,
+    }),
     stress: foldStressPerVertex({
       positions,
       restPositions,

@@ -123,6 +123,7 @@ export class ThreeBridge {
     showPieceOutlines: false,
     showStressOverlay: true,
     showFoldStressOverlay: false,
+    showFoldClashOverlay: false,
     usePhysicsRelaxation: true,
   }
   private pieceMeshes: PieceMeshData[] = []

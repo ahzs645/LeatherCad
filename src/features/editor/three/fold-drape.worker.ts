@@ -37,6 +37,7 @@ serveSteadySolverPlugin<null, FoldDrapeParams, FoldDrapeData | null>(
             result.normals.buffer,
             result.thicknessScale.buffer,
             result.stress.buffer,
+            result.clash.buffer,
           ]
         : [],
   },

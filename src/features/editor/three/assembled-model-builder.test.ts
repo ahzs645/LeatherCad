@@ -38,6 +38,7 @@ function previewSettings(overrides: Partial<ThreePreviewSettings> = {}): ThreePr
     showPieceOutlines: false,
     showStressOverlay: false,
     showFoldStressOverlay: false,
+    showFoldClashOverlay: false,
     usePhysicsRelaxation: true,
     ...overrides,
   }
@@ -573,6 +574,14 @@ describe('rebuildAssembledModel', () => {
         })
         return found
       }
+      const build2 = (settings: Record<string, boolean>) =>
+        runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg: 90, radiusMm: 4 })],
+          settings,
+        })
       const build = (showFoldStressOverlay: boolean) =>
         runBuilder({
           patternPieces: [piece],
@@ -605,6 +614,19 @@ describe('rebuildAssembledModel', () => {
       // switched off again.
       expect(on.materials.assembledFrontMaterial.vertexColors).toBe(false)
       expect(on.materials.assembledBackMaterial.vertexColors).toBe(false)
+
+      // The clash overlay is its own switch on the same channel, and when both
+      // are on the clash wins: a fold drawn through another piece is not a
+      // picture whose stress reading means anything yet.
+      const clash = build2({ showFoldClashOverlay: true })
+      const clashed = drapeMeshes(clash.assembledGroup).filter((mesh) => mesh.geometry.getAttribute('color'))
+      expect(clashed.length).toBeGreaterThan(0)
+      const both = build2({ showFoldStressOverlay: true, showFoldClashOverlay: true })
+      const bothTinted = drapeMeshes(both.assembledGroup).filter((mesh) => mesh.geometry.getAttribute('color'))
+      expect(bothTinted.length).toBe(clashed.length)
+      const clashColor = clashed[0].geometry.getAttribute('color')
+      const bothColor = bothTinted[0].geometry.getAttribute('color')
+      expect([...(bothColor.array as Float32Array)]).toEqual([...(clashColor.array as Float32Array)])
     })
 
     it('drapes over what is in its way whether or not it is sewn there', () => {

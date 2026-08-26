@@ -640,6 +640,39 @@ const STRESS_TINT_STOPS = [new Color('#ffffff'), new Color('#eab308'), new Color
  * was. From there it climbs through the amber and red the seam overlay already
  * warns in, so one glance at a model reads the same way in both.
  */
+/** Leather clear of everything, then the blue a clash is called out in. */
+const CLASH_TINT_STOPS = [new Color('#ffffff'), new Color('#38bdf8'), new Color('#4338ca')]
+
+/**
+ * Per-vertex tint for how far a drape ended up inside another piece.
+ *
+ * Blue rather than the stress ramp's amber and red, because the two overlays
+ * say different things and may be on together: warm means the leather is being
+ * asked for too much, cool means two pieces are in the same place. Same white
+ * calm end, for the same reason — vertex colours multiply, so leather with
+ * nothing wrong with it has to come out its own colour.
+ */
+function clashTintColors(clash: Float32Array, fullScaleMm: number) {
+  const colors = new Float32Array(clash.length * 3)
+  const tint = new Color()
+  // Full scale is one leather thickness: less than that and two pieces are
+  // merely closer than the solve meant them to be, a whole one and the fold
+  // has passed clean through, which is the picture a maker is entitled to
+  // disbelieve. Reading it against the leather's own thickness keeps the
+  // overlay meaning the same thing on 1 mm lining and on 4 mm bridle.
+  const scale = fullScaleMm > 0 ? fullScaleMm : 1
+  for (let index = 0; index < clash.length; index += 1) {
+    const depth = MathUtils.clamp(clash[index] / scale, 0, 1)
+    const scaled = depth * (CLASH_TINT_STOPS.length - 1)
+    const stop = Math.min(CLASH_TINT_STOPS.length - 2, Math.floor(scaled))
+    tint.copy(CLASH_TINT_STOPS[stop]).lerp(CLASH_TINT_STOPS[stop + 1], scaled - stop)
+    colors[index * 3] = tint.r
+    colors[index * 3 + 1] = tint.g
+    colors[index * 3 + 2] = tint.b
+  }
+  return colors
+}
+
 function stressTintColors(stress: Float32Array) {
   const colors = new Float32Array(stress.length * 3)
   const tint = new Color()
@@ -836,6 +869,9 @@ function addFoldDrapeShell(params: {
   shared: SharedMaterials
   /** Tint the leather by how hard the fold is on it. */
   showStress: boolean
+  showClash: boolean
+  /** One leather thickness, in millimetres: the top of the clash ramp. */
+  clashFullScaleMm: number
 }) {
   const { drape, transform, halfThickness } = params
   const scale = transform.scale === 0 ? 1 : transform.scale
@@ -863,7 +899,14 @@ function addFoldDrapeShell(params: {
   // Built once and shared by both faces: stress is a property of the
   // mid-surface, so the grain side and the flesh side of a crease are in
   // exactly as much trouble as each other.
-  const stressColors = params.showStress ? stressTintColors(drape.stress) : null
+  // Both overlays ride the same vertex-colour channel, so when both are on the
+  // clash wins: a fold drawn through another piece is not a picture whose
+  // stress reading means anything yet.
+  const stressColors = params.showClash
+    ? clashTintColors(drape.clash, params.clashFullScaleMm)
+    : params.showStress
+      ? stressTintColors(drape.stress)
+      : null
 
   const surface = (side: number, reverse: boolean, material: Material) => {
     const positions = new Float32Array(count * 3)
@@ -1286,6 +1329,8 @@ function createAssembledPieceGroup({
       outlineColor,
       shared: materials.shared,
       showStress: previewSettings.showFoldStressOverlay,
+      showClash: previewSettings.showFoldClashOverlay,
+      clashFullScaleMm: previewSettings.thicknessMm,
     })
     addDrapedStitchHoles(
       drapeGroup,

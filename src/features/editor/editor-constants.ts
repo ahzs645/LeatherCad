@@ -51,6 +51,7 @@ export const DEFAULT_THREE_PREVIEW_SETTINGS: ThreePreviewSettings = {
   showPieceOutlines: false,
   showStressOverlay: true,
   showFoldStressOverlay: false,
+  showFoldClashOverlay: false,
   usePhysicsRelaxation: true,
 }
 

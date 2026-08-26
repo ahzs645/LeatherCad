@@ -155,6 +155,7 @@ export function sanitizeThreePreviewSettings(value: ThreePreviewSettings): Three
     showPieceOutlines: value.showPieceOutlines === true,
     showStressOverlay: value.showStressOverlay !== false,
     showFoldStressOverlay: value.showFoldStressOverlay === true,
+    showFoldClashOverlay: value.showFoldClashOverlay === true,
     usePhysicsRelaxation: value.usePhysicsRelaxation !== false,
     // Left undefined rather than defaulted: no sew scrubber in play means the
     // whole project reads as sewn, which is what a saved document should show.
@@ -187,6 +188,7 @@ export function parseThreePreviewSettings(value: unknown): ThreePreviewSettings 
     showPieceOutlines: candidate.showPieceOutlines === true,
     showStressOverlay: candidate.showStressOverlay !== false,
     showFoldStressOverlay: candidate.showFoldStressOverlay === true,
+    showFoldClashOverlay: candidate.showFoldClashOverlay === true,
     usePhysicsRelaxation: candidate.usePhysicsRelaxation !== false,
     sewnStitchCount: typeof candidate.sewnStitchCount === 'number' ? candidate.sewnStitchCount : undefined,
     avatarId: typeof candidate.avatarId === 'string' ? candidate.avatarId : undefined,

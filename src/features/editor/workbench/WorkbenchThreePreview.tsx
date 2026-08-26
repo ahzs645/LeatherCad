@@ -346,6 +346,19 @@ export function WorkbenchThreePreviewInspector({
         <label className="layer-toggle-item">
           <input
             type="checkbox"
+            checked={threePreviewSettings.showFoldClashOverlay}
+            onChange={(event) =>
+              onSetThreePreviewSettings((previous) => ({
+                ...previous,
+                showFoldClashOverlay: event.target.checked,
+              }))
+            }
+          />
+          <span>Show fold clashes</span>
+        </label>
+        <label className="layer-toggle-item">
+          <input
+            type="checkbox"
             checked={threePreviewSettings.usePhysicsRelaxation}
             onChange={(event) =>
               onSetThreePreviewSettings((previous) => ({

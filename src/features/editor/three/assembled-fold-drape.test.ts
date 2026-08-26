@@ -101,6 +101,45 @@ function furthestApart(a: FoldDrapeData, b: FoldDrapeData) {
 }
 
 describe('solveFoldDrape', () => {
+  it('reads a clash only as deep as the solve actually left one', () => {
+    // A fold with nothing to hit cannot clash with anything, and says so
+    // exactly rather than nearly.
+    expect(Math.max(...solveData({ angleDeg: 180 }).clash)).toBe(0)
+
+    // Folded right over onto a slab it can land on. The collider is told to
+    // hold surfaces a thickness apart and gets most of the way there: 0.64 mm
+    // on 2 mm leather, over a quarter of the vertices. That residue is the
+    // collider running out of iterations where a fold closes hard, not two
+    // pieces in the same place, and the overlay's ramp is scaled so it reads
+    // as the third of a thickness it is.
+    const resting = solveFoldDrapeData(overSlab())
+    expect(resting).not.toBeNull()
+    const restingWorst = Math.max(...resting!.clash)
+    expect(restingWorst).toBeGreaterThan(0)
+    expect(restingWorst).toBeLessThan(2 / 2)
+
+    // The same fold driven into a slab standing where the flap wants to be.
+    // The anchors carry the pose and the slab cannot move, so the leather ends
+    // up inside it — a whole thickness in, which is what passing clean through
+    // looks like, and unmistakably worse than resting on it.
+    const through = solveFoldDrapeData({
+      ...overSlab(),
+      obstacles: [
+        { positions: [-40, 6, -40, 40, 6, -40, -40, 6, 40, 40, 6, 40], triangles: [0, 1, 3, 0, 3, 2] },
+      ],
+    })
+    expect(through).not.toBeNull()
+    const throughWorst = Math.max(...through!.clash)
+    expect(throughWorst).toBeGreaterThan(2 - 0.5)
+    expect(throughWorst).toBeGreaterThan(restingWorst * 2)
+
+    // Lit where it overlaps and nowhere else: an overlay that painted the
+    // whole piece would not say where to look.
+    const lit = [...through!.clash].filter((depth) => depth > 0).length
+    expect(lit).toBeGreaterThan(0)
+    expect(lit).toBeLessThan(through!.clash.length)
+  })
+
   it('folds the way the rigid hinge convention folds', () => {
     // The pivot chain rotates by the document's signed angle about the
     // authored crease direction: with the flap on the crease's document-right
