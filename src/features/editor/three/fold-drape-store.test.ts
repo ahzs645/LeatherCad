@@ -8,8 +8,8 @@ import {
 } from './assembled-fold-drape'
 import {
   createFoldDrapeStore,
-  foldDrapeAngleKey,
   foldDrapeGeometryKey,
+  foldDrapeScrubKey,
   type FoldDrapeRequest,
   type FoldDrapeSolver,
 } from './fold-drape-store'
@@ -95,7 +95,16 @@ function solveHere(angleDeg: number) {
 describe('foldDrapeGeometryKey', () => {
   it('does not change with the angle, which is what a warm start crosses', () => {
     expect(foldDrapeGeometryKey(request(90))).toBe(foldDrapeGeometryKey(request(150)))
-    expect(foldDrapeAngleKey(request(90))).not.toBe(foldDrapeAngleKey(request(150)))
+    expect(foldDrapeScrubKey(request(90))).not.toBe(foldDrapeScrubKey(request(150)))
+  })
+
+  it('separates two stiffnesses of the same crease', () => {
+    // The mesh is the same and so is the pose, but the leather answers them
+    // differently — a cached drape from the other setting is the wrong shape.
+    const soft = request(90, { folds: [{ ...fold(90), stiffness: 0.1 }] })
+    const stiff = request(90, { folds: [{ ...fold(90), stiffness: 0.9 }] })
+    expect(foldDrapeGeometryKey(soft)).toBe(foldDrapeGeometryKey(stiff))
+    expect(foldDrapeScrubKey(soft)).not.toBe(foldDrapeScrubKey(stiff))
   })
 
   it('changes when the leather in the fold’s way moves', () => {
@@ -115,12 +124,16 @@ describe('foldDrapeGeometryKey', () => {
     // Controls slider is answered instantly from the cache and nothing moves.
     const base = request(90)
     for (const changed of [
-      { ...base, folds: [{ ...fold(90), stiffness: 0.9 }] },
       { ...base, folds: [{ ...fold(90), neutralAxisRatio: 0.35 }] },
       { ...base, folds: [{ ...fold(90), foldThicknessMm: 1 }] },
     ]) {
       expect(foldDrapeGeometryKey(changed)).not.toBe(foldDrapeGeometryKey(base))
     }
+    // Stiffness is the exception: it changes what the constraints cost, not
+    // the mesh, so it moves the scrub key and leaves the warm start intact.
+    const stiffer = { ...base, folds: [{ ...fold(90), stiffness: 0.9 }] }
+    expect(foldDrapeGeometryKey(stiffer)).toBe(foldDrapeGeometryKey(base))
+    expect(foldDrapeScrubKey(stiffer)).not.toBe(foldDrapeScrubKey(base))
   })
 
   it('separates two pieces cut to the same outline', () => {

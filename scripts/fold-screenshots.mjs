@@ -292,7 +292,7 @@ async function frame(page, canvas, camera, zoom) {
   const delta = (zoom ?? 0) > 0 ? -100 : 100
   for (let tick = 0; tick < ticks; tick += 1) {
     await page.mouse.wheel(0, delta)
-    await page.waitForTimeout(120)
+    await page.waitForTimeout(260)
   }
 }
 

@@ -76,8 +76,8 @@ function hashSignature(signature: string) {
 }
 
 /**
- * Everything about a request except the angles: the mesh a solve would build
- * and the world it would settle against.
+ * Everything about a request except what a scrub moves: the mesh a solve would
+ * build and the world it would settle against.
  */
 export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
   const parts: (string | number)[] = [request.pieceId, request.thicknessMm]
@@ -90,7 +90,8 @@ export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
   }
   parts.push('folds', request.folds.length)
   for (const fold of request.folds) {
-    // Not the angle: that is what a warm start is allowed to differ in.
+    // Not the angle, and not the stiffness: those are what a warm start is
+    // allowed to differ in.
     parts.push(
       fold.foldLineId,
       fold.start.x,
@@ -100,13 +101,15 @@ export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
       fold.bendRadiusMm,
       fold.swingSample.x,
       fold.swingSample.y,
-      // The crease's material properties decide the mesh as surely as its
-      // geometry does: the neutral axis and the leather's thickness at the
-      // fold set how wide a bend zone the lattice resolves, and the stiffness
-      // sets what the constraints across it cost. Leave them out and dragging
-      // a Bend Controls slider is answered from the cache with the drape the
-      // old value produced.
-      fold.stiffness ?? -1,
+      // Two of the crease's material properties decide the mesh as surely as
+      // its geometry does: the neutral axis and the leather's thickness at the
+      // fold are what set how wide a bend zone the lattice has to resolve.
+      // Leave them out and dragging a Bend Controls slider is answered from
+      // the cache with the drape the old value produced. Stiffness is not one
+      // of them — it changes what the constraints cost, not where a vertex
+      // sits — so it belongs in the scrub key below, where a change to it can
+      // still warm-start from the drape next door instead of sweeping from
+      // flat.
       fold.neutralAxisRatio ?? -1,
       fold.foldThicknessMm ?? -1,
     )
@@ -121,9 +124,16 @@ export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
   return `${request.pieceId}|${request.outer.length}|${hashSignature(parts.join(','))}`
 }
 
-/** The dialled pose, which is the only thing a scrub changes. */
-export function foldDrapeAngleKey(request: FoldDrapeRequest) {
-  return request.folds.map((fold) => `${fold.foldLineId}:${fold.angleDeg}`).join(',')
+/**
+ * What a scrub changes: the dialled pose, and the stiffness the crease answers
+ * it with. Neither touches the mesh, so a solve for a new one of either can
+ * still warm-start from the last — which is why they are keyed apart from the
+ * geometry rather than folded into it.
+ */
+export function foldDrapeScrubKey(request: FoldDrapeRequest) {
+  return request.folds
+    .map((fold) => `${fold.foldLineId}:${fold.angleDeg}:${fold.stiffness ?? ''}`)
+    .join(',')
 }
 
 /** A solve that ran here, or in the worker, or came back from the cache. */
@@ -181,7 +191,7 @@ export function createFoldDrapeStore(
         return null
       }
       const geometryKey = foldDrapeGeometryKey(request)
-      const key = `${geometryKey}@${foldDrapeAngleKey(request)}`
+      const key = `${geometryKey}@${foldDrapeScrubKey(request)}`
       if (solved.has(key)) {
         const cached = solved.get(key) ?? null
         // Touch it: a scrub that keeps returning to the same angles should
