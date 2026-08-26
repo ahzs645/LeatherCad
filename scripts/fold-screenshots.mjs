@@ -280,12 +280,45 @@ async function setHiddenLayers(page, hide) {
 /**
  * How far to wind the wheel back to be sure the camera is against its stop.
  *
- * `engine-runtime.ts` clamps the orbit distance to `[radius * 0.4, radius * 8]`,
- * a span of twenty, and a wheel notch dollies by about a tenth — so thirty-odd
- * notches crosses it from anywhere. Forty, and the arithmetic does not have to
- * be exactly right.
+ * `engine-runtime.ts` clamps the orbit distance to `[radius * 0.4, radius * 8]`
+ * and a notch dollies by a twentieth, so crossing that span takes about sixty
+ * notches. Eighty, and the arithmetic does not have to be exactly right.
  */
-const ZOOM_OUT_TICKS = 40
+const ZOOM_OUT_TICKS = 80
+
+/**
+ * Turn the wheel over the middle of the canvas, `ticks` notches.
+ *
+ * Through a synthetic event rather than `page.mouse.wheel`, which costs five
+ * seconds a call against this renderer — Playwright waits for the compositor,
+ * and Swiftshader takes its time. Eighty notches that way is a seven minute
+ * screenshot; this way it is a tenth of a second, and OrbitControls cannot tell
+ * the difference because it reads `deltaY` and the cursor position and nothing
+ * else.
+ */
+async function wheel(canvas, ticks, deltaY) {
+  if (ticks <= 0) {
+    return
+  }
+  await canvas.evaluate(
+    (element, [count, delta]) => {
+      const box = element.getBoundingClientRect()
+      for (let tick = 0; tick < count; tick += 1) {
+        element.dispatchEvent(
+          new WheelEvent('wheel', {
+            deltaY: delta,
+            deltaMode: 0,
+            clientX: box.left + box.width / 2,
+            clientY: box.top + box.height / 2,
+            bubbles: true,
+            cancelable: true,
+          }),
+        )
+      }
+    },
+    [ticks, deltaY],
+  )
+}
 
 /**
  * Put the camera where the shot list says, from a stop rather than from
@@ -299,12 +332,7 @@ const ZOOM_OUT_TICKS = 40
  * what makes `zoom` an absolute framing rather than a relative nudge.
  */
 async function frame(page, canvas, camera, zoom) {
-  const box = await canvas.boundingBox()
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  for (let tick = 0; tick < ZOOM_OUT_TICKS; tick += 1) {
-    await page.mouse.wheel(0, 100)
-    await page.waitForTimeout(30)
-  }
+  await wheel(canvas, ZOOM_OUT_TICKS, 100)
   await page.waitForTimeout(900)
 
   if (camera) {
@@ -312,16 +340,8 @@ async function frame(page, canvas, camera, zoom) {
     await page.waitForTimeout(1200)
   }
 
-  const ticks = Math.abs(zoom ?? 0)
-  if (ticks === 0) {
-    return
-  }
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  const delta = (zoom ?? 0) > 0 ? -100 : 100
-  for (let tick = 0; tick < ticks; tick += 1) {
-    await page.mouse.wheel(0, delta)
-    await page.waitForTimeout(120)
-  }
+  await wheel(canvas, Math.abs(zoom ?? 0), (zoom ?? 0) > 0 ? -100 : 100)
+  await page.waitForTimeout(900)
 }
 
 async function loadPreset(page, presetId) {
@@ -336,26 +356,35 @@ async function loadPreset(page, presetId) {
 }
 
 /**
- * Fold something once and put it back, before anything is photographed.
+ * A page with the wallet loaded and the 3D view open, ready to be posed.
  *
- * The camera refits to the model the first time the geometry moves, so the
- * first fold of a session is framed a little differently from every fold after
- * it. Spending one throwaway solve here is what makes shot one comparable to
- * the same shot in the next run.
+ * One of these per shot. That is the price of a framing you can trust: the
+ * camera's distance is a single running number that the preset buttons do not
+ * reset and only a model rebuild refits, so any shot taken after another one
+ * inherits its zoom. Handing every shot a fresh page is the only way to make
+ * `zoom: 38` mean the same thing in the first shot and the ninth — and, because
+ * the sequence is then identical for every shot, in tomorrow's run too.
  */
-async function warmUp(page, foldNames, settleMs) {
-  if (foldNames.length === 0) {
-    return
-  }
-  const name = foldNames[0]
-  await setLabelledRange(page, name, name, 180)
+async function openPosedPage(context, presetId, settleMs, failures) {
+  const page = await context.newPage()
+  page.on('pageerror', (error) => failures.push(String(error).slice(0, 200)))
+  // Loading a preset asks whether it may replace the open document. Playwright
+  // dismisses dialogs by default, which quietly leaves the wrong document open.
+  page.on('dialog', (dialog) => dialog.accept())
+
+  await page.goto(`${URL}/`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(2500)
+  await loadPreset(page, presetId)
+  await page.getByRole('button', { name: '3D Assembly' }).click()
   await page.waitForTimeout(settleMs)
-  await setLabelledRange(page, name, name, 0)
-  await page.waitForTimeout(settleMs)
+
+  const canvas = page.locator('canvas.three-preview-canvas')
+  await canvas.waitFor()
+  return { page, canvas }
 }
 
 /**
- * Take one shot, from whatever state the last one left behind.
+ * Take one shot on a page of its own.
  *
  * Order matters: the material sliders go first and the angles last, so the
  * solve that the picture is taken of is the one that saw every setting.
@@ -411,38 +440,27 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true })
   const browser = await chromium.launch(LAUNCH)
   const context = await browser.newContext({ viewport: VIEWPORT, deviceScaleFactor: DEVICE_SCALE_FACTOR })
-  const page = await context.newPage()
+  const preset = shotList.preset ?? DEFAULT_SHOTS.preset
   const failures = []
-  page.on('pageerror', (error) => failures.push(String(error).slice(0, 200)))
-  // Loading a preset asks whether it may replace the open document. Playwright
-  // dismisses dialogs by default, which quietly leaves the wrong document open.
-  page.on('dialog', (dialog) => dialog.accept())
 
   process.stdout.write(`${URL} -> ${OUT_DIR}\n`)
-  await page.goto(`${URL}/`, { waitUntil: 'networkidle' })
-  await page.waitForTimeout(2500)
-
-  await loadPreset(page, shotList.preset ?? DEFAULT_SHOTS.preset)
-  await page.getByRole('button', { name: '3D Assembly' }).click()
-  await page.waitForTimeout(settleMs)
-
-  const canvas = page.locator('canvas.three-preview-canvas')
-  await canvas.waitFor()
-
-  const foldNames = await readFoldNames(page)
-  if (foldNames.length === 0) {
-    throw new Error('this document has no fold sliders — nothing to photograph')
-  }
-  process.stdout.write(`folds: ${foldNames.join(', ')}\n`)
-
-  await warmUp(page, foldNames, settleMs)
 
   const taken = []
+  let foldNames = null
   for (const shot of shotList.shots) {
     if (ONLY && !ONLY.has(shot.name)) {
       continue
     }
+    const { page, canvas } = await openPosedPage(context, preset, settleMs, failures)
+    if (!foldNames) {
+      foldNames = await readFoldNames(page)
+      if (foldNames.length === 0) {
+        throw new Error('this document has no fold sliders — nothing to photograph')
+      }
+      process.stdout.write(`folds: ${foldNames.join(', ')}\n`)
+    }
     taken.push(await capture(page, canvas, shot, foldNames, settleMs))
+    await page.close()
   }
 
   fs.writeFileSync(
