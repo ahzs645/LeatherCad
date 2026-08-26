@@ -198,15 +198,26 @@ convention matches sheet-metal practice, where a single drawn bend line marks
 the centre of the bend allowance.
 
 What that leaves open is not the shape. See
-[`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md), and in
-particular the one that is embarrassing rather than hard: a fold line carries
-`stiffness`, `thicknessMm`, `neutralAxisRatio` and `clearanceMm`, the Bend
-Controls panel puts Stiffness and Neutral Axis Ratio on screen **in Assembled
-mode**, and the assembled builder reads none of them. Dragging them changes
-nothing. Beyond that: the fold is prescribed rather than simulated, its arc is
-a circle where a real crease is an elastica, leather at a fold is skived
-thinner than its panel and ours is not, a crease has no memory, and there is no
-gravity.
+[`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md). Two of the
+fold line's four material properties now reach the assembled view:
+`neutralAxisRatio` and `thicknessMm` set how much flat leather the bend spends
+— the zone is `A·(R + (K − ½)·T)`, the bend allowance about the neutral axis
+rather than about the mid-surface — and `thicknessMm` also tapers the drawn
+shell into the crease, so a skived fold looks skived. `stiffness` and
+`clearanceMm` are still carried into the drape and ignored. Beyond that: the
+fold is prescribed rather than simulated, its arc is a circle where a real
+crease is an elastica, a crease has no memory, and there is no gravity.
+
+**One default is now load-bearing and wants a decision.**
+`DEFAULT_FOLD_THICKNESS_MM` is 1.6 mm while the wallet's panel is 1.8 mm, so a
+document that never authored a fold thickness reads as very slightly skived:
+the imported wallet's spine draws at 1.6 mm instead of 1.8 mm, about 0.1 mm
+lower at the crown. Nothing else moves, because at the default neutral axis of
+½ the thickness cancels out of the bend allowance entirely — the mid-surface
+solve is bit-identical. The alternative is for the fold's thickness to default
+to the panel's rather than to a constant, which would make an unauthored fold a
+true no-op; that is a product call about what an unset field means, not a
+geometry one.
 
 ## 3. Couple the pieces: obstacles are rigid today
 

@@ -379,7 +379,18 @@ export function wrappedThicknessMm(params: {
   return wrapped.size * Math.max(0, materialThicknessMm)
 }
 
-/** The radius a hinge actually turns through: what was authored, or enough to clear the fold. */
+/**
+ * The radius a hinge actually turns through: what was authored, or enough to
+ * clear the fold.
+ *
+ * The floor is measured on the panel's half thickness even when the crease is
+ * skived, which looks like an oversight and is not. It is tempting to let a
+ * thinned spine close tighter for it, but this floor is not about how tightly
+ * the leather can roll — it is about what the shut fold has to hold. The two
+ * halves run a bend diameter apart down their whole length, and everywhere
+ * past the bevel they are full-thickness panel, so the panel is what decides
+ * how far apart they have to be.
+ */
 function hingeBendRadiusMm(hinge: FoldHingeStep, wrappedMm: number, halfThicknessMm: number) {
   return Math.max(hinge.bendRadiusMm, minimumBendRadiusMm(halfThicknessMm, wrappedMm))
 }
@@ -777,6 +788,11 @@ export const ASSEMBLED_DRAPE_MESH_NAME = 'assembled-drape-shell'
  * where the solve bent it. Every boundary edge is a genuine cut, so every
  * wall takes the piece's edge treatment.
  *
+ * The offset is a half thickness only where the leather is at full thickness.
+ * A fold may be skived — thinned along the crease so a stiff panel can turn at
+ * all — and the solve says how much at every vertex, so the shell narrows into
+ * the spine and swells back out to the panel exactly as the leather does.
+ *
  * Two uv channels: `uv` carries the projected flat coordinates the extrude
  * path exposes to textures, so a texture flows unbroken across the fold;
  * `uv1` carries raw document millimetres, which is what lets a raycast on the
@@ -812,9 +828,14 @@ function addFoldDrapeShell(params: {
     uvDocument[index * 2 + 1] = drape.restPositions[index * 2 + 1]
   }
 
-  const surface = (offset: number, reverse: boolean, material: Material) => {
+  // Half the leather's thickness at a vertex: the piece's, tapered into
+  // whatever the fold is skived to where a crease runs through.
+  const halfAt = (vertex: number) => halfThickness * drape.thicknessScale[vertex]
+
+  const surface = (side: number, reverse: boolean, material: Material) => {
     const positions = new Float32Array(count * 3)
     for (let index = 0; index < count; index += 1) {
+      const offset = side * halfAt(index)
       positions[index * 3] = local[index * 3] + drape.normals[index * 3] * offset
       positions[index * 3 + 1] = local[index * 3 + 1] + drape.normals[index * 3 + 1] * offset
       positions[index * 3 + 2] = local[index * 3 + 2] + drape.normals[index * 3 + 2] * offset
@@ -832,8 +853,8 @@ function addFoldDrapeShell(params: {
     mesh.name = ASSEMBLED_DRAPE_MESH_NAME
     params.parent.add(mesh)
   }
-  surface(halfThickness, false, params.frontMaterial)
-  surface(-halfThickness, true, params.backMaterial)
+  surface(1, false, params.frontMaterial)
+  surface(-1, true, params.backMaterial)
 
   // Cut walls: one quad strip per boundary loop, spanning the two surfaces.
   const wallPositions: number[] = []
@@ -845,12 +866,13 @@ function addFoldDrapeShell(params: {
       const a = loop[index]
       const b = loop[(index + 1) % loop.length]
       const base = wallPositions.length / 3
-      for (const [vertex, offset] of [
-        [a, halfThickness],
-        [b, halfThickness],
-        [b, -halfThickness],
-        [a, -halfThickness],
+      for (const [vertex, side] of [
+        [a, 1],
+        [b, 1],
+        [b, -1],
+        [a, -1],
       ] as Array<[number, number]>) {
+        const offset = side * halfAt(vertex)
         wallPositions.push(
           local[vertex * 3] + drape.normals[vertex * 3] * offset,
           local[vertex * 3 + 1] + drape.normals[vertex * 3 + 1] * offset,
@@ -880,9 +902,9 @@ function addFoldDrapeShell(params: {
   const outer = drape.boundaryLoops[0] ?? []
   if (outer.length > 1) {
     const points: Vector3[] = []
-    const lift = halfThickness + 0.0015
     for (let index = 0; index < outer.length; index += 1) {
       for (const vertex of [outer[index], outer[(index + 1) % outer.length]]) {
+        const lift = halfAt(vertex) + 0.0015
         points.push(
           new Vector3(
             local[vertex * 3] + drape.normals[vertex * 3] * lift,

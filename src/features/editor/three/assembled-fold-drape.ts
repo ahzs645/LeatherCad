@@ -57,6 +57,17 @@ const ANCHOR_HOLD_FRACTION = 0.01
 const MIN_BEND_ZONE_MM = 1.5
 /** Closest the cut edge is sampled where it crosses a bend. */
 const MIN_BOUNDARY_PITCH_MM = 0.4
+/** Where the neutral axis lies when a crease does not say: on the mid-surface. */
+const MID_SURFACE_RATIO = 0.5
+/**
+ * How far a skive's bevel runs out past the bend zone, in zone widths.
+ *
+ * A skive is a long shallow bevel — a leatherworker takes the thickness down
+ * over a centimetre or so, not over a millimetre — and the run-out is what
+ * keeps it invisible. Measured in zone widths rather than millimetres so a
+ * gentle fold gets a correspondingly gentle bevel.
+ */
+const SKIVE_RUNOUT_ZONES = 1
 /** Rest-space offset that keeps obstacle vertices clear of the mesh filter. */
 const OBSTACLE_REST_OFFSET_MM = 1e5
 
@@ -142,6 +153,12 @@ export type FoldDrapeData = {
   normals: Float32Array
   /** Vertex loops of the cut boundary: the outline first, then each cutout. */
   boundaryLoops: number[][]
+  /**
+   * How thick the leather is at each vertex, as a fraction of the panel's
+   * thickness. One everywhere until a crease is skived, and then a bevel
+   * through that crease's bend zone — see `skiveProfile`.
+   */
+  thicknessScale: Float32Array
   settled: boolean
   /** The pose solved for, kept so the next solve can warm-start from it. */
   creases: CreaseFold[]
@@ -155,7 +172,11 @@ export type FoldDrapeResult = FoldDrapeData & {
 }
 
 /** A crease as posed, plus the bend zone the mesh resolves it with. */
-type LatticeCrease = CreaseFold & { latticeZoneWidth: number }
+type LatticeCrease = CreaseFold & {
+  latticeZoneWidth: number
+  /** The crease's thickness as a fraction of the panel's: 1 unless skived. */
+  skiveScale: number
+}
 
 function pointInPolygon(point: Point, polygon: Point[]) {
   let inside = false
@@ -173,6 +194,45 @@ function pointInPolygon(point: Point, polygon: Point[]) {
 }
 
 /**
+ * The leather's thickness at a crease.
+ *
+ * Skiving is how a thick panel is made to fold at all: the leather is bevelled
+ * away along the fold line, so a 1.6–1.8 mm wallet body turns through a
+ * 0.9–1.1 mm spine. The crease may therefore be thinner than the panel — and
+ * never thicker, because a fold cannot be cut from leather that is not there,
+ * so the panel is the ceiling. A crease that says nothing is unskived.
+ */
+function creaseThicknessMm(fold: DrapeFoldInput, panelThicknessMm: number) {
+  const panel = Math.max(0, panelThicknessMm)
+  return Math.max(0, Math.min(fold.foldThicknessMm ?? panel, panel))
+}
+
+/**
+ * The radius the bend actually spends leather at.
+ *
+ * A bend costs flat material equal to the arc travelled by its neutral axis —
+ * the layer that neither stretches on the outside of the turn nor compresses
+ * on the inside. `bendRadiusMm` measures the mid-surface, so the inside of the
+ * fold is half a thickness under it and the neutral axis sits `ratio` of a
+ * thickness back up from there: R − T/2 + K·T, which is R + (K − ½)·T.
+ *
+ * Written the second way for a reason. The mid-axis case is the one every
+ * document that never authored a neutral axis is in, and in that form it costs
+ * exactly nothing — the correction is a literal zero, not a subtraction and an
+ * addition that a float would not quite undo — so those documents fold to the
+ * radius they always did, to the bit.
+ *
+ * Leather is not sheet steel: it gives up far more readily in compression than
+ * in tension, so its neutral axis sits below the middle, nearer 0.35, and a
+ * bend spends measurably less flat material than the mid-surface arc suggests.
+ */
+function neutralRadiusMm(fold: DrapeFoldInput, panelThicknessMm: number) {
+  const ratio = fold.neutralAxisRatio ?? MID_SURFACE_RATIO
+  const shift = (ratio - MID_SURFACE_RATIO) * creaseThicknessMm(fold, panelThicknessMm)
+  return Math.max(0, fold.bendRadiusMm + shift)
+}
+
+/**
  * The creases in the pose's terms: directed so the swinging half is on the
  * left, angle signed so the pose turns the way the pivot chain would.
  *
@@ -184,7 +244,11 @@ function pointInPolygon(point: Point, polygon: Point[]) {
  * reconciled here and pinned by the builder's fold tests against the rigid
  * transform.
  */
-function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): LatticeCrease[] {
+function creasesForFolds(
+  folds: DrapeFoldInput[],
+  zoneFloorMm: number,
+  panelThicknessMm: number,
+): LatticeCrease[] {
   const creases: LatticeCrease[] = []
   for (const fold of folds) {
     const direction = { x: fold.end.x - fold.start.x, y: fold.end.y - fold.start.y }
@@ -200,21 +264,76 @@ function creasesForFolds(folds: DrapeFoldInput[], zoneFloorMm: number): LatticeC
     if (side === 0) {
       continue
     }
+    // The bend allowance: the arc the neutral axis travels is the flat leather
+    // the turn eats, so that arc — not the mid-surface's — is how wide the
+    // zone has to be for the fold to spend the right amount of material.
+    const radius = neutralRadiusMm(fold, panelThicknessMm)
+    const panel = Math.max(0, panelThicknessMm)
     creases.push({
       start: side > 0 ? fold.start : fold.end,
       end: side > 0 ? fold.end : fold.start,
       angleRad: side * angleRad,
-      zoneWidth: Math.max(fold.bendRadiusMm * Math.abs(angleRad), zoneFloorMm),
+      zoneWidth: Math.max(radius * Math.abs(angleRad), zoneFloorMm),
       // Meshed for the widest zone the crease can ever open to, not the one it
       // is dialled to: a lattice that changed with the angle would give every
       // scrub step a different mesh, and a mesh is what a warm start is
       // continuous across. The station lines a shallow fold does not need cost
       // a handful of vertices; re-solving from flat every frame costs the
       // scrub.
-      latticeZoneWidth: Math.max(fold.bendRadiusMm * Math.PI, zoneFloorMm),
+      latticeZoneWidth: Math.max(radius * Math.PI, zoneFloorMm),
+      skiveScale: panel > 0 ? creaseThicknessMm(fold, panel) / panel : 1,
     })
   }
   return creases
+}
+
+/**
+ * How thick the leather is drawn at each vertex, as a fraction of the panel.
+ *
+ * Skiving is the one material property of a fold you can see without measuring
+ * anything: the leather visibly thins into the spine. Drawing that means the
+ * shell cannot offset the mid-surface by one constant half-thickness any more,
+ * so the solve hands the renderer a per-vertex fraction to scale it by.
+ *
+ * A skive is a bevel, never a step. The full thinning holds across the bend
+ * zone and then eases back out to the panel over about the same width again on
+ * each side, with a smoothstep so the bevel meets both the spine and the panel
+ * tangentially. A step would draw a hard line down each side of the fold —
+ * a second crease parallel to the real one, which is precisely the artefact
+ * skiving exists to prevent.
+ *
+ * The profile is measured against the zone the crease opens to fully rather
+ * than the one it is dialled to, because a skived spine is skived whether the
+ * wallet is shut or open; keying it to the angle would pump the leather's
+ * thickness up and down through a scrub.
+ */
+function skiveProfile(creases: LatticeCrease[], restPositions: Float32Array) {
+  const count = restPositions.length / 2
+  const scale = new Float32Array(count).fill(1)
+  for (const crease of creases) {
+    if (crease.skiveScale >= 1) {
+      continue
+    }
+    const dx = crease.end.x - crease.start.x
+    const dy = crease.end.y - crease.start.y
+    const length = Math.hypot(dx, dy)
+    if (length <= 1e-9) {
+      continue
+    }
+    const flat = crease.latticeZoneWidth / 2
+    const bevel = crease.latticeZoneWidth * SKIVE_RUNOUT_ZONES
+    for (let index = 0; index < count; index += 1) {
+      const across =
+        Math.abs(
+          dx * (restPositions[index * 2 + 1] - crease.start.y) -
+            dy * (restPositions[index * 2] - crease.start.x),
+        ) / length
+      const t = Math.min(1, Math.max(0, (across - flat) / bevel))
+      const eased = t * t * (3 - 2 * t)
+      scale[index] = Math.min(scale[index], crease.skiveScale + (1 - crease.skiveScale) * eased)
+    }
+  }
+  return scale
 }
 
 /**
@@ -462,7 +581,7 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
   const area = Math.max(1, (maxX - minX) * (maxY - minY))
   const spacing = Math.min(16, Math.max(3, Math.sqrt(area / 140)))
 
-  const creases = creasesForFolds(params.folds, MIN_BEND_ZONE_MM)
+  const creases = creasesForFolds(params.folds, MIN_BEND_ZONE_MM, params.thicknessMm)
   if (creases.length === 0) {
     return null
   }
@@ -732,6 +851,7 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     triangles,
     normals,
     boundaryLoops,
+    thicknessScale: skiveProfile(creases, restPositions),
     settled: result.settled,
     creases,
   }

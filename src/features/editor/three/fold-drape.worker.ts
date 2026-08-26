@@ -31,7 +31,12 @@ serveSteadySolverPlugin<null, FoldDrapeParams, FoldDrapeData | null>(
   {
     transferResult: (result) =>
       result
-        ? [result.positions.buffer, result.restPositions.buffer, result.normals.buffer]
+        ? [
+            result.positions.buffer,
+            result.restPositions.buffer,
+            result.normals.buffer,
+            result.thicknessScale.buffer,
+          ]
         : [],
   },
 )

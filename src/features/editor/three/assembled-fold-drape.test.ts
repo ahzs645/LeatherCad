@@ -38,6 +38,21 @@ function solve(overrides: Partial<DrapeFoldInput> = {}) {
   return result!
 }
 
+/** The same fixture as data, so a test can read the crease the solve built. */
+function solveData(overrides: Partial<DrapeFoldInput> = {}, thicknessMm = 2) {
+  const result = solveFoldDrapeData({
+    outer: SQUARE,
+    holes: [],
+    folds: [fold(overrides)],
+    thicknessMm,
+  })
+  expect(result).not.toBeNull()
+  return result!
+}
+
+/** The fixture's fold angle in radians, worked out the way the solver does. */
+const FIXTURE_ANGLE_RAD = (90 * Math.PI) / 180
+
 function warmStartFrom(data: FoldDrapeData) {
   return {
     positions: data.positions,
@@ -353,6 +368,103 @@ describe('solveFoldDrape', () => {
       }
       expect(worst).toBeLessThan(0.5)
     }
+  })
+
+  it('folds a crease that says nothing about its neutral axis exactly as it always did', () => {
+    // Every pattern saved before a fold could say where its neutral axis sits
+    // reads as the mid-surface, and the mid-surface arc is what the bend zone
+    // has always been. So this is not a tolerance — it is the same leather,
+    // vertex for vertex. Anything looser and shipping the knob would quietly
+    // reshape every document in existence.
+    const unsaid = solveData()
+    const middle = solveData({ neutralAxisRatio: 0.5 })
+    expect(unsaid.creases[0].zoneWidth).toBe(3 * FIXTURE_ANGLE_RAD)
+    expect(middle.creases[0].zoneWidth).toBe(unsaid.creases[0].zoneWidth)
+    expect([...middle.positions]).toEqual([...unsaid.positions])
+    expect([...middle.thicknessScale]).toEqual([...unsaid.thicknessScale])
+  })
+
+  it('narrows the bend zone by exactly what a low neutral axis saves', () => {
+    // Leather gives up in compression long before it gives up in tension, so
+    // its neutral axis rides below the middle of the sheet and the turn eats
+    // less flat material than the mid-surface arc would suggest. How much
+    // less is arithmetic, not taste: the allowance is A·(R_inner + K·T), our
+    // radius measures the mid-surface so R_inner = R − T/2, and the whole
+    // correction collapses to A·(K − ½)·T.
+    const panel = 2
+    const ratio = 0.35
+    const middle = solveData({}, panel)
+    const low = solveData({ neutralAxisRatio: ratio }, panel)
+    const saved = FIXTURE_ANGLE_RAD * (0.5 - ratio) * panel
+    expect(low.creases[0].zoneWidth).toBeCloseTo(middle.creases[0].zoneWidth - saved, 12)
+    expect(low.creases[0].zoneWidth).toBeLessThan(middle.creases[0].zoneWidth)
+  })
+
+  it('spends more leather through a skived crease and draws it thinner', () => {
+    // Skiving thins the leather along the fold line so a stiff panel can turn
+    // at all. Both halves of that show up here. Less material inside the turn
+    // is less material to compress, so the neutral axis has less far to sink
+    // and the bend eats *more* flat leather, not less — and the leather is
+    // drawn to the thickness it was skived to rather than the panel's.
+    const panel = 2
+    const ratio = 0.35
+    const skivedMm = 1.1
+    const full = solveData({ neutralAxisRatio: ratio, foldThicknessMm: panel }, panel)
+    const skived = solveData({ neutralAxisRatio: ratio, foldThicknessMm: skivedMm }, panel)
+    expect(skived.creases[0].zoneWidth).toBeGreaterThan(full.creases[0].zoneWidth)
+    expect(skived.creases[0].zoneWidth - full.creases[0].zoneWidth).toBeCloseTo(
+      FIXTURE_ANGLE_RAD * (0.5 - ratio) * (panel - skivedMm),
+      12,
+    )
+    expect(Math.min(...skived.thicknessScale)).toBeCloseTo(skivedMm / panel, 6)
+    expect(Math.min(...full.thicknessScale)).toBe(1)
+  })
+
+  it('leaves the bend zone alone when a skived crease turns about its middle', () => {
+    // Worth pinning because it reads as a bug and is not: at K = ½ the
+    // thickness cancels out of the allowance — R − T/2 + T/2 is R — so
+    // skiving a mid-axis fold moves no material whatever and only makes the
+    // leather thinner to look at. It is the neutral axis, not the skive, that
+    // decides whether thickness is spent.
+    const panel = 2
+    const skived = solveData({ foldThicknessMm: 1 }, panel)
+    expect(skived.creases[0].zoneWidth).toBe(solveData({}, panel).creases[0].zoneWidth)
+    expect(Math.min(...skived.thicknessScale)).toBe(0.5)
+  })
+
+  it('cannot fold leather the panel was never cut from', () => {
+    // A fold thicker than its own panel is a document saying something
+    // impossible; the panel is the ceiling.
+    const panel = 2
+    const asked = solveData({ neutralAxisRatio: 0.35, foldThicknessMm: 6 }, panel)
+    const capped = solveData({ neutralAxisRatio: 0.35, foldThicknessMm: panel }, panel)
+    expect(asked.creases[0].zoneWidth).toBe(capped.creases[0].zoneWidth)
+    expect(Math.min(...asked.thicknessScale)).toBe(1)
+  })
+
+  it('bevels a skive instead of stepping it', () => {
+    // A real skive is a long shallow bevel. Drawn as a step it would put a
+    // hard line down each side of the fold — a second crease parallel to the
+    // real one, which is the very thing skiving is done to avoid — so the
+    // thickness has to climb back to the panel monotonically and through
+    // genuinely intermediate values.
+    const panel = 2
+    const skived = solveData({ angleDeg: 180, foldThicknessMm: 1 }, panel)
+    const rows: Array<{ across: number; scale: number }> = []
+    for (let index = 0; index < skived.thicknessScale.length; index += 1) {
+      rows.push({
+        across: Math.abs(skived.restPositions[index * 2 + 1] - 20),
+        scale: skived.thicknessScale[index],
+      })
+    }
+    rows.sort((a, b) => a.across - b.across)
+    for (let index = 1; index < rows.length; index += 1) {
+      expect(rows[index].scale).toBeGreaterThanOrEqual(rows[index - 1].scale - 1e-6)
+    }
+    expect(Math.min(...skived.thicknessScale)).toBe(0.5)
+    expect(Math.max(...skived.thicknessScale)).toBe(1)
+    const bevel = rows.filter((row) => row.scale > 0.51 && row.scale < 0.99)
+    expect(bevel.length).toBeGreaterThan(3)
   })
 
   it('returns null when there is nothing to fold', () => {
