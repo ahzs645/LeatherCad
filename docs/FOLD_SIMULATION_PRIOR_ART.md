@@ -150,25 +150,96 @@ strain limiting as a barrier energy. That is the guarantee we approximate with
 a triangle collider and a contact thickness — ours is cheaper and has no such
 guarantee, which is why a tight stack is where it will fail first.
 
-## 5. What to do, in order
+## 5. What makes a fold read as leather rather than as geometry
 
-1. **Drive the fold by its dihedral instead of dragging every vertex to a
-   pose.** This is the one that changes what the simulation *is*: with
-   `assignCreaseTargets` the arc, its radius and the material it spends all
-   come out of the physics, and leather stiffness starts to matter. Already in
-   the engine, never called here. Needs a quasi-static ramp — the naive swap
-   scrolls the flap.
-2. **A little gravity.** The cheapest thing that would make a fold read as
-   leather rather than as geometry, now that the geometry is right. Recorded as
-   a deliberate omission for determinism; item 1's warm start makes it cheap to
-   revisit.
-3. **Honour `neutralAxisRatio`** in the assembled view. Worth about 0.85 mm at
-   a full fold in 1.8 mm leather, and the slider already exists.
-4. **Adaptive crease-aligned remeshing**, when oblique or crossing folds
-   matter. Narain et al. is the reference.
-5. **Thickness guarantees**, if folding over deep stacks becomes routine.
-   C-IPC is the target; the cheap version — growing the radius by the wrapped
-   stack — is what we already do.
+The shape is right, so this is the question that is left. Four answers from
+four different literatures, and in three of them **the knob already exists in
+our document model and the assembled view ignores it.**
+
+### The fold is specified as an angle and a strength, everywhere else
+
+Marvelous Designer — the garment tool this problem most resembles — gives an
+internal line a **fold angle** (0–360°, with 180° flat, folding to the front
+below 180° and to the back above) and a **fold strength**, where "higher values
+make the fold closer to the set angle". That is the Discrete Shells rest-angle
+model with a stiffness on top. It is not a prescribed vertex pose.
+
+Ours already carries both: `resolveFoldBehavior` parses `targetAngleDeg` *and*
+`stiffness` (default 0.3), and the Bend Controls panel shows a Stiffness slider
+per fold **in Assembled mode**. The assembled builder reads neither the
+stiffness nor three of its siblings — `thicknessMm`, `neutralAxisRatio` and
+`clearanceMm` are all parsed, clamped, defaulted and surfaced in the UI, and
+only Fold mode consumes them. Dragging Stiffness in Assembled changes nothing
+at all.
+
+### A real crease is not a circular arc
+
+The bend profile of an elastic sheet is an **elastica** — Euler's large-
+deflection curve for a slender beam — and the curved-crease origami literature
+builds its surfaces from elastica curves precisely because a circular arc is
+the wrong shape. Work on crease mechanics goes further and treats a fold as a
+thin sheet with a *non-flat reference configuration*, faces and crease
+described continuously, rather than as a hinge between flat panels.
+
+Ours is a circular arc by construction — the pose draws it — and it is the
+*same* arc at every station along the crease. Even with the kinematics right,
+that is a large part of why it reads as CAD.
+
+### Leather remembers being folded; ours does not
+
+Cloth's residual curvature and permanent wrinkles come from plastic
+deformation and internal friction in the fibre structure, past a yield strain
+threshold. Wong et al. model bending hysteresis directly; Gong et al. add the
+time dependence, and note that plasticity — not friction alone — is what
+produces the sharp high-curvature ridges you actually see.
+
+Leather is the extreme case of this: creasing and burnishing a fold is a
+*finishing step*, and the fold stays where it was put. Our bending is purely
+elastic, so a fold has no memory: dial the angle back to zero and the leather
+is flat as though it had never been folded.
+
+### The leather at a fold is thinner than the panel
+
+Every wallet is **skived at its fold lines**: a 1.6–1.8 mm body panel is thinned
+to roughly **0.9–1.1 mm** where it folds, turned edges to 0.6–0.8 mm, and a
+high-end turned edge is feathered to near zero. The point of it is exactly the
+thing our model gets stuck on — leather that thick will not turn that tight
+without it.
+
+We fold full-thickness leather everywhere, and derive the minimum bend radius
+from that full thickness, so our spine is blunter than a made piece and our
+minimum radius is pessimistic by roughly the skive ratio. The per-fold
+`thicknessMm` that would express a skive already exists in the document model,
+defaulted to 1.6 mm, and the assembled view ignores it.
+
+### And if the material is ever to *be* a material
+
+Wang, O'Brien and Ramamoorthi measured ten cloth materials into a piecewise
+linear model of nonlinear, anisotropic stretching and bending, fit from a cheap
+measurement rig. That is the shape of the answer for "veg-tan behaves
+differently from chrome-tan" — a small parameter set per material, fit from
+data, rather than one global stiffness.
+
+## 6. What to do, in order
+
+1. **Make the fold's own controls do something in Assembled.** Stiffness onto
+   the bend compliance, per-fold `thicknessMm` as a skive (thin the bend zone
+   and let the radius follow), `neutralAxisRatio` into the allowance. All three
+   are parsed, defaulted and on screen already. This is the cheapest work on
+   this page and it is the difference between a fold you can tune and a fold
+   that ignores you.
+2. **Drive the fold by its dihedral** (`assignCreaseTargets`), which turns
+   stiffness from a fudge into the thing that actually decides the shape — and
+   matches how Marvelous Designer models the same problem. Needs a
+   quasi-static ramp; the naive swap scrolls the flap.
+3. **Give a crease memory.** Bending plasticity past a yield curvature is what
+   makes leather look creased rather than bent, and it is what a burnished fold
+   physically is.
+4. **A little gravity**, so an unsupported flap settles instead of holding its
+   swept pose exactly.
+5. **Adaptive crease-aligned remeshing** (Narain et al.) when oblique or
+   crossing folds matter; **C-IPC**-style thickness guarantees if folding over
+   deep stacks becomes routine.
 
 ## Sources
 
@@ -192,3 +263,21 @@ guarantee, which is why a tight stack is where it will fail first.
   Origami-Inspired Engineering*. ASME Appl. Mech. Rev. 70(1), 2018.
 - Bend allowance and the K-factor, for the formula and typical values:
   https://metricmech.com/articles/bend-allowance-k-factor
+- Where a drawn bend line sits relative to the bend, in shop practice:
+  https://www.eng-tips.com/threads/location-of-bend-line-on-flat-layout.407904/
+- Wong, Kwok et al. *Modelling Bending Behaviour in Cloth Simulation Using
+  Hysteresis*. Computer Graphics Forum, 2013.
+  https://onlinelibrary.wiley.com/doi/abs/10.1111/cgf.12196
+- Gong et al. *Cloth Animation with Time-dependent Persistent Wrinkles*.
+  Computer Graphics Forum, 2025. https://arxiv.org/abs/2502.13491
+- Wang, O'Brien, Ramamoorthi. *Data-Driven Elastic Models for Cloth: Modeling
+  and Measurement*. ACM TOG 30(4), 2011.
+  http://graphics.berkeley.edu/papers/Wang-DDE-2011-08/Wang-DDE-2011-08.pdf
+- *Elastica surface generation of curved-crease origami*. Int. J. Solids and
+  Structures, 2018. https://www.sciencedirect.com/science/article/pii/S0020768317305334
+- Marvelous Designer, *Fold Seam Line* and *Fold Arrangement* (fold angle and
+  fold strength on an internal line).
+  https://support.marvelousdesigner.com/hc/en-us/articles/47358411649305-Fold-Seam-Line
+- Skiving practice and thicknesses at a fold:
+  https://en.wikipedia.org/wiki/Skiving_(leathercraft) ·
+  https://hab-to.com/blogs/leather-hour-blog/what-is-leather-skiving-the-artisan-s-guide-to-professional-finishes

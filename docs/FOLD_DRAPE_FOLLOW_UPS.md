@@ -197,10 +197,16 @@ from each side of the crease and bulges past it by as much as it eats. The
 convention matches sheet-metal practice, where a single drawn bend line marks
 the centre of the bend allowance.
 
-What that leaves open is not the shape:
-[`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md) — the fold is
-prescribed rather than simulated, `neutralAxisRatio` is unused in the assembled
-view, and there is no gravity.
+What that leaves open is not the shape. See
+[`FOLD_SIMULATION_PRIOR_ART.md`](./FOLD_SIMULATION_PRIOR_ART.md), and in
+particular the one that is embarrassing rather than hard: a fold line carries
+`stiffness`, `thicknessMm`, `neutralAxisRatio` and `clearanceMm`, the Bend
+Controls panel puts Stiffness and Neutral Axis Ratio on screen **in Assembled
+mode**, and the assembled builder reads none of them. Dragging them changes
+nothing. Beyond that: the fold is prescribed rather than simulated, its arc is
+a circle where a real crease is an elastica, leather at a fold is skived
+thinner than its panel and ours is not, a crease has no memory, and there is no
+gravity.
 
 ## 3. Couple the pieces: obstacles are rigid today
 
