@@ -8,7 +8,10 @@ kernels — instead of rotating rigid halves.
 This file was the list of what that work deliberately did not do. Items 1 and
 2 have since been worked through and are recorded here as what shipped and
 what it measured; 3 to 6 are still open, and two of them have changed shape
-now that there are numbers behind them rather than expectations.
+now that there are numbers behind them rather than expectations. Item 7 was
+not on the original list — it is a stress overlay, added because the fold now
+turns tight enough to be worth warning about, and the first thing it found was
+§2e, a defect in the drape rather than in any pattern.
 
 ---
 
@@ -219,6 +222,59 @@ to the panel's rather than to a constant, which would make an unauthored fold a
 true no-op; that is a product call about what an unset field means, not a
 geometry one.
 
+## 2e. Contact inflates the crease band — **diagnosed, not fixed**
+
+Found by the stress overlay (§7) the moment it ran against the shipped wallet:
+its membrane term pegged at 1.000 on `piece-a`, and the reason is a defect in
+the drape, not in the leather. Edge strain measured against rest length on the
+imported wallet's flap:
+
+| | edges | worst | over 5% |
+|---|---|---|---|
+| 90° | 915 | **62.5%** on a 0.703 mm edge | 17 |
+| 180° | 739 | **17.0%** on a 3.770 mm edge | 12 |
+
+`piece-c`, whose fold does not run out to a cut edge, reads **0.0%** and has no
+edge over 5% at either angle. No leather grows by two thirds; every offending
+rest length is one the mesher chose — 0.703 and 1.390 mm are `finePitch`
+(`zoneWidth / 4`) at the two angles, 1.885 and 3.770 mm are the lattice's zone
+pitch and its first doubling.
+
+**It is contact, not convergence.** Four experiments, each against the same
+wallet:
+
+| change | 90° worst | 180° worst |
+|---|---|---|
+| *(as shipped)* | 62.5% | 17.0% |
+| iterations 4 → 24 | 42.6% | 8.5% |
+| collider thickness 1.8 → 0.05 mm | 16.3% | **1.6%** |
+| boundary pitch floored at 1.8 mm | 25.6% | 18.9% |
+| boundary + lattice floored at 0.9 mm | 32.5% | 17.0% |
+
+Six times the iterations costs five times the wall clock and does not converge;
+turning the collider down all but erases the strain and takes 180° to zero
+edges over 5%. The collider holds surfaces one thickness apart and has no
+notion that two particles it is separating are the two ends of one edge, so
+wherever the drape's own mesh is cut finer than the leather is thick, contact
+outruns the distance constraints. Excluding the bend band from *self*-collision
+changed nothing, which places the push on the obstacle pieces the flap closes
+onto rather than on the crease touching itself.
+
+**Why no fix is committed.** Flooring the mesh at half a thickness is the
+obvious move and was built and measured: it takes 90° from 62.5% to 32.5%,
+leaves 180° untouched, and — because a tight bend in thick leather has a zone
+narrower than the leather — coarsens exactly the case the overlay exists to
+report, dropping `reads the fold against the leather at the crease` from 0.400
+to 0.252. Halving one number while blunting the new instrument is not a win, so
+it was reverted rather than shipped.
+
+The fix that would work is the textbook one: exclude topological neighbours
+from collision, so a vertex is never pushed off a triangle it shares an edge
+with. That lives in the atelier collider, not here. Until then the overlay's
+**membrane term is not trustworthy on a piece whose crease reaches a cut edge**
+— its bend term, which reads curvature against the wrapped stack, is
+unaffected and is the one to read.
+
 ## 3. Couple the pieces: obstacles are rigid today
 
 Each folded piece still solves alone, seeing every *other* piece as a rigid slab
@@ -317,3 +373,42 @@ definition.
   app — a mobile-only run is the first thing to hit it, and nothing warms it
   first. Not the fold work either way: it fails the same way on `origin/main`
   at 70fd13f. Recorded so nobody bisects the fold for it.
+
+## 7. Where a fold asks more of the leather than it will give — **added**
+
+**Show fold stress tint**, a checkbox beside the other layer toggles in the 3D
+panel (`showFoldStressOverlay`, off by default). It tints the draped shell per
+vertex, 0 to 1, where 0 is leather doing nothing it minds.
+
+Two different faults are measured and the worse of the two is reported, because
+a maker fixes them differently:
+
+- **Membrane** — every mesh edge's solved length against the length it was cut
+  at, full scale at **5% strain**. Not the breaking strain: leather pulled 5%
+  past its cut length stays long, so the piece it was cut for no longer fits.
+  Stretch compliance is a whisker off rigid, so strain that survives the settle
+  means the pose could not be reached without the material changing length —
+  a *pattern* fault, not a fold one.
+- **Bend** — the radius the crease actually turns through, read against
+  `minimumBendRadiusMm` for the stack it closes over, both carried onto the
+  neutral axis so the threshold and the bend allowance agree. Skiving lowers
+  the threshold, which is what a leatherworker skives *for*: 4 mm leather
+  turned 1.2 mm reads 0.400; skive the spine to 1 mm and the same geometry
+  reads 0.005.
+
+The stack is a property of the *crease*, not the panel — outside a bend zone
+the leather has only itself to clear. Applied piece-wide it lit the free
+corners of a hanging flap at 0.79; scoped correctly, off-crease readings are
+≤ 0.005.
+
+On the shipped wallet the bend term now reports a real over-bend — **0.54 at
+90°, 0.69 at 180°**, hottest at the two ends of the fold — because §2b removed
+the mesh-spacing zone floor and the crease finally rolls at its own radius,
+which is tighter than its 1.7 mm stack allows over much of the spine. Read the
+bend term. **Do not read the membrane term on a piece whose crease reaches a
+cut edge**: §2e explains why it pegs at 1.000 there for reasons that are the
+collider's, not the leather's.
+
+The tint covers the shell's two faces only, not its cut walls — those take a
+double-sided edge material that may carry burnish or paint, and two meanings on
+one surface would read worse than one.
