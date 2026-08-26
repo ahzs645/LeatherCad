@@ -222,24 +222,59 @@ data, rather than one global stiffness.
 
 ## 6. What to do, in order
 
-1. **Make the fold's own controls do something in Assembled.** Stiffness onto
-   the bend compliance, per-fold `thicknessMm` as a skive (thin the bend zone
-   and let the radius follow), `neutralAxisRatio` into the allowance. All three
-   are parsed, defaulted and on screen already. This is the cheapest work on
-   this page and it is the difference between a fold you can tune and a fold
-   that ignores you.
-2. **Drive the fold by its dihedral** (`assignCreaseTargets`), which turns
-   stiffness from a fudge into the thing that actually decides the shape — and
-   matches how Marvelous Designer models the same problem. Needs a
-   quasi-static ramp; the naive swap scrolls the flap.
-3. **Give a crease memory.** Bending plasticity past a yield curvature is what
-   makes leather look creased rather than bent, and it is what a burnished fold
-   physically is.
-4. **A little gravity**, so an unsupported flap settles instead of holding its
-   swept pose exactly.
-5. **Adaptive crease-aligned remeshing** (Narain et al.) when oblique or
-   crossing folds matter; **C-IPC**-style thickness guarantees if folding over
-   deep stacks becomes routine.
+**1. Make the fold's own controls do something in Assembled — done.** All
+three now reach the drape:
+
+| knob | what it does now | measured, wallet body at 180° |
+|---|---|---|
+| `neutralAxisRatio` | sets the radius the bend spends leather at, `R + (K−½)·T` | K 0.5 → 0.35 narrows the bend zone 5.655 → 4.901 mm |
+| `foldThicknessMm` | thins the drawn leather through the bend, bevelled back out | spine drawn at 1.600 mm against a 1.800 mm panel |
+| `stiffness` | bending compliance of the leather inside the crease's zone | a free fold's crown 6.220 mm soft → 6.897 mm stiff; over an obstacle the cut edge lands 1.8–2.4 mm apart |
+
+Two things worth keeping from doing it:
+
+- **At K = ½ the thickness cancels out of the bend allowance entirely.**
+  `R − T/2 + T/2 = R`. So a skive changes what is *drawn* and nothing about
+  where the leather goes until the neutral axis also moves off centre. The
+  neutral axis, not the skive, is what decides whether thickness is spent at
+  all. Writing the formula as `R + (K−½)·T` rather than `R − T/2 + K·T` is
+  what makes the default a bit-exact no-op — the second spelling does not
+  round-trip in floating point, and would have moved every saved document.
+- **Stiffness cannot move the flap, only how the crease answers contact.**
+  Setting the bend zone's compliance to literally zero — an unbendable crease —
+  changes a free fold's closed height by 0.01 mm. The anchors pull every free
+  vertex toward the posed position, so the crease's bending stiffness competes
+  against a force spread over the whole flap and loses. The knob has real
+  authority where something is in the way, and almost none where nothing is.
+  If "how hard the crease holds its angle" should mean what it sounds like, the
+  lever is the anchor hold, not the bend compliance — which is item 2 wearing a
+  different hat.
+
+**2. Drive the fold by its dihedral** (`assignCreaseTargets`) — still the one
+that changes what the simulation *is*, and now with a second reason: it is what
+would give stiffness authority over the fold rather than only over its
+reaction. Needs a quasi-static ramp; the naive swap scrolls the flap.
+
+**3. Give a crease memory.** Bending plasticity past a yield curvature is what
+makes leather look creased rather than bent.
+
+**4. A little gravity**, so an unsupported flap settles instead of holding its
+swept pose exactly.
+
+**5. Adaptive crease-aligned remeshing** (Narain et al.) when oblique or
+crossing folds matter; **C-IPC**-style thickness guarantees if folding over
+deep stacks becomes routine.
+
+### Left open by the work above
+
+- An unset fold thickness defaults to a constant 1.6 mm rather than tracking
+  the panel, so a document that never authored one now draws its folds slightly
+  skived. Harmless and arguably right, but it is a default nobody chose.
+- `addDrapedStitchHoles` still places holes at the panel's half thickness, so a
+  stitch hole inside a skive sits a few tenths proud of the thinned surface.
+- The analytic fallback (`buildBendGeometry`) draws one constant half thickness,
+  so a piece too big to mesh renders its skived fold at full thickness.
+- `clearanceMm` is still carried into the drape and ignored.
 
 ## Sources
 
