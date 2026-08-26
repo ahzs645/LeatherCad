@@ -6,7 +6,15 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'scripts/generate-source-parity-fixtures.ts']),
+  globalIgnores([
+    'dist',
+    'scripts/generate-source-parity-fixtures.ts',
+    // A background agent working in an isolated worktree checks the whole repo
+    // out underneath us. Linting that copy reports every file in it twice, and
+    // reports it as broken besides: those paths are in no tsconfig project, so
+    // the type-aware rules cannot parse a single one of them.
+    '.claude/worktrees/**',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
