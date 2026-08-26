@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "document_name": "belt_strap_template",
+  "units": "mm",
+  "layers": [
+    { "id": "strap_layer", "name": "Strap" },
+    { "id": "stitch_layer", "name": "Stitching" },
+    { "id": "mark_layer", "name": "Marks and Guides" },
+    { "id": "hardware_layer", "name": "Hardware" }
+  ],
+  "entities": [
+    {
+      "id": "strap_outline",
+      "type": "rectangle",
+      "layer_id": "strap_layer",
+      "x": -500,
+      "y": -19,
+      "width": 1000,
+      "height": 38,
+      "line_role": "cut"
+    },
+    {
+      "id": "buckle_fold_back_mark",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": { "x": -420, "y": -19 },
+      "end": { "x": -420, "y": 19 },
+      "line_role": "fold"
+    },
+    {
+      "id": "buckle_fold_back",
+      "type": "fold",
+      "start": { "x": -420, "y": -19 },
+      "end": { "x": -420, "y": 19 },
+      "name": "Buckle Fold Back",
+      "direction": "valley",
+      "angle_deg": 180,
+      "max_angle_deg": 180,
+      "radius_mm": 7,
+      "thickness_mm": 2.4,
+      "neutral_axis_ratio": 0.35,
+      "stiffness": 0.3,
+      "clearance_mm": 2
+    },
+    {
+      "id": "buckle_tongue_slot_mark",
+      "type": "rectangle",
+      "layer_id": "mark_layer",
+      "x": -472,
+      "y": -2.5,
+      "width": 24,
+      "height": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "keeper_start_guide",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": { "x": -405, "y": -19 },
+      "end": { "x": -405, "y": 19 },
+      "line_role": "guide"
+    },
+    {
+      "id": "keeper_end_guide",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": { "x": -385, "y": -19 },
+      "end": { "x": -385, "y": 19 },
+      "line_role": "guide"
+    },
+    {
+      "id": "top_edge_stitch",
+      "type": "stitch_path",
+      "layer_id": "stitch_layer",
+      "path_type": "line",
+      "start": { "x": -400, "y": -14 },
+      "end": { "x": 470, "y": -14 },
+      "pitch_mm": 6,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "bottom_edge_stitch",
+      "type": "stitch_path",
+      "layer_id": "stitch_layer",
+      "path_type": "line",
+      "start": { "x": -400, "y": 14 },
+      "end": { "x": 470, "y": 14 },
+      "pitch_mm": 6,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": -35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "buckle_bar_marker",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": -460, "y": 0 },
+      "kind": "buckle",
+      "label": "Buckle Bar Center",
+      "hole_diameter_mm": 5,
+      "installation_side": "grain",
+      "notes": "Buckle tongue passes through the slot marked by buckle_tongue_slot_mark.",
+      "visible": true
+    },
+    {
+      "id": "tail_rivet_one",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": -490, "y": 0 },
+      "kind": "rivet",
+      "label": "Buckle Rivet 1 Tail",
+      "hole_diameter_mm": 3,
+      "spacing_mm": 15,
+      "installation_side": "grain",
+      "notes": "Mirrors strap_rivet_one about the fold at x = -420.",
+      "visible": true
+    },
+    {
+      "id": "tail_rivet_two",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": -475, "y": 0 },
+      "kind": "rivet",
+      "label": "Buckle Rivet 2 Tail",
+      "hole_diameter_mm": 3,
+      "spacing_mm": 15,
+      "installation_side": "grain",
+      "notes": "Mirrors strap_rivet_two about the fold at x = -420.",
+      "visible": true
+    },
+    {
+      "id": "strap_rivet_one",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": -350, "y": 0 },
+      "kind": "rivet",
+      "label": "Buckle Rivet 1 Strap",
+      "hole_diameter_mm": 3,
+      "spacing_mm": 15,
+      "installation_side": "flesh",
+      "notes": "Meets tail_rivet_one once the fold back is closed.",
+      "visible": true
+    },
+    {
+      "id": "strap_rivet_two",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": -365, "y": 0 },
+      "kind": "rivet",
+      "label": "Buckle Rivet 2 Strap",
+      "hole_diameter_mm": 3,
+      "spacing_mm": 15,
+      "installation_side": "flesh",
+      "notes": "Meets tail_rivet_two once the fold back is closed.",
+      "visible": true
+    },
+    {
+      "id": "adjustment_hole_one",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 300, "y": 0 },
+      "kind": "custom",
+      "label": "Adjustment Hole 1",
+      "hole_diameter_mm": 5,
+      "spacing_mm": 25,
+      "installation_side": "either",
+      "notes": "Tightest setting.",
+      "visible": true
+    },
+    {
+      "id": "adjustment_hole_two",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 325, "y": 0 },
+      "kind": "custom",
+      "label": "Adjustment Hole 2",
+      "hole_diameter_mm": 5,
+      "spacing_mm": 25,
+      "installation_side": "either",
+      "visible": true
+    },
+    {
+      "id": "adjustment_hole_three",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 350, "y": 0 },
+      "kind": "custom",
+      "label": "Adjustment Hole 3",
+      "hole_diameter_mm": 5,
+      "spacing_mm": 25,
+      "installation_side": "either",
+      "notes": "Center setting, 150 mm back from the tip.",
+      "visible": true
+    },
+    {
+      "id": "adjustment_hole_four",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 375, "y": 0 },
+      "kind": "custom",
+      "label": "Adjustment Hole 4",
+      "hole_diameter_mm": 5,
+      "spacing_mm": 25,
+      "installation_side": "either",
+      "visible": true
+    },
+    {
+      "id": "adjustment_hole_five",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 400, "y": 0 },
+      "kind": "custom",
+      "label": "Adjustment Hole 5",
+      "hole_diameter_mm": 5,
+      "spacing_mm": 25,
+      "installation_side": "either",
+      "notes": "Loosest setting.",
+      "visible": true
+    },
+    {
+      "id": "fold_back_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -416, "y": -4 },
+      "value": "fold back over buckle bar",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "tongue_slot_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -472, "y": -8 },
+      "value": "buckle tongue slot",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "keeper_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -403, "y": 10 },
+      "value": "keeper 20 mm",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "edge_stitch_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -100, "y": -6 },
+      "value": "edge stitch 5 mm from edge",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "adjustment_holes_text_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": 260, "y": -6 },
+      "value": "adjustment holes 25 mm pitch",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "strap_piece",
+      "type": "pattern_piece",
+      "layer_id": "strap_layer",
+      "boundary_entity_id": "strap_outline",
+      "internal_entity_ids": [
+        "buckle_fold_back_mark",
+        "buckle_tongue_slot_mark",
+        "keeper_start_guide",
+        "keeper_end_guide",
+        "top_edge_stitch",
+        "bottom_edge_stitch",
+        "fold_back_text_label",
+        "tongue_slot_text_label",
+        "keeper_text_label",
+        "edge_stitch_text_label",
+        "adjustment_holes_text_label"
+      ],
+      "name": "Belt Strap",
+      "quantity": 1,
+      "code": "belt_strap",
+      "annotation": "Cut one; fold the 80 mm buckle tail back around the buckle bar on a 7 mm bend radius and rivet through both layers.",
+      "material": "3.5 to 4.0 mm vegetable tanned belt bend",
+      "material_side": "grain",
+      "notes": "1000 mm by 38 mm closed rectangular strap blank.",
+      "orientation": "horizontal",
+      "allow_flip": false,
+      "include_in_layout": true
+    },
+    {
+      "id": "strap_edge_allowance",
+      "type": "seam_allowance",
+      "piece_id": "strap_piece",
+      "default_offset_mm": 3,
+      "enabled": true
+    },
+    {
+      "id": "buckle_fold_back_seam",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "strap_piece",
+        "edge_index": 0,
+        "t0": 0,
+        "t1": 0.08
+      },
+      "to": {
+        "piece_id": "strap_piece",
+        "edge_index": 2,
+        "t0": 0.92,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 6,
+      "tolerance_mm": 0.5,
+      "reversed": true
+    }
+  ]
+}

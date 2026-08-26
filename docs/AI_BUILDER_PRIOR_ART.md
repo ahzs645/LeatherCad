@@ -170,10 +170,15 @@ a replayable, readable edit history and may be enough.
 
 ## 4. Suggested order
 
-1. **3a** — send preflight back, retry on errors. Hours, and it is the
-   change with the best evidence behind it.
-2. **3c** — score drape/stress/clash in the benchmark. Also small, and it is
-   what tells you whether 3b actually helped.
+*(Written before the benchmark in §5 was run. §5 reverses the first two — the
+measurement has to come first, because the repair loop can only return findings
+the app is capable of having. Both are now built; the order below is corrected.)*
+
+1. **3c** — score drape/stress/clash in the benchmark. It is what makes every
+   other change measurable, and on its own it caught three failures that
+   preflight rates as perfectly clean.
+2. **3a** — send preflight back, retry on errors. Cheap and correct, but on
+   this corpus it would have fixed nothing on its own: see §5.
 3. **3b** — the tool surface. The real work, and worth doing only with 3c in
    place to measure it.
 4. **3d**, then **3e** as a product decision.
@@ -181,3 +186,108 @@ a replayable, readable edit history and may be enough.
 Steps 1 and 2 are worth doing regardless of whether the tool surface ever gets
 built, because they make the current generator measurably better and give any
 future agent something to be measured against.
+---
+
+## 5. The benchmark that was actually run
+
+Ten agents, five prompts, two arms, scored on both harnesses. **Blind** got the
+prompt and the skill file and was forbidden to execute anything against its own
+output — the current pipeline's exact conditions. **Loop** got the same prompt
+plus the two harnesses and iterated against them.
+
+### The structural score cannot tell the arms apart
+
+| | blind | loop |
+|---|---|---|
+| belt-template | 12/12 | 12/12 |
+| bifold-wallet | 12/12 | 12/12 |
+| card-sleeve | 12/12 | 12/12 |
+| gusseted-pouch | 12/12 | 12/12 |
+| snap-coin-pouch | 12/12 | 12/12 |
+
+**Ten out of ten documents score full marks.** So does the committed baseline,
+at 11 or 12. The metric is saturated; it is not measuring anything.
+
+### The functional score separates them completely
+
+| prompt | baseline | blind | loop |
+|---|---|---|---|
+| belt-template | 4/4 | **4/12** | **12/12** |
+| bifold-wallet | 9/12 | **6/12** | **12/12** |
+| card-sleeve | 4/4 | 4/4 | 4/4 |
+| gusseted-pouch | 4/4 | 4/4 | **12/12** |
+| snap-coin-pouch | 12/12 | **4/12** | **12/12** |
+
+The denominators differ because a document with no fold cannot be scored on
+folding, so the fair headline is the one that ignores them:
+
+> **Of the documents that authored a fold, blind closed 0 of 3. Loop closed 4 of 4.**
+
+Blind failures, all of them invisible in the JSON:
+
+- **bifold-wallet** — worst clash **1.800 mm**, exactly the collider clearance,
+  i.e. zero distance. The pockets are drawn overlapping the shell, so they are
+  inside its leather before the fold starts. Worst stress pinned at 1.000 too.
+- **snap-coin-pouch** — clash 1.793 mm, stress 1.000, and the fold did not
+  settle.
+- **belt-template** — the fold produced **no drape at all**.
+
+### The finding that reverses the recommended order
+
+**Every blind document had zero preflight errors and zero preflight warnings.**
+
+So §3a, the repair loop — the change with the best published evidence and the
+one this file put first — would have caught **none** of these. Preflight checks
+boundary closure, seam-span lengths, hole counts and fold radius. It never asks
+whether two pieces occupy the same leather, or whether the fold solves.
+
+What caught all three was §3c, the functional harness. The order in §4 was
+wrong: **build the measurement first.** The repair loop is still correct and is
+now built, but it can only return findings the app is capable of having, and
+before this the app was not capable of having these ones.
+
+### What the loop agents learned that reading JSON cannot teach
+
+Each of these was recovered from tool feedback, not from the document:
+
+- **Sheet layout silently decides the clash score.** `drapeObstaclesForPiece`
+  treats a piece's *document* position as its assembly position, and
+  `applyPlacementTransform` adds ~24.5 mm of exploded offset per piece. A tidy
+  nesting with 15 mm gaps still scores the baseline's 9/12; the cliff to a clean
+  12/12 sits at about 23 mm. This is the convention `assembled-model-builder.ts`
+  already documents — pieces are laid out apart and come together only when the
+  seams place them — and the committed baseline violates it.
+- **A tighter fold radius costs *more* mesh, not less.** `finePitch` is
+  `zoneWidth / 4` and `zoneWidth` scales with the radius, so a small radius
+  means a fine pitch. On a 1000 mm strap that crosses `MAX_CLOTH_VERTICES`
+  (700) and `solveFoldDrapeData` returns null. Measured cliff: radius 4.5 mm
+  null, 5.0 mm 644 vertices and settles.
+- **The drape's thickness is not the document's.** On a 1000 mm document the
+  `DEFAULT_THICKNESS_WORLD / scale` floor wins and the solve receives 3.03 mm
+  rather than the 1.8 mm preview default.
+- **Round-number edge spans fail the seam check.** `t = 0.3` instead of
+  `95/310 = 0.30645…` is 2 mm out on a 310 mm gusset — over tolerance, and
+  impossible to eyeball.
+
+### Blind spots the agents found in the new harness
+
+Reported rather than fixed, because they bound what these numbers mean:
+
+- Nothing checks that pieces do not **overlap in the flat cutting layout**.
+- `seam-length-mismatch` is the only guard on seam correctness, so **any
+  wrong-edge pairing whose lengths happen to match is invisible** — including a
+  span written in the wrong direction.
+- Nothing checks that stitch paths, holes or labels lie **inside** the piece
+  boundary; both stitch runs moved clean off the leather still score 12/12.
+- A crease that **stops short of both cut edges** — un-foldable — scores full
+  marks, because region splitting treats a fold as an infinite line.
+- Hardware markers are counted, never checked: two snaps stacked at one point
+  score the same as a matched closing pair.
+- `seam_connection.reversed` and a span's own `reversed` **compose into a
+  double flip**, which twists the seam. Neither harness sees it, and the
+  committed `swarm-snap-coin-pouch.json` baseline has it on both seams.
+
+One scoring bug was found during the run and fixed: a drape that returned null
+used to score full marks on stress and clash, because the maxima stayed at
+their initialised zero. Both physical checks are now gated on the fold having
+actually solved, which is what moved `blind-belt-template` from 10/12 to 4/12.

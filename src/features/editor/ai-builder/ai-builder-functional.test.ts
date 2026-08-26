@@ -155,20 +155,33 @@ function solveFolds(doc: DocFile) {
     foldDrape: store,
   } as never)
 
+  let askedPieces = 0
   let solvedPieces = 0
   let settledPieces = 0
   let worstStress = 0
   let worstClashMm = 0
   for (const params of Object.values(captured)) {
     const data = solveFoldDrapeData(params as never)
-    solvedPieces += 1
+    askedPieces += 1
+    // A piece the solver could not drape at all reports nothing, and nothing
+    // is not the same as zero: leaving it out of the maxima would hand full
+    // marks for stress and clash to a fold that never happened.
     if (!data) continue
+    solvedPieces += 1
     if (data.settled) settledPieces += 1
     worstStress = Math.max(worstStress, ...data.stress)
     worstClashMm = Math.max(worstClashMm, ...data.clash)
   }
   store.dispose()
-  return { foldCount: foldLines.length, solvedPieces, settledPieces, worstStress, worstClashMm }
+  return {
+    foldCount: foldLines.length,
+    askedPieces,
+    solvedPieces,
+    settledPieces,
+    worstStress,
+    worstClashMm,
+    measurable: askedPieces > 0 && solvedPieces === askedPieces && settledPieces === askedPieces,
+  }
 }
 
 function scoreFunctional(doc: DocFile, preflight: { code: string; severity: string }[]) {
@@ -216,24 +229,28 @@ function scoreFunctional(doc: DocFile, preflight: { code: string; severity: stri
     checks.push({ name: 'folds-within-leather', points: 0, max: 0, note: 'no fold lines' })
     checks.push({ name: 'folds-clear-other-pieces', points: 0, max: 0, note: 'no fold lines' })
   } else {
-    const allSettled = folds.solvedPieces > 0 && folds.settledPieces === folds.solvedPieces
     checks.push({
       name: 'folds-solve',
-      points: allSettled ? 2 : 0,
+      points: folds.measurable ? 2 : 0,
       max: 2,
-      note: `${folds.settledPieces}/${folds.solvedPieces} piece(s) settled`,
+      note: `${folds.settledPieces}/${folds.askedPieces} piece(s) settled`
+        + (folds.solvedPieces < folds.askedPieces
+          ? `, ${folds.askedPieces - folds.solvedPieces} produced no drape`
+          : ''),
     })
+    // Both physical checks are gated on the fold having actually solved. A
+    // stress of zero from a fold that never ran is not a fold that behaves.
     checks.push({
       name: 'folds-within-leather',
-      points: folds.worstStress < STRESS_LIMIT ? 3 : 0,
+      points: folds.measurable && folds.worstStress < STRESS_LIMIT ? 3 : 0,
       max: 3,
-      note: `worst stress ${folds.worstStress.toFixed(3)}`,
+      note: folds.measurable ? `worst stress ${folds.worstStress.toFixed(3)}` : 'not measurable, fold did not solve',
     })
     checks.push({
       name: 'folds-clear-other-pieces',
-      points: folds.worstClashMm < CLASH_LIMIT_MM ? 3 : 0,
+      points: folds.measurable && folds.worstClashMm < CLASH_LIMIT_MM ? 3 : 0,
       max: 3,
-      note: `worst clash ${folds.worstClashMm.toFixed(3)}mm`,
+      note: folds.measurable ? `worst clash ${folds.worstClashMm.toFixed(3)}mm` : 'not measurable, fold did not solve',
     })
   }
 

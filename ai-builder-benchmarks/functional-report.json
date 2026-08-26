@@ -1,0 +1,692 @@
+{
+  "scoringAngleDeg": 180,
+  "rows": [
+    {
+      "file": "blind-belt-template.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "1 piece(s), 2 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 2,
+          "note": "0/1 piece(s) settled, 1 produced no drape"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 3,
+          "note": "not measurable, fold did not solve"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 3,
+          "note": "not measurable, fold did not solve"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 0,
+        "settledPieces": 0,
+        "worstStress": 0,
+        "worstClashMm": 0,
+        "measurable": false
+      }
+    },
+    {
+      "file": "blind-bifold-wallet.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 6,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), 3 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "4 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 3,
+          "note": "worst stress 1.000"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 3,
+          "note": "worst clash 1.800mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 1,
+        "worstClashMm": 1.7999999523162842,
+        "measurable": true
+      }
+    },
+    {
+      "file": "blind-card-sleeve.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 4,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), 2 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "3 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        }
+      ],
+      "folds": null
+    },
+    {
+      "file": "blind-gusseted-pouch.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 4,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), 3 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "6 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        }
+      ],
+      "folds": null
+    },
+    {
+      "file": "blind-snap-coin-pouch.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), 2 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 2,
+          "note": "0/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 3,
+          "note": "not measurable, fold did not solve"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 3,
+          "note": "not measurable, fold did not solve"
+        }
+      ],
+      "folds": {
+        "foldCount": 2,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 0,
+        "worstStress": 1,
+        "worstClashMm": 1.792792797088623,
+        "measurable": false
+      }
+    },
+    {
+      "file": "loop-belt-template.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 12,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "1 piece(s), 1 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "1 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 3,
+          "max": 3,
+          "note": "worst stress 0.015"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 3,
+          "max": 3,
+          "note": "worst clash 0.000mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 0.015199960209429264,
+        "worstClashMm": 0,
+        "measurable": true
+      }
+    },
+    {
+      "file": "loop-bifold-wallet.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 12,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), 3 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "4 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 3,
+          "max": 3,
+          "note": "worst stress 0.052"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 3,
+          "max": 3,
+          "note": "worst clash 0.000mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 0.05187656730413437,
+        "worstClashMm": 0,
+        "measurable": true
+      }
+    },
+    {
+      "file": "loop-card-sleeve.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 4,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), 2 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "3 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        }
+      ],
+      "folds": null
+    },
+    {
+      "file": "loop-gusseted-pouch.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 12,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), 3 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "6 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 3,
+          "max": 3,
+          "note": "worst stress 0.014"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 3,
+          "max": 3,
+          "note": "worst clash 0.000mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 2,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 0.014270804822444916,
+        "worstClashMm": 0,
+        "measurable": true
+      }
+    },
+    {
+      "file": "loop-snap-coin-pouch.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 12,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "1 piece(s), 1 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 3,
+          "max": 3,
+          "note": "worst stress 0.004"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 3,
+          "max": 3,
+          "note": "worst clash 0.000mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 0.003819433506578207,
+        "worstClashMm": 0,
+        "measurable": true
+      }
+    },
+    {
+      "file": "swarm-belt-template.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 4,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "1 piece(s), 1 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "1 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        }
+      ],
+      "folds": null
+    },
+    {
+      "file": "swarm-bifold-wallet.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 9,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), 3 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "4 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 3,
+          "max": 3,
+          "note": "worst stress 0.259"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 3,
+          "note": "worst clash 1.800mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 0.25926756858825684,
+        "worstClashMm": 1.7999999523162842,
+        "measurable": true
+      }
+    },
+    {
+      "file": "swarm-card-sleeve.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 4,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), 2 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "3 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        }
+      ],
+      "folds": null
+    },
+    {
+      "file": "swarm-gusseted-pouch.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 4,
+      "functionalMax": 4,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), 3 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "6 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        }
+      ],
+      "folds": null
+    },
+    {
+      "file": "swarm-snap-coin-pouch.json",
+      "parsed": true,
+      "preflightErrors": 0,
+      "preflightWarnings": 0,
+      "functionalScore": 12,
+      "functionalMax": 12,
+      "checks": [
+        {
+          "name": "pieces-cuttable",
+          "points": 2,
+          "max": 2,
+          "note": "1 piece(s), 1 closed outline(s)"
+        },
+        {
+          "name": "seams-sewable",
+          "points": 2,
+          "max": 2,
+          "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
+        },
+        {
+          "name": "folds-within-leather",
+          "points": 3,
+          "max": 3,
+          "note": "worst stress 0.004"
+        },
+        {
+          "name": "folds-clear-other-pieces",
+          "points": 3,
+          "max": 3,
+          "note": "worst clash 0.000mm"
+        }
+      ],
+      "folds": {
+        "foldCount": 1,
+        "askedPieces": 1,
+        "solvedPieces": 1,
+        "settledPieces": 1,
+        "worstStress": 0.004014132544398308,
+        "worstClashMm": 0,
+        "measurable": true
+      }
+    }
+  ]
+}

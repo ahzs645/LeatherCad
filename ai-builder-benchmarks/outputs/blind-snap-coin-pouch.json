@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "document_name": "snap_coin_pouch",
+  "units": "mm",
+  "layers": [
+    { "id": "body_layer", "name": "Pouch Body" },
+    { "id": "stitch_layer", "name": "Stitching" },
+    { "id": "mark_layer", "name": "Marks and Labels" },
+    { "id": "hardware_layer", "name": "Hardware" },
+    { "id": "reinforcement_layer", "name": "Reinforcement" }
+  ],
+  "entities": [
+    {
+      "id": "pouch_body_outline",
+      "type": "rectangle",
+      "layer_id": "body_layer",
+      "x": -80,
+      "y": -70,
+      "width": 160,
+      "height": 140,
+      "line_role": "cut"
+    },
+    {
+      "id": "flap_fold_mark",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": { "x": -80, "y": -30 },
+      "end": { "x": 80, "y": -30 },
+      "line_role": "fold"
+    },
+    {
+      "id": "body_fold_mark",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": { "x": -80, "y": 20 },
+      "end": { "x": 80, "y": 20 },
+      "line_role": "fold"
+    },
+    {
+      "id": "snap_center_guide",
+      "type": "line",
+      "layer_id": "mark_layer",
+      "start": { "x": 0, "y": -64 },
+      "end": { "x": 0, "y": 48 },
+      "line_role": "guide"
+    },
+    {
+      "id": "flap_fold",
+      "type": "fold",
+      "start": { "x": -80, "y": -30 },
+      "end": { "x": 80, "y": -30 },
+      "name": "Flap Fold",
+      "direction": "valley",
+      "angle_deg": 180,
+      "max_angle_deg": 180,
+      "radius_mm": 3.2,
+      "thickness_mm": 1.6,
+      "neutral_axis_ratio": 0.5,
+      "stiffness": 0.35,
+      "clearance_mm": 3.4
+    },
+    {
+      "id": "body_fold",
+      "type": "fold",
+      "start": { "x": -80, "y": 20 },
+      "end": { "x": 80, "y": 20 },
+      "name": "Body Fold",
+      "direction": "valley",
+      "angle_deg": 180,
+      "max_angle_deg": 180,
+      "radius_mm": 2.4,
+      "thickness_mm": 1.6,
+      "neutral_axis_ratio": 0.5,
+      "stiffness": 0.35,
+      "clearance_mm": 1.8
+    },
+    {
+      "id": "left_seam_stitch",
+      "type": "stitch_path",
+      "layer_id": "stitch_layer",
+      "path_type": "line",
+      "start": { "x": -75, "y": -24 },
+      "end": { "x": -75, "y": 64 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "right_seam_stitch",
+      "type": "stitch_path",
+      "layer_id": "stitch_layer",
+      "path_type": "line",
+      "start": { "x": 75, "y": -24 },
+      "end": { "x": 75, "y": 64 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": -35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "snap_cap_marker",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 0, "y": -58 },
+      "kind": "snap",
+      "label": "Snap Cap",
+      "hole_diameter_mm": 4,
+      "installation_side": "grain",
+      "notes": "Flap half, 12 mm in from the flap tip on the center line. Closes onto snap_socket_marker after the flap folds down 40 mm from flap_fold.",
+      "visible": true
+    },
+    {
+      "id": "snap_socket_marker",
+      "type": "hardware_marker",
+      "layer_id": "hardware_layer",
+      "point": { "x": 0, "y": 42 },
+      "kind": "snap",
+      "label": "Snap Socket",
+      "hole_diameter_mm": 4,
+      "installation_side": "flesh",
+      "notes": "Front panel half, 22 mm below body_fold on the center line. Mates with snap_cap_marker: both sit 2 mm above the folded body fold line at x = 0.",
+      "visible": true
+    },
+    {
+      "id": "title_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -72, "y": -60 },
+      "value": "Snap Coin Pouch",
+      "font_size_mm": 6,
+      "line_role": "mark"
+    },
+    {
+      "id": "flap_fold_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -72, "y": -36 },
+      "value": "flap fold",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "body_fold_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -72, "y": 14 },
+      "value": "body fold",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "snap_cap_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": 8, "y": -56 },
+      "value": "snap cap",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "snap_socket_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": 8, "y": 44 },
+      "value": "snap socket",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "side_seam_label",
+      "type": "text",
+      "layer_id": "mark_layer",
+      "position": { "x": -30, "y": 60 },
+      "value": "side seam stitching",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "reinforcement_outline",
+      "type": "rectangle",
+      "layer_id": "reinforcement_layer",
+      "x": 100,
+      "y": -12,
+      "width": 24,
+      "height": 24,
+      "line_role": "cut"
+    },
+    {
+      "id": "reinforcement_label",
+      "type": "text",
+      "layer_id": "reinforcement_layer",
+      "position": { "x": 103, "y": 1 },
+      "value": "snap patch",
+      "font_size_mm": 3,
+      "line_role": "mark"
+    },
+    {
+      "id": "pouch_body_piece",
+      "type": "pattern_piece",
+      "layer_id": "body_layer",
+      "boundary_entity_id": "pouch_body_outline",
+      "internal_entity_ids": [
+        "flap_fold_mark",
+        "body_fold_mark",
+        "snap_center_guide",
+        "left_seam_stitch",
+        "right_seam_stitch",
+        "title_label",
+        "flap_fold_label",
+        "body_fold_label",
+        "snap_cap_label",
+        "snap_socket_label",
+        "side_seam_label"
+      ],
+      "name": "Snap Coin Pouch Body",
+      "quantity": 1,
+      "code": "scp_body",
+      "annotation": "Single piece, 160 mm wide by 140 mm unfolded. Panels top to bottom: flap 40 mm, back 50 mm, front 50 mm.",
+      "material": "1.4 to 1.8 mm vegetable tanned leather",
+      "material_side": "grain",
+      "notes": "Fold the front panel up on body_fold, sew both side seams, then fold the flap down on flap_fold. Burnish or finish both faces because the front panel presents its flesh side once folded.",
+      "orientation": "vertical",
+      "allow_flip": false,
+      "include_in_layout": true
+    },
+    {
+      "id": "snap_reinforcement_piece",
+      "type": "pattern_piece",
+      "layer_id": "reinforcement_layer",
+      "boundary_entity_id": "reinforcement_outline",
+      "internal_entity_ids": ["reinforcement_label"],
+      "name": "Snap Reinforcement Patch",
+      "quantity": 2,
+      "code": "scp_patch",
+      "annotation": "Glue one patch behind each snap center before setting hardware.",
+      "material": "1.0 to 1.2 mm vegetable tanned leather",
+      "material_side": "either",
+      "notes": "24 mm square skived patch centered on snap_cap_marker and snap_socket_marker.",
+      "orientation": "any",
+      "allow_flip": true,
+      "include_in_layout": true
+    },
+    {
+      "id": "pouch_body_allowance",
+      "type": "seam_allowance",
+      "piece_id": "pouch_body_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "left_side_seam",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "pouch_body_piece",
+        "edge_index": 3,
+        "t0": 0,
+        "t1": 0.357143
+      },
+      "to": {
+        "piece_id": "pouch_body_piece",
+        "edge_index": 3,
+        "t0": 0.357143,
+        "t1": 0.714286,
+        "reversed": true
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "right_side_seam",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "pouch_body_piece",
+        "edge_index": 1,
+        "t0": 0.642857,
+        "t1": 1
+      },
+      "to": {
+        "piece_id": "pouch_body_piece",
+        "edge_index": 1,
+        "t0": 0.285714,
+        "t1": 0.642857,
+        "reversed": true
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    }
+  ]
+}

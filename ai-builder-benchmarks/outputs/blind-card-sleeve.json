@@ -1,0 +1,356 @@
+{
+  "schema_version": 1,
+  "document_name": "card_sleeve",
+  "units": "mm",
+  "layers": [
+    {
+      "id": "back_panel",
+      "name": "Back Panel"
+    },
+    {
+      "id": "front_pocket",
+      "name": "Front Pocket"
+    },
+    {
+      "id": "markings",
+      "name": "Mark Lines"
+    }
+  ],
+  "entities": [
+    {
+      "id": "back_panel_outline",
+      "type": "rectangle",
+      "layer_id": "back_panel",
+      "x": -86,
+      "y": -52.5,
+      "width": 72,
+      "height": 105,
+      "line_role": "cut"
+    },
+    {
+      "id": "back_panel_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "back_panel",
+      "path_type": "line",
+      "start": {
+        "x": -82,
+        "y": -19.5
+      },
+      "end": {
+        "x": -82,
+        "y": 48.5
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "back_panel_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "back_panel",
+      "path_type": "line",
+      "start": {
+        "x": -78,
+        "y": 48.5
+      },
+      "end": {
+        "x": -22,
+        "y": 48.5
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "back_panel_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "back_panel",
+      "path_type": "line",
+      "start": {
+        "x": -18,
+        "y": 48.5
+      },
+      "end": {
+        "x": -18,
+        "y": -19.5
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "front_pocket_outline",
+      "type": "rectangle",
+      "layer_id": "front_pocket",
+      "x": 14,
+      "y": -25.5,
+      "width": 72,
+      "height": 78,
+      "line_role": "cut"
+    },
+    {
+      "id": "front_pocket_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "front_pocket",
+      "path_type": "line",
+      "start": {
+        "x": 18,
+        "y": -19.5
+      },
+      "end": {
+        "x": 18,
+        "y": 48.5
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "front_pocket_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "front_pocket",
+      "path_type": "line",
+      "start": {
+        "x": 22,
+        "y": 48.5
+      },
+      "end": {
+        "x": 78,
+        "y": 48.5
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "front_pocket_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "front_pocket",
+      "path_type": "line",
+      "start": {
+        "x": 82,
+        "y": 48.5
+      },
+      "end": {
+        "x": 82,
+        "y": -19.5
+      },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "back_panel_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": -78,
+        "y": -38
+      },
+      "value": "Back Panel 72 x 105",
+      "line_role": "mark",
+      "font_size_mm": 4
+    },
+    {
+      "id": "front_pocket_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": {
+        "x": 22,
+        "y": -8
+      },
+      "value": "Front Pocket 72 x 78",
+      "line_role": "mark",
+      "font_size_mm": 4
+    },
+    {
+      "id": "back_panel_piece",
+      "type": "pattern_piece",
+      "layer_id": "back_panel",
+      "boundary_entity_id": "back_panel_outline",
+      "internal_entity_ids": [
+        "back_panel_left_stitch",
+        "back_panel_bottom_stitch",
+        "back_panel_right_stitch",
+        "back_panel_label"
+      ],
+      "name": "Back Panel",
+      "quantity": 1,
+      "code": "cs_back",
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "Full height panel. Stitch the left, right, and bottom edges to the front pocket and leave the top edge open.",
+      "annotation": "72 x 105 mm"
+    },
+    {
+      "id": "front_pocket_piece",
+      "type": "pattern_piece",
+      "layer_id": "front_pocket",
+      "boundary_entity_id": "front_pocket_outline",
+      "internal_entity_ids": [
+        "front_pocket_left_stitch",
+        "front_pocket_bottom_stitch",
+        "front_pocket_right_stitch",
+        "front_pocket_label"
+      ],
+      "name": "Front Pocket",
+      "quantity": 1,
+      "code": "cs_front",
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "Bottom aligned with the back panel so the top edge sits 27 mm lower and forms the card mouth. Burnish the top edge before assembly.",
+      "annotation": "72 x 78 mm"
+    },
+    {
+      "id": "back_panel_allowance",
+      "type": "seam_allowance",
+      "piece_id": "back_panel_piece",
+      "default_offset_mm": 3,
+      "enabled": true,
+      "edge_overrides": [
+        {
+          "edgeIndex": 0,
+          "offsetMm": 0
+        }
+      ]
+    },
+    {
+      "id": "front_pocket_allowance",
+      "type": "seam_allowance",
+      "piece_id": "front_pocket_piece",
+      "default_offset_mm": 3,
+      "enabled": true,
+      "edge_overrides": [
+        {
+          "edgeIndex": 0,
+          "offsetMm": 0
+        }
+      ]
+    },
+    {
+      "id": "front_left_to_back_left",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 3
+      },
+      "to": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 3,
+        "t0": 0,
+        "t1": 0.742857143
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "front_right_to_back_right",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 1
+      },
+      "to": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 1,
+        "t0": 0.257142857,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "front_bottom_to_back_bottom",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 2
+      },
+      "to": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 2
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "front_pocket_left_rivet",
+      "type": "hardware_marker",
+      "layer_id": "front_pocket",
+      "point": {
+        "x": 24,
+        "y": -19.5
+      },
+      "kind": "rivet",
+      "label": "Pocket Mouth Rivet Left",
+      "hole_diameter_mm": 3,
+      "installation_side": "grain",
+      "notes": "Optional 6 mm cap rivet reinforcing the left corner of the pocket mouth."
+    },
+    {
+      "id": "front_pocket_right_rivet",
+      "type": "hardware_marker",
+      "layer_id": "front_pocket",
+      "point": {
+        "x": 76,
+        "y": -19.5
+      },
+      "kind": "rivet",
+      "label": "Pocket Mouth Rivet Right",
+      "hole_diameter_mm": 3,
+      "installation_side": "grain",
+      "notes": "Optional 6 mm cap rivet reinforcing the right corner of the pocket mouth."
+    },
+    {
+      "id": "back_panel_left_rivet",
+      "type": "hardware_marker",
+      "layer_id": "back_panel",
+      "point": {
+        "x": -76,
+        "y": -19.5
+      },
+      "kind": "rivet",
+      "label": "Back Rivet Left",
+      "hole_diameter_mm": 3,
+      "installation_side": "flesh",
+      "notes": "Mating hole for the left pocket mouth rivet."
+    },
+    {
+      "id": "back_panel_right_rivet",
+      "type": "hardware_marker",
+      "layer_id": "back_panel",
+      "point": {
+        "x": -24,
+        "y": -19.5
+      },
+      "kind": "rivet",
+      "label": "Back Rivet Right",
+      "hole_diameter_mm": 3,
+      "installation_side": "flesh",
+      "notes": "Mating hole for the right pocket mouth rivet."
+    }
+  ]
+}
