@@ -100,6 +100,15 @@ export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
       fold.bendRadiusMm,
       fold.swingSample.x,
       fold.swingSample.y,
+      // The crease's material properties decide the mesh as surely as its
+      // geometry does: the neutral axis and the leather's thickness at the
+      // fold set how wide a bend zone the lattice resolves, and the stiffness
+      // sets what the constraints across it cost. Leave them out and dragging
+      // a Bend Controls slider is answered from the cache with the drape the
+      // old value produced.
+      fold.stiffness ?? -1,
+      fold.neutralAxisRatio ?? -1,
+      fold.foldThicknessMm ?? -1,
     )
   }
   const obstacles = request.obstacles ?? []

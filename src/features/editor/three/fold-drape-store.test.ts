@@ -109,6 +109,20 @@ describe('foldDrapeGeometryKey', () => {
     expect(foldDrapeGeometryKey(still)).not.toBe(foldDrapeGeometryKey(request(90)))
   })
 
+  it('changes when the crease’s own material properties change', () => {
+    // These reach the mesher, so a cached drape solved at another stiffness or
+    // skive is the wrong leather. Without them in the key, dragging a Bend
+    // Controls slider is answered instantly from the cache and nothing moves.
+    const base = request(90)
+    for (const changed of [
+      { ...base, folds: [{ ...fold(90), stiffness: 0.9 }] },
+      { ...base, folds: [{ ...fold(90), neutralAxisRatio: 0.35 }] },
+      { ...base, folds: [{ ...fold(90), foldThicknessMm: 1 }] },
+    ]) {
+      expect(foldDrapeGeometryKey(changed)).not.toBe(foldDrapeGeometryKey(base))
+    }
+  })
+
   it('separates two pieces cut to the same outline', () => {
     expect(foldDrapeGeometryKey(request(90))).not.toBe(
       foldDrapeGeometryKey(request(90, { pieceId: 'piece-2' })),
