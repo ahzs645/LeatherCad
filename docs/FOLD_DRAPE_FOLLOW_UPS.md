@@ -8,10 +8,12 @@ kernels — instead of rotating rigid halves.
 This file was the list of what that work deliberately did not do. Items 1 and
 2 have since been worked through and are recorded here as what shipped and
 what it measured; 3 to 6 are still open, and two of them have changed shape
-now that there are numbers behind them rather than expectations. Item 7 was
-not on the original list — it is a stress overlay, added because the fold now
-turns tight enough to be worth warning about, and the first thing it found was
-§2e, a defect in the drape rather than in any pattern.
+now that there are numbers behind them rather than expectations. Items 7 and 8
+were not on the original list — they are overlays, added because the fold now
+turns tight enough to be worth warning about, and each found something on its
+first run: §7 found §2e, a defect in the drape rather than in any pattern, and
+§8 found that the frame drawn before the worker answers has no collision at
+all.
 
 ---
 
@@ -412,3 +414,51 @@ collider's, not the leather's.
 The tint covers the shell's two faces only, not its cut walls — those take a
 double-sided edge material that may carry burnish or paint, and two meanings on
 one surface would read worse than one.
+
+## 8. Where a fold ended up inside another piece — **added, and one gap it cannot see**
+
+**Show fold clashes**, a second checkbox beside the stress tint
+(`showFoldClashOverlay`, off by default). It tints the drape blue by how far
+each vertex finished inside another piece, in millimetres, full scale at one
+leather thickness — so half a thickness is pale blue and a whole one, the depth
+at which the fold has passed clean through, is indigo. Both overlays share the
+vertex-colour channel; with both on the clash wins, because a fold drawn
+through another piece is not a picture whose stress reading means anything yet.
+
+It measures the promise the collider already makes rather than forming a new
+opinion: the collider is configured to hold surfaces one thickness apart, so a
+settled fold should read zero.
+
+**What the settled drape actually does**, measured on the imported wallet
+(mid-surface against each obstacle slab, clearance 1.80 mm):
+
+| angle | vertices inside the clearance | worst |
+|---|---|---|
+| 30°, 60°, 90° | **0** / 516, 468, 380 | 0.000 mm |
+| 120° | 1 / 335 | 0.007 mm |
+| 150° | 2 / 309 | 0.138 mm |
+| 180° | 13 / 292 | **0.160 mm** |
+
+`piece-c` reads zero at every angle. So the solved fold is not what clips —
+0.16 mm is under a tenth of the ramp, and the overlay draws the wallet its own
+colour.
+
+**Two ways it goes non-zero, both real.** The collider can run out of
+iterations where a fold closes hard: the square-onto-slab fixture settles
+0.64 mm into a slab it is resting on, over a quarter of its vertices. And an
+obstacle is the *flat* slab of another piece, so a fold closing over a piece
+that is itself folded is avoiding a shape that is not where that piece went —
+item 3, seen from the other side. The wallet cannot show that one, because its
+only other folding piece is the tab, 13 mm clear of everything.
+
+**The gap: the frame drawn before the worker answers.** Since item 1 the drape
+solves off-thread, and `assembled-model-builder.ts` draws the rigid pivot-chain
+fold until it lands. That path extrudes each region and rotates it about the
+crease with **no collision of any kind** — there is no collider on it to make a
+promise, so this overlay has nothing to measure and will read clean through it.
+During a scrub that rigid frame is what is on screen between solves, and it is
+the first thing to suspect when a fold is seen passing through another piece.
+Fixing it means either carrying the last settled drape forward as the scrub
+pose instead of falling back to the rigid chain, or giving the rigid path a
+cheap push-out against the same slabs. The first is closer to what the warm
+start already does and would not need new geometry.
