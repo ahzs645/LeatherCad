@@ -32,33 +32,42 @@
  *       { "label": "Stiffness", "fold": "flap", "value": 0.95 }
  *     ],
  *     "camera": "Orbit",               // Orbit | Side | Front | Top
- *     "zoom": 6,                       // wheel ticks in; negative zooms out
+ *     "zoom": 36,                      // wheel notches in from the far stop
  *     "hide": ["Piece C"]              // layers to hide, by name
  *   }
  *
+ * `zoom` is absolute, not a nudge: the camera is wound out to its far stop first
+ * and then in by that many notches, so 36 means the same size in the first shot
+ * and the ninth. Around 32 frames the wallet from Orbit and 36 from Side or
+ * Front; a shot that ends up mostly empty sky fails the run rather than being
+ * written, so a wrong number is caught rather than filed.
+ *
  * Every shot sets *every* fold on the panel — the ones it names to their angle
- * and the rest back to zero — and re-applies its camera from the preset button.
- * Shots therefore do not inherit each other's state, and `--only` re-takes one
- * picture that matches the one it replaces.
+ * and the rest back to zero — on a page of its own. Shots therefore inherit
+ * nothing from each other, and `--only` re-takes one picture that matches the
+ * one it replaces.
  *
- * That determinism is load bearing: two shots of the same pose come out byte for
- * byte identical here, so `md5sum before/*.png after/*.png` is a real answer to
- * "did that change anything at all", and a pair that matches is a finding rather
- * than a failed run.
+ * On comparing two runs: the framing and the geometry repeat exactly, but the
+ * shading carries a fine dither that is re-seeded per page load, so about a
+ * tenth of the pixels differ by a handful of levels between runs of an unchanged
+ * build. `md5sum` is therefore not the test — amplify the difference of a pair
+ * six times and an unchanged shot is black, while a fold that really moved is
+ * not. Within a run the comparison is stricter: the material sweeps below shoot
+ * the same pose on the same build, and those either differ or they do not.
  *
- * Three things about this app that the code below is shaped around, each of
- * which cost an afternoon to find:
+ * Four things about this app that the code below is shaped around, each of which
+ * cost an afternoon to find:
  *
  *   - The solve runs in a worker. Nothing in the DOM says it has landed, so the
  *     script waits `settleMs` after touching a slider. Four seconds is reliable
  *     on Swiftshader here; a slower machine wants more, not a cleverer wait.
  *   - React ignores `element.value = x`. Ranges are set through the prototype
  *     setter plus a native `input` and `change`, the way a drag would.
- *   - The *first* fold after the model loads frames differently from every fold
- *     after it — the camera refits once the geometry has moved. So the run does
- *     one throwaway fold before the first real shot. Without that warm-up, shot
- *     one differs from a re-run of shot one, which is exactly the kind of false
- *     positive this script exists to prevent.
+ *   - The camera presets turn the camera without resetting how far away it is,
+ *     and nothing else resets it either, so zoom accumulates down a run. Hence a
+ *     page per shot, and hence winding out to the stop before winding in.
+ *   - `page.mouse.wheel` costs about five seconds a call against this renderer.
+ *     The wheel is turned with synthetic events instead; see `wheel` below.
  *
  * Neither eslint (which only covers .ts/.tsx) nor tsconfig.node.json (whose
  * `include` stops at e2e/) reaches this file, so it is written to the same bar
@@ -92,6 +101,15 @@ const DEVICE_SCALE_FACTOR = 3
 const FOLD_LABEL_PREFIX = 'Fold — '
 
 /**
+ * The least of the frame a shot may fill before it is called a failure.
+ *
+ * The ground grid alone comes to a few per cent, and the smallest framing worth
+ * keeping — the closed wallet seen edge on, which is mostly sky — sits around a
+ * fifth. Ten per cent is comfortably between the two.
+ */
+const MIN_INK = 0.1
+
+/**
  * The imported keychain snap wallet, folded a few ways.
  *
  * It earns the default because it is a real imported pattern rather than a
@@ -103,29 +121,31 @@ const DEFAULT_SHOTS = {
   preset: 'makesupply-keychain-snap-wallet',
   settleMs: 4000,
   shots: [
-    { name: 'flat', folds: {}, camera: 'Orbit', zoom: 6, hide: ['Piece C'] },
+    { name: 'flat', folds: {}, camera: 'Orbit', zoom: 32, hide: ['Piece C'] },
     // Half open, seen along the crease. The flap stands clear of the body, so
     // this is the frame where a bend that costs no material is obvious.
-    { name: 'flap-090', folds: { flap: 90 }, camera: 'Side', zoom: 4, hide: ['Piece C'] },
-    { name: 'flap-180', folds: { flap: 180 }, camera: 'Orbit', zoom: 6, hide: ['Piece C'] },
+    { name: 'flap-090', folds: { flap: 90 }, camera: 'Side', zoom: 36, hide: ['Piece C'] },
+    { name: 'flap-180', folds: { flap: 180 }, camera: 'Orbit', zoom: 32, hide: ['Piece C'] },
     // Closed, edge on: the crease as a profile rather than a shaded curve, and
     // the two layers as a stack whose thickness can be measured off the picture.
-    { name: 'flap-180-side', folds: { flap: 180 }, camera: 'Side', zoom: 8, hide: ['Piece C'] },
-    { name: 'flap-180-front', folds: { flap: 180 }, camera: 'Front', zoom: 8, hide: ['Piece C'] },
+    { name: 'flap-180-side', folds: { flap: 180 }, camera: 'Side', zoom: 36, hide: ['Piece C'] },
+    { name: 'flap-180-front', folds: { flap: 180 }, camera: 'Front', zoom: 36, hide: ['Piece C'] },
     // The two material knobs the crease carries, swept end to end against an
     // otherwise identical frame, half open so the bend has room to show it.
     //
-    // As of this writing all four of these come out byte for byte identical:
-    // `assembled-fold-drape.ts` takes `stiffness` and `neutralAxisRatio` in its
-    // params and never reads either. That is a finding, not a broken script —
-    // when the drape starts spending them, these four files start differing,
-    // which is the whole point of shooting them now.
+    // This quartet has already earned its place twice. Shot against a build
+    // where the drape took both knobs as parameters and read neither, all four
+    // came back the same picture. Shot against the build that makes stiffness a
+    // compliance, they separate — about a seventh of the frame moves across the
+    // stiffness pair and a fifth across the neutral axis pair, and it moves as
+    // silhouette, not as shading. So the answer to "does this knob reach the
+    // solver" is a picture, and it has been both no and yes.
     {
       name: 'flap-090-stiffness-low',
       folds: { flap: 90 },
       sliders: [{ label: 'Stiffness', fold: 'flap', value: 0.05 }],
       camera: 'Side',
-      zoom: 4,
+      zoom: 36,
       hide: ['Piece C'],
     },
     {
@@ -133,7 +153,7 @@ const DEFAULT_SHOTS = {
       folds: { flap: 90 },
       sliders: [{ label: 'Stiffness', fold: 'flap', value: 0.95 }],
       camera: 'Side',
-      zoom: 4,
+      zoom: 36,
       hide: ['Piece C'],
     },
     {
@@ -141,7 +161,7 @@ const DEFAULT_SHOTS = {
       folds: { flap: 90 },
       sliders: [{ label: 'Neutral Axis Ratio', fold: 'flap', value: 0 }],
       camera: 'Side',
-      zoom: 4,
+      zoom: 36,
       hide: ['Piece C'],
     },
     {
@@ -149,11 +169,11 @@ const DEFAULT_SHOTS = {
       folds: { flap: 90 },
       sliders: [{ label: 'Neutral Axis Ratio', fold: 'flap', value: 1 }],
       camera: 'Side',
-      zoom: 4,
+      zoom: 36,
       hide: ['Piece C'],
     },
     // Both creases at once: the wallet as it is meant to close.
-    { name: 'both-180', folds: { flap: 180, holes: 180 }, camera: 'Orbit', zoom: 6, hide: ['Piece C'] },
+    { name: 'both-180', folds: { flap: 180, holes: 180 }, camera: 'Orbit', zoom: 32, hide: ['Piece C'] },
   ],
 }
 
@@ -332,16 +352,58 @@ async function wheel(canvas, ticks, deltaY) {
  * what makes `zoom` an absolute framing rather than a relative nudge.
  */
 async function frame(page, canvas, camera, zoom) {
-  await wheel(canvas, ZOOM_OUT_TICKS, 100)
-  await page.waitForTimeout(900)
-
   if (camera) {
     await page.getByRole('button', { name: camera, exact: true }).first().click()
     await page.waitForTimeout(1200)
   }
+  // The wind-out goes after the preset, not before it: turning the camera can
+  // reframe as well as rotate, and an anchor set first would be thrown away.
+  await wheel(canvas, ZOOM_OUT_TICKS, 100)
+  await page.waitForTimeout(900)
 
   await wheel(canvas, Math.abs(zoom ?? 0), (zoom ?? 0) > 0 ? -100 : 100)
   await page.waitForTimeout(900)
+}
+
+/**
+ * How much of the frame is something other than the empty background.
+ *
+ * The failure this script is most likely to hand back is a picture of nothing:
+ * a lost WebGL context, or a camera left pointing past the model, both of which
+ * screenshot perfectly happily. File size is a poor proxy — a near-empty frame
+ * still carries the ground grid and lands in the tens of kilobytes — so the PNG
+ * goes back into the page, gets drawn small onto a 2D canvas, and its pixels are
+ * counted against the colour in the corner.
+ */
+async function inkCoverage(page, buffer) {
+  return page.evaluate(async (dataUrl) => {
+    const image = new Image()
+    await new Promise((resolve, reject) => {
+      image.onload = resolve
+      image.onerror = reject
+      image.src = dataUrl
+    })
+    const width = 240
+    const height = Math.max(1, Math.round((image.height / image.width) * width))
+    const scratch = document.createElement('canvas')
+    scratch.width = width
+    scratch.height = height
+    const ctx = scratch.getContext('2d')
+    ctx.drawImage(image, 0, 0, width, height)
+    const pixels = ctx.getImageData(0, 0, width, height).data
+    const [red, green, blue] = pixels
+    let ink = 0
+    for (let index = 0; index < pixels.length; index += 4) {
+      const delta =
+        Math.abs(pixels[index] - red) +
+        Math.abs(pixels[index + 1] - green) +
+        Math.abs(pixels[index + 2] - blue)
+      if (delta > 24) {
+        ink += 1
+      }
+    }
+    return ink / (width * height)
+  }, `data:image/png;base64,${buffer.toString('base64')}`)
 }
 
 async function loadPreset(page, presetId) {
@@ -362,7 +424,7 @@ async function loadPreset(page, presetId) {
  * camera's distance is a single running number that the preset buttons do not
  * reset and only a model rebuild refits, so any shot taken after another one
  * inherits its zoom. Handing every shot a fresh page is the only way to make
- * `zoom: 38` mean the same thing in the first shot and the ninth — and, because
+ * `zoom: 36` mean the same thing in the first shot and the ninth — and, because
  * the sequence is then identical for every shot, in tomorrow's run too.
  */
 async function openPosedPage(context, presetId, settleMs, failures) {
@@ -412,13 +474,12 @@ async function capture(page, canvas, shot, foldNames, settleMs) {
   const file = path.join(OUT_DIR, `${shot.name}.png`)
   const buffer = await page.screenshot({ path: file, clip: await canvas.boundingBox() })
 
-  // A blank or single-colour frame is the failure this script is most likely to
-  // hand back: a lost WebGL context still screenshots, it just screenshots grey.
-  // A flat image of this size compresses to a few kilobytes and a real render to
-  // most of a megabyte, so the file's own size is the cheapest honest check.
-  const kb = Math.round(buffer.length / 1024)
-  if (kb < 20) {
-    throw new Error(`${shot.name}.png is ${kb}kB — that is a blank frame, not a render`)
+  const ink = await inkCoverage(page, buffer)
+  if (ink < MIN_INK) {
+    throw new Error(
+      `${shot.name}.png is ${(ink * 100).toFixed(1)}% ink — the model is not in this frame. ` +
+        'Wind the shot\'s zoom in, or check the 3D view still has a context.',
+    )
   }
 
   // Read the angles back off the labels rather than trusting that they took, so
@@ -427,8 +488,11 @@ async function capture(page, canvas, shot, foldNames, settleMs) {
     .map((text) => text.trim())
     .filter((text) => text.startsWith(FOLD_LABEL_PREFIX))
 
-  process.stdout.write(`  ${shot.name}.png  ${kb}kB  ${applied.join(' | ')}\n`)
-  return { ...shot, file: path.basename(file), kb, applied }
+  const kb = Math.round(buffer.length / 1024)
+  process.stdout.write(
+    `  ${shot.name}.png  ${kb}kB  ink ${(ink * 100).toFixed(0)}%  ${applied.join(' | ')}\n`,
+  )
+  return { ...shot, file: path.basename(file), kb, ink: Number(ink.toFixed(4)), applied }
 }
 
 async function main() {
@@ -465,7 +529,7 @@ async function main() {
 
   fs.writeFileSync(
     path.join(OUT_DIR, 'manifest.json'),
-    `${JSON.stringify({ url: URL, preset: shotList.preset ?? DEFAULT_SHOTS.preset, settleMs, shots: taken }, null, 2)}\n`,
+    `${JSON.stringify({ url: URL, preset, settleMs, shots: taken }, null, 2)}\n`,
   )
 
   await browser.close()
