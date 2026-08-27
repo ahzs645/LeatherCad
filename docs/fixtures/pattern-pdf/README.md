@@ -22,6 +22,13 @@ sample the Template Repository loads. Moving or renaming it breaks that import.
 Regenerate a fixture by re-running the import over the same PDF. The files are
 derived, so nothing here should be edited by hand.
 
+The wallet's `doc.json` carries one hand-applied exception. When the flap-hinge
+rule started stepping a crease half a run's pitch clear of the holes it was read
+from, the source PDF was not on hand to re-run the import, so
+`pdf-path-89-1-fold` was moved by the exact translation that rule produces —
+2.4862 mm along the crease's own normal, and nothing else in the file touched.
+Re-running the import over the PDF supersedes it.
+
 ## makesupply-keychain-snap-wallet
 
 MAKESUPPLY's free Keychain Snap Wallet template (US Letter sheet, 2019),
