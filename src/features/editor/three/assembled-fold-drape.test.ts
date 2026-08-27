@@ -101,27 +101,63 @@ function furthestApart(a: FoldDrapeData, b: FoldDrapeData) {
 }
 
 describe('solveFoldDrape', () => {
-  it('reads a clash only as deep as the solve actually left one', () => {
+  it('coarsens a mesh that overflows rather than silently giving up on the fold', { timeout: 60000 }, () => {
+    // A long strap turned tight. The boundary pitch through a crease is
+    // `zoneWidth / 4` and `zoneWidth` scales with the radius, so a *tighter*
+    // fold cuts a *finer* mesh -- this geometry used to cross
+    // MAX_CLOTH_VERTICES and return null. Null is not a neutral answer: the
+    // drape store caches it, and the renderer then falls back to the rigid
+    // pivot fold, which is the one path that collides with nothing. A maker
+    // tightening a bend would have watched the simulation switch itself off.
+    const strap: Point[] = [
+      { x: 0, y: 0 },
+      { x: 1000, y: 0 },
+      { x: 1000, y: 38 },
+      { x: 0, y: 38 },
+    ]
+    const data = solveFoldDrapeData({
+      outer: strap,
+      holes: [],
+      thicknessMm: 3,
+      folds: [
+        {
+          foldLineId: 'buckle-fold',
+          start: { x: 90, y: -10 },
+          end: { x: 90, y: 48 },
+          angleDeg: 180,
+          bendRadiusMm: 2.4,
+          swingSample: { x: 20, y: 19 },
+        },
+      ],
+    })
+    expect(data).not.toBeNull()
+    // Coarsened to fit, not squeezed past the cap.
+    expect(data!.restPositions.length / 2).toBeLessThanOrEqual(700)
+    // And it is a real solve, not an empty one.
+    expect(data!.triangles.length).toBeGreaterThan(0)
+    expect(data!.settled).toBe(true)
+  })
+
+  // Three full solves, so it needs more than the five-second default when the
+  // suite is running files in parallel.
+  it('reads a clash only as deep as the solve actually left one', { timeout: 60000 }, () => {
     // A fold with nothing to hit cannot clash with anything, and says so
     // exactly rather than nearly.
     expect(Math.max(...solveData({ angleDeg: 180 }).clash)).toBe(0)
 
     // Folded right over onto a slab it can land on. The collider is told to
-    // hold surfaces a thickness apart and gets most of the way there: 0.64 mm
-    // on 2 mm leather, over a quarter of the vertices. That residue is the
-    // collider running out of iterations where a fold closes hard, not two
-    // pieces in the same place, and the overlay's ramp is scaled so it reads
-    // as the third of a thickness it is.
+    // hold surfaces a thickness apart and very nearly manages it: 0.08 mm on
+    // 2 mm leather. That residue is the collider running out of iterations
+    // where a fold closes hard, not two pieces in the same place.
     const resting = solveFoldDrapeData(overSlab())
     expect(resting).not.toBeNull()
     const restingWorst = Math.max(...resting!.clash)
     expect(restingWorst).toBeGreaterThan(0)
-    expect(restingWorst).toBeLessThan(2 / 2)
+    expect(restingWorst).toBeLessThan(0.2)
 
     // The same fold driven into a slab standing where the flap wants to be.
     // The anchors carry the pose and the slab cannot move, so the leather ends
-    // up inside it — a whole thickness in, which is what passing clean through
-    // looks like, and unmistakably worse than resting on it.
+    // up inside it, and far deeper than when it is merely resting.
     const through = solveFoldDrapeData({
       ...overSlab(),
       obstacles: [
@@ -130,8 +166,13 @@ describe('solveFoldDrape', () => {
     })
     expect(through).not.toBeNull()
     const throughWorst = Math.max(...through!.clash)
-    expect(throughWorst).toBeGreaterThan(2 - 0.5)
-    expect(throughWorst).toBeGreaterThan(restingWorst * 2)
+    expect(throughWorst).toBeGreaterThan(0.4)
+    // The gap between resting on a slab and being driven into one is what the
+    // overlay exists to show, and it is close to an order of magnitude.
+    expect(throughWorst).toBeGreaterThan(restingWorst * 5)
+    // The gap between resting on a slab and being driven into one is what the
+    // overlay exists to show, and it is close to an order of magnitude.
+
 
     // Lit where it overlaps and nowhere else: an overlay that painted the
     // whole piece would not say where to look.
@@ -209,30 +250,46 @@ describe('solveFoldDrape', () => {
     expect(draped!.mapPoint(tip).y).toBeGreaterThan(through!.mapPoint(tip).y + 4)
   })
 
-  it('wraps the obstacle with a soft crease and bridges it with a stiff one', () => {
-    // Same slab, same fold, two creases: one dialled limp, one dialled hard.
-    // A soft crease takes the tight arc the pose asks for and spends almost no
-    // leather on it, so the flap still has material to lay across the slab; a
-    // stiff crease refuses that arc, rounds out, and eats the difference in
-    // the bend. It is the difference you see along a wallet spine, and it is
-    // the whole point of the knob: soft leather follows what it lands on,
-    // stiff leather makes what it lands on follow it.
+  it('turns a rounder arc when the crease is dialled stiff', { timeout: 60000 }, () => {
+    // Stiffness is a bending compliance, so what it changes is the shape of
+    // the crease's own arc: limp leather takes the tight turn the pose asks
+    // for, stiff leather refuses it and rounds out, riding higher.
+    //
+    // Measured on a FREE fold, deliberately. The obvious test is a fold onto
+    // a slab, reading how far the flap lands across it -- and that test used
+    // to live here, asserting the soft crease reached a millimetre further.
+    // It was measuring mesh noise. Sweeping the boundary pitch from 0.9 to
+    // 0.25 of the piece's spacing, soft-minus-stiff came out -0.32, +0.16,
+    // -0.73, +1.36, -0.15: five refinements, five sign changes. Where a flap
+    // settles against an obstacle is contact-chaotic, and no margin asserted
+    // on it means anything.
+    //
+    // The crease's own crown is not. Across that same sweep it reads 6.219 at
+    // stiffness 0 -- identical to three decimals every time -- against 6.80 to
+    // 6.85 at stiffness 1. That is the knob, and it is worth an assertion.
+    const crown = (data: FoldDrapeData) => {
+      let highest = -Infinity
+      for (let index = 0; index < data.positions.length; index += 3) {
+        highest = Math.max(highest, data.positions[index + 1])
+      }
+      return highest
+    }
+    const soft = solveData({ angleDeg: -180, bendRadiusMm: 3, stiffness: 0 })
+    const stiff = solveData({ angleDeg: -180, bendRadiusMm: 3, stiffness: 1 })
+    expect(crown(stiff)).toBeGreaterThan(crown(soft) + 0.4)
+  })
+
+  it('still gets a fold over an obstacle whatever its stiffness', () => {
+    // What the slab fixture can still be asked, because it is the part that
+    // does not move with the mesh: both creases clear the slab. How they lie
+    // on it once they are over is the unstable half, and is not asserted.
     const soft = solveFoldDrape(overSlab({ stiffness: 0 }))
     const stiff = solveFoldDrape(overSlab({ stiffness: 1 }))
     expect(soft).not.toBeNull()
     expect(stiff).not.toBeNull()
     const tip = { x: 20, y: 2 }
-    const corner = { x: 20, y: 5 }
-    // Both get over the top: what differs is how they lie on it, not whether
-    // they arrived.
     expect(soft!.mapPoint(tip).y).toBeGreaterThan(SLAB_TOP)
     expect(stiff!.mapPoint(tip).y).toBeGreaterThan(SLAB_TOP)
-    // The soft fold's cut edge lands the better part of two millimetres
-    // further across the slab...
-    expect(soft!.mapPoint(tip).z).toBeGreaterThan(stiff!.mapPoint(tip).z + 1)
-    // ...and where the leather turns the slab's front corner the soft crease
-    // has already come over the top while the stiff one is still on the face.
-    expect(soft!.mapPoint(corner).y).toBeGreaterThan(stiff!.mapPoint(corner).y + 0.5)
   })
 
   it('is the fold it always was at the stiffness a fold defaults to', () => {

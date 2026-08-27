@@ -41,6 +41,14 @@ import { minimumBendRadiusMm } from './assembled-fold-bend'
 
 /** More vertices than this and the settle would stall the rebuild. */
 const MAX_CLOTH_VERTICES = 700
+/**
+ * How many times the mesher may coarsen before a piece is genuinely unmeshable.
+ *
+ * Four halvings of detail is a factor of five on the pitch, which turns any
+ * geometry this app can draw into a mesh well under the cap. Bounded so a
+ * pathological outline cannot spin here.
+ */
+const MAX_MESH_ATTEMPTS = 4
 /** Most steps a sweep takes; a shallow fold sweeps proportionally fewer. */
 const MAX_RAMP_STEPS = 80
 /** Fewest steps a sweep from flat takes, however shallow the fold. */
@@ -578,10 +586,34 @@ function foldStressPerVertex(params: {
  * the fold — 7 mm proud of a 3.7 mm bend on the wallet, which is exactly the
  * spike you see edge-on.
  */
+/** A stretch of one boundary segment that wants a pitch of its own. */
+type PitchBand = { from: number; to: number; pitch: number }
+
+/**
+ * Where a segment runs close enough to a crease to be sampled finely, as an
+ * interval of the segment's own parameter.
+ *
+ * Distance from a crease's line is linear along a straight segment, so the
+ * band is exact rather than sampled: solve |off(t)| <= zoneWidth for t and
+ * clamp to the segment. Returns null when the segment never comes close.
+ */
+function creaseBand(offA: number, offB: number, zoneWidth: number): { from: number; to: number } | null {
+  const slope = offB - offA
+  if (Math.abs(slope) <= 1e-9) {
+    return Math.abs(offA) <= zoneWidth ? { from: 0, to: 1 } : null
+  }
+  const first = (-zoneWidth - offA) / slope
+  const second = (zoneWidth - offA) / slope
+  const from = Math.max(0, Math.min(first, second))
+  const to = Math.min(1, Math.max(first, second))
+  return to > from ? { from, to } : null
+}
+
 function resampleLoop(
   loop: Point[],
   pitchAt: (point: Point) => number,
-  pitchAcross: (a: Point, b: Point) => number,
+  bandsFor: (a: Point, b: Point) => PitchBand[],
+  coarsePitch: number,
 ) {
   const deviation = 0.3
   const decimated: Point[] = []
@@ -610,15 +642,39 @@ function resampleLoop(
     const a = decimated[index]
     const b = decimated[(index + 1) % decimated.length]
     const length = Math.hypot(b.x - a.x, b.y - a.y)
-    // Asked of the whole segment, not its ends: a crease usually crosses the
-    // cut edge in the middle of one, and both of its ends can be a long way
-    // from the bend it has to turn through.
-    const steps = Math.max(1, Math.ceil(length / pitchAcross(a, b)))
-    for (let step = 0; step < steps; step += 1) {
-      resampled.push({
-        x: a.x + ((b.x - a.x) * step) / steps,
-        y: a.y + ((b.y - a.y) * step) / steps,
-      })
+    // The pitch varies ALONG the segment, not across it as a whole.
+    //
+    // A crease usually crosses a cut edge in the middle of one segment, and
+    // both of that segment's ends can be a long way from the bend. Asking the
+    // whole segment and taking the finer answer refines the crossing -- and
+    // also the entire rest of the edge, which on a rectangle is the whole
+    // thousand-millimetre side. That cost the mesh 1064 vertices where 646
+    // would do, and put the piece over MAX_CLOTH_VERTICES. So cut the segment
+    // into the stretches that actually run near a crease and the stretches
+    // that do not, and give each its own pitch.
+    const bands = bandsFor(a, b)
+    const edges = new Set<number>([0, 1])
+    for (const band of bands) {
+      edges.add(Math.max(0, band.from))
+      edges.add(Math.min(1, band.to))
+    }
+    const stops = [...edges].sort((left, right) => left - right)
+    for (let stop = 0; stop < stops.length - 1; stop += 1) {
+      const from = stops[stop]
+      const to = stops[stop + 1]
+      if (to - from <= 1e-9) continue
+      const middle = (from + to) / 2
+      // The finest band covering this stretch wins; nothing covering it is
+      // the piece's own pitch.
+      let pitch = coarsePitch
+      for (const band of bands) {
+        if (middle >= band.from && middle <= band.to) pitch = Math.min(pitch, band.pitch)
+      }
+      const steps = Math.max(1, Math.ceil(((to - from) * length) / pitch))
+      for (let step = 0; step < steps; step += 1) {
+        const t = from + ((to - from) * step) / steps
+        resampled.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t })
+      }
     }
   }
   return resampled
@@ -907,15 +963,13 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     maxY = Math.max(maxY, point.y)
   }
   const area = Math.max(1, (maxX - minX) * (maxY - minY))
-  const spacing = Math.min(16, Math.max(3, Math.sqrt(area / 140)))
+  const idealSpacing = Math.min(16, Math.max(3, Math.sqrt(area / 140)))
 
   const creases = creasesForFolds(params.folds, MIN_BEND_ZONE_MM, params.thicknessMm)
   if (creases.length === 0) {
     return null
   }
 
-  // Fine where the boundary crosses a bend, the piece's own pitch elsewhere.
-  const coarsePitch = spacing * 0.9
   /** Signed distance from a crease's line: sign tells which half it is on. */
   const offCrease = (crease: CreaseFold, point: Point) => {
     const dx = crease.end.x - crease.start.x
@@ -924,8 +978,12 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     if (length <= 1e-9) return Infinity
     return (dx * (point.y - crease.start.y) - dy * (point.x - crease.start.x)) / length
   }
+
+  const mesher = (spacing: number, floor: number) => {
+  // Fine where the boundary crosses a bend, the piece's own pitch elsewhere.
+  const coarsePitch = spacing * 0.9
   const finePitch = (crease: CreaseFold) =>
-    Math.max(MIN_BOUNDARY_PITCH_MM, crease.zoneWidth / 4)
+    Math.max(floor, crease.zoneWidth / 4)
   const boundaryPitch = (point: Point) => {
     let pitch = coarsePitch
     for (const crease of creases) {
@@ -935,44 +993,69 @@ export function solveFoldDrapeData(params: FoldDrapeParams): FoldDrapeData | nul
     }
     return pitch
   }
-  const boundaryPitchAcross = (a: Point, b: Point) => {
-    let pitch = coarsePitch
+  const boundaryBands = (a: Point, b: Point): PitchBand[] => {
+    const bands: PitchBand[] = []
     for (const crease of creases) {
-      const from = offCrease(crease, a)
-      const to = offCrease(crease, b)
-      const crosses = from * to < 0
-      const inside = Math.min(Math.abs(from), Math.abs(to)) <= crease.zoneWidth
-      if (crosses || inside) {
-        pitch = Math.min(pitch, finePitch(crease))
-      }
+      const band = creaseBand(offCrease(crease, a), offCrease(crease, b), crease.zoneWidth)
+      if (band) bands.push({ ...band, pitch: finePitch(crease) })
     }
-    return pitch
+    return bands
   }
-  const resampledOuter = resampleLoop(outer, boundaryPitch, boundaryPitchAcross)
+  const resampledOuter = resampleLoop(outer, boundaryPitch, boundaryBands, coarsePitch)
   const resampledHoles = holes
     .filter((hole) => hole.length >= 3)
-    .map((hole) => resampleLoop(hole, boundaryPitch, boundaryPitchAcross))
-  let mesh
-  try {
-    mesh = triangulate({
-      outer: resampledOuter,
-      holes: resampledHoles,
-      internalPoints: foldAlignedLattice(
-        creases.map((crease) => ({ ...crease, zoneWidth: crease.latticeZoneWidth })),
-        resampledOuter,
-        resampledHoles,
-        spacing,
-      ),
-      spacing: 0,
-    })
-  } catch {
-    // The triangulator throws rather than hand back a mesh with coverage
-    // holes; a piece it cannot mesh keeps the analytic fold.
+    .map((hole) => resampleLoop(hole, boundaryPitch, boundaryBands, coarsePitch))
+    try {
+      const meshed = triangulate({
+        outer: resampledOuter,
+        holes: resampledHoles,
+        internalPoints: foldAlignedLattice(
+          creases.map((crease) => ({ ...crease, zoneWidth: crease.latticeZoneWidth })),
+          resampledOuter,
+          resampledHoles,
+          spacing,
+        ),
+        spacing: 0,
+      })
+      return { mesh: meshed, resampledOuter, resampledHoles }
+    } catch {
+      // The triangulator throws rather than hand back a mesh with coverage
+      // holes. A coarser attempt may still succeed, so this is not the end.
+      return null
+    }
+  }
+
+  // Coarsen until it fits, rather than giving up.
+  //
+  // A mesh over the cap used to return null, and null is not a neutral answer:
+  // the store caches it, so the piece falls back to the rigid pivot fold — the
+  // one path in the renderer that collides with nothing — permanently and
+  // without saying so. Worse, the trigger is counter-intuitive. A crease's
+  // boundary pitch is `zoneWidth / 4` and `zoneWidth` scales with the radius,
+  // so a *tighter* fold cuts a *finer* mesh: a 1000mm strap turned at 4.5mm
+  // radius overflowed while the same strap at 5mm meshed to 644 vertices and
+  // settled. A maker tightening a bend would have watched the simulation
+  // silently switch itself off.
+  //
+  // So back off and try again. Each pass widens the piece's own pitch and the
+  // floor under the crease band by half, which is the same trade the mesher
+  // already makes between a fold's detail and its cost.
+  let built: ReturnType<typeof mesher> = null
+  let spacing = idealSpacing
+  let floor = MIN_BOUNDARY_PITCH_MM
+  for (let attempt = 0; attempt < MAX_MESH_ATTEMPTS; attempt += 1) {
+    const candidate = mesher(spacing, floor)
+    if (candidate && candidate.mesh.triangles.length > 0 && candidate.mesh.points.length <= MAX_CLOTH_VERTICES) {
+      built = candidate
+      break
+    }
+    spacing *= 1.5
+    floor *= 1.5
+  }
+  if (!built) {
     return null
   }
-  if (mesh.triangles.length === 0 || mesh.points.length > MAX_CLOTH_VERTICES) {
-    return null
-  }
+  const { mesh, resampledOuter, resampledHoles } = built
 
   const clothCount = mesh.points.length
   const restPositions = new Float32Array(clothCount * 2)

@@ -149,7 +149,8 @@ describe('the imported wallet folds', () => {
     expect(bendMeshes(buildWallet(90)).length).toBeGreaterThan(0)
   })
 
-  it('draws the rigid fold until the deferred drape lands, then the drape', async () => {
+  // Solves every folded piece in a real imported document, twice.
+  it('draws the rigid fold until the deferred drape lands, then the drape', { timeout: 60000 }, async () => {
     // What a scrub looks like from the renderer's side. The solve is not on
     // this thread in the app, so a rebuild cannot wait for it: the first pass
     // draws the analytic fold, the drape swaps in when it settles, and a
@@ -182,7 +183,7 @@ describe('the imported wallet folds', () => {
     store.dispose()
   })
 
-  it('renders its dialled folds from the simulated drape, not the rigid halves', () => {
+  it('renders its dialled folds from the simulated drape, not the rigid halves', { timeout: 60000 }, () => {
     // Flat there is nothing to simulate; folded, every creased piece's
     // leather comes from the settled cloth — the imported document exercises
     // the whole pipeline: real outlines, inferred creases, other pieces as
