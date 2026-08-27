@@ -14,7 +14,15 @@
  * leather ended up inside another piece). Neither is an opinion this harness
  * invents — both come out of the same solve the 3D view draws.
  *
- * Everything lives in a test file on purpose. Scoring needs the assembled
+ * Ten agents then found four holes in *this* harness, each with a document
+ * that took full marks while carrying the defect: pieces overlapping on the
+ * flat sheet, stitching drawn off the leather, a crease that stops short of
+ * the cut edge, and a seam whose two sides do not mate. Those four are scored
+ * by `ai-builder-functional-checks.ts`, which lives beside this file so each
+ * one can be tested against a document built to carry the defect rather than
+ * against whatever the corpus happens to contain.
+ *
+ * The drape scoring lives in a test file on purpose. It needs the assembled
  * model builder and three.js, and the AI Builder module has no business
  * importing either.
  */
@@ -32,6 +40,13 @@ import { createFoldDrapeStore } from '../three/fold-drape-store'
 import { createSharedMaterials } from '../three/shared-materials'
 import type { DocFile } from '../cad/cad-types'
 import { compileAiBuilderDocument } from './ai-builder-compile'
+import {
+  checkFoldsReachCutEdges,
+  checkMarksOnLeather,
+  checkPiecesDoNotOverlap,
+  checkSeamsMateCorrectly,
+  type FunctionalCheck,
+} from './ai-builder-functional-checks'
 import { parseAiBuilderDocument } from './ai-builder-parse'
 
 const BENCHMARK_ROOT = path.join(process.cwd(), 'ai-builder-benchmarks')
@@ -62,7 +77,7 @@ const STRESS_LIMIT = 1
 /** Deeper than this and two pieces are meaningfully in the same place. */
 const CLASH_LIMIT_MM = 0.5
 
-type Check = { name: string; points: number; max: number; note: string }
+type Check = FunctionalCheck
 
 function materials() {
   return {
@@ -202,6 +217,10 @@ function scoreFunctional(doc: DocFile, preflight: { code: string; severity: stri
       : `${pieces.length} piece(s) but only ${closedWithArea.length} closed outline(s) with area`,
   })
 
+  // 1b. And no two of them are cut from the same leather. Nothing else here
+  //     looks at the nesting, and a sheet that cannot be cut is not a pattern.
+  checks.push(checkPiecesDoNotOverlap(doc))
+
   // 2. The app's own preflight already decides whether a seam can be sewn and
   //    whether a boundary closes; reusing its codes keeps one answer in the
   //    codebase rather than a second opinion that can drift from it.
@@ -220,6 +239,15 @@ function scoreFunctional(doc: DocFile, preflight: { code: string; severity: stri
         ? 'no seam connections'
         : `${seams.length} seam(s), ${blocking.length} blocking preflight issue(s)`,
   })
+
+  // 2b. Preflight's only guard on a seam is a length comparison, so ask
+  //     whether the two sides actually mate and whether the seam graph
+  //     reaches every piece.
+  checks.push(checkSeamsMateCorrectly(doc))
+
+  // 2c. Stitch holes, hardware and marks have to land on the leather they
+  //     belong to. Counting holes says nothing about where they are.
+  checks.push(checkMarksOnLeather(doc))
 
   // 3-5. What the fold does. A document with no fold cannot score these and
   //      is not punished for it either — a card sleeve does not fold.
@@ -253,6 +281,11 @@ function scoreFunctional(doc: DocFile, preflight: { code: string; severity: stri
       note: folds.measurable ? `worst clash ${folds.worstClashMm.toFixed(3)}mm` : 'not measurable, fold did not solve',
     })
   }
+
+  // 6. Whether the crease is one a maker could put in. The drape above will
+  //    solve a fold that only crosses the middle of a piece, because region
+  //    splitting extends it to an infinite line; the leather will not.
+  checks.push(checkFoldsReachCutEdges(doc))
 
   const score = checks.reduce((total, check) => total + check.points, 0)
   const maxScore = checks.reduce((total, check) => total + check.max, 0)

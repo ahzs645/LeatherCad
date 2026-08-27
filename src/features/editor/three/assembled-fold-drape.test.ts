@@ -179,7 +179,10 @@ describe('solveFoldDrape', () => {
     const lit = [...through!.clash].filter((depth) => depth > 0).length
     expect(lit).toBeGreaterThan(0)
     expect(lit).toBeLessThan(through!.clash.length)
-  })
+    // Three full drape solves with collision in one case. It clears the
+    // default five seconds on its own and does not when the whole suite is
+    // running beside it, so the budget is stated rather than left to luck.
+  }, 30000)
 
   it('folds the way the rigid hinge convention folds', () => {
     // The pivot chain rotates by the document's signed angle about the

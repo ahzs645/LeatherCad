@@ -6,8 +6,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 12,
+      "functionalScore": 8,
+      "functionalMax": 18,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -16,10 +16,28 @@
           "note": "1 piece(s), 2 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 0,
+          "max": 0,
+          "note": "1 resolved piece(s), nothing to overlap"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 0,
+          "max": 2,
+          "note": "seam_connection__buckle_fold_back_seam joins \"Belt Strap\" to itself but its two runs are 90.00mm from any single crease"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "415 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -38,6 +56,12 @@
           "points": 0,
           "max": 3,
           "note": "not measurable, fold did not solve"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "1 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -55,8 +79,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 6,
-      "functionalMax": 12,
+      "functionalScore": 14,
+      "functionalMax": 20,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -65,10 +89,28 @@
           "note": "3 piece(s), 3 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "4 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "4 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "197 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -87,6 +129,12 @@
           "points": 0,
           "max": 3,
           "note": "worst clash 1.800mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "1 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -104,8 +152,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 4,
+      "functionalScore": 10,
+      "functionalMax": 10,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -114,10 +162,28 @@
           "note": "2 piece(s), 2 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "3 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "3 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "108 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -133,6 +199,12 @@
         },
         {
           "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-reach-cut-edges",
           "points": 0,
           "max": 0,
           "note": "no fold lines"
@@ -145,8 +217,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 4,
+      "functionalScore": 10,
+      "functionalMax": 10,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -155,10 +227,28 @@
           "note": "3 piece(s), 3 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "6 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "6 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "311 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -174,6 +264,12 @@
         },
         {
           "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-reach-cut-edges",
           "points": 0,
           "max": 0,
           "note": "no fold lines"
@@ -186,8 +282,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 12,
+      "functionalScore": 12,
+      "functionalMax": 20,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -196,38 +292,62 @@
           "note": "2 piece(s), 2 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "2 seam(s), 0 blocking preflight issue(s)"
         },
         {
-          "name": "folds-solve",
+          "name": "seams-mate-correctly",
           "points": 0,
           "max": 2,
-          "note": "0/1 piece(s) settled"
+          "note": "seam_connection__left_side_seam joins \"Snap Coin Pouch Body\" to itself but its two runs are 50.00mm from any single crease; seam_connection__right_side_seam joins \"Snap Coin Pouch Body\" to itself but its two runs are 50.00mm from any single crease; \"Snap Reinforcement Patch\" is not reached by any seam"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "55 mark(s) on the leather they belong to"
+        },
+        {
+          "name": "folds-solve",
+          "points": 2,
+          "max": 2,
+          "note": "1/1 piece(s) settled"
         },
         {
           "name": "folds-within-leather",
           "points": 0,
           "max": 3,
-          "note": "not measurable, fold did not solve"
+          "note": "worst stress 1.000"
         },
         {
           "name": "folds-clear-other-pieces",
           "points": 0,
           "max": 3,
-          "note": "not measurable, fold did not solve"
+          "note": "worst clash 0.572mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "2 crease(s) reach both cut edges"
         }
       ],
       "folds": {
         "foldCount": 2,
         "askedPieces": 1,
         "solvedPieces": 1,
-        "settledPieces": 0,
+        "settledPieces": 1,
         "worstStress": 1,
-        "worstClashMm": 1.792792797088623,
-        "measurable": false
+        "worstClashMm": 0.572004497051239,
+        "measurable": true
       }
     },
     {
@@ -235,8 +355,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 12,
-      "functionalMax": 12,
+      "functionalScore": 18,
+      "functionalMax": 18,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -245,10 +365,28 @@
           "note": "1 piece(s), 1 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 0,
+          "max": 0,
+          "note": "1 resolved piece(s), nothing to overlap"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "1 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "1 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "307 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -267,6 +405,12 @@
           "points": 3,
           "max": 3,
           "note": "worst clash 0.000mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "1 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -284,8 +428,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 12,
-      "functionalMax": 12,
+      "functionalScore": 18,
+      "functionalMax": 20,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -294,10 +438,28 @@
           "note": "3 piece(s), 3 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "4 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "4 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 0,
+          "max": 2,
+          "note": "3/199 off the leather (3 label), worst 7.00mm out"
         },
         {
           "name": "folds-solve",
@@ -316,6 +478,12 @@
           "points": 3,
           "max": 3,
           "note": "worst clash 0.000mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "1 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -333,8 +501,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 4,
+      "functionalScore": 10,
+      "functionalMax": 10,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -343,10 +511,28 @@
           "note": "2 piece(s), 2 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "3 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "3 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "109 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -365,6 +551,12 @@
           "points": 0,
           "max": 0,
           "note": "no fold lines"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
         }
       ],
       "folds": null
@@ -374,8 +566,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 12,
-      "functionalMax": 12,
+      "functionalScore": 20,
+      "functionalMax": 20,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -384,10 +576,28 @@
           "note": "3 piece(s), 3 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "6 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "6 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "303 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -406,6 +616,12 @@
           "points": 3,
           "max": 3,
           "note": "worst clash 0.000mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "2 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -423,8 +639,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 12,
-      "functionalMax": 12,
+      "functionalScore": 18,
+      "functionalMax": 18,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -433,10 +649,28 @@
           "note": "1 piece(s), 1 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 0,
+          "max": 0,
+          "note": "1 resolved piece(s), nothing to overlap"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "2 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "77 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -455,6 +689,12 @@
           "points": 3,
           "max": 3,
           "note": "worst clash 0.000mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "1 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -472,8 +712,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 4,
+      "functionalScore": 6,
+      "functionalMax": 6,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -482,10 +722,28 @@
           "note": "1 piece(s), 1 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 0,
+          "max": 0,
+          "note": "1 resolved piece(s), nothing to overlap"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "1 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 0,
+          "max": 0,
+          "note": "no sewn or hinged seams"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "400 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -504,6 +762,12 @@
           "points": 0,
           "max": 0,
           "note": "no fold lines"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
         }
       ],
       "folds": null
@@ -513,8 +777,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 9,
-      "functionalMax": 12,
+      "functionalScore": 13,
+      "functionalMax": 20,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -523,10 +787,28 @@
           "note": "3 piece(s), 3 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 0,
+          "max": 2,
+          "note": "\"Outer Shell\" and \"Left Card Pocket\" share 6080.00mm2 of sheet"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "4 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "4 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 0,
+          "max": 2,
+          "note": "3/197 off the leather (3 label), worst 10.00mm out"
         },
         {
           "name": "folds-solve",
@@ -545,6 +827,12 @@
           "points": 0,
           "max": 3,
           "note": "worst clash 1.800mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 2,
+          "max": 2,
+          "note": "1 crease(s) reach both cut edges"
         }
       ],
       "folds": {
@@ -562,8 +850,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 4,
+      "functionalScore": 10,
+      "functionalMax": 10,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -572,10 +860,28 @@
           "note": "2 piece(s), 2 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "2 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "3 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "3 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "112 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -591,6 +897,12 @@
         },
         {
           "name": "folds-clear-other-pieces",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
+        },
+        {
+          "name": "folds-reach-cut-edges",
           "points": 0,
           "max": 0,
           "note": "no fold lines"
@@ -603,8 +915,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 4,
-      "functionalMax": 4,
+      "functionalScore": 10,
+      "functionalMax": 10,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -613,10 +925,28 @@
           "note": "3 piece(s), 3 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 2,
+          "max": 2,
+          "note": "3 piece(s), worst shared area 0.00mm2"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "6 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 2,
+          "max": 2,
+          "note": "6 seam(s) mate, worst crease deviation 0.00mm"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "301 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -635,6 +965,12 @@
           "points": 0,
           "max": 0,
           "note": "no fold lines"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 0,
+          "max": 0,
+          "note": "no fold lines"
         }
       ],
       "folds": null
@@ -644,8 +980,8 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 12,
-      "functionalMax": 12,
+      "functionalScore": 14,
+      "functionalMax": 18,
       "checks": [
         {
           "name": "pieces-cuttable",
@@ -654,10 +990,28 @@
           "note": "1 piece(s), 1 closed outline(s)"
         },
         {
+          "name": "pieces-dont-overlap",
+          "points": 0,
+          "max": 0,
+          "note": "1 resolved piece(s), nothing to overlap"
+        },
+        {
           "name": "seams-sewable",
           "points": 2,
           "max": 2,
           "note": "2 seam(s), 0 blocking preflight issue(s)"
+        },
+        {
+          "name": "seams-mate-correctly",
+          "points": 0,
+          "max": 2,
+          "note": "seam_connection__left_side_seam_connection joins \"Snap Coin Pouch Body\" to itself but its two runs are 70.00mm from any single crease; seam_connection__right_side_seam_connection joins \"Snap Coin Pouch Body\" to itself but its two runs are 70.00mm from any single crease"
+        },
+        {
+          "name": "marks-on-leather",
+          "points": 2,
+          "max": 2,
+          "note": "64 mark(s) on the leather they belong to"
         },
         {
           "name": "folds-solve",
@@ -676,6 +1030,12 @@
           "points": 3,
           "max": 3,
           "note": "worst clash 0.000mm"
+        },
+        {
+          "name": "folds-reach-cut-edges",
+          "points": 0,
+          "max": 2,
+          "note": "1/1 crease(s) stop short, worst \"Flap Body Fold\" on \"Snap Coin Pouch Body\" by 8.00mm"
         }
       ],
       "folds": {

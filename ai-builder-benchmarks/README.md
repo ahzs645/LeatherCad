@@ -31,10 +31,15 @@ the thing works:
 npm run test:ai-builder-functional
 ```
 
-It writes `functional-report.json`: pieces cuttable, seams sewable, folds
-settle, folds stay inside what the leather gives (drape stress), folds clear
-the other pieces (drape clash). A document with no fold is scored out of 4
-rather than 12, so compare like with like.
+It writes `functional-report.json`: pieces cuttable, pieces cut from separate
+leather, seams sewable, seams that mate, stitching and marks on the leather
+they belong to, folds settle, folds stay inside what the leather gives (drape
+stress), folds clear the other pieces (drape clash), creases that reach both
+cut edges.
+
+A check a document cannot be scored on is worth 0 out of 0 rather than 0 out
+of its points — a card sleeve does not fold, a single-piece belt has nothing
+to overlap — so compare scores against their own denominator, not against 20.
 
 Both harnesses honour two environment variables so several agents can score
 their own file at once:
