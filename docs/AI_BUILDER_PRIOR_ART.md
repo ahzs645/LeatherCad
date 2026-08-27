@@ -323,3 +323,45 @@ pieces, mating the wrong edge of equal length is a rigid re-seating, and on
 axis-aligned rectangles it produces an assembly that is geometrically valid —
 the piece simply ends up turned around. That is a semantic error no local
 geometry can see, and the check says so rather than guessing.
+
+---
+
+## 6. After the engine fixes
+
+The §5 run was scored before the drape mesher, the seam compiler and two
+engine defects were fixed. Re-scored on the corrected build, with the four new
+checks from §5 included:
+
+| prompt | swarm | blind | loop |
+|---|---|---|---|
+| belt-template | 6/6 | 10/18 | **18/18** |
+| bifold-wallet | 13/20 | 14/20 | **18/20** |
+| card-sleeve | 10/10 | 10/10 | 10/10 |
+| gusseted-pouch | 10/10 | 10/10 | **20/20** |
+| snap-coin-pouch | 16/18 | 15/20 | **18/18** |
+
+What still fails, and why it is worth having:
+
+| output | fails |
+|---|---|
+| `blind-belt-template` | all three fold checks — its fold still does not solve |
+| `blind-bifold-wallet` | folds-within-leather, folds-clear-other-pieces |
+| `blind-snap-coin-pouch` | seams-mate-correctly, folds-within-leather |
+| `loop-bifold-wallet` | marks-on-leather — 3 of 199 marks off the leather, worst 7 mm |
+| `swarm-bifold-wallet` | pieces-dont-overlap (6080 mm² shared), marks-on-leather, folds-clear-other-pieces |
+| `swarm-snap-coin-pouch` | folds-reach-cut-edges — its body fold stops 8 mm short at each end |
+
+Two things to note.
+
+**`swarm-snap-coin-pouch` no longer fails `seams-mate-correctly`.** It did
+before, by 70 mm, because both of its seams set a span `reversed` *and* a
+connection `reversed`, which composed into a no-op and twisted the seam. That
+compiler defect is fixed, so the file is now correct as authored — and the
+check found it independently of the agent that fixed it, which is the best
+evidence either was right.
+
+**The closed-loop arm is still ahead**, and by more than before: 84/86 against
+blind's 59/88. But the gap is no longer only about feedback. Three of blind's
+failures are the fold checks, and the mesher fix (`FOLD_DRAPE_FOLLOW_UPS` §2f)
+moved those for everyone. The honest summary is that the harness improved and
+the engine improved, and the loop arm was the only one that could see either.
