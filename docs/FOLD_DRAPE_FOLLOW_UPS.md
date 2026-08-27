@@ -224,58 +224,115 @@ to the panel's rather than to a constant, which would make an unauthored fold a
 true no-op; that is a product call about what an unset field means, not a
 geometry one.
 
-## 2e. Contact inflates the crease band — **diagnosed, not fixed**
+## 2e. Contact inflates the crease band — **re-pointed; two engine fixes landed, the cause is elsewhere**
 
-Found by the stress overlay (§7) the moment it ran against the shipped wallet:
-its membrane term pegged at 1.000 on `piece-a`, and the reason is a defect in
-the drape, not in the leather. Edge strain measured against rest length on the
-imported wallet's flap:
+The symptom, unchanged: on the imported wallet the flap's crease band settled
+up to **62.5%** long at 90° (17 of 915 edges over 5%) and 17.0% at 180°.
+`piece-c`, whose fold does not run out to a cut edge, reads 0.0%.
 
-| | edges | worst | over 5% |
-|---|---|---|---|
-| 90° | 915 | **62.5%** on a 0.703 mm edge | 17 |
-| 180° | 739 | **17.0%** on a 3.770 mm edge | 12 |
+This section used to say the cause was the collider having no notion of mesh
+topology, and to recommend excluding topological neighbours from collision.
+**That was built, and it is a no-op here.** Recorded because being wrong in
+public is cheaper than being wrong quietly.
 
-`piece-c`, whose fold does not run out to a cut edge, reads **0.0%** and has no
-edge over 5% at either angle. No leather grows by two thirds; every offending
-rest length is one the mesher chose — 0.703 and 1.390 mm are `finePitch`
-(`zoneWidth / 4`) at the two angles, 1.885 and 3.770 mm are the lattice's zone
-pitch and its first doubling.
+### What was fixed anyway
 
-**It is contact, not convergence.** Four experiments, each against the same
-wallet:
+`atelier` now excludes a particle's **closed one-ring** — the triangles it is a
+corner of, plus every triangle holding a vertex it shares an edge with — from
+collision, built once as CSR adjacency and checked with a stamp, so the step
+stays O(n). It is correct, it has a regression test where a 1 mm edge under a
+3 mm contact offset stretches **520.8%** without it and under 0.1% with it, and
+it removes a dependence on a tuning number.
 
-| change | 90° worst | 180° worst |
+But LeatherCad never hit that path. It leaves `restMinDistance` at
+`searchRadius × 3` = **10.8 mm** in rest space, and every topological neighbour
+of a crease-band particle is far inside that, so the rest-space filter was
+already excluding them. Before and after are bit-identical: 62.5% / 17.0%.
+
+Two genuine engine defects were found and fixed along the way, both in the
+closest-point-on-triangle walk that contact is built on. Eberly's **region 6**
+minimised along the wrong edge — `-e/c` where the `t = 0` edge wants `-d/a` —
+so a query past `p1` returned `p0`, the far vertex of the wrong edge; over
+~4,800 random queries the kernel answered **229 wrong, worst case 17.7 units
+adrift**. It is fixed in `atelier` with a per-region test, and upstream in
+seamer-studio along with the two defects
+[`SEAMER_FOLD_KERNEL_UPSTREAM.md`](./SEAMER_FOLD_KERNEL_UPSTREAM.md) already
+described. Region 6 was reachable only *because* the negated difference vector
+was fixed first, which is why the port inherited it.
+
+### What the cause actually is
+
+Instrumenting the collider to classify contacts settles it:
+
+| experiment | 90° worst | 180° worst |
 |---|---|---|
-| *(as shipped)* | 62.5% | 17.0% |
-| iterations 4 → 24 | 42.6% | 8.5% |
-| collider thickness 1.8 → 0.05 mm | 16.3% | **1.6%** |
-| boundary pitch floored at 1.8 mm | 25.6% | 18.9% |
-| boundary + lattice floored at 0.9 mm | 32.5% | 17.0% |
+| as shipped | 62.5% | 17.0%, `settled=false` |
+| **obstacle triangles disabled** | **0.0%**, settled | **0.0%**, settled |
+| cloth–cloth contacts disabled | 62.5% | 17.0% |
 
-Six times the iterations costs five times the wall clock and does not converge;
-turning the collider down all but erases the strain and takes 180° to zero
-edges over 5%. The collider holds surfaces one thickness apart and has no
-notion that two particles it is separating are the two ends of one edge, so
-wherever the drape's own mesh is cut finer than the leather is thick, contact
-outruns the distance constraints. Excluding the bend band from *self*-collision
-changed nothing, which places the push on the obstacle pieces the flap closes
-onto rather than on the crease touching itself.
+It is **100% obstacle contact**, which topological exclusion cannot reach by
+construction — an obstacle shares no vertex indices with the cloth.
 
-**Why no fix is committed.** Flooring the mesh at half a thickness is the
-obvious move and was built and measured: it takes 90° from 62.5% to 32.5%,
-leaves 180° untouched, and — because a tight bend in thick leather has a zone
-narrower than the leather — coarsens exactly the case the overlay exists to
-report, dropping `reads the fold against the leather at the crease` from 0.400
-to 0.252. Halving one number while blunting the new instrument is not a win, so
-it was reverted rather than shipped.
+Two things compound there:
 
-The fix that would work is the textbook one: exclude topological neighbours
-from collision, so a vertex is never pushed off a triangle it shares an edge
-with. That lives in the atelier collider, not here. Until then the overlay's
-**membrane term is not trustworthy on a piece whose crease reaches a cut edge**
-— its bend term, which reads curvature against the wrapped stack, is
-unaffected and is the one to read.
+1. **The collider over-pushes, because `apply()` sums corrections.** Every near
+   triangle contributes a face push plus up to three edge pushes, each computed
+   from the same starting position, and a particle over a tessellated slab is
+   inside the shells of that slab's interior edges as well as its faces. In
+   atelier's own four-vertex fixture a **2 mm contact offset separates two
+   sheets by 8.83 mm**, 4.4× what was asked.
+2. **The prescribed pose puts that leather inside a neighbouring piece.** Every
+   offending edge sits on a cut edge at one of the two ends of the crease, with
+   clash depth **0.00 mm** — contact is keeping its promise — while sitting up
+   to 4.4 mm (90°) and 11 mm (180°) off the pose the anchors ask for.
+
+Two candidate fixes for (1) were built and measured, and **neither shipped**:
+Jacobi averaging takes 90° from 62.5% to 28.5% and makes it settle, but takes
+180° to 21.4% and lets max obstacle clash rise from 0.000/0.160 mm to
+0.408/1.154 mm — the collider stops keeping its own promise. Dropping edge
+contacts takes 180° to 26.9%, worse. Doing this properly means solving contacts
+Gauss–Seidel rather than Jacobi-summed: a real change to the contact solver,
+worth its own measured pass.
+
+### What did move the number
+
+Nothing in the collider — the mesher. See §2f.
+
+## 2f. A crease band no longer refines the whole cut edge — **fixed**
+
+The boundary resampler asked one question of each segment: does a crease cross
+it? If so the whole segment took the fine pitch. On a rectangle that is the
+entire long side, so a 1000 × 38 mm strap meshed at **1202 vertices** and
+crossed `MAX_CLOTH_VERTICES` (700).
+
+Crossing that cap was not a graceful degradation. `solveFoldDrapeData` returned
+null, the drape store cached the null, and the renderer fell back to the rigid
+pivot fold — **the one path that collides with nothing** — permanently and
+silently. That is the likeliest thing anyone has actually seen clip. And the
+trigger runs backwards: a crease's boundary pitch is `zoneWidth / 4` and
+`zoneWidth` scales with the radius, so a *tighter* fold cuts a *finer* mesh.
+Measured cliff on that strap: radius **4.5 mm returned null, 5.0 mm** meshed to
+644 vertices and settled. A maker tightening a bend would have watched the
+simulation switch itself off.
+
+The pitch now varies *along* a segment. Distance from a crease's line is linear
+along a straight segment, so the band wanting fine sampling is solved exactly
+and the rest of the edge keeps the piece's own pitch. That strap now meshes to
+**295 vertices and settles at radius 2.4 mm**; every radius tested got two to
+four times cheaper. A bounded coarsen-and-retry sits behind it so a
+pathological outline degrades rather than disappears.
+
+**One test turned out to be measuring nothing.** `wraps the obstacle with a
+soft crease and bridges it with a stiff one` asserted that a soft crease lands
+a millimetre further across a slab. Sweeping the boundary pitch from 0.9 to
+0.25 of the piece's spacing, soft-minus-stiff came out **−0.32, +0.16, −0.73,
++1.36, −0.15**: five refinements, five sign changes. Where a flap settles
+against an obstacle is contact-chaotic and no margin asserted on it means
+anything — the committed +1.805 was one draw from a distribution with no stable
+sign. The knob is fine: on a *free* fold the crease crown reads **6.219 at
+stiffness 0, identical to three decimals at every pitch, against 6.80–6.85 at
+stiffness 1**. The test measures that now, and the slab keeps only what does
+not move — both creases clear it.
 
 ## 3. Couple the pieces: obstacles are rigid today
 

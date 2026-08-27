@@ -138,8 +138,9 @@ describe('solveFoldDrape', () => {
     expect(data!.settled).toBe(true)
   })
 
-  // Three full solves, so it needs more than the five-second default when the
-  // suite is running files in parallel.
+  // Three full drape solves, one of them with collision. It clears the default
+  // five seconds on its own and does not when the whole suite is running
+  // beside it, so the budget is stated rather than left to luck.
   it('reads a clash only as deep as the solve actually left one', { timeout: 60000 }, () => {
     // A fold with nothing to hit cannot clash with anything, and says so
     // exactly rather than nearly.
@@ -179,10 +180,7 @@ describe('solveFoldDrape', () => {
     const lit = [...through!.clash].filter((depth) => depth > 0).length
     expect(lit).toBeGreaterThan(0)
     expect(lit).toBeLessThan(through!.clash.length)
-    // Three full drape solves with collision in one case. It clears the
-    // default five seconds on its own and does not when the whole suite is
-    // running beside it, so the budget is stated rather than left to luck.
-  }, 30000)
+  })
 
   it('folds the way the rigid hinge convention folds', () => {
     // The pivot chain rotates by the document's signed angle about the

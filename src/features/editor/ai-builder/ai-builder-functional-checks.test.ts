@@ -76,13 +76,27 @@ function fold(id: string, start: [number, number], end: [number, number]): Entit
 }
 
 /** The left edge of a rectangle, split into its two halves and sewn together. */
-function selfSeam(id: string, pieceId: string, toReversed: boolean): Entity {
+/**
+ * One edge sewn to itself about its midpoint: a fold-over closure.
+ *
+ * Head-to-tail intent lives on the connection, and the app reads an absent
+ * flag as reversed (`connection.reversed !== false`), so the default here is
+ * the closure that works -- t = 0 meeting t = 1. Passing `false` walks both
+ * halves the same way instead, which mates the corner to the fold point and
+ * is the twist the check has to catch.
+ *
+ * A span-level `reversed` used to be a second way to say this, and setting
+ * both composed into a no-op. It does not any more, so it cannot be used to
+ * build a twisted fixture.
+ */
+function selfSeam(id: string, pieceId: string, headToTail = true): Entity {
   return {
     id,
     type: 'seam_connection',
     kind: 'sewn',
     from: { piece_id: pieceId, edge_index: 3, t0: 0, t1: 0.5 },
-    to: { piece_id: pieceId, edge_index: 3, t0: 0.5, t1: 1, ...(toReversed ? { reversed: true } : {}) },
+    to: { piece_id: pieceId, edge_index: 3, t0: 0.5, t1: 1 },
+    ...(headToTail ? {} : { reversed: false }),
   }
 }
 
@@ -231,7 +245,7 @@ describe('seams-mate-correctly', () => {
       compileFixture([
         rectangle('body', 0, 0, 100, 60),
         patternPiece('body_piece', 'body', 'Body'),
-        selfSeam('side_seam', 'body_piece', false),
+        selfSeam('side_seam', 'body_piece'),
       ]),
     )
 
@@ -240,12 +254,12 @@ describe('seams-mate-correctly', () => {
     expect(check.note).toContain('worst crease deviation 0.00mm')
   })
 
-  it('fires when a span reversed against the connection twists the seam', () => {
+  it('fires when a fold-over seam is sewn head-to-head instead of head-to-tail', () => {
     const check = checkSeamsMateCorrectly(
       compileFixture([
         rectangle('body', 0, 0, 100, 60),
         patternPiece('body_piece', 'body', 'Body'),
-        selfSeam('side_seam', 'body_piece', true),
+        selfSeam('side_seam', 'body_piece', false),
       ]),
     )
 
@@ -263,7 +277,7 @@ describe('seams-mate-correctly', () => {
         rectangle('patch', 150, 0, 20, 20),
         patternPiece('body_piece', 'body', 'Body'),
         patternPiece('patch_piece', 'patch', 'Patch'),
-        selfSeam('side_seam', 'body_piece', false),
+        selfSeam('side_seam', 'body_piece'),
       ]),
     )
 

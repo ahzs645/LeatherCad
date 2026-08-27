@@ -6,7 +6,7 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 8,
+      "functionalScore": 10,
       "functionalMax": 18,
       "checks": [
         {
@@ -29,9 +29,9 @@
         },
         {
           "name": "seams-mate-correctly",
-          "points": 0,
+          "points": 2,
           "max": 2,
-          "note": "seam_connection__buckle_fold_back_seam joins \"Belt Strap\" to itself but its two runs are 90.00mm from any single crease"
+          "note": "1 seam(s) mate, worst crease deviation 0.00mm"
         },
         {
           "name": "marks-on-leather",
@@ -282,7 +282,7 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 12,
+      "functionalScore": 15,
       "functionalMax": 20,
       "checks": [
         {
@@ -307,7 +307,7 @@
           "name": "seams-mate-correctly",
           "points": 0,
           "max": 2,
-          "note": "seam_connection__left_side_seam joins \"Snap Coin Pouch Body\" to itself but its two runs are 50.00mm from any single crease; seam_connection__right_side_seam joins \"Snap Coin Pouch Body\" to itself but its two runs are 50.00mm from any single crease; \"Snap Reinforcement Patch\" is not reached by any seam"
+          "note": "\"Snap Reinforcement Patch\" is not reached by any seam"
         },
         {
           "name": "marks-on-leather",
@@ -329,9 +329,9 @@
         },
         {
           "name": "folds-clear-other-pieces",
-          "points": 0,
+          "points": 3,
           "max": 3,
-          "note": "worst clash 0.572mm"
+          "note": "worst clash 0.000mm"
         },
         {
           "name": "folds-reach-cut-edges",
@@ -346,7 +346,7 @@
         "solvedPieces": 1,
         "settledPieces": 1,
         "worstStress": 1,
-        "worstClashMm": 0.572004497051239,
+        "worstClashMm": 0,
         "measurable": true
       }
     },
@@ -398,7 +398,7 @@
           "name": "folds-within-leather",
           "points": 3,
           "max": 3,
-          "note": "worst stress 0.015"
+          "note": "worst stress 0.021"
         },
         {
           "name": "folds-clear-other-pieces",
@@ -418,7 +418,7 @@
         "askedPieces": 1,
         "solvedPieces": 1,
         "settledPieces": 1,
-        "worstStress": 0.015199960209429264,
+        "worstStress": 0.021072186529636383,
         "worstClashMm": 0,
         "measurable": true
       }
@@ -471,7 +471,7 @@
           "name": "folds-within-leather",
           "points": 3,
           "max": 3,
-          "note": "worst stress 0.052"
+          "note": "worst stress 0.045"
         },
         {
           "name": "folds-clear-other-pieces",
@@ -491,7 +491,7 @@
         "askedPieces": 1,
         "solvedPieces": 1,
         "settledPieces": 1,
-        "worstStress": 0.05187656730413437,
+        "worstStress": 0.04470562934875488,
         "worstClashMm": 0,
         "measurable": true
       }
@@ -609,7 +609,7 @@
           "name": "folds-within-leather",
           "points": 3,
           "max": 3,
-          "note": "worst stress 0.014"
+          "note": "worst stress 0.016"
         },
         {
           "name": "folds-clear-other-pieces",
@@ -629,7 +629,7 @@
         "askedPieces": 1,
         "solvedPieces": 1,
         "settledPieces": 1,
-        "worstStress": 0.014270804822444916,
+        "worstStress": 0.01573977991938591,
         "worstClashMm": 0,
         "measurable": true
       }
@@ -702,7 +702,7 @@
         "askedPieces": 1,
         "solvedPieces": 1,
         "settledPieces": 1,
-        "worstStress": 0.003819433506578207,
+        "worstStress": 0.004398338496685028,
         "worstClashMm": 0,
         "measurable": true
       }
@@ -820,7 +820,7 @@
           "name": "folds-within-leather",
           "points": 3,
           "max": 3,
-          "note": "worst stress 0.259"
+          "note": "worst stress 0.260"
         },
         {
           "name": "folds-clear-other-pieces",
@@ -840,7 +840,7 @@
         "askedPieces": 1,
         "solvedPieces": 1,
         "settledPieces": 1,
-        "worstStress": 0.25926756858825684,
+        "worstStress": 0.2601025700569153,
         "worstClashMm": 1.7999999523162842,
         "measurable": true
       }
@@ -980,7 +980,7 @@
       "parsed": true,
       "preflightErrors": 0,
       "preflightWarnings": 0,
-      "functionalScore": 14,
+      "functionalScore": 16,
       "functionalMax": 18,
       "checks": [
         {
@@ -1003,9 +1003,9 @@
         },
         {
           "name": "seams-mate-correctly",
-          "points": 0,
+          "points": 2,
           "max": 2,
-          "note": "seam_connection__left_side_seam_connection joins \"Snap Coin Pouch Body\" to itself but its two runs are 70.00mm from any single crease; seam_connection__right_side_seam_connection joins \"Snap Coin Pouch Body\" to itself but its two runs are 70.00mm from any single crease"
+          "note": "2 seam(s) mate, worst crease deviation 0.00mm"
         },
         {
           "name": "marks-on-leather",
@@ -1023,7 +1023,7 @@
           "name": "folds-within-leather",
           "points": 3,
           "max": 3,
-          "note": "worst stress 0.004"
+          "note": "worst stress 0.007"
         },
         {
           "name": "folds-clear-other-pieces",
@@ -1043,7 +1043,7 @@
         "askedPieces": 1,
         "solvedPieces": 1,
         "settledPieces": 1,
-        "worstStress": 0.004014132544398308,
+        "worstStress": 0.006662626285105944,
         "worstClashMm": 0,
         "measurable": true
       }
