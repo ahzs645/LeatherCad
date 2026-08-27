@@ -271,7 +271,8 @@ Each of these was recovered from tool feedback, not from the document:
 
 ### Blind spots the agents found in the new harness
 
-Reported rather than fixed, because they bound what these numbers mean:
+Reported as measured, because they bound what these numbers mean. All but the
+hardware one are now closed — the second only in part — in the section below:
 
 - Nothing checks that pieces do not **overlap in the flat cutting layout**.
 - `seam-length-mismatch` is the only guard on seam correctness, so **any
@@ -291,3 +292,34 @@ One scoring bug was found during the run and fixed: a drape that returned null
 used to score full marks on stress and clash, because the maxima stayed at
 their initialised zero. Both physical checks are now gated on the fold having
 actually solved, which is what moved `blind-belt-template` from 10/12 to 4/12.
+
+### Closing them
+
+`ai-builder-functional-checks.ts` adds four checks, two points each, measured
+against resolved geometry through the app's own resolvers rather than re-read
+from the JSON. The existing five checks and their point values are untouched,
+so the numbers above still compare.
+
+| check | rule | measured with |
+|---|---|---|
+| `pieces-dont-overlap` | no two pieces share sheet area, outline minus cutouts | `booleanOpPolygons` intersection |
+| `marks-on-leather` | every stitch hole, hardware marker and mark lands on the piece that owns it, ownership taken from `internalShapeIds` | `pointInPolygon` on the resolved chain |
+| `folds-reach-cut-edges` | a crease that divides a piece must run edge to edge, judged where the fold's line actually crosses the boundary | `splitPieceByFolds` as the gate |
+| `seams-mate-correctly` | a seam joining a piece to itself must be a reflection in one crease; the seam graph must reach every piece | `resolveSeamSide`, `solveSeamDrivenPlacements` |
+
+What the corpus does with them:
+
+| output | new checks failed | measured |
+|---|---|---|
+| `swarm-bifold-wallet` | `pieces-dont-overlap`, `marks-on-leather` | shell and left pocket share **6080 mm²**; 3 labels off, worst 10 mm |
+| `swarm-snap-coin-pouch` | `seams-mate-correctly`, `folds-reach-cut-edges` | both side seams 70 mm from any crease — the double flip this file predicted; the fold stops **8 mm** short at each end |
+| `blind-snap-coin-pouch` | `seams-mate-correctly` | both side seams 50 mm off; the reinforcement patch no seam reaches |
+| `blind-belt-template` | `seams-mate-correctly` | buckle fold-back seam 90 mm from any crease |
+| `loop-bifold-wallet` | `marks-on-leather` | 3 piece labels stamped 7 mm outside the pieces they name |
+| the other ten | none | — |
+
+The half of the wrong-edge blind spot that stays open: between two *different*
+pieces, mating the wrong edge of equal length is a rigid re-seating, and on
+axis-aligned rectangles it produces an assembly that is geometrically valid —
+the piece simply ends up turned around. That is a semantic error no local
+geometry can see, and the check says so rather than guessing.
