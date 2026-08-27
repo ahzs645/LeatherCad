@@ -17,6 +17,12 @@
  * The second test is the one that needs a threshold, so it measures area rather
  * than counting vertices: a 3 mm strip outside a pocket's stitch line and a
  * 60 mm wallet flap both sit "past the ends", and only one of them bends.
+ *
+ * Where the evidence sits and where the leather bends are not quite the same
+ * line, and only the flap test has to reconcile them — the line joining a run's
+ * open ends runs through two of its holes, and no maker punches a hole through
+ * a fold. Two runs pairing put their axis between the pairs instead, which is
+ * already clear of both.
  */
 
 import type { FoldLine, Point } from '../../cad/cad-types'
@@ -143,6 +149,37 @@ function foldFrom(
 }
 
 /**
+ * The hinge, stepped off the two holes the evidence was read from.
+ *
+ * The line joining a run's open ends is where the reading is, not where the
+ * leather turns: it passes through the run's last hole at either end, by
+ * construction. A hole punched through a fold is the weakest place on a piece —
+ * the bend distorts it and the thread saws at it as the flap works — so a maker
+ * stops the run short of the crease, and those two holes are the last ones
+ * *before* the bend rather than the first ones in it.
+ *
+ * Half a pitch is how far short. A run's stitching does not end at its last
+ * hole; it ends about half a pitch past it, which is the same half-pitch
+ * `spansForRun` grows a seam's spans by so both sides of it come back the same
+ * length. That is where the sewn part of the piece stops and the flap begins,
+ * so that is where the hinge goes. The step comes off the run's own spacing:
+ * a sheet punched at 3 mm stops that much shorter than one punched at 5.
+ */
+function clearOfTheEndHoles(line: Line, sewnSide: Point, pitchMm: number): Line {
+  // `signedDistance` grows along (direction.y, −direction.x), so shifting the
+  // line's own point that way carries the line the other way — towards the
+  // unsewn side, which is the flap.
+  const step = signedDistance(sewnSide, line) >= 0 ? -pitchMm / 2 : pitchMm / 2
+  return {
+    direction: line.direction,
+    point: {
+      x: line.point.x + line.direction.y * step,
+      y: line.point.y - line.direction.x * step,
+    },
+  }
+}
+
+/**
  * The share of `piece` lying on the far side of `line` from `reference`.
  */
 function areaRatioBeyond(piece: AnalyzedPiece, line: Line, reference: Point) {
@@ -200,14 +237,18 @@ export function inferFoldLines(
       const last = run.dots[run.dots.length - 1].center
       const chord = Math.hypot(last.x - first.x, last.y - first.y)
       if (chord < run.pitchMm * 2) continue
-      const line: Line = { point: first, direction: normalise({ x: last.x - first.x, y: last.y - first.y }) }
-      const midIndex = Math.floor(run.dots.length / 2)
-      if (areaRatioBeyond(piece, line, run.dots[midIndex].center) < config.minFlapAreaRatio) continue
+      const ends: Line = { point: first, direction: normalise({ x: last.x - first.x, y: last.y - first.y }) }
+      // The middle of the run is squarely on the sewn side of its own ends,
+      // which is what tells the two sides of the line apart.
+      const sewnSide = run.dots[Math.floor(run.dots.length / 2)].center
+      // Measured against the ends themselves: how much leather is left over is
+      // a fact about the run, and it should not move with where the hinge lands.
+      if (areaRatioBeyond(piece, ends, sewnSide) < config.minFlapAreaRatio) continue
       const fold = foldFrom(
         `${run.id}-fold`,
         `Fold — flap above ${run.holeCount}-hole seam`,
         piece.id,
-        line,
+        clearOfTheEndHoles(ends, sewnSide, run.pitchMm),
         piece.outline.polygon,
       )
       if (fold) folds.push({ fold, evidence: 'flap' })

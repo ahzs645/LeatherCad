@@ -44,12 +44,36 @@ describe('inferFoldLines', () => {
       { x: 0, y: 120 },
     ])
 
-    const folds = inferFoldLines(analyzePatternPaths([panel, ...holes], PAGE))
+    const analysis = analyzePatternPaths([panel, ...holes], PAGE)
+    const folds = inferFoldLines(analysis)
 
     expect(folds).toHaveLength(1)
     expect(folds[0].evidence).toBe('flap')
-    expect(folds[0].fold.start.y).toBeCloseTo(60, 0)
-    expect(folds[0].fold.end.y).toBeCloseTo(60, 0)
+
+    // The evidence is the line joining the run's two open ends — both at y = 60
+    // — but that line runs through the very holes it was read from, and the
+    // hinge is where the leather bends, not where the reading is. So it steps
+    // half the run's own measured pitch clear of those ends, into the flap.
+    //
+    // This used to assert y = 60 to within half a millimetre, which described
+    // the old implementation rather than the intent stated above it: the hinge
+    // is at the top of the U, where the sewn part stops. The number moved to
+    // 57.53 because the run's measured pitch is 4.935 mm and the crease now
+    // sits half of that clear. Anchoring to the rule instead of to a constant
+    // keeps the assertion exact — a sheet punched at a different spacing steps
+    // by a different amount, and the test still holds.
+    const run = analysis.pieces[0].stitchRuns[0]
+    const endHoles = [run.dots[0].center, run.dots[run.dots.length - 1].center]
+    for (const end of endHoles) expect(end.y).toBeCloseTo(60, 6)
+
+    const hingeY = 60 - run.pitchMm / 2
+    expect(folds[0].fold.start.y).toBeCloseTo(hingeY, 6)
+    expect(folds[0].fold.end.y).toBeCloseTo(hingeY, 6)
+
+    // Which is the whole point: the crease is horizontal, so the gap in y is
+    // the real clearance, and no hole sits in it.
+    const nearestHoleMm = Math.min(...run.dots.map((dot) => Math.abs(dot.center.y - hingeY)))
+    expect(nearestHoleMm).toBeCloseTo(run.pitchMm / 2, 6)
   })
 
   it('leaves a pocket alone when the run ends only clear its seam allowance', () => {

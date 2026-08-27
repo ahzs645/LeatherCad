@@ -182,3 +182,60 @@ describe('multi-span and curved seam sides', () => {
     expect(Math.min(...ys)).toBeCloseTo(10, 5)
   })
 })
+
+describe('seam direction lives on the connection, not on the spans', () => {
+  // A fold-over closure: one side of one piece sewn to itself, the way the snap
+  // coin pouch closes. Edge 3 of `piece()` runs (0,10) -> (0,0), so t=0.5 is the
+  // fold and t=0 / t=1 are the two corners. Sewn head to tail the fold meets
+  // itself and the corners meet each other; sewn head to head a corner is pulled
+  // onto the fold and the seam twists.
+  const FOLD_POINT = { x: 0, y: 5 }
+
+  function compileFoldOver(spanReversed: { from?: boolean; to?: boolean }) {
+    const compiled = compileExplicitSeams({
+      pieceMeshes: [piece('body', 'Body', 40)],
+      seamConnections: [{
+        id: 'fold-over',
+        from: { pieceId: 'body', edgeIndex: 3 },
+        to: { pieceId: 'body', edgeIndex: 3 },
+        fromSpan: { pieceId: 'body', edgeIndex: 3, t0: 0, t1: 0.5, reversed: spanReversed.from },
+        toSpan: { pieceId: 'body', edgeIndex: 3, t0: 0.5, t1: 1, reversed: spanReversed.to },
+        kind: 'sewn',
+        stitchSpacingMm: 2.5,
+        // Head to tail: the far end of the second half meets the near end of the
+        // first, so the fold lands on itself.
+        reversed: true,
+      }],
+    })
+    const [pair] = compiled.pairs
+    return pair.left.holes.map((hole, index) => {
+      const mate = pair.right.holes[index].point
+      return {
+        left: hole.point,
+        right: mate,
+        gapMm: Math.hypot(mate.x - hole.point.x, mate.y - hole.point.y),
+      }
+    })
+  }
+
+  it('sews the fold to itself when only the connection says reversed', () => {
+    const pairs = compileFoldOver({})
+    // Corners first, fold last: 10mm apart shrinking to nothing.
+    expect(pairs[0].gapMm).toBeCloseTo(10, 9)
+    expect(pairs[pairs.length - 1].gapMm).toBeCloseTo(0, 9)
+    expect(pairs[pairs.length - 1].left).toEqual(FOLD_POINT)
+    expect(pairs[pairs.length - 1].right).toEqual(FOLD_POINT)
+  })
+
+  it('does not let a reversed `to` span cancel the connection flip', () => {
+    const pairs = compileFoldOver({ to: true })
+    expect(pairs[0].gapMm).toBeCloseTo(10, 9)
+    expect(pairs[pairs.length - 1].gapMm).toBeCloseTo(0, 9)
+  })
+
+  it('does not let a reversed `from` span cancel the connection flip', () => {
+    const pairs = compileFoldOver({ from: true })
+    expect(pairs[0].gapMm).toBeCloseTo(10, 9)
+    expect(pairs[pairs.length - 1].gapMm).toBeCloseTo(0, 9)
+  })
+})
