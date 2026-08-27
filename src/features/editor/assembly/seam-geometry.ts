@@ -6,6 +6,10 @@
  * seam the same way. Measuring only `connection.from` would report a 110mm
  * panel side against a 380mm gusset edge as a 270mm mismatch, when the seam
  * actually runs three panel sides against that one gusset edge.
+ *
+ * A side always resolves in boundary-walk order. Which way a seam is *sewn* is
+ * the connection's business, not a side's: `SeamConnection.reversed` is the one
+ * channel for head-to-tail intent, and the stitch compiler applies it once.
  */
 
 import type { PieceEdgeSpan, SeamConnection } from '../cad/cad-types'
@@ -82,7 +86,14 @@ export function resolveSeamSide(
     if (spanStretches.length === 0) {
       return null
     }
-    stretches.push(...(span.reversed ? [...spanStretches].reverse().map(flipStretch) : spanStretches))
+    // `span.reversed` records which end of the side a pick landed on. Every
+    // producer already folds that into `SeamConnection.reversed` — the seam
+    // tools take the two picks' XOR, `pattern-doc-builder` folds each run's walk
+    // direction in the same way — so honouring it a second time here counts one
+    // flip twice. A `to` side carrying both flags then resolves head to head and
+    // the seam twists: on a fold-over closure it pairs a corner with the fold
+    // point instead of fold with fold.
+    stretches.push(...spanStretches)
   }
   if (stretches.length === 0) {
     return null

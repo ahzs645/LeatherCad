@@ -270,6 +270,12 @@ export type PieceEdgeSpan = PieceEdgeRef & {
   t0: number
   /** End position along the referenced edge, 0..1. */
   t1: number
+  /**
+   * Which end of the side this span was picked from — authoring bookkeeping,
+   * not a direction the geometry obeys. Whoever builds a seam out of spans folds
+   * it into `SeamConnection.reversed`, and that flag is the only thing resolved
+   * seam geometry reads. Setting both used to compose into a no-op.
+   */
   reversed?: boolean
 }
 
