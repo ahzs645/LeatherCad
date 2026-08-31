@@ -105,11 +105,12 @@ export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
       // its geometry does: the neutral axis and the leather's thickness at the
       // fold are what set how wide a bend zone the lattice has to resolve.
       // Leave them out and dragging a Bend Controls slider is answered from
-      // the cache with the drape the old value produced. Stiffness is not one
-      // of them — it changes what the constraints cost, not where a vertex
-      // sits — so it belongs in the scrub key below, where a change to it can
-      // still warm-start from the drape next door instead of sweeping from
-      // flat.
+      // the cache with the drape the old value produced. Stiffness and wrapped
+      // thickness are not among them — one changes what the constraints cost
+      // and the other what the settled drape is scored against, neither where
+      // a vertex sits — so they belong in the scrub key below, where a change
+      // to either can still warm-start from the drape next door instead of
+      // sweeping from flat.
       fold.neutralAxisRatio ?? -1,
       fold.foldThicknessMm ?? -1,
     )
@@ -125,14 +126,23 @@ export function foldDrapeGeometryKey(request: FoldDrapeRequest) {
 }
 
 /**
- * What a scrub changes: the dialled pose, and the stiffness the crease answers
- * it with. Neither touches the mesh, so a solve for a new one of either can
- * still warm-start from the last — which is why they are keyed apart from the
- * geometry rather than folded into it.
+ * What a scrub changes: the dialled pose, the stiffness the crease answers it
+ * with, and the leather the fold closes over. None of them touches the mesh,
+ * so a solve for a new value of any can still warm-start from the last — which
+ * is why they are keyed apart from the geometry rather than folded into it.
+ *
+ * Wrapped thickness belongs here rather than in the geometry key because it
+ * moves no vertex: it sets `minimumRadiusMm`, the clearance the stress map is
+ * read against, so the same settled leather comes back scored differently.
+ * That is exactly what makes it easy to miss — the drape looks right, and only
+ * the stress colouring is answered for the thickness before last.
  */
 export function foldDrapeScrubKey(request: FoldDrapeRequest) {
   return request.folds
-    .map((fold) => `${fold.foldLineId}:${fold.angleDeg}:${fold.stiffness ?? ''}`)
+    .map(
+      (fold) =>
+        `${fold.foldLineId}:${fold.angleDeg}:${fold.stiffness ?? ''}:${fold.wrappedThicknessMm ?? ''}`,
+    )
     .join(',')
 }
 
