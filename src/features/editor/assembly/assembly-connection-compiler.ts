@@ -38,7 +38,11 @@ export function compileAssemblyConnections(params: {
         fromSpan,
         toSpan,
         stitchSpacingMm: connection.stitchSpacingMm,
-        reversed: toSpan.reversed === true || fromSpan.reversed !== toSpan.reversed,
+        // The interfaces record which way each side was walked; the seam keeps
+        // head-to-tail intent in one place, so fold the two into it here. Only
+        // the relative flip matters — two sides both walked backwards pair up
+        // exactly as two sides both walked forwards do.
+        reversed: (fromSpan.reversed === true) !== (toSpan.reversed === true),
         kind: seamKind(connection.kind),
       })
     }

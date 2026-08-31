@@ -21,8 +21,11 @@ function listOutputFiles() {
     return []
   }
 
+  // Same filter the functional harness honours, so an agent can score its own
+  // file while others are writing this directory.
+  const filter = process.env.AI_BENCH_FILTER ?? ''
   return readdirSync(OUTPUTS_DIR)
-    .filter((fileName) => fileName.endsWith('.json'))
+    .filter((fileName) => fileName.endsWith('.json') && fileName.includes(filter))
     .sort((a, b) => a.localeCompare(b))
     .map((fileName) => path.join(OUTPUTS_DIR, fileName))
 }

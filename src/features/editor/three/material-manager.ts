@@ -9,6 +9,7 @@ import {
 import type { Shape, TextureSource } from '../cad/cad-types'
 import { LEATHER_PRESETS } from './material-presets'
 import { loadTexture } from './bridge/texture-utils'
+import { SharedMaterials } from './shared-materials'
 
 const DEFAULT_STITCH_THREAD_COLOR = '#fb923c'
 
@@ -71,6 +72,14 @@ export class ThreeMaterialManager {
     this.assembledBackMaterial,
     this.assembledSideMaterial,
   ])
+
+  /**
+   * Materials the builders would otherwise rebuild every pass. Kept here
+   * because they belong to the same preserved set: a rebuild disposes what it
+   * drew with, and a disposed material takes its compiled shader program with
+   * it.
+   */
+  readonly shared = new SharedMaterials(this.preservedMaterials)
 
   readonly textureLoader = new TextureLoader()
   currentAlbedo: Texture | null = null
@@ -209,6 +218,7 @@ export class ThreeMaterialManager {
   }
 
   dispose() {
+    this.shared.dispose()
     this.applyTextureMaps(null, null, null)
     this.leftMaterial.dispose()
     this.rightMaterial.dispose()

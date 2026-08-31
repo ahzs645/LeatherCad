@@ -17,14 +17,18 @@ import { detectOutlines } from '../ops/outline-detection'
 import { buildModelLayout } from './model-builder'
 import { ASSEMBLED_DRAPE_MESH_NAME, rebuildAssembledModel, wrappedThicknessMm } from './assembled-model-builder'
 import { minimumBendRadiusMm } from './assembled-fold-bend'
+import { solveFoldDrapeData } from './assembled-fold-drape'
+import { createFoldDrapeStore, type FoldDrapeStore } from './fold-drape-store'
 import { splitPieceByFolds } from './assembled-fold-regions'
 import type { ModelBuilderMaterials } from './model-builder-types'
 import type { OutlinePolygon } from './three-bridge-types'
+import { createSharedMaterials } from './shared-materials'
 
 const DOC_PATH = 'docs/fixtures/pattern-pdf/makesupply-keychain-snap-wallet.doc.json'
 
 function materials(): ModelBuilderMaterials {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),
@@ -39,7 +43,7 @@ function loadWallet() {
   return parseImportedJsonDocument(readFileSync(DOC_PATH, 'utf8')).doc
 }
 
-function buildWallet(foldAngleDeg: number) {
+function buildWallet(foldAngleDeg: number, foldDrape?: FoldDrapeStore) {
   const doc = loadWallet()
   const foldLines = doc.foldLines.map((foldLine) => ({ ...foldLine, angleDeg: foldAngleDeg }))
   const { pieceMeshes, transform, documentBounds } = buildModelLayout({
@@ -77,6 +81,7 @@ function buildWallet(foldAngleDeg: number) {
     foldGuideGroup: new Group(),
     avatarGroup: new Group(),
     rebuildAvatarModel: async () => undefined,
+    foldDrape,
   })
 
   return assembledGroup
@@ -112,6 +117,15 @@ function bendMeshes(group: Group) {
   return found
 }
 
+/** Leather drawn by the fold drape rather than by the rigid region path. */
+function drapeMeshes(group: Group) {
+  const found: string[] = []
+  group.traverse((object) => {
+    if (object instanceof Mesh && object.name === ASSEMBLED_DRAPE_MESH_NAME) found.push(object.name)
+  })
+  return found
+}
+
 describe('the imported wallet folds', () => {
   it('has creases attributed to its pieces', () => {
     const doc = loadWallet()
@@ -135,14 +149,41 @@ describe('the imported wallet folds', () => {
     expect(bendMeshes(buildWallet(90)).length).toBeGreaterThan(0)
   })
 
-  it('renders its dialled folds from the simulated drape, not the rigid halves', () => {
-    const drapeMeshes = (group: Group) => {
-      const found: string[] = []
-      group.traverse((object) => {
-        if (object instanceof Mesh && object.name === ASSEMBLED_DRAPE_MESH_NAME) found.push(object.name)
-      })
-      return found
-    }
+  // Solves every folded piece in a real imported document, twice.
+  it('draws the rigid fold until the deferred drape lands, then the drape', { timeout: 60000 }, async () => {
+    // What a scrub looks like from the renderer's side. The solve is not on
+    // this thread in the app, so a rebuild cannot wait for it: the first pass
+    // draws the analytic fold, the drape swaps in when it settles, and a
+    // rebuild at an angle already solved costs nothing.
+    const solvedPieces: string[] = []
+    let settled = 0
+    const store = createFoldDrapeStore({
+      solver: {
+        solve: async (pieceId, params) => {
+          solvedPieces.push(pieceId)
+          return solveFoldDrapeData(params)
+        },
+        dispose: () => undefined,
+      },
+      onSettled: () => {
+        settled += 1
+      },
+    })
+
+    expect(drapeMeshes(buildWallet(180, store))).toHaveLength(0)
+    expect(solvedPieces.length).toBeGreaterThan(0)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(settled).toBe(solvedPieces.length)
+
+    const asked = solvedPieces.length
+    expect(drapeMeshes(buildWallet(180, store)).length).toBeGreaterThan(0)
+    // The second rebuild is answered from the cache: same angles, same
+    // leather, no solve.
+    expect(solvedPieces).toHaveLength(asked)
+    store.dispose()
+  })
+
+  it('renders its dialled folds from the simulated drape, not the rigid halves', { timeout: 60000 }, () => {
     // Flat there is nothing to simulate; folded, every creased piece's
     // leather comes from the settled cloth — the imported document exercises
     // the whole pipeline: real outlines, inferred creases, other pieces as

@@ -52,6 +52,14 @@ export type AiAgentEvent =
 export type AiAgentTurnInput = {
   request: string
   currentJson?: string
+  /**
+   * What went wrong last time, in the app's own words.
+   *
+   * Compile and preflight already run in the browser on every snapshot, so
+   * the findings cost nothing to collect; sending them back is what turns a
+   * one-shot generator into a loop that can correct itself.
+   */
+  preflightIssues?: string[]
   onEvent: (event: AiAgentEvent) => void
   onError: (message: string) => void
   onClose?: () => void
@@ -137,6 +145,7 @@ export function startAiAgentTurn(input: AiAgentTurnInput): AiAgentTurnController
       type: 'generate',
       request: input.request,
       currentJson: input.currentJson,
+      preflightIssues: input.preflightIssues,
     }))
   })
 

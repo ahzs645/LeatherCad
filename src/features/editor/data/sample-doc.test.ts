@@ -11,6 +11,7 @@ import { buildFinalProductRegions } from '../three/final-product-regions'
 import { solveFinalProduct, solvePanelPoint } from '../three/final-product-solver'
 import { ThreeFoldManager } from '../three/fold-manager'
 import { PRESET_DOCS } from './sample-doc'
+import { createSharedMaterials } from '../three/shared-materials'
 
 function walletDoc() {
   const preset = PRESET_DOCS.find((entry) => entry.id === 'wallet')
@@ -70,6 +71,7 @@ function regionBounds(region: { polygon: Array<{ x: number; y: number }> }) {
 
 function createMaterials() {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),

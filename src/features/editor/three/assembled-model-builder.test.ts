@@ -6,9 +6,11 @@ import { ThreeAvatarManager } from './avatar-manager'
 import { rebuildAssembledModel } from './assembled-model-builder'
 import { ASSEMBLED_DRAPE_MESH_NAME } from './assembled-model-builder'
 import { pieceFrameForObject, worldPointToDocument } from './seam-edge-picking'
+import { createSharedMaterials } from './shared-materials'
 
 function createMaterials() {
   return {
+    shared: createSharedMaterials(),
     leftMaterial: new MeshStandardMaterial(),
     rightMaterial: new MeshStandardMaterial(),
     leftTextureMaterial: new MeshStandardMaterial(),
@@ -35,6 +37,8 @@ function previewSettings(overrides: Partial<ThreePreviewSettings> = {}): ThreePr
     showEdgeLabels: false,
     showPieceOutlines: false,
     showStressOverlay: false,
+    showFoldStressOverlay: false,
+    showFoldClashOverlay: false,
     usePhysicsRelaxation: true,
     ...overrides,
   }
@@ -92,6 +96,7 @@ function runBuilder({
   seamConnections = [],
   piecePlacements3d = [],
   settings,
+  materials = createMaterials(),
 }: {
   patternPieces: PatternPiece[]
   pieceMeshes: PieceMeshData[]
@@ -101,6 +106,7 @@ function runBuilder({
   seamConnections?: SeamConnection[]
   piecePlacements3d?: PiecePlacement3D[]
   settings?: Partial<ThreePreviewSettings>
+  materials?: ReturnType<typeof createMaterials>
 }) {
   const assembledGroup = new Group()
   const avatarGroup = new Group()
@@ -124,7 +130,7 @@ function runBuilder({
     threadColor: '#fb923c',
     texturedShapeIdSet: new Set(),
     hasActiveTexture: false,
-    materials: createMaterials(),
+    materials,
     preservedMaterials: new Set(),
     fitControlsToModel,
     assembledGroup,
@@ -136,7 +142,7 @@ function runBuilder({
     rebuildAvatarModel,
   })
 
-  return { assembledGroup, avatarGroup, fitControlsToModel, rebuildAvatarModel }
+  return { assembledGroup, avatarGroup, fitControlsToModel, rebuildAvatarModel, materials }
 }
 
 function foldLine(overrides: Partial<FoldLine> = {}): FoldLine {
@@ -478,6 +484,53 @@ describe('rebuildAssembledModel', () => {
       expect(midArc.length).toBeGreaterThan(0)
     })
 
+    it('draws a skived crease at the thickness it was skived to', () => {
+      const { piece, pieceMesh } = squarePiece()
+      // The shell's grain and flesh surfaces are the same mid-surface pushed
+      // either way along its normal, so every sample sharing a document point
+      // is a leather's thickness from its opposite number. That spread is the
+      // thickness a person actually sees, read back off the built geometry.
+      const drawnThicknessMm = (foldThicknessMm: number, documentY: number) => {
+        const group = runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg: 90, radiusMm: 1.2, thicknessMm: foldThicknessMm })],
+        }).assembledGroup
+        const byPoint = new Map<string, Vector3[]>()
+        for (const sample of drapeSamples(group)) {
+          const key = `${sample.document.x}|${sample.document.y}`
+          const bucket = byPoint.get(key)
+          if (bucket) bucket.push(sample.world)
+          else byPoint.set(key, [sample.world])
+        }
+        let nearest: Vector3[] = []
+        let nearestDistance = Number.POSITIVE_INFINITY
+        for (const [key, bucket] of byPoint) {
+          if (bucket.length < 2) continue
+          const [x, y] = key.split('|').map(Number)
+          const distance = Math.hypot(x - 20, y - documentY)
+          if (distance < nearestDistance) {
+            nearestDistance = distance
+            nearest = bucket
+          }
+        }
+        expect(nearest.length).toBeGreaterThan(1)
+        let spread = 0
+        for (const a of nearest) {
+          for (const b of nearest) spread = Math.max(spread, a.distanceTo(b))
+        }
+        return spread / TRANSFORM.scale
+      }
+
+      // The fixture's panel is 2 mm. Unskived it is 2 mm everywhere; skived to
+      // 1 mm the spine halves and the flap, well past the bevel, does not.
+      expect(drawnThicknessMm(2, 20)).toBeCloseTo(2, 6)
+      expect(drawnThicknessMm(2, 2)).toBeCloseTo(2, 6)
+      expect(drawnThicknessMm(1, 20)).toBeCloseTo(1, 6)
+      expect(drawnThicknessMm(1, 2)).toBeCloseTo(2, 6)
+    })
+
     it('keeps the leather continuous across the crease, whichever way it runs', () => {
       const { piece, pieceMesh } = squarePiece()
       // The region's boundary winds however the clip left it, so a crease can
@@ -508,6 +561,72 @@ describe('rebuildAssembledModel', () => {
       const materialBreadth = 12 * TRANSFORM.scale
       expect(crossCreaseGap({ x: 0, y: 20 }, { x: 40, y: 20 })).toBeLessThan(materialBreadth)
       expect(crossCreaseGap({ x: 40, y: 20 }, { x: 0, y: 20 })).toBeLessThan(materialBreadth)
+    })
+
+    it('tints the drape by fold stress only when asked, and never the shared material', () => {
+      const { piece, pieceMesh } = squarePiece()
+      const drapeMeshes = (group: Group) => {
+        const found: Mesh[] = []
+        group.traverse((object) => {
+          if (object instanceof Mesh && object.name === ASSEMBLED_DRAPE_MESH_NAME) {
+            found.push(object as Mesh)
+          }
+        })
+        return found
+      }
+      const build2 = (settings: Record<string, boolean>) =>
+        runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg: 90, radiusMm: 4 })],
+          settings,
+        })
+      const build = (showFoldStressOverlay: boolean) =>
+        runBuilder({
+          patternPieces: [piece],
+          pieceMeshes: [pieceMesh],
+          mode: 'assembled',
+          foldLines: [foldLine({ angleDeg: 90, radiusMm: 4 })],
+          settings: { showFoldStressOverlay },
+        })
+
+      // Off is the default, and off has to mean the leather is drawn exactly
+      // as it was before any of this existed.
+      const plain = drapeMeshes(build(false).assembledGroup)
+      expect(plain.length).toBeGreaterThan(0)
+      for (const mesh of plain) {
+        expect(mesh.geometry.getAttribute('color')).toBeUndefined()
+      }
+
+      const on = build(true)
+      const tinted = drapeMeshes(on.assembledGroup).filter((mesh) => mesh.geometry.getAttribute('color'))
+      expect(tinted.length).toBeGreaterThan(0)
+      for (const mesh of tinted) {
+        expect((mesh.material as Material).vertexColors).toBe(true)
+        expect(mesh.material).not.toBe(on.materials.assembledFrontMaterial)
+        expect(mesh.material).not.toBe(on.materials.assembledBackMaterial)
+      }
+      // The manager hands one material to every piece and keeps it across
+      // rebuilds. Reading vertex colours is a different shader, so the overlay
+      // has to take a copy — switch it on once and a mutated shared material
+      // would tint every other piece, and go on tinting them after it is
+      // switched off again.
+      expect(on.materials.assembledFrontMaterial.vertexColors).toBe(false)
+      expect(on.materials.assembledBackMaterial.vertexColors).toBe(false)
+
+      // The clash overlay is its own switch on the same channel, and when both
+      // are on the clash wins: a fold drawn through another piece is not a
+      // picture whose stress reading means anything yet.
+      const clash = build2({ showFoldClashOverlay: true })
+      const clashed = drapeMeshes(clash.assembledGroup).filter((mesh) => mesh.geometry.getAttribute('color'))
+      expect(clashed.length).toBeGreaterThan(0)
+      const both = build2({ showFoldStressOverlay: true, showFoldClashOverlay: true })
+      const bothTinted = drapeMeshes(both.assembledGroup).filter((mesh) => mesh.geometry.getAttribute('color'))
+      expect(bothTinted.length).toBe(clashed.length)
+      const clashColor = clashed[0].geometry.getAttribute('color')
+      const bothColor = bothTinted[0].geometry.getAttribute('color')
+      expect([...(bothColor.array as Float32Array)]).toEqual([...(clashColor.array as Float32Array)])
     })
 
     it('drapes over what is in its way whether or not it is sewn there', () => {

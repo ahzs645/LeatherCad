@@ -1,0 +1,375 @@
+{
+  "schema_version": 1,
+  "document_name": "gusseted_pouch_template",
+  "units": "mm",
+  "layers": [
+    { "id": "panels", "name": "Panels" },
+    { "id": "gusset", "name": "Gusset" },
+    { "id": "markings", "name": "Markings" },
+    { "id": "hardware", "name": "Hardware" }
+  ],
+  "entities": [
+    {
+      "id": "front_panel_outline",
+      "type": "rectangle",
+      "layer_id": "panels",
+      "x": -190,
+      "y": -47.5,
+      "width": 120,
+      "height": 95,
+      "line_role": "cut"
+    },
+    {
+      "id": "back_panel_outline",
+      "type": "rectangle",
+      "layer_id": "panels",
+      "x": -40,
+      "y": -47.5,
+      "width": 120,
+      "height": 95,
+      "line_role": "cut"
+    },
+    {
+      "id": "gusset_strip_outline",
+      "type": "rectangle",
+      "layer_id": "gusset",
+      "x": 130,
+      "y": -155,
+      "width": 35,
+      "height": 310,
+      "line_role": "cut"
+    },
+    {
+      "id": "front_panel_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "panels",
+      "path_type": "line",
+      "start": { "x": -186, "y": -43.5 },
+      "end": { "x": -186, "y": 43.5 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "front_panel_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "panels",
+      "path_type": "line",
+      "start": { "x": -186, "y": 43.5 },
+      "end": { "x": -74, "y": 43.5 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "front_panel_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "panels",
+      "path_type": "line",
+      "start": { "x": -74, "y": -43.5 },
+      "end": { "x": -74, "y": 43.5 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "back_panel_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "panels",
+      "path_type": "line",
+      "start": { "x": -36, "y": -43.5 },
+      "end": { "x": -36, "y": 43.5 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "back_panel_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "panels",
+      "path_type": "line",
+      "start": { "x": -36, "y": 43.5 },
+      "end": { "x": 76, "y": 43.5 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "back_panel_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "panels",
+      "path_type": "line",
+      "start": { "x": 76, "y": -43.5 },
+      "end": { "x": 76, "y": 43.5 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "gusset_front_edge_stitch",
+      "type": "stitch_path",
+      "layer_id": "gusset",
+      "path_type": "line",
+      "start": { "x": 134, "y": 151 },
+      "end": { "x": 134, "y": -151 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "gusset_back_edge_stitch",
+      "type": "stitch_path",
+      "layer_id": "gusset",
+      "path_type": "line",
+      "start": { "x": 161, "y": -151 },
+      "end": { "x": 161, "y": 151 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35
+    },
+    {
+      "id": "gusset_upper_corner_mark",
+      "type": "line",
+      "layer_id": "markings",
+      "start": { "x": 130, "y": -60 },
+      "end": { "x": 165, "y": -60 },
+      "line_role": "mark"
+    },
+    {
+      "id": "gusset_lower_corner_mark",
+      "type": "line",
+      "layer_id": "markings",
+      "start": { "x": 130, "y": 60 },
+      "end": { "x": 165, "y": 60 },
+      "line_role": "mark"
+    },
+    {
+      "id": "front_panel_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": { "x": -161, "y": 2 },
+      "value": "Front Panel 120 x 95",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "back_panel_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": { "x": -11, "y": 2 },
+      "value": "Back Panel 120 x 95",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "gusset_strip_label",
+      "type": "text",
+      "layer_id": "markings",
+      "position": { "x": 131.5, "y": 6 },
+      "value": "Gusset 35x310",
+      "font_size_mm": 4,
+      "line_role": "mark"
+    },
+    {
+      "id": "front_panel_piece",
+      "type": "pattern_piece",
+      "layer_id": "panels",
+      "boundary_entity_id": "front_panel_outline",
+      "internal_entity_ids": [
+        "front_panel_left_stitch",
+        "front_panel_bottom_stitch",
+        "front_panel_right_stitch",
+        "front_panel_label"
+      ],
+      "name": "Front Panel",
+      "quantity": 1,
+      "code": "FP",
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "Opening is the top 120 mm edge; leave unstitched."
+    },
+    {
+      "id": "back_panel_piece",
+      "type": "pattern_piece",
+      "layer_id": "panels",
+      "boundary_entity_id": "back_panel_outline",
+      "internal_entity_ids": [
+        "back_panel_left_stitch",
+        "back_panel_bottom_stitch",
+        "back_panel_right_stitch",
+        "back_panel_label"
+      ],
+      "name": "Back Panel",
+      "quantity": 1,
+      "code": "BP",
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "Opening is the top 120 mm edge; leave unstitched."
+    },
+    {
+      "id": "gusset_strip_piece",
+      "type": "pattern_piece",
+      "layer_id": "gusset",
+      "boundary_entity_id": "gusset_strip_outline",
+      "internal_entity_ids": [
+        "gusset_front_edge_stitch",
+        "gusset_back_edge_stitch",
+        "gusset_upper_corner_mark",
+        "gusset_lower_corner_mark",
+        "gusset_strip_label"
+      ],
+      "name": "Gusset Strip",
+      "quantity": 1,
+      "code": "GS",
+      "material": "vegetable_tanned_leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "310 mm long: 95 mm side, 120 mm bottom, 95 mm side. Corner marks at 95 mm and 215 mm."
+    },
+    {
+      "id": "front_panel_allowance",
+      "type": "seam_allowance",
+      "piece_id": "front_panel_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "back_panel_allowance",
+      "type": "seam_allowance",
+      "piece_id": "back_panel_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "gusset_strip_allowance",
+      "type": "seam_allowance",
+      "piece_id": "gusset_strip_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "front_left_to_gusset_first_span",
+      "type": "seam_connection",
+      "from": { "piece_id": "front_panel_piece", "edge_index": 3 },
+      "to": { "piece_id": "gusset_strip_piece", "edge_index": 3, "t0": 0, "t1": 0.3064516 },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "front_bottom_to_gusset_middle_span",
+      "type": "seam_connection",
+      "from": { "piece_id": "front_panel_piece", "edge_index": 2 },
+      "to": { "piece_id": "gusset_strip_piece", "edge_index": 3, "t0": 0.3064516, "t1": 0.6935484 },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "front_right_to_gusset_last_span",
+      "type": "seam_connection",
+      "from": { "piece_id": "front_panel_piece", "edge_index": 1 },
+      "to": { "piece_id": "gusset_strip_piece", "edge_index": 3, "t0": 0.6935484, "t1": 1 },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "back_right_to_gusset_first_span",
+      "type": "seam_connection",
+      "from": { "piece_id": "back_panel_piece", "edge_index": 1 },
+      "to": { "piece_id": "gusset_strip_piece", "edge_index": 1, "t0": 0, "t1": 0.3064516 },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "back_bottom_to_gusset_middle_span",
+      "type": "seam_connection",
+      "from": { "piece_id": "back_panel_piece", "edge_index": 2 },
+      "to": { "piece_id": "gusset_strip_piece", "edge_index": 1, "t0": 0.3064516, "t1": 0.6935484 },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "back_left_to_gusset_last_span",
+      "type": "seam_connection",
+      "from": { "piece_id": "back_panel_piece", "edge_index": 3 },
+      "to": { "piece_id": "gusset_strip_piece", "edge_index": 1, "t0": 0.6935484, "t1": 1 },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 0.5
+    },
+    {
+      "id": "front_left_mouth_rivet",
+      "type": "hardware_marker",
+      "layer_id": "hardware",
+      "point": { "x": -180, "y": -39.5 },
+      "kind": "rivet",
+      "label": "Front Left Mouth Rivet",
+      "hole_diameter_mm": 3,
+      "installation_side": "grain",
+      "notes": "Reinforces the top of the side seam."
+    },
+    {
+      "id": "front_right_mouth_rivet",
+      "type": "hardware_marker",
+      "layer_id": "hardware",
+      "point": { "x": -80, "y": -39.5 },
+      "kind": "rivet",
+      "label": "Front Right Mouth Rivet",
+      "hole_diameter_mm": 3,
+      "installation_side": "grain",
+      "notes": "Reinforces the top of the side seam."
+    },
+    {
+      "id": "back_left_mouth_rivet",
+      "type": "hardware_marker",
+      "layer_id": "hardware",
+      "point": { "x": -30, "y": -39.5 },
+      "kind": "rivet",
+      "label": "Back Left Mouth Rivet",
+      "hole_diameter_mm": 3,
+      "installation_side": "grain",
+      "notes": "Reinforces the top of the side seam."
+    },
+    {
+      "id": "back_right_mouth_rivet",
+      "type": "hardware_marker",
+      "layer_id": "hardware",
+      "point": { "x": 70, "y": -39.5 },
+      "kind": "rivet",
+      "label": "Back Right Mouth Rivet",
+      "hole_diameter_mm": 3,
+      "installation_side": "grain",
+      "notes": "Reinforces the top of the side seam."
+    }
+  ]
+}

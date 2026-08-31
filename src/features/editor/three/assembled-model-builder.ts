@@ -8,14 +8,11 @@ import {
   Group,
   InstancedMesh,
   Line,
-  LineBasicMaterial,
   LineSegments,
-  LineDashedMaterial,
   MathUtils,
   Material,
   Matrix4,
   Mesh,
-  MeshStandardMaterial,
   Float32BufferAttribute,
   ShapeGeometry,
   ShapeUtils,
@@ -44,12 +41,15 @@ import {
   type FoldHingeStep,
 } from './assembled-fold-regions'
 import { bendCentre, buildBendGeometry, minimumBendRadiusMm } from './assembled-fold-bend'
+import { resolveFoldBehavior } from '../ops/fold-line-ops'
 import {
   solveFoldDrape,
   type DrapeFoldInput,
   type DrapeObstacleMesh,
   type FoldDrapeResult,
 } from './assembled-fold-drape'
+import type { FoldDrapeRequest, FoldDrapeStore } from './fold-drape-store'
+import type { SharedMaterials } from './shared-materials'
 import { clearGroup } from './bridge/scene-lifecycle'
 import { buildStitchChains } from './final-product-stitch-pairing'
 import type { ModelBuilderMaterials, ModelTransform, RebuildAssembledModelParams } from './model-builder-types'
@@ -379,7 +379,18 @@ export function wrappedThicknessMm(params: {
   return wrapped.size * Math.max(0, materialThicknessMm)
 }
 
-/** The radius a hinge actually turns through: what was authored, or enough to clear the fold. */
+/**
+ * The radius a hinge actually turns through: what was authored, or enough to
+ * clear the fold.
+ *
+ * The floor is measured on the panel's half thickness even when the crease is
+ * skived, which looks like an oversight and is not. It is tempting to let a
+ * thinned spine close tighter for it, but this floor is not about how tightly
+ * the leather can roll — it is about what the shut fold has to hold. The two
+ * halves run a bend diameter apart down their whole length, and everywhere
+ * past the bevel they are full-thickness panel, so the panel is what decides
+ * how far apart they have to be.
+ */
 function hingeBendRadiusMm(hinge: FoldHingeStep, wrappedMm: number, halfThicknessMm: number) {
   return Math.max(hinge.bendRadiusMm, minimumBendRadiusMm(halfThicknessMm, wrappedMm))
 }
@@ -532,6 +543,7 @@ function addRegionOutline(
   transform: ModelTransform,
   color: string,
   yOffset: number,
+  shared: SharedMaterials,
 ) {
   const points: Vector3[] = []
   const polygon = region.polygon
@@ -549,7 +561,7 @@ function addRegionOutline(
     return
   }
   target.add(
-    new LineSegments(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color })),
+    new LineSegments(new BufferGeometry().setFromPoints(points), shared.outline(color)),
   )
 }
 
@@ -614,6 +626,65 @@ function bendSurfaceMaterial(source: Material) {
   const material = source.clone()
   material.side = DoubleSide
   return material
+}
+
+/** Leather that minds nothing, leather being asked for a lot, leather past it. */
+const STRESS_TINT_STOPS = [new Color('#ffffff'), new Color('#eab308'), new Color('#ef4444')]
+
+/**
+ * Per-vertex tint for a drape's stress values.
+ *
+ * Vertex colours multiply the material, so the calm end of the ramp has to be
+ * white: the overlay is only allowed to say something where there is something
+ * to say, and everywhere else the leather has to come out exactly the colour it
+ * was. From there it climbs through the amber and red the seam overlay already
+ * warns in, so one glance at a model reads the same way in both.
+ */
+/** Leather clear of everything, then the blue a clash is called out in. */
+const CLASH_TINT_STOPS = [new Color('#ffffff'), new Color('#38bdf8'), new Color('#4338ca')]
+
+/**
+ * Per-vertex tint for how far a drape ended up inside another piece.
+ *
+ * Blue rather than the stress ramp's amber and red, because the two overlays
+ * say different things and may be on together: warm means the leather is being
+ * asked for too much, cool means two pieces are in the same place. Same white
+ * calm end, for the same reason — vertex colours multiply, so leather with
+ * nothing wrong with it has to come out its own colour.
+ */
+function clashTintColors(clash: Float32Array, fullScaleMm: number) {
+  const colors = new Float32Array(clash.length * 3)
+  const tint = new Color()
+  // Full scale is one leather thickness: less than that and two pieces are
+  // merely closer than the solve meant them to be, a whole one and the fold
+  // has passed clean through, which is the picture a maker is entitled to
+  // disbelieve. Reading it against the leather's own thickness keeps the
+  // overlay meaning the same thing on 1 mm lining and on 4 mm bridle.
+  const scale = fullScaleMm > 0 ? fullScaleMm : 1
+  for (let index = 0; index < clash.length; index += 1) {
+    const depth = MathUtils.clamp(clash[index] / scale, 0, 1)
+    const scaled = depth * (CLASH_TINT_STOPS.length - 1)
+    const stop = Math.min(CLASH_TINT_STOPS.length - 2, Math.floor(scaled))
+    tint.copy(CLASH_TINT_STOPS[stop]).lerp(CLASH_TINT_STOPS[stop + 1], scaled - stop)
+    colors[index * 3] = tint.r
+    colors[index * 3 + 1] = tint.g
+    colors[index * 3 + 2] = tint.b
+  }
+  return colors
+}
+
+function stressTintColors(stress: Float32Array) {
+  const colors = new Float32Array(stress.length * 3)
+  const tint = new Color()
+  for (let index = 0; index < stress.length; index += 1) {
+    const scaled = MathUtils.clamp(stress[index], 0, 1) * (STRESS_TINT_STOPS.length - 1)
+    const stop = Math.min(STRESS_TINT_STOPS.length - 2, Math.floor(scaled))
+    tint.copy(STRESS_TINT_STOPS[stop]).lerp(STRESS_TINT_STOPS[stop + 1], scaled - stop)
+    colors[index * 3] = tint.r
+    colors[index * 3 + 1] = tint.g
+    colors[index * 3 + 2] = tint.b
+  }
+  return colors
 }
 
 /**
@@ -776,6 +847,11 @@ export const ASSEMBLED_DRAPE_MESH_NAME = 'assembled-drape-shell'
  * where the solve bent it. Every boundary edge is a genuine cut, so every
  * wall takes the piece's edge treatment.
  *
+ * The offset is a half thickness only where the leather is at full thickness.
+ * A fold may be skived — thinned along the crease so a stiff panel can turn at
+ * all — and the solve says how much at every vertex, so the shell narrows into
+ * the spine and swells back out to the panel exactly as the leather does.
+ *
  * Two uv channels: `uv` carries the projected flat coordinates the extrude
  * path exposes to textures, so a texture flows unbroken across the fold;
  * `uv1` carries raw document millimetres, which is what lets a raycast on the
@@ -790,6 +866,12 @@ function addFoldDrapeShell(params: {
   backMaterial: Material
   edgeMaterial: Material
   outlineColor: string
+  shared: SharedMaterials
+  /** Tint the leather by how hard the fold is on it. */
+  showStress: boolean
+  showClash: boolean
+  /** One leather thickness, in millimetres: the top of the clash ramp. */
+  clashFullScaleMm: number
 }) {
   const { drape, transform, halfThickness } = params
   const scale = transform.scale === 0 ? 1 : transform.scale
@@ -810,9 +892,26 @@ function addFoldDrapeShell(params: {
     uvDocument[index * 2 + 1] = drape.restPositions[index * 2 + 1]
   }
 
-  const surface = (offset: number, reverse: boolean, material: Material) => {
+  // Half the leather's thickness at a vertex: the piece's, tapered into
+  // whatever the fold is skived to where a crease runs through.
+  const halfAt = (vertex: number) => halfThickness * drape.thicknessScale[vertex]
+
+  // Built once and shared by both faces: stress is a property of the
+  // mid-surface, so the grain side and the flesh side of a crease are in
+  // exactly as much trouble as each other.
+  // Both overlays ride the same vertex-colour channel, so when both are on the
+  // clash wins: a fold drawn through another piece is not a picture whose
+  // stress reading means anything yet.
+  const stressColors = params.showClash
+    ? clashTintColors(drape.clash, params.clashFullScaleMm)
+    : params.showStress
+      ? stressTintColors(drape.stress)
+      : null
+
+  const surface = (side: number, reverse: boolean, material: Material) => {
     const positions = new Float32Array(count * 3)
     for (let index = 0; index < count; index += 1) {
+      const offset = side * halfAt(index)
       positions[index * 3] = local[index * 3] + drape.normals[index * 3] * offset
       positions[index * 3 + 1] = local[index * 3 + 1] + drape.normals[index * 3 + 1] * offset
       positions[index * 3 + 2] = local[index * 3 + 2] + drape.normals[index * 3 + 2] * offset
@@ -821,6 +920,9 @@ function addFoldDrapeShell(params: {
     geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
     geometry.setAttribute('uv', new Float32BufferAttribute(uv.slice(), 2))
     geometry.setAttribute('uv1', new Float32BufferAttribute(uvDocument.slice(), 2))
+    if (stressColors) {
+      geometry.setAttribute('color', new Float32BufferAttribute(stressColors.slice(), 3))
+    }
     const order = reverse
       ? drape.triangles.map((_, i, all) => all[i - (i % 3) + (2 - (i % 3))])
       : drape.triangles
@@ -830,8 +932,10 @@ function addFoldDrapeShell(params: {
     mesh.name = ASSEMBLED_DRAPE_MESH_NAME
     params.parent.add(mesh)
   }
-  surface(halfThickness, false, params.frontMaterial)
-  surface(-halfThickness, true, params.backMaterial)
+  const tinted = (material: Material) =>
+    stressColors ? params.shared.vertexTinted(material) : material
+  surface(1, false, tinted(params.frontMaterial))
+  surface(-1, true, tinted(params.backMaterial))
 
   // Cut walls: one quad strip per boundary loop, spanning the two surfaces.
   const wallPositions: number[] = []
@@ -843,12 +947,13 @@ function addFoldDrapeShell(params: {
       const a = loop[index]
       const b = loop[(index + 1) % loop.length]
       const base = wallPositions.length / 3
-      for (const [vertex, offset] of [
-        [a, halfThickness],
-        [b, halfThickness],
-        [b, -halfThickness],
-        [a, -halfThickness],
+      for (const [vertex, side] of [
+        [a, 1],
+        [b, 1],
+        [b, -1],
+        [a, -1],
       ] as Array<[number, number]>) {
+        const offset = side * halfAt(vertex)
         wallPositions.push(
           local[vertex * 3] + drape.normals[vertex * 3] * offset,
           local[vertex * 3 + 1] + drape.normals[vertex * 3 + 1] * offset,
@@ -878,9 +983,9 @@ function addFoldDrapeShell(params: {
   const outer = drape.boundaryLoops[0] ?? []
   if (outer.length > 1) {
     const points: Vector3[] = []
-    const lift = halfThickness + 0.0015
     for (let index = 0; index < outer.length; index += 1) {
       for (const vertex of [outer[index], outer[(index + 1) % outer.length]]) {
+        const lift = halfAt(vertex) + 0.0015
         points.push(
           new Vector3(
             local[vertex * 3] + drape.normals[vertex * 3] * lift,
@@ -891,7 +996,7 @@ function addFoldDrapeShell(params: {
       }
     }
     params.parent.add(
-      new LineSegments(new BufferGeometry().setFromPoints(points), new LineBasicMaterial({ color: params.outlineColor })),
+      new LineSegments(new BufferGeometry().setFromPoints(points), params.shared.outline(params.outlineColor)),
     )
   }
 }
@@ -911,6 +1016,7 @@ function addDrapedStitchHoles(
   halfThickness: number,
   holes: StitchHole[],
   threadColor: string,
+  shared: SharedMaterials,
 ) {
   if (holes.length === 0) {
     return
@@ -928,11 +1034,7 @@ function addDrapedStitchHoles(
   }
 
   const geometry = new CylinderGeometry(0.006, 0.006, 0.003, 10)
-  const material = new MeshStandardMaterial({
-    color: threadColor,
-    roughness: 0.55,
-    metalness: 0.05,
-  })
+  const material = shared.stitchThread(threadColor)
   const instances = new InstancedMesh(geometry, material, holes.length)
   const matrix = new Matrix4()
   holes.forEach((hole, index) => {
@@ -967,18 +1069,10 @@ function edgeMaterialForPiece(piece: PatternPiece, materials: ModelBuilderMateri
     return materials.assembledSideMaterial
   }
   if (finish.style === 'paint') {
-    return new MeshStandardMaterial({
-      color: new Color(finish.color ?? DEFAULT_EDGE_PAINT_COLOR),
-      roughness: 0.34,
-      metalness: 0.02,
-    })
+    return materials.shared.edgePaint(new Color(finish.color ?? DEFAULT_EDGE_PAINT_COLOR))
   }
   const base = piece.color ? new Color(piece.color) : materials.assembledSideMaterial.color.clone()
-  return new MeshStandardMaterial({
-    color: base.multiplyScalar(BURNISH_DARKEN),
-    roughness: 0.24,
-    metalness: 0.04,
-  })
+  return materials.shared.burnishedEdge(base.multiplyScalar(BURNISH_DARKEN))
 }
 
 function addAssembledStitchHoles(
@@ -988,17 +1082,14 @@ function addAssembledStitchHoles(
   holes: StitchHole[],
   threadColor: string,
   transform: ModelTransform,
+  shared: SharedMaterials,
 ) {
   if (holes.length === 0) {
     return
   }
 
   const geometry = new CylinderGeometry(0.006, 0.006, 0.003, 10)
-  const material = new MeshStandardMaterial({
-    color: threadColor,
-    roughness: 0.55,
-    metalness: 0.05,
-  })
+  const material = shared.stitchThread(threadColor)
   const instances = new InstancedMesh(geometry, material, holes.length)
   const matrix = new Matrix4()
 
@@ -1043,6 +1134,7 @@ function createAssembledPieceGroup({
   pieceMeshById,
   stitchHoles,
   threadColor,
+  foldDrape,
 }: {
   piece: PatternPiece
   /** Every visible piece, in build order — the fold's collision world. */
@@ -1062,6 +1154,8 @@ function createAssembledPieceGroup({
   pieceMeshById: Map<string, PieceMeshData>
   stitchHoles: StitchHole[]
   threadColor: string
+  /** Where finished drapes are kept. Absent solves each fold in place. */
+  foldDrape?: FoldDrapeStore
 }) {
   const group = new Group()
   // Tagged so a raycast hit can be traced back to the piece it belongs to.
@@ -1095,6 +1189,10 @@ function createAssembledPieceGroup({
   // chain, the drape and the bend surface can never disagree about it.
   const halfThicknessMm = Math.max(previewSettings.thicknessMm, 0) / 2
   const radiusMmByFoldId = new Map<string, number>()
+  // Kept as well as the radius it feeds, because the drape needs the stack
+  // itself: the radius is what the fold draws, the stack is what it may not
+  // close tighter than, and the stress map is the difference between them.
+  const wrappedMmByFoldId = new Map<string, number>()
   for (const region of regions) {
     for (const hinge of region.hinges) {
       if (radiusMmByFoldId.has(hinge.foldLineId)) {
@@ -1107,6 +1205,7 @@ function createAssembledPieceGroup({
         pieceMeshById,
         materialThicknessMm: previewSettings.thicknessMm,
       })
+      wrappedMmByFoldId.set(hinge.foldLineId, wrappedMm)
       radiusMmByFoldId.set(hinge.foldLineId, hingeBendRadiusMm(hinge, wrappedMm, halfThicknessMm))
     }
   }
@@ -1126,6 +1225,10 @@ function createAssembledPieceGroup({
     if (!swingRegion || !hinge || Math.abs(hinge.angleDeg) < 0.5) {
       continue
     }
+    // The crease's own material properties travel with it. They are parsed,
+    // clamped and on screen in the Bend Controls panel; before this they
+    // reached Fold mode and stopped there.
+    const behavior = resolveFoldBehavior(foldLine)
     drapeFolds.push({
       foldLineId: foldLine.id,
       start: hinge.start,
@@ -1133,11 +1236,16 @@ function createAssembledPieceGroup({
       angleDeg: hinge.angleDeg,
       bendRadiusMm: radiusMmByFoldId.get(foldLine.id) ?? 0,
       swingSample: polygonCentroid(swingRegion.polygon),
+      stiffness: behavior.stiffness,
+      neutralAxisRatio: behavior.neutralAxisRatio,
+      foldThicknessMm: behavior.thicknessMm,
+      wrappedThicknessMm: wrappedMmByFoldId.get(foldLine.id) ?? 0,
     })
   }
-  const drapeSolve =
+  const drapeRequest: FoldDrapeRequest | null =
     drapeFolds.length > 0
-      ? solveFoldDrape({
+      ? {
+          pieceId: piece.id,
           outer: pieceMesh.outer,
           holes: pieceMesh.holes,
           folds: drapeFolds,
@@ -1153,8 +1261,16 @@ function createAssembledPieceGroup({
             previewSettings,
             transform,
           }),
-        })
+        }
       : null
+  // With a store the drape may be a cached solve, a warm-started one landing
+  // shortly, or the previous one still being drawn; without one the fold
+  // solves here and now, which is what a test or a one-shot render wants.
+  const drapeSolve = !drapeRequest
+    ? null
+    : foldDrape
+      ? foldDrape.resolve(drapeRequest)
+      : solveFoldDrape(drapeRequest)
 
   regions.forEach((region, regionIndex) => {
     const { content: target } = regionFrame(region, group, transform, pivotCache, contentCache, bendRadiusWorld)
@@ -1176,9 +1292,25 @@ function createAssembledPieceGroup({
     backGeometry.translate(0, -halfThickness - 0.0008, 0)
     target.add(new Mesh(backGeometry, materials.assembledBackMaterial))
 
-    addRegionOutline(target, region, pieceFolds, transform, outlineColor, halfThickness + 0.0015)
+    addRegionOutline(
+      target,
+      region,
+      pieceFolds,
+      transform,
+      outlineColor,
+      halfThickness + 0.0015,
+      materials.shared,
+    )
 
-    addAssembledStitchHoles(target, piece, halfThickness, holeBuckets[regionIndex], threadColor, transform)
+    addAssembledStitchHoles(
+      target,
+      piece,
+      halfThickness,
+      holeBuckets[regionIndex],
+      threadColor,
+      transform,
+      materials.shared,
+    )
   })
 
   let drape: AssembledPieceDrape | null = null
@@ -1195,8 +1327,21 @@ function createAssembledPieceGroup({
       backMaterial: materials.assembledBackMaterial,
       edgeMaterial: sideMaterial,
       outlineColor,
+      shared: materials.shared,
+      showStress: previewSettings.showFoldStressOverlay,
+      showClash: previewSettings.showFoldClashOverlay,
+      clashFullScaleMm: previewSettings.thicknessMm,
     })
-    addDrapedStitchHoles(drapeGroup, piece, drapeSolve, transform, halfThickness, pieceHoles, threadColor)
+    addDrapedStitchHoles(
+      drapeGroup,
+      piece,
+      drapeSolve,
+      transform,
+      halfThickness,
+      pieceHoles,
+      threadColor,
+      materials.shared,
+    )
     const scale = transform.scale === 0 ? 1 : transform.scale
     drape = {
       solve: drapeSolve,
@@ -1393,10 +1538,15 @@ function seamColorForConnection(
   return safe.lerp(warning, previewSettings.showStressOverlay ? severity : 0.18)
 }
 
-function addSeamGuide(group: Group, from: Vector3, to: Vector3, color: Color, dashed: boolean) {
-  const material = dashed
-    ? new LineDashedMaterial({ color, dashSize: 0.04, gapSize: 0.025 })
-    : new LineBasicMaterial({ color })
+function addSeamGuide(
+  group: Group,
+  from: Vector3,
+  to: Vector3,
+  color: Color,
+  dashed: boolean,
+  shared: SharedMaterials,
+) {
+  const material = shared.seamGuide(color, dashed)
   const line = new Line(new BufferGeometry().setFromPoints([from, to]), material)
   if (line instanceof Line && 'computeLineDistances' in line) {
     line.computeLineDistances()
@@ -1427,9 +1577,10 @@ function addSeamStitching(
     sewnFraction: number
     fromDrape?: AssembledPieceDrape | null
     toDrape?: AssembledPieceDrape | null
+    shared: SharedMaterials
   },
 ) {
-  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction, fromDrape, toDrape } = params
+  const { pairs, fromGroup, toGroup, fromFrames, toFrames, fromPiece, toPiece, transform, color, sewnFraction, fromDrape, toDrape, shared } = params
   if (pairs.length === 0 || sewnFraction <= 0) {
     return
   }
@@ -1450,12 +1601,7 @@ function addSeamStitching(
     return
   }
 
-  group.add(
-    new LineSegments(
-      new BufferGeometry().setFromPoints(points),
-      new LineBasicMaterial({ color, transparent: true, opacity: 0.9 }),
-    ),
-  )
+  group.add(new LineSegments(new BufferGeometry().setFromPoints(points), shared.seamStitch(color)))
 }
 
 export function rebuildAssembledModel({
@@ -1482,6 +1628,7 @@ export function rebuildAssembledModel({
   foldGuideGroup,
   avatarGroup,
   rebuildAvatarModel,
+  foldDrape,
 }: RebuildAssembledModelParams) {
   clearGroup(assembledGroup, preservedMaterials)
   clearGroup(finalProductGroup, preservedMaterials)
@@ -1523,6 +1670,7 @@ export function rebuildAssembledModel({
         pieceMeshById,
         stitchHoles,
         threadColor,
+        foldDrape,
       })
       pieceGroupById.set(piece.id, group)
       pieceFramesById.set(piece.id, frames)
@@ -1564,7 +1712,14 @@ export function rebuildAssembledModel({
           previewSettings,
           (connection.toleranceMm ?? 1) * transform.scale,
         )
-        addSeamGuide(assembledGroup, fromSide.midpoint, toSide.midpoint, color, connection.kind !== 'aligned')
+        addSeamGuide(
+          assembledGroup,
+          fromSide.midpoint,
+          toSide.midpoint,
+          color,
+          connection.kind !== 'aligned',
+          materials.shared,
+        )
         addSeamStitching(assembledGroup, {
           pairs: (stitchPairs ?? []).filter((pair) => connectionIdForPair(pair) === connection.id),
           fromGroup,
@@ -1578,6 +1733,7 @@ export function rebuildAssembledModel({
           sewnFraction,
           fromDrape,
           toDrape,
+          shared: materials.shared,
         })
       }
     }

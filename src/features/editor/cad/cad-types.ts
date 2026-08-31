@@ -270,6 +270,12 @@ export type PieceEdgeSpan = PieceEdgeRef & {
   t0: number
   /** End position along the referenced edge, 0..1. */
   t1: number
+  /**
+   * Which end of the side this span was picked from — authoring bookkeeping,
+   * not a direction the geometry obeys. Whoever builds a seam out of spans folds
+   * it into `SeamConnection.reversed`, and that flag is the only thing resolved
+   * seam geometry reads. Setting both used to compose into a no-op.
+   */
   reversed?: boolean
 }
 
@@ -396,6 +402,28 @@ export type ThreePreviewSettings = {
    */
   showPieceOutlines: boolean
   showStressOverlay: boolean
+  /**
+   * Tint the draped leather by how hard each fold is on it — over-bent
+   * creases and leather being pulled out of its cut shape.
+   *
+   * Distinct from `showStressOverlay`, which colours seams by how badly the
+   * two sides they join disagree in length. That one is about whether two
+   * pieces will sew together; this one is about whether one piece will fold.
+   * Off by default: it repaints the leather itself, which is not something to
+   * do to a document nobody asked.
+   */
+  showFoldStressOverlay: boolean
+  /**
+   * Tint the draped leather where it ended up inside another piece.
+   *
+   * Distinct from `showFoldStressOverlay` above, and deliberately a separate
+   * switch rather than another term in it: that one says the leather is being
+   * asked for too much, which is a fact about the pattern, and this one says
+   * the solve did not keep two pieces apart, which is a fact about the solve.
+   * Reading them on one ramp would make the model's colour ambiguous.
+   * Off by default, for the same reason.
+   */
+  showFoldClashOverlay: boolean
   /**
    * Stitches sewn so far, along the axis `buildSeamSewPlan` lays the seams on.
    * Undefined means the whole project is sewn, which is the resting state.

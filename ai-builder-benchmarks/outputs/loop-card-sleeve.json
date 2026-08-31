@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "document_name": "vertical_card_sleeve",
+  "units": "mm",
+  "layers": [
+    { "id": "back_panel", "name": "Back Panel" },
+    { "id": "front_pocket", "name": "Front Pocket" }
+  ],
+  "entities": [
+    {
+      "id": "back_panel_outline",
+      "type": "rectangle",
+      "layer_id": "back_panel",
+      "x": 0,
+      "y": 0,
+      "width": 72,
+      "height": 105,
+      "line_role": "cut"
+    },
+    {
+      "id": "front_pocket_outline",
+      "type": "rectangle",
+      "layer_id": "front_pocket",
+      "x": 92,
+      "y": 27,
+      "width": 72,
+      "height": 78,
+      "line_role": "cut"
+    },
+    {
+      "id": "back_panel_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "back_panel",
+      "path_type": "line",
+      "start": { "x": 4, "y": 31 },
+      "end": { "x": 4, "y": 101 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "back_panel_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "back_panel",
+      "path_type": "line",
+      "start": { "x": 4, "y": 101 },
+      "end": { "x": 68, "y": 101 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": false,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "back_panel_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "back_panel",
+      "path_type": "line",
+      "start": { "x": 68, "y": 101 },
+      "end": { "x": 68, "y": 31 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": false,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "front_pocket_left_stitch",
+      "type": "stitch_path",
+      "layer_id": "front_pocket",
+      "path_type": "line",
+      "start": { "x": 96, "y": 31 },
+      "end": { "x": 96, "y": 101 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": true,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "front_pocket_bottom_stitch",
+      "type": "stitch_path",
+      "layer_id": "front_pocket",
+      "path_type": "line",
+      "start": { "x": 96, "y": 101 },
+      "end": { "x": 160, "y": 101 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": false,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "front_pocket_right_stitch",
+      "type": "stitch_path",
+      "layer_id": "front_pocket",
+      "path_type": "line",
+      "start": { "x": 160, "y": 101 },
+      "end": { "x": 160, "y": 31 },
+      "pitch_mm": 4,
+      "hole_type": "slit",
+      "render_shape": "diamond",
+      "width_mm": 1.2,
+      "height_mm": 0.55,
+      "tilt_deg": 35,
+      "include_start_hole": false,
+      "force_fit_last_hole": true
+    },
+    {
+      "id": "back_panel_label",
+      "type": "text",
+      "layer_id": "back_panel",
+      "position": { "x": 8, "y": 16 },
+      "value": "Back Panel",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "front_pocket_label",
+      "type": "text",
+      "layer_id": "front_pocket",
+      "position": { "x": 100, "y": 44 },
+      "value": "Front Pocket",
+      "font_size_mm": 5,
+      "line_role": "mark"
+    },
+    {
+      "id": "lanyard_hole",
+      "type": "hardware_marker",
+      "layer_id": "back_panel",
+      "point": { "x": 36, "y": 13 },
+      "kind": "custom",
+      "label": "Lanyard Hole",
+      "hole_diameter_mm": 4,
+      "installation_side": "either",
+      "notes": "Optional lanyard or keyring punch above the pocket line."
+    },
+    {
+      "id": "back_panel_piece",
+      "type": "pattern_piece",
+      "layer_id": "back_panel",
+      "boundary_entity_id": "back_panel_outline",
+      "internal_entity_ids": [
+        "back_panel_left_stitch",
+        "back_panel_bottom_stitch",
+        "back_panel_right_stitch",
+        "back_panel_label"
+      ],
+      "name": "Back Panel",
+      "quantity": 1,
+      "code": "CS-01",
+      "material": "3-4 oz vegetable tanned leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "Full height panel; top 27mm stays exposed above the pocket."
+    },
+    {
+      "id": "front_pocket_piece",
+      "type": "pattern_piece",
+      "layer_id": "front_pocket",
+      "boundary_entity_id": "front_pocket_outline",
+      "internal_entity_ids": [
+        "front_pocket_left_stitch",
+        "front_pocket_bottom_stitch",
+        "front_pocket_right_stitch",
+        "front_pocket_label"
+      ],
+      "name": "Front Pocket",
+      "quantity": 1,
+      "code": "CS-02",
+      "material": "3-4 oz vegetable tanned leather",
+      "material_side": "grain",
+      "orientation": "vertical",
+      "notes": "Lower front panel; top edge is the card opening and stays unstitched."
+    },
+    {
+      "id": "back_panel_seam_allowance",
+      "type": "seam_allowance",
+      "piece_id": "back_panel_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "front_pocket_seam_allowance",
+      "type": "seam_allowance",
+      "piece_id": "front_pocket_piece",
+      "default_offset_mm": 4,
+      "enabled": true
+    },
+    {
+      "id": "left_edge_seam",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 3,
+        "t0": 0,
+        "t1": 0.7428571428571429
+      },
+      "to": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 3,
+        "t0": 0,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 1
+    },
+    {
+      "id": "right_edge_seam",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 1,
+        "t0": 0.2571428571428571,
+        "t1": 1
+      },
+      "to": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 1,
+        "t0": 0,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 1
+    },
+    {
+      "id": "bottom_edge_seam",
+      "type": "seam_connection",
+      "from": {
+        "piece_id": "back_panel_piece",
+        "edge_index": 2,
+        "t0": 0,
+        "t1": 1
+      },
+      "to": {
+        "piece_id": "front_pocket_piece",
+        "edge_index": 2,
+        "t0": 0,
+        "t1": 1
+      },
+      "kind": "sewn",
+      "stitch_spacing_mm": 4,
+      "tolerance_mm": 1
+    }
+  ]
+}
