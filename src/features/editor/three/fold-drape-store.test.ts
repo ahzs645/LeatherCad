@@ -38,6 +38,14 @@ function fold(angleDeg: number): DrapeFoldInput {
   }
 }
 
+/**
+ * A crease closed right over, where what is sewn between its halves is what
+ * decides whether it has the room: a wallet spine over its card pockets.
+ */
+function tightFold(wrappedThicknessMm: number): DrapeFoldInput {
+  return { ...fold(180), bendRadiusMm: 1, wrappedThicknessMm }
+}
+
 function request(angleDeg: number, overrides: Partial<FoldDrapeRequest> = {}): FoldDrapeRequest {
   return {
     pieceId: 'piece-1',
@@ -136,6 +144,17 @@ describe('foldDrapeGeometryKey', () => {
     expect(foldDrapeScrubKey(stiffer)).not.toBe(foldDrapeScrubKey(base))
   })
 
+  it('separates two wrapped thicknesses of the same crease', () => {
+    // The leather a fold closes over sets the clearance its stress is read
+    // against, so the same settled drape is scored for a different fold. It
+    // moves no vertex, which is why it belongs to the scrub key: the warm
+    // start next door is still the right leather to start from.
+    const bare = request(180, { folds: [tightFold(0)] })
+    const wrapped = request(180, { folds: [tightFold(10)] })
+    expect(foldDrapeGeometryKey(bare)).toBe(foldDrapeGeometryKey(wrapped))
+    expect(foldDrapeScrubKey(bare)).not.toBe(foldDrapeScrubKey(wrapped))
+  })
+
   it('separates two pieces cut to the same outline', () => {
     expect(foldDrapeGeometryKey(request(90))).not.toBe(
       foldDrapeGeometryKey(request(90, { pieceId: 'piece-2' })),
@@ -150,6 +169,21 @@ describe('createFoldDrapeStore', () => {
     expect(first).not.toBeNull()
     // The same object back is the proof: a second solve would build a new one.
     expect(store.resolve(request(90))).toBe(first)
+    store.dispose()
+  })
+
+  it('does not answer a new wrapped thickness with the previous drape', () => {
+    // Regression: the scrub key carried the angle and the stiffness but not
+    // the leather sewn into the fold, so dialling wrapped thickness hit the
+    // cache and got the identical object back — the right drape, still
+    // carrying the stress the thickness before it produced.
+    const store = createFoldDrapeStore()
+    const bare = store.resolve(request(180, { folds: [tightFold(0)] }))
+    const wrapped = store.resolve(request(180, { folds: [tightFold(10)] }))
+    expect(bare).not.toBeNull()
+    expect(wrapped).not.toBeNull()
+    expect(wrapped).not.toBe(bare)
+    expect(Array.from(wrapped!.stress)).not.toEqual(Array.from(bare!.stress))
     store.dispose()
   })
 

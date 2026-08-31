@@ -160,3 +160,7 @@ pnpm test
 pnpm test:e2e
 pnpm build
 ```
+
+CI runs all of these except `pnpm test:e2e`, which is a local gate — it needs a
+real browser and a WebGL canvas, so it is the one on this list that nothing
+will run for you. See `e2e/README.md`.

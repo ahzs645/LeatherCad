@@ -46,9 +46,6 @@ jobs:
       - name: Install app dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium webkit
-
       - name: Lint
         run: pnpm lint
 
@@ -61,8 +58,15 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: UI smoke test
-        run: pnpm test:e2e
-
+      # `pnpm test:e2e` is not run here. It is a local gate -- see e2e/README.md.
+      #
+      # The suite drives a real browser against two servers it starts itself:
+      # the dev server, and a production `vite build` it then previews. On a
+      # shared runner that is a two-minute step whose slowest parts are a WebGL
+      # canvas mounting under software rendering, and it is the step most likely
+      # to fail for reasons that are about the runner rather than the change.
+      # The unit suite above covers the same logic headlessly; what e2e adds is
+      # that it reaches the screen, which is worth asserting before a release
+      # rather than on every push.
       - name: Build
         run: pnpm build
