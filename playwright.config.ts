@@ -18,7 +18,18 @@ const chromiumLaunchOverride = chromiumExecutablePath
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
+  // Playwright's 30s default is sized for a DOM app. Half this suite mounts a
+  // WebGL canvas, and on a machine with no GPU -- a CI container, a laptop
+  // running the whole suite two workers wide -- that mount alone can eat most
+  // of a 30s budget, leaving the assertions after it to fail on the clock
+  // rather than on the app. Both failure shapes seen here were that: a canvas
+  // `waitFor` and a click that never became actionable, each reported as
+  // "Test timeout of 30000ms exceeded" and each passing on a quiet machine.
+  //
+  // Actions inherit this budget (`actionTimeout` is deliberately left unset),
+  // so this one number governs the whole suite. It costs nothing when tests
+  // pass; it only buys room before a slow machine is called a broken one.
+  timeout: 90_000,
   expect: {
     timeout: 5_000,
   },

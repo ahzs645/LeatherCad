@@ -25,6 +25,11 @@ test('mobile shell renders with topbar, canvas, and tool selector', async ({ pag
 
 test('mobile Options modal scrolls and closes', async ({ page }) => {
   await page.goto('/')
+  // The shell has to be up before the first click. An assertion would retry
+  // its way through a half-rendered page; a click waits only for the button to
+  // be there and hittable, and a button that is drawn but not yet wired
+  // swallows it.
+  await page.locator('select.tool-select-mobile').waitFor()
 
   // Precision lives behind Options so the always-visible bar stays one row tall.
   await page.getByRole('button', { name: 'Options' }).click()
@@ -61,6 +66,14 @@ test('mobile 3D tab pushes the workbench route and Back returns to 2D', async ({
   await threeDTab.click()
   await expect.poll(() => new URL(page.url()).pathname).toBe('/workbench/3d')
   await expect(threeDTab).toHaveClass(/active/)
+
+  // Let the 3D workspace finish arriving before leaving it. The route flips as
+  // soon as the tab is pressed, but the canvas behind it mounts after — and
+  // going back mid-mount is the one racy moment in this flow, with popstate
+  // landing while React is still committing the 3D tree. On a machine slow
+  // enough to spread those apart (a loaded runner, software rendering) the
+  // case had the whole test budget to spend on it and no reason to wait.
+  await page.locator('canvas.three-preview-canvas').waitFor()
 
   await page.goBack()
   await expect.poll(() => new URL(page.url()).pathname).toBe('/')
@@ -125,6 +138,7 @@ test('every touch target on the mobile shell clears 44px', async ({ page }) => {
 
 test('the phone can create a pattern piece and read its seams', async ({ page }) => {
   await page.goto('/')
+  await page.locator('select.tool-select-mobile').waitFor()
 
   await page.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('button', { name: 'Pieces + Seams' }).click()
@@ -142,6 +156,11 @@ test('the phone can create a pattern piece and read its seams', async ({ page })
 
 test('the phone tool list offers both seam tools', async ({ page }) => {
   await page.goto('/')
+  // Not decoration: allTextContents() reads whatever matches right now and
+  // does not wait, so without this the empty list of a page that has not
+  // rendered yet is a perfectly good answer -- and the failure it produces
+  // blames the tool list rather than the timing.
+  await page.locator('select.tool-select-mobile').waitFor()
 
   const options = await page.locator('select.tool-select-mobile option').allTextContents()
 
