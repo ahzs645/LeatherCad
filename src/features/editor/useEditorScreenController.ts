@@ -59,6 +59,7 @@ import { useEditorScreenShells } from './controllers/useEditorScreenShells'
 import { useEditorDocumentCommands } from './useEditorDocumentCommands'
 import { useEditorAssetCommands } from './useEditorAssetCommands'
 import { useStitchSimulatorController } from './controllers/useStitchSimulatorController'
+import { useWebMcpBridge } from './webmcp/useWebMcpBridge'
 
 export type EditorScreenLayoutModel = {
   isMobileLayout: boolean
@@ -849,6 +850,7 @@ export function useEditorScreenController() {
     activeLayer,
     activeLineTypeId,
     activeSketchGroup,
+    shapes,
     setShapes,
     setSketchGroups,
     setActiveSketchGroupId,
@@ -883,7 +885,10 @@ export function useEditorScreenController() {
     if (!panelState.loadDemoOnStartup) return
     if (shapes.length > 0 || foldLines.length > 0 || stitchHoles.length > 0) return
     demoAutoLoadedRef.current = true
-    void handleLoadPreset()
+    // `onlyWhenBlank` is re-checked after the preset's dynamic import resolves.
+    // Without it, anything that draws during that gap — a WebMCP tool call
+    // arriving as the page loads — is silently replaced by the demo.
+    void handleLoadPreset(undefined, { onlyWhenBlank: true })
   }, [panelState.loadDemoOnStartup, shapes.length, foldLines.length, stitchHoles.length, handleLoadPreset])
 
   // Surface a one-shot status banner if a newer build is bundled (source v1.7.0).
@@ -1250,6 +1255,34 @@ export function useEditorScreenController() {
     assetCommands,
   })
 
+  // WebMCP: publish the pattern tools this page offers an agent. Registration
+  // is a no-op in a browser without model context support, so this costs
+  // nothing where the API is absent.
+  const webMcp = useWebMcpBridge({
+    buildCurrentDocFile: documentCommands.buildCurrentDocFile,
+    applyLoadedDocument,
+    setLayers,
+    setShapes,
+    setFoldLines,
+    setStitchHoles,
+    setPatternPieces,
+    setSeamAllowances,
+    setSeamConnections,
+    setHardwareMarkers,
+    setActiveLayerId,
+    setSelectedShapeIds,
+    setDocumentName,
+    setStatus,
+    handleUndo: historyActions.handleUndo,
+    fitView: canvasController.handleFitView,
+    exportHandlers: {
+      svg: exportActions.handleExportSvg,
+      pdf: exportActions.handleExportPdf,
+      dxf: exportActions.handleExportDxf,
+      json: fileActions.handleSaveJson,
+    },
+  })
+
   return {
     layout: {
       isMobileLayout,
@@ -1259,5 +1292,6 @@ export function useEditorScreenController() {
     mobileShell,
     desktopShell,
     overlay,
+    webMcp,
   }
 }

@@ -15,6 +15,9 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - Template and leather catalog management
 - Stitch hole rendering and cut line tools
 - Nesting layout optimization
+- **[WebMCP agent tools](docs/WEBMCP.md)**: the page publishes thirteen tools to
+  `document.modelContext`, so an agent can draw, measure, check and cost a
+  pattern alongside you
 
 ## Getting Started
 
@@ -36,6 +39,26 @@ staged adoption plan, [`docs/FOLD_DRAPE_FOLLOW_UPS.md`](docs/FOLD_DRAPE_FOLLOW_U
 for what the simulated fold has shipped and what is still open on it, and
 [`docs/SEAMER_FOLD_KERNEL_UPSTREAM.md`](docs/SEAMER_FOLD_KERNEL_UPSTREAM.md)
 for the two engine defects that port owes upstream.
+
+## Agent tools (WebMCP)
+
+LeatherCad is an agent-native app. Opened in ChatGPT's in-app browser — or in
+Chrome with `chrome://flags/#enable-webmcp-testing` enabled — it registers
+thirteen tools with `document.modelContext`, and an agent can work on the same
+pattern you are looking at: creating pieces from dimensions, punching stitch
+runs, measuring resolved geometry, checking whether the pattern can actually be
+cut, sewn and folded, costing the hide and thread, and exporting a cut file.
+
+Every call it makes is listed in the Agent tools panel in the bottom-left
+corner, with its arguments and its result, and its new geometry becomes the
+canvas selection — so nothing happens to your document out of sight.
+
+In a browser without WebMCP the app is unchanged, and the panel says so.
+
+![The Agent tools panel beside a wallet pattern an agent has just drawn, checked and costed](docs/assets/webmcp-session.png)
+
+See [`docs/WEBMCP.md`](docs/WEBMCP.md) for the tool reference and how it is
+implemented.
 
 ## Native AI Agent
 
@@ -70,6 +93,7 @@ The package exposes a `leathercad` bin, so local `npx`/package-runner workflows 
 | `pnpm render:ai-builder-benchmarks` | Render swarm benchmark outputs into PNG/HTML previews |
 | `pnpm pattern:pdf <file.pdf>` | Import a pattern PDF into an assembled project |
 | `pnpm test:watch` | Run tests in watch mode |
+| `pnpm test:e2e` | Run the Playwright browser suite (a local gate, not CI) |
 
 ## Tech Stack
 
@@ -81,6 +105,10 @@ The package exposes a `leathercad` bin, so local `npx`/package-runner workflows 
 - **clipper-lib** for polygon boolean operations
 - **opentype.js** for font parsing
 - **pdfjs-dist** for PDF import
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).
 
 ## Deployment
 

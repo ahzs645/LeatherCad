@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
 import type { DocFile, Layer, Point, Shape, SketchGroup } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
 import { downloadFile } from '../editor-utils'
@@ -61,6 +61,7 @@ type UseFileActionsParams = {
   activeLayer: Layer | null
   activeLineTypeId: string
   activeSketchGroup: SketchGroup | null
+  shapes: Shape[]
   setShapes: Dispatch<SetStateAction<Shape[]>>
   setSketchGroups: Dispatch<SetStateAction<SketchGroup[]>>
   setActiveSketchGroupId: Dispatch<SetStateAction<string | null>>
@@ -83,6 +84,7 @@ export function useFileActions(params: UseFileActionsParams) {
     activeLayer,
     activeLineTypeId,
     activeSketchGroup,
+    shapes,
     setShapes,
     setSketchGroups,
     setActiveSketchGroupId,
@@ -387,7 +389,20 @@ export function useFileActions(params: UseFileActionsParams) {
     }
   }
 
-  const handleLoadPreset = async (presetId?: string) => {
+  /**
+   * Whether the canvas is still blank, read at the moment it matters rather
+   * than at the moment the load was requested. The startup demo decides to
+   * load while the document is empty and then awaits a dynamic import, and
+   * anything that draws inside that gap — an agent calling a WebMCP tool, an
+   * import resolving — would otherwise be wiped by a demo the user never asked
+   * for and no longer wants.
+   */
+  const documentIsBlankRef = useRef(true)
+  useEffect(() => {
+    documentIsBlankRef.current = shapes.length === 0
+  })
+
+  const handleLoadPreset = async (presetId?: string, options?: { onlyWhenBlank?: boolean }) => {
     try {
       const { DEFAULT_PRESET_ID, PRESET_DOCS } = await import('../data/sample-doc')
       const requestedPresetId = presetId || selectedPresetId || DEFAULT_PRESET_ID
@@ -415,6 +430,10 @@ export function useFileActions(params: UseFileActionsParams) {
         preset.id === requestedPresetId
           ? `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
           : `Requested preset was unavailable. Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
+      if (options?.onlyWhenBlank && !documentIsBlankRef.current) {
+        return
+      }
+
       applyLoadedDocument(sample, loadedMessage)
       void createLocalProjectFromLoadedDoc(sample, preset.label)
       setShowThreePreview(true)

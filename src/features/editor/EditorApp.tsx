@@ -3,6 +3,7 @@ import { EditorMobileShell } from './components/EditorMobileShell'
 import { EditorOverlayHost } from './components/EditorOverlayHost'
 import { EditorStateProviders } from './state/providers/EditorStateProviders'
 import { useEditorScreenController } from './useEditorScreenController'
+import { WebMcpPanel } from './webmcp/WebMcpPanel'
 
 export function EditorApp() {
   return (
@@ -25,6 +26,7 @@ function EditorAppContent() {
         <EditorDesktopShell {...controller.desktopShell} />
       )}
       <EditorOverlayHost {...controller.overlay} />
+      <WebMcpPanel state={controller.webMcp} />
     </div>
   )
 }

@@ -42,6 +42,7 @@ describe('EditorApp', () => {
       mobileShell: {} as never,
       desktopShell: {} as never,
       overlay: {} as never,
+      webMcp: { supported: false, registered: false, toolNames: [], error: null },
     })
 
     lastRender = renderForTest(createElement(EditorApp))
@@ -49,6 +50,7 @@ describe('EditorApp', () => {
     expect(lastRender.container.querySelector('[data-mobile-shell]')).not.toBeNull()
     expect(lastRender.container.querySelector('[data-desktop-shell]')).toBeNull()
     expect(lastRender.container.querySelector('[data-overlay-host]')).not.toBeNull()
+    expect(lastRender.container.querySelector('.webmcp-panel')).not.toBeNull()
   })
 
   it('renders the desktop shell when the controller reports a desktop layout', () => {
@@ -61,6 +63,7 @@ describe('EditorApp', () => {
       mobileShell: {} as never,
       desktopShell: {} as never,
       overlay: {} as never,
+      webMcp: { supported: false, registered: false, toolNames: [], error: null },
     })
 
     lastRender = renderForTest(createElement(EditorApp))

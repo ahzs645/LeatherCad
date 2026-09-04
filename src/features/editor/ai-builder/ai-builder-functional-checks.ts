@@ -21,7 +21,10 @@
  * This lives beside the harness rather than inside it so the checks can be
  * tested on purpose-built documents — one with the defect, one without —
  * instead of only against whatever the benchmark corpus happens to contain.
- * Nothing in the shipped app imports it.
+ *
+ * The shipped app reaches for it in one place: `check_pattern`, the WebMCP tool
+ * that lets an agent score the document it just wrote before telling anyone the
+ * pattern is ready. Same questions, asked live instead of on a corpus.
  */
 
 import type { DocFile, FoldLine, PatternPiece, Point, SeamConnection } from '../cad/cad-types'

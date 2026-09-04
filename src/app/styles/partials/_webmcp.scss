@@ -1,0 +1,219 @@
+/* Agent tools panel: what the page is offering an agent, and what it has done. */
+
+.webmcp-panel {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 40;
+  width: min(360px, calc(100vw - 24px));
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface-panel);
+  color: var(--app-text);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.35);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.webmcp-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.webmcp-panel-head:hover {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+.webmcp-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+}
+
+.webmcp-dot-live {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.webmcp-dot-error {
+  background: #ef4444;
+}
+
+.webmcp-panel-title {
+  font-weight: 600;
+}
+
+.webmcp-panel-count {
+  margin-left: auto;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+.webmcp-panel-chevron {
+  color: var(--text-subtle);
+}
+
+.webmcp-panel-body {
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding: 0 10px 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.webmcp-note {
+  margin: 8px 0;
+  color: var(--text-subtle);
+  line-height: 1.45;
+}
+
+.webmcp-note code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface-input);
+  font-size: 11px;
+}
+
+.webmcp-note-error {
+  color: #fca5a5;
+}
+
+.webmcp-note-quiet {
+  font-style: italic;
+}
+
+.webmcp-tool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webmcp-tool-chip {
+  padding: 2px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-input);
+  color: var(--text-muted-strong);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+}
+
+.webmcp-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.webmcp-log-head h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.webmcp-clear {
+  padding: 2px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface-button);
+  color: var(--text-subtle);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.webmcp-log {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.webmcp-activity {
+  padding: 6px 8px;
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid #22c55e;
+  border-radius: 6px;
+  background: var(--surface-input);
+}
+
+.webmcp-activity-error {
+  border-left-color: #ef4444;
+}
+
+.webmcp-activity-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.webmcp-activity-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted-strong);
+}
+
+.webmcp-activity-time {
+  margin-left: auto;
+  color: var(--text-subtle);
+  font-size: 10.5px;
+}
+
+.webmcp-activity-summary {
+  margin: 4px 0 0;
+  color: var(--text-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.webmcp-activity-detail {
+  margin: 6px 0 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 4px;
+  background: var(--overlay-bg);
+  font-size: 10.5px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .webmcp-panel {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+  }
+}
