@@ -28,6 +28,9 @@ LCAD or SVG export for interchange. See the
 [cloud setup](docs/CLOUD_COMMUNITY.md) for supported behavior and limits.
 The current interface/options and feature backlog is in
 [NEXT_PARITY_PRIORITIES.md](docs/NEXT_PARITY_PRIORITIES.md).
+The detailed [remaining-work analysis](docs/REMAINING_PARITY_ANALYSIS_2026-10-31.md)
+includes reproduced fidelity defects, reference interface options, dependencies
+and completion criteria. The analysis identifies work still to implement.
 
 ## Getting Started
 

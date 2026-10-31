@@ -2,6 +2,8 @@
 
 LeatherCad includes an optional `oidc-client-ts` Authorization Code + PKCE adapter. With no OIDC settings, local editing starts normally and the authentication SDK is not loaded. Configured authentication starts asynchronously; a slow identity provider does not block the CAD editor.
 
+**Current activation gap:** the built-in Sign in action redirects with only the return route; it does not capture and restore the current unsaved drawing. Autosave recovery is also not wired into startup. Add a durable draft/recovery bridge before relying on this flow with unsaved work. Until that is implemented, save a Document JSON backup before manually testing configured sign-in. This is a source-confirmed limitation, separate from the SDK/provider tests below; see [C4 in the remaining-work analysis](REMAINING_PARITY_ANALYSIS_2026-10-31.md#highest-priority-findings).
+
 Set these public frontend build values for an existing SPA/public OIDC application:
 
 ```dotenv
