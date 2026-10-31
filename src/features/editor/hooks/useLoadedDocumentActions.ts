@@ -42,6 +42,7 @@ import {
   parseThreePreviewSettings,
   sanitizeThreePreviewSettings,
 } from '../editor-parsers'
+import { parseCommunityProvenance } from '../ops/community-provenance'
 import { normalizeStitchHoleSequences } from '../ops/stitch-hole-ops'
 import { createDefaultLayer } from '../editor-utils'
 import { sanitizeSketchGroupLinks } from '../ops/sketch-link-ops'
@@ -79,6 +80,7 @@ type UseLoadedDocumentActionsParams = {
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
   setBackdrops: Dispatch<SetStateAction<import('../cad/cad-types').Backdrop[]>>
   setActiveBackdropId: Dispatch<SetStateAction<string | null>>
+  setCommunityProvenance?: Dispatch<SetStateAction<NonNullable<DocFile['communityProvenance']>>>
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
@@ -151,6 +153,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    setCommunityProvenance,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -279,6 +282,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     })
     const normalizedActiveSketchGroupId =
       doc.activeSketchGroupId && sketchGroupIdSet.has(doc.activeSketchGroupId) ? doc.activeSketchGroupId : null
+    const normalizedCommunityProvenance = parseCommunityProvenance(doc.communityProvenance)
     const normalizedProjectMemo = typeof doc.projectMemo === 'string' ? doc.projectMemo.slice(0, 8000) : ''
     const normalizedStitchAlwaysShapeIds = Array.isArray(doc.stitchAlwaysShapeIds)
       ? doc.stitchAlwaysShapeIds.filter((shapeId): shapeId is string => typeof shapeId === 'string' && shapeIdSet.has(shapeId))
@@ -344,6 +348,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setBackdrops(doc.backdrops ?? [])
     setActiveBackdropId(null)
     setProjectMemo(normalizedProjectMemo)
+    setCommunityProvenance?.(normalizedCommunityProvenance)
     setStitchAlwaysShapeIds(normalizedStitchAlwaysShapeIds)
     setStitchThreadColor(normalizedStitchThreadColor)
     setThreePreviewSettings(normalizedThreePreviewSettings)
@@ -400,6 +405,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    setCommunityProvenance,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,

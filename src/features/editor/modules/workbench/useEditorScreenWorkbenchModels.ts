@@ -180,6 +180,7 @@ export function useEditorScreenWorkbenchModels({
     documentCommands,
     exportActions,
     fileActions,
+    interchangePanels,
     historyActions,
     selectionActions,
     layerActions,
@@ -200,7 +201,7 @@ export function useEditorScreenWorkbenchModels({
     updateFoldLine,
   } = documentCommands
   const { handleExportSvg, handleExportPdf, handleExportDxf } = exportActions
-  const { handleSaveJson, handleLoadPreset } = fileActions
+  const { handleSaveJson, handleSaveLcad, handleLoadPreset } = fileActions
   const { handleUndo, handleRedo } = historyActions
   const {
     handleCopySelection,
@@ -338,6 +339,10 @@ export function useEditorScreenWorkbenchModels({
     isMobileLayout,
     workspaceMode,
     handleSaveJson,
+    handleSaveLcad,
+    handleOpenFileTools: interchangePanels.openFiles,
+    handleOpenStlExport: interchangePanels.openStl,
+    handleOpenCloudCommunity: interchangePanels.openCloud,
     handleUndo,
     handleRedo,
     setShowHelpModal,
@@ -530,6 +535,7 @@ export function useEditorScreenWorkbenchModels({
     onRunCadCommand: canvasController.runPrecisionCommand,
   })
   const workbenchProps = buildWorkbenchProps({
+    statusText: uiState.status,
     controller: workbenchController,
     shellRef,
     workspaceMode,

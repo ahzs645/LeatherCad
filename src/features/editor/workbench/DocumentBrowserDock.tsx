@@ -1,3 +1,4 @@
+import { useTranslate, type Translator } from '../hooks/useTranslate'
 import { useState, type MouseEvent } from 'react'
 import type { DocumentBrowserNode } from './workbench-types'
 
@@ -16,6 +17,7 @@ function renderNode(
   props: DocumentBrowserDockProps,
   branchOpenState: Record<string, boolean>,
   onToggleBranch: (nodeId: string) => void,
+  t: Translator,
   depth = 0,
 ) {
   const isSection = node.kind === 'section'
@@ -33,11 +35,11 @@ function renderNode(
     return (
       <details key={node.id} className="workbench-tree-section" open>
         <summary>
-          <span>{node.label}</span>
+          <span>{isSection ? t(node.label) : node.label}</span>
           {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
         </summary>
         <div className="workbench-tree-children">
-          {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, depth + 1))}
+          {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, t, depth + 1))}
         </div>
       </details>
     )
@@ -78,7 +80,7 @@ function renderNode(
                   event.stopPropagation()
                   props.onToggleLayerGroupVisibility(childLayerIds)
                 }}
-                title="Toggle group visibility"
+                title={t('Toggle group visibility')}
               >
                 V
               </button>
@@ -86,7 +88,7 @@ function renderNode(
           )}
         </div>
         <div className="workbench-tree-children">
-          {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, depth + 1))}
+          {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, t, depth + 1))}
         </div>
       </div>
     )
@@ -99,32 +101,32 @@ function renderNode(
       data-node-kind={node.kind}
     >
       <button type="button" className="workbench-tree-node-button" data-testid={`browser-node-${node.id}`} onClick={handleClick}>
-        <span>{node.label}</span>
+        <span>{isSection ? t(node.label) : node.label}</span>
         {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
       </button>
       {showLayerActions && (
         <div className="workbench-tree-actions">
-          <button type="button" onClick={() => props.onToggleLayerVisibility(targetId)} title="Toggle layer visibility">
+          <button type="button" onClick={() => props.onToggleLayerVisibility(targetId)} title={t('Toggle layer visibility')}>
             V
           </button>
-          <button type="button" onClick={() => props.onToggleLayerLock(targetId)} title="Toggle layer lock">
+          <button type="button" onClick={() => props.onToggleLayerLock(targetId)} title={t('Toggle layer lock')}>
             L
           </button>
         </div>
       )}
       {showTracingActions && (
         <div className="workbench-tree-actions">
-          <button type="button" onClick={() => props.onToggleTracingVisibility(targetId)} title="Toggle tracing visibility">
+          <button type="button" onClick={() => props.onToggleTracingVisibility(targetId)} title={t('Toggle tracing visibility')}>
             V
           </button>
-          <button type="button" onClick={() => props.onToggleTracingLock(targetId)} title="Toggle tracing lock">
+          <button type="button" onClick={() => props.onToggleTracingLock(targetId)} title={t('Toggle tracing lock')}>
             L
           </button>
         </div>
       )}
       {node.children && node.children.length > 0 && (
         <div className="workbench-tree-children">
-          {node.children.map((child) => renderNode(child, props, branchOpenState, onToggleBranch, depth + 1))}
+          {node.children.map((child) => renderNode(child, props, branchOpenState, onToggleBranch, t, depth + 1))}
         </div>
       )}
     </div>
@@ -132,6 +134,7 @@ function renderNode(
 }
 
 export function DocumentBrowserDock(props: DocumentBrowserDockProps) {
+  const t = useTranslate()
   const [branchOpenState, setBranchOpenState] = useState<Record<string, boolean>>({})
 
   const handleToggleBranch = (nodeId: string) => {
@@ -142,13 +145,13 @@ export function DocumentBrowserDock(props: DocumentBrowserDockProps) {
   }
 
   return (
-    <aside className="workbench-browser-dock" aria-label="Document browser">
+    <aside className="workbench-browser-dock" aria-label={t('Document browser')}>
       <div className="workbench-browser-header">
-        <h2>Document</h2>
-        <p>Pieces, layers, sketches, tracing, and 3D assets</p>
+        <h2>{t('Document')}</h2>
+        <p>{t('Pieces, layers, sketches, tracing, and 3D assets')}</p>
       </div>
       <div className="workbench-browser-tree">
-        {props.nodes.map((node) => renderNode(node, props, branchOpenState, handleToggleBranch))}
+        {props.nodes.map((node) => renderNode(node, props, branchOpenState, handleToggleBranch, t))}
       </div>
     </aside>
   )

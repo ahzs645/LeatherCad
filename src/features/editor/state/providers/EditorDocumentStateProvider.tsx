@@ -42,6 +42,7 @@ const initialEditorDocumentState: EditorDocumentState = {
   backdrops: [],
   activeBackdropId: null,
   projectMemo: '',
+  communityProvenance: [],
   stitchAlwaysShapeIds: [],
   stitchThreadColor: '#fb923c',
   threePreviewSettings: DEFAULT_THREE_PREVIEW_SETTINGS,
@@ -114,6 +115,8 @@ function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyActio
       dispatch({ type: 'backdrops', value }),
     setActiveBackdropId: (value: React.SetStateAction<EditorDocumentState['activeBackdropId']>) =>
       dispatch({ type: 'activeBackdropId', value }),
+    setCommunityProvenance: (value: React.SetStateAction<EditorDocumentState['communityProvenance']>) =>
+      dispatch({ type: 'communityProvenance', value }),
     setProjectMemo: (value: React.SetStateAction<EditorDocumentState['projectMemo']>) =>
       dispatch({ type: 'projectMemo', value }),
     setStitchAlwaysShapeIds: (value: React.SetStateAction<EditorDocumentState['stitchAlwaysShapeIds']>) =>

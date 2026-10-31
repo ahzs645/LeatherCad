@@ -10,6 +10,7 @@
  */
 
 import { uid } from '../cad/cad-geometry'
+import { parseCommunityProvenance } from '../ops/community-provenance'
 import type {
   Backdrop,
   ArcShape,
@@ -184,6 +185,15 @@ export function importLccDocument(raw: string): LccImportResult {
   // Strip UTF-8 BOM if present
   const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
   const data = JSON.parse(cleaned) as LccFile
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Invalid LCC document: expected a JSON object')
+  }
+  // Newer LCC files put compatibility artwork outside a signed compressed
+  // payload. Parsing that outer artwork as a normal drawing loses geometry.
+  // We cannot validate the private format signature, so reject before loading.
+  if ('sealed' in data || data.meta?.file_type === 'LeathercraftCAD_Sealed') {
+    throw new Error('Sealed LCC files require Leathercraft CAD 4.2 or later and cannot be validated here. Open the original app and save an .lcad or SVG file instead. The current document was not changed.')
+  }
   const warnings: string[] = []
 
   // Validate meta
@@ -728,6 +738,9 @@ function emptyLccShape(): Omit<LccShape, 'id' | 'type' | 'sp' | 'ep' | 'ct' | 'c
 }
 
 export function exportLccDocument(doc: DocFile): string {
+  if (parseCommunityProvenance(doc.communityProvenance).length > 0) {
+    throw new Error('LCC export cannot preserve community source attribution. Save an .lcad or Document JSON file instead.')
+  }
   exportIdCounter = 1000
 
   const lineTypesById = Object.fromEntries(doc.lineTypes.map((lt) => [lt.id, lt]))

@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useTranslate } from '../hooks/useTranslate'
+import { useModalDialogFocus } from '../hooks/useModalDialogFocus'
 
-type ExportFormat = 'json' | 'garment-json' | 'lcc' | 'svg' | 'pdf' | 'dxf' | 'laser-svg'
+type ExportFormat = 'json' | 'lcad' | 'stl' | 'garment-json' | 'lcc' | 'svg' | 'pdf' | 'dxf' | 'laser-svg'
 
 type ExportModalProps = {
   open: boolean
@@ -10,6 +12,8 @@ type ExportModalProps = {
   onOpenExportOptions: () => void
   onOpenPrintPreview: () => void
   onSaveJson: () => void
+  onSaveLcad: () => void
+  onOpenStlExport: () => void
   onExportGarmentJson: () => void
   onSaveLcc: () => void
   onExportSvg: () => void
@@ -20,6 +24,8 @@ type ExportModalProps = {
 
 const FORMAT_OPTIONS: Array<{ value: ExportFormat; label: string; description: string }> = [
   { value: 'json', label: 'JSON Document', description: 'Saves the editable project state as a JSON file.' },
+  { value: 'lcad', label: 'LCAD (Web)', description: 'Exports supported geometry in the Leathercraft CAD Web format, with conversion warnings.' },
+  { value: 'stl', label: 'STL / Jig', description: 'Opens thickness, stitch-hole and positioning-jig settings for 3D printing.' },
   { value: 'garment-json', label: 'Garment JSON', description: 'Exports ordered piece geometry, seams, and 3D placements for interchange.' },
   { value: 'lcc', label: 'LCC (LeathercraftCAD)', description: 'Saves in LeathercraftCAD v2.8 format for cross-app compatibility.' },
   { value: 'svg', label: 'SVG', description: 'Vector export for editing, plotting, and browser preview.' },
@@ -36,6 +42,8 @@ export function ExportModal({
   onOpenExportOptions,
   onOpenPrintPreview,
   onSaveJson,
+  onSaveLcad,
+  onOpenStlExport,
   onExportGarmentJson,
   onSaveLcc,
   onExportSvg,
@@ -43,6 +51,9 @@ export function ExportModal({
   onExportDxf,
   onExportLaserSvg,
 }: ExportModalProps) {
+  const t = useTranslate()
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModalDialogFocus({ dialogRef, open, onClose })
   const [format, setFormat] = useState<ExportFormat>('svg')
 
   if (!open) {
@@ -51,9 +62,11 @@ export function ExportModal({
 
   const selectedFormat = FORMAT_OPTIONS.find((option) => option.value === format) ?? FORMAT_OPTIONS[0]
   const primaryActionLabel =
-    format === 'json' ? 'Save JSON' : format === 'garment-json' ? 'Export Garment JSON' : format === 'lcc' ? 'Save LCC' : `Export ${selectedFormat.label}`
+    format === 'json' ? 'Save JSON' : format === 'lcad' ? 'Save LCAD' : format === 'stl' ? 'Configure STL / Jig' : format === 'garment-json' ? 'Export Garment JSON' : format === 'lcc' ? 'Save LCC' : `Export ${selectedFormat.label}`
 
   const handleRunExport = () => {
+    if (format === 'lcad') { onSaveLcad(); onClose(); return }
+    if (format === 'stl') { onClose(); onOpenStlExport(); return }
     if (format === 'json') {
       onSaveJson()
       onClose()
@@ -115,21 +128,21 @@ export function ExportModal({
       }}
       role="presentation"
     >
-      <div className="export-options-modal export-hub-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="export-options-modal export-hub-modal" ref={dialogRef} tabIndex={-1} onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="export-center-title">
         <div className="layer-color-modal-header">
-          <h2>Export Center</h2>
-          <button onClick={onClose}>Done</button>
+          <h2 id="export-center-title">{t('export.center', 'Export Center')}</h2>
+          <button onClick={onClose}>{t('common.done', 'Done')}</button>
         </div>
 
         <p className="hint">Pick an output format, then run export. Configure filters and print settings from here as needed.</p>
 
         <div className="line-type-edit-grid export-hub-grid">
           <label className="field-row">
-            <span>Format</span>
+            <span>{t('export.format', 'Format')}</span>
             <select className="action-select" value={format} onChange={(event) => setFormat(event.target.value as ExportFormat)}>
               {FORMAT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {t(`export.format.${option.value}`, option.label)}
                 </option>
               ))}
             </select>
@@ -141,7 +154,7 @@ export function ExportModal({
         </div>
 
         <div className="line-type-modal-actions">
-          <button onClick={handleRunExport}>{primaryActionLabel}</button>
+          <button onClick={handleRunExport}>{t(`export.run.${format}`, primaryActionLabel)}</button>
           <button onClick={handleOpenExportOptions}>Export Options</button>
           <button onClick={handleOpenPrintPreview}>Print Preview</button>
           <button onClick={onTogglePrintAreas}>{showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}</button>

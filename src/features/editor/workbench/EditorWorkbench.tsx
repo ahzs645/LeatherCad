@@ -67,6 +67,7 @@ export type EditorWorkbenchProps = {
   onToggleInspector: () => void
   toolLabel: string
   selectionText: string
+  statusText?: string
   zoomPercent: number
   displayUnit: 'mm' | 'in'
   activeLayerName: string
@@ -121,6 +122,7 @@ export function EditorWorkbench({
   onToggleInspector,
   toolLabel,
   selectionText,
+  statusText,
   zoomPercent,
   displayUnit,
   activeLayerName,
@@ -257,6 +259,7 @@ export function EditorWorkbench({
       <WorkbenchStatusbar
         toolLabel={toolLabel}
         selectionText={selectionText}
+        statusText={statusText}
         zoomPercent={zoomPercent}
         displayUnit={displayUnit}
         activeLayerName={activeLayerName}

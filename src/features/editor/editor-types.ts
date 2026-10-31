@@ -1,5 +1,6 @@
 import type {
   Backdrop,
+  CommunityPatternProvenance,
   FoldLine,
   HardwareMarker,
   Layer,
@@ -65,6 +66,7 @@ export type MobileLayerAction =
   | 'colors'
 
 export type MobileFileAction =
+  | 'file-tools'
   | 'save-json'
   | 'save-lcc'
   | 'load-json'
@@ -144,6 +146,7 @@ export type EditorSnapshot = {
   tracingOverlays: TracingOverlay[]
   backdrops: Backdrop[]
   projectMemo: string
+  communityProvenance?: CommunityPatternProvenance[]
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
   threePreviewSettings: ThreePreviewSettings

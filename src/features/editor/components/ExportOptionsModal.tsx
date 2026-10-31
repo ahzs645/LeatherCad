@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import type { LineTypeRole } from '../cad/cad-types'
 import type { DxfVersion, ExportRoleFilters, StitchHoleExportRenderMode } from '../editor-types'
 
@@ -56,6 +57,7 @@ export function ExportOptionsModal({
   onDxfFlipYChange,
   onResetDefaults,
 }: ExportOptionsModalProps) {
+  const t = useTranslate()
   if (!open) {
     return null
   }
@@ -73,11 +75,11 @@ export function ExportOptionsModal({
     >
       <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
         <div className="layer-color-modal-header">
-          <h2>Export Options</h2>
-          <button onClick={onClose}>Done</button>
+          <h2>{t('Export Options')}</h2>
+          <button onClick={onClose}>{t('Done')}</button>
         </div>
 
-        <p className="hint">Applies to SVG, PDF, and DXF exports.</p>
+        <p className="hint">{t('Applies to SVG, PDF, and DXF exports.')}</p>
 
         <div className="control-block">
           <label className="layer-toggle-item">
@@ -86,7 +88,7 @@ export function ExportOptionsModal({
               checked={exportOnlySelectedShapes}
               onChange={(event) => onExportOnlySelectedShapesChange(event.target.checked)}
             />
-            <span>Export only selected shapes</span>
+            <span>{t('Export only selected shapes')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -94,7 +96,7 @@ export function ExportOptionsModal({
               checked={exportOnlyVisibleLineTypes}
               onChange={(event) => onExportOnlyVisibleLineTypesChange(event.target.checked)}
             />
-            <span>Export only visible line types</span>
+            <span>{t('Export only visible line types')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -102,7 +104,7 @@ export function ExportOptionsModal({
               checked={exportForceSolidStrokes}
               onChange={(event) => onExportForceSolidStrokesChange(event.target.checked)}
             />
-            <span>Convert dashed/dotted/dash-dot-dot to solid on export</span>
+            <span>{t('Convert dashed/dotted/dash-dot-dot to solid on export')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -110,7 +112,7 @@ export function ExportOptionsModal({
               checked={exportIncludeText}
               onChange={(event) => onExportIncludeTextChange(event.target.checked)}
             />
-            <span>Include text shapes</span>
+            <span>{t('Include text shapes')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -118,26 +120,26 @@ export function ExportOptionsModal({
               checked={exportIncludeTemplateMetadata}
               onChange={(event) => onExportIncludeTemplateMetadataChange(event.target.checked)}
             />
-            <span>Include template / painted parts</span>
+            <span>{t('Include template / painted parts')}</span>
           </label>
         </div>
 
         <div className="control-block">
-          <h3>Stitch Holes</h3>
+          <h3>{t('Stitch Holes')}</h3>
           <label className="field-row">
-            <span>Render Mode</span>
+            <span>{t('Render Mode')}</span>
             <select
               className="action-select"
               value={exportStitchHoleRenderMode}
               onChange={(event) => onExportStitchHoleRenderModeChange(event.target.value as StitchHoleExportRenderMode)}
             >
-              <option value="native">Native geometry</option>
-              <option value="dots">Dots</option>
-              <option value="single-lines">Single lines</option>
+              <option value="native">{t('Native geometry')}</option>
+              <option value="dots">{t('Dots')}</option>
+              <option value="single-lines">{t('Single lines')}</option>
             </select>
           </label>
           <label className="field-row">
-            <span>Dot Radius (mm)</span>
+            <span>{t('Dot Radius (mm)')}</span>
             <input
               type="number"
               min={0.2}
@@ -150,7 +152,7 @@ export function ExportOptionsModal({
         </div>
 
         <div className="control-block">
-          <h3>Line Type Roles ({activeExportRoleCount} enabled)</h3>
+          <h3>{t('Line Type Roles (')}{activeExportRoleCount} {t('enabled)')}</h3>
           <div className="export-role-grid">
             {EXPORT_ROLES.map((role) => (
               <label key={role} className="layer-toggle-item">
@@ -166,22 +168,22 @@ export function ExportOptionsModal({
         </div>
 
         <div className="control-block">
-          <h3>DXF</h3>
+          <h3>{t('DXF')}</h3>
           <label className="field-row">
-            <span>Version</span>
+            <span>{t('Version')}</span>
             <select className="action-select" value={dxfVersion} onChange={(event) => onDxfVersionChange(event.target.value as DxfVersion)}>
-              <option value="r12">R12 (AC1009)</option>
-              <option value="r14">R14 (AC1014)</option>
+              <option value="r12">{t('R12 (AC1009)')}</option>
+              <option value="r14">{t('R14 (AC1014)')}</option>
             </select>
           </label>
           <label className="layer-toggle-item">
             <input type="checkbox" checked={dxfFlipY} onChange={(event) => onDxfFlipYChange(event.target.checked)} />
-            <span>Flip Y axis on DXF export</span>
+            <span>{t('Flip Y axis on DXF export')}</span>
           </label>
         </div>
 
         <div className="line-type-modal-actions">
-          <button onClick={onResetDefaults}>Reset Export Defaults</button>
+          <button onClick={onResetDefaults}>{t('Reset Export Defaults')}</button>
         </div>
       </div>
     </div>

@@ -156,9 +156,20 @@ export function useFileActions(params: UseFileActionsParams) {
         downloadFile('leathercraft-doc.lcc', lccContent, 'application/json;charset=utf-8')
         setStatus('Document saved as LCC')
       })
-      .catch(() => {
-        setStatus('LCC export tools failed to load')
+      .catch((error: unknown) => {
+        setStatus(`Could not export LCC: ${error instanceof Error ? error.message : 'unknown error'}`)
       })
+  }
+
+  const handleSaveLcad = () => {
+    const doc = buildCurrentDocFile()
+    void import('../io/io-lcad')
+      .then(({ exportLcadDocument }) => {
+        const result = exportLcadDocument(doc)
+        downloadFile('leathercraft-doc.lcad', result.text, 'application/json;charset=utf-8')
+        setStatus(result.warnings.length > 0 ? `LCAD exported — ${result.warnings.join('; ')}` : 'Document saved as LCAD')
+      })
+      .catch((error: unknown) => setStatus(`Could not export LCAD: ${error instanceof Error ? error.message : 'unknown error'}`))
   }
 
   const handleExportGarmentJson = () => {
@@ -184,10 +195,10 @@ export function useFileActions(params: UseFileActionsParams) {
 
     const lowerName = file.name.toLowerCase()
     const looksLikeLccOrJson =
-      lowerName.endsWith('.lcc') || lowerName.endsWith('.json') || file.type === 'application/json'
+      lowerName.endsWith('.lcc') || lowerName.endsWith('.lcad') || lowerName.endsWith('.json') || file.type === 'application/json'
     if (!looksLikeLccOrJson) {
       setStatus(
-        `"${file.name}" is not a LeatherCad (.lcc) or JSON file. Use "Import SVG" or "Import Tracing" for images.`,
+        `"${file.name}" is not a LeatherCad (.lcc, .lcad) or JSON file. Use "Import SVG" or "Import Tracing" for images.`,
       )
       return
     }
@@ -216,6 +227,17 @@ export function useFileActions(params: UseFileActionsParams) {
 
       if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) {
         setStatus(`"${file.name}" does not look like valid JSON — skipped`)
+        return
+      }
+
+      const { importLcadDocument, isLcadDocument } = await import('../io/io-lcad')
+      if (lowerName.endsWith('.lcad') || isLcadDocument(JSON.parse(trimmed))) {
+        const imported = importLcadDocument(raw)
+        const documentName = imported.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
+        const warningNote = imported.warnings.length > 0 ? ` — ${imported.warnings.join('; ')}` : ''
+        const doc = documentName ? { ...imported.doc, documentName } : imported.doc
+        applyLoadedDocument(doc, `Loaded LCAD (${imported.summary.shapeCount} shapes, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers)${warningNote}`)
+        void createLocalProjectFromLoadedDoc(doc, file.name)
         return
       }
 
@@ -465,6 +487,7 @@ export function useFileActions(params: UseFileActionsParams) {
   return {
     handleSaveJson,
     handleSaveLcc,
+    handleSaveLcad,
     handleExportGarmentJson,
     handleLoadJson,
     handleImportSvg,

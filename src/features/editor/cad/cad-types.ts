@@ -710,6 +710,16 @@ export type PrintArea = {
   scalePercent: number
 }
 
+export type CommunityPatternProvenance = {
+  kind: 'community-pattern'
+  patternId: string
+  version: number
+  title: string
+  author: string
+  license: 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-NC-4.0'
+  attribution: string
+}
+
 export type DocFile = {
   version: 1
   units: 'mm'
@@ -738,6 +748,7 @@ export type DocFile = {
   tracingOverlays?: TracingOverlay[]
   backdrops?: Backdrop[]
   projectMemo?: string
+  communityProvenance?: CommunityPatternProvenance[]
   stitchAlwaysShapeIds?: string[]
   stitchThreadColor?: string
   piecePlacements3d?: PiecePlacement3D[]

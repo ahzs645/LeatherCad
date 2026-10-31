@@ -7,14 +7,27 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - 2D pattern editor with shapes, bezier curves, and text
 - Constraint solver for parametric dimensions
 - Pattern grading
-- Geometry import: JSON, LCC, and SVG
+- Geometry import: JSON, native web LCAD, legacy plain LCC, SVG, and ASCII DXF
 - Pattern PDF import (**Output → Pattern PDF**): reads a published template sheet as pieces, stitch runs, seams, and folds
 - Tracing import (reference overlays only, not editable geometry): raster images and PDF
-- Export: SVG, PDF, DXF, JSON, and LCC
+- Export: SVG, PDF, DXF, JSON, LCAD, legacy LCC, and validated STL patterns/positioning jigs
 - 3D preview via Three.js
 - Template and leather catalog management
 - Stitch hole rendering and cut line tools
 - Nesting layout optimization
+- Persistent interface language selection: English, Japanese, and 18 additional core-shell translations with English fallback
+- Optional Convex cloud library, folders/revision history, licensed pattern sharing, and community discussions/likes
+
+The **Output** ribbon includes **DXF In**, **Save LCAD**, **STL / Jig**, and
+**Cloud**. On phones these workflows are under **Options → File → File tools → Apply**.
+Sealed LCC files are rejected before changing the drawing; use the source app's
+LCAD or SVG export for interchange. See the
+[implementation report](docs/COFFEE_CAD_IMPLEMENTATION_2026-10-31.md),
+[DXF format support](docs/DXF_IMPORT.md),
+[language coverage](docs/LOCALIZATION.md), and
+[cloud setup](docs/CLOUD_COMMUNITY.md) for supported behavior and limits.
+The current interface/options and feature backlog is in
+[NEXT_PARITY_PRIORITIES.md](docs/NEXT_PARITY_PRIORITIES.md).
 
 ## Getting Started
 

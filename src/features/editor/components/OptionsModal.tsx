@@ -1,3 +1,5 @@
+import { LanguageSelector } from './LanguageSelector'
+import { useTranslate } from '../hooks/useTranslate'
 import { useState } from 'react'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import type { LineType } from '../cad/cad-types'
@@ -167,6 +169,7 @@ export function OptionsModal({
   onOpenDimensionInspector,
   onClose,
 }: OptionsModalProps) {
+  const t = useTranslate()
   const [calibrationReferenceMm, setCalibrationReferenceMm] = useState<number>(100)
   const [measuredXMm, setMeasuredXMm] = useState<string>('')
   const [measuredYMm, setMeasuredYMm] = useState<string>('')
@@ -209,24 +212,24 @@ export function OptionsModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose} aria-label="Options">
+    <div className="modal-overlay" onClick={onClose} aria-label={t('Options')}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Options</h3>
+        <h3>{t('Options')}</h3>
 
         <section className="help-section">
-          <h4>Auto-save</h4>
+          <h4>{t('Auto-save')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
               checked={autoSaveEnabled}
               onChange={(e) => onChangeAutoSaveEnabled(e.target.checked)}
             />
-            <span>Periodically snapshot the current project to browser storage</span>
+            <span>{t('Periodically snapshot the current project to browser storage')}</span>
           </label>
         </section>
 
         <section className="help-section">
-          <h4>Workspace</h4>
+          <h4>{t('Workspace')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
@@ -234,7 +237,7 @@ export function OptionsModal({
               disabled={pinSideBar}
               onChange={(e) => onChangeAutoHideSidebar(e.target.checked)}
             />
-            <span>Auto-hide the inspector sidebar to widen the workspace</span>
+            <span>{t('Auto-hide the inspector sidebar to widen the workspace')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -242,7 +245,7 @@ export function OptionsModal({
               checked={pinSideBar}
               onChange={(e) => onChangePinSideBar(e.target.checked)}
             />
-            <span>Pin sidebar (force-keep the inspector open)</span>
+            <span>{t('Pin sidebar (force-keep the inspector open)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -250,19 +253,19 @@ export function OptionsModal({
               checked={loadDemoOnStartup}
               onChange={(e) => onChangeLoadDemoOnStartup(e.target.checked)}
             />
-            <span>Load the demo project at startup</span>
+            <span>{t('Load the demo project at startup')}</span>
           </label>
         </section>
 
         <section className="help-section">
-          <h4>Editing</h4>
+          <h4>{t('Editing')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
               checked={incrementalSelection}
               onChange={(e) => onChangeIncrementalSelection(e.target.checked)}
             />
-            <span>Incremental selection (click adds to selection without Shift)</span>
+            <span>{t('Incremental selection (click adds to selection without Shift)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -270,7 +273,7 @@ export function OptionsModal({
               checked={mentoriWithoutCtrl}
               onChange={(e) => onChangeMentoriWithoutCtrl(e.target.checked)}
             />
-            <span>Chamfer (mentori) acts without holding Ctrl</span>
+            <span>{t('Chamfer (mentori) acts without holding Ctrl')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -278,7 +281,7 @@ export function OptionsModal({
               checked={continuousDistanceMarking}
               onChange={(e) => onChangeContinuousDistanceMarking(e.target.checked)}
             />
-            <span>Continuous distance marking (prompt loops until cancelled)</span>
+            <span>{t('Continuous distance marking (prompt loops until cancelled)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -286,7 +289,7 @@ export function OptionsModal({
               checked={reduceOneBlade}
               onChange={(e) => onChangeReduceOneBlade(e.target.checked)}
             />
-            <span>Reduce pricking-iron blade count by one (end-of-stitch helper)</span>
+            <span>{t('Reduce pricking-iron blade count by one (end-of-stitch helper)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -294,7 +297,7 @@ export function OptionsModal({
               checked={highlightActiveLayer}
               onChange={(e) => onChangeHighlightActiveLayer(e.target.checked)}
             />
-            <span>Highlight shapes on the active layer</span>
+            <span>{t('Highlight shapes on the active layer')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -302,7 +305,7 @@ export function OptionsModal({
               checked={fillOnChange}
               onChange={(e) => onChangeFillOnChange(e.target.checked)}
             />
-            <span>Auto-fill newly-closed shapes with their line-type color</span>
+            <span>{t('Auto-fill newly-closed shapes with their line-type color')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -310,7 +313,7 @@ export function OptionsModal({
               checked={drawEdges}
               onChange={(e) => onChangeDrawEdges(e.target.checked)}
             />
-            <span>Overlay cut-edge outlines (red dashed)</span>
+            <span>{t('Overlay cut-edge outlines (red dashed)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -318,10 +321,10 @@ export function OptionsModal({
               checked={drawFirstPos}
               onChange={(e) => onChangeDrawFirstPos(e.target.checked)}
             />
-            <span>Mark the first stitch hole of each chain</span>
+            <span>{t('Mark the first stitch hole of each chain')}</span>
           </label>
           <label className="field-row">
-            <span>Center-line divisions</span>
+            <span>{t('Center-line divisions')}</span>
             <input
               type="number"
               min={1}
@@ -334,7 +337,7 @@ export function OptionsModal({
             />
           </label>
           <label className="field-row">
-            <span>Default marking distance (mm)</span>
+            <span>{t('Default marking distance (mm)')}</span>
             <input
               type="number"
               min={0.1}
@@ -344,7 +347,7 @@ export function OptionsModal({
             />
           </label>
           <label className="field-row">
-            <span>Mandala circle template name</span>
+            <span>{t('Mandala circle template name')}</span>
             <input
               type="text"
               value={mandalaCircleTemplateName}
@@ -354,9 +357,9 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
-          <h4>Notch (Kama) defaults</h4>
+          <h4>{t('Notch (Kama) defaults')}</h4>
           <label className="field-row">
-            <span>Notch depth (mm)</span>
+            <span>{t('Notch depth (mm)')}</span>
             <input
               type="number"
               min={0.1}
@@ -366,7 +369,7 @@ export function OptionsModal({
             />
           </label>
           <label className="field-row">
-            <span>Notch angle (°)</span>
+            <span>{t('Notch angle (°)')}</span>
             <input
               type="number"
               min={5}
@@ -379,7 +382,7 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
-          <h4>Line tool constraint</h4>
+          <h4>{t('Line tool constraint')}</h4>
           {(['none', 'horizontal', 'vertical', 'relative-angle'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
               <input
@@ -389,19 +392,19 @@ export function OptionsModal({
                 onChange={() => onChangeLineToolConstraint(mode)}
               />
               <span>
-                {mode === 'none'
+                {t(mode === 'none'
                   ? 'Free'
                   : mode === 'horizontal'
                     ? 'Horizontal only'
                     : mode === 'vertical'
                       ? 'Vertical only'
-                      : 'Relative angle to last line (snaps to N° steps)'}
+                      : 'Relative angle to last line (snaps to N° steps)')}
               </span>
             </label>
           ))}
           {lineToolConstraint === 'relative-angle' ? (
             <label className="field-row">
-              <span>Angle step (°)</span>
+              <span>{t('Angle step (°)')}</span>
               <input
                 type="number"
                 min={1}
@@ -415,7 +418,7 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
-          <h4>Arc tool</h4>
+          <h4>{t('Arc tool')}</h4>
           {(['three-point', 'radius', 'half-moon'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
               <input
@@ -425,17 +428,17 @@ export function OptionsModal({
                 onChange={() => onChangeArcDrawMode(mode)}
               />
               <span>
-                {mode === 'three-point'
+                {t(mode === 'three-point'
                   ? '3-point (click start, mid, end)'
                   : mode === 'radius'
                     ? 'Radius (click start + end, fixed radius)'
-                    : 'Half-moon ratio (click start + end, ratio of chord)'}
+                    : 'Half-moon ratio (click start + end, ratio of chord)')}
               </span>
             </label>
           ))}
           {arcDrawMode === 'radius' ? (
             <label className="field-row">
-              <span>Arc radius (mm)</span>
+              <span>{t('Arc radius (mm)')}</span>
               <input
                 type="number"
                 min={0.5}
@@ -447,7 +450,7 @@ export function OptionsModal({
           ) : null}
           {arcDrawMode === 'half-moon' ? (
             <label className="field-row">
-              <span>Half-moon ratio (height / chord)</span>
+              <span>{t('Half-moon ratio (height / chord)')}</span>
               <input
                 type="number"
                 min={0.05}
@@ -463,18 +466,18 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
-          <h4>Tangent-circle mode</h4>
+          <h4>{t('Tangent-circle mode')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
               checked={tangentCircleMode}
               onChange={(e) => onChangeTangentCircleMode(e.target.checked)}
             />
-            <span>Bias drawing toward circle-tangent contact points</span>
+            <span>{t('Bias drawing toward circle-tangent contact points')}</span>
           </label>
           {tangentCircleMode ? (
             <label className="field-row">
-              <span>Display step (segments per circle)</span>
+              <span>{t('Display step (segments per circle)')}</span>
               <input
                 type="number"
                 min={2}
@@ -490,7 +493,7 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
-          <h4>Grid background</h4>
+          <h4>{t('Grid background')}</h4>
           {(['theme', 'light', 'dark'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
               <input
@@ -499,37 +502,38 @@ export function OptionsModal({
                 checked={gridBackgroundMode === mode}
                 onChange={() => onChangeGridBackgroundMode(mode)}
               />
-              <span>{mode === 'theme' ? 'Follow app theme' : mode === 'light' ? 'Light' : 'Dark'}</span>
+              <span>{t(mode === 'theme' ? 'Follow app theme' : mode === 'light' ? 'Light' : 'Dark')}</span>
             </label>
           ))}
         </section>
 
         <section className="help-section">
-          <h4>Language</h4>
+          <h4>{t('Language')}</h4>
+          <LanguageSelector />
           <p className="hint">
             {translationEntryCount > 0
-              ? `${translationEntryCount} translation entries loaded.`
-              : 'Using built-in English. Import a TSV or JSON translation file to switch language.'}
+              ? t('{count} custom translation entries loaded.').replace('{count}', String(translationEntryCount))
+              : t('Built-in languages are available immediately. Import TSV or JSON for custom translations.')}
           </p>
           <div className="line-type-modal-actions">
             <button type="button" onClick={onImportTranslationFile}>
-              Import Translation File…
+              {t('Import Translation File…')}
             </button>
             <button type="button" onClick={onResetTranslation} disabled={translationEntryCount === 0}>
-              Reset to English
+              {t('Clear custom translations')}
             </button>
           </div>
         </section>
 
         <section className="help-section">
-          <h4>Zoom &amp; Scroll</h4>
+          <h4>{t('Zoom & Scroll')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
               checked={reverseZoomDirection}
               onChange={(e) => onChangeReverseZoomDirection(e.target.checked)}
             />
-            <span>Reverse wheel-zoom direction</span>
+            <span>{t('Reverse wheel-zoom direction')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -537,19 +541,19 @@ export function OptionsModal({
               checked={reverseGridScrollDirection}
               onChange={(e) => onChangeReverseGridScrollDirection(e.target.checked)}
             />
-            <span>Reverse arrow-key pan direction</span>
+            <span>{t('Reverse arrow-key pan direction')}</span>
           </label>
         </section>
 
         <section className="help-section">
-          <h4>SVG Export</h4>
+          <h4>{t('SVG Export')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
               checked={exportIncludeText}
               onChange={(e) => onChangeExportIncludeText(e.target.checked)}
             />
-            <span>Include text shapes</span>
+            <span>{t('Include text shapes')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -557,20 +561,20 @@ export function OptionsModal({
               checked={exportIncludeTemplateMetadata}
               onChange={(e) => onChangeExportIncludeTemplateMetadata(e.target.checked)}
             />
-            <span>Include template metadata</span>
+            <span>{t('Include template metadata')}</span>
           </label>
         </section>
 
         <section className="help-section">
-          <h4>Dimension defaults</h4>
+          <h4>{t('Dimension defaults')}</h4>
           <label className="field-row">
-            <span>Line palette for new dimensions</span>
+            <span>{t('Line palette for new dimensions')}</span>
             <select
               className="action-select"
               value={dimensionLineTypeId ?? ''}
               onChange={(event) => onChangeDimensionLineTypeId(event.target.value || null)}
             >
-              <option value="">Use active line type</option>
+              <option value="">{t('Use active line type')}</option>
               {lineTypes.map((lineType) => (
                 <option key={lineType.id} value={lineType.id}>
                   {lineType.name}
@@ -584,7 +588,7 @@ export function OptionsModal({
               checked={dimensionDefaults.arrowOnly}
               onChange={(e) => updateDimensionDefaults('arrowOnly', e.target.checked)}
             />
-            <span>Arrow only (no value text)</span>
+            <span>{t('Arrow only (no value text)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -592,7 +596,7 @@ export function OptionsModal({
               checked={dimensionDefaults.singleLine}
               onChange={(e) => updateDimensionDefaults('singleLine', e.target.checked)}
             />
-            <span>Single measure line (do not split around label)</span>
+            <span>{t('Single measure line (do not split around label)')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -600,7 +604,7 @@ export function OptionsModal({
               checked={dimensionDefaults.textInside}
               onChange={(e) => updateDimensionDefaults('textInside', e.target.checked)}
             />
-            <span>Place text inside the dimension line</span>
+            <span>{t('Place text inside the dimension line')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -608,10 +612,10 @@ export function OptionsModal({
               checked={dimensionDefaults.textReverse}
               onChange={(e) => updateDimensionDefaults('textReverse', e.target.checked)}
             />
-            <span>Reverse text orientation (180°)</span>
+            <span>{t('Reverse text orientation (180°)')}</span>
           </label>
           <label className="layer-toggle-item">
-            <span>Default font size (mm)</span>
+            <span>{t('Default font size (mm)')}</span>
             <input
               type="number"
               min={1}
@@ -627,7 +631,7 @@ export function OptionsModal({
             />
           </label>
           <label className="layer-toggle-item">
-            <span>Default precision (decimals)</span>
+            <span>{t('Default precision (decimals)')}</span>
             <input
               type="number"
               min={0}
@@ -650,31 +654,30 @@ export function OptionsModal({
                 onClose()
               }}
             >
-              Open per-dimension inspector…
+              {t('Open per-dimension inspector…')}
             </button>
           )}
         </section>
 
         <section className="help-section">
-          <h4>Stitching defaults</h4>
+          <h4>{t('Stitching defaults')}</h4>
           <label className="layer-toggle-item">
             <input
               type="checkbox"
               checked={forceFitLastPrick}
               onChange={(e) => onChangeForceFitLastPrick(e.target.checked)}
             />
-            <span>Force last pricking iron tooth to land on path endpoint</span>
+            <span>{t('Force last pricking iron tooth to land on path endpoint')}</span>
           </label>
         </section>
 
         <section className="help-section">
-          <h4>Auto pitch</h4>
+          <h4>{t('Auto pitch')}</h4>
           <p className="options-modal-hint">
-            Default behaviour for the auto-pitch hole solver (used when you draw a stitch line without an explicit
-            pitch override).
+            {t('Default behaviour for the auto-pitch hole solver (used when you draw a stitch line without an explicit pitch override).')}
           </p>
           <div className="control-block">
-            <span>Default mode</span>
+            <span>{t('Default mode')}</span>
             {(['fixed', 'variable'] as const).map((mode) => (
               <label className="layer-toggle-item" key={mode}>
                 <input
@@ -684,13 +687,13 @@ export function OptionsModal({
                   onChange={() => updateAutoPitch('defaultMode', mode)}
                 />
                 <span>
-                  {mode === 'fixed' ? 'Fixed pitch (every hole equal)' : 'Variable pitch (solver fits start → end)'}
+                  {t(mode === 'fixed' ? 'Fixed pitch (every hole equal)' : 'Variable pitch (solver fits start → end)')}
                 </span>
               </label>
             ))}
           </div>
           <label className="layer-toggle-item">
-            <span>Solver steps</span>
+            <span>{t('Solver steps')}</span>
             <input
               type="number"
               min={2}
@@ -706,7 +709,7 @@ export function OptionsModal({
             />
           </label>
           <label className="layer-toggle-item">
-            <span>Precision (mm)</span>
+            <span>{t('Precision (mm)')}</span>
             <input
               type="number"
               min={0.01}
@@ -722,7 +725,7 @@ export function OptionsModal({
             />
           </label>
           <label className="layer-toggle-item">
-            <span>Stop gap allowance (mm)</span>
+            <span>{t('Stop gap allowance (mm)')}</span>
             <input
               type="number"
               min={0.1}
@@ -743,18 +746,17 @@ export function OptionsModal({
               checked={autoPitchSettings.continueFromSelectedHole}
               onChange={(e) => updateAutoPitch('continueFromSelectedHole', e.target.checked)}
             />
-            <span>Continue from the selected hole when re-running auto pitch</span>
+            <span>{t('Continue from the selected hole when re-running auto pitch')}</span>
           </label>
         </section>
 
         <section className="help-section">
-          <h4>Box stitch helper</h4>
+          <h4>{t('Box stitch helper')}</h4>
           <p className="options-modal-hint">
-            Defaults used when opening the box stitch helper. Search distance gates how far guide candidates are
-            accepted from a piece edge.
+            {t('Defaults used when opening the box stitch helper. Search distance gates how far guide candidates are accepted from a piece edge.')}
           </p>
           <label className="layer-toggle-item">
-            <span>Search distance (mm)</span>
+            <span>{t('Search distance (mm)')}</span>
             <input
               type="number"
               min={0.1}
@@ -770,7 +772,7 @@ export function OptionsModal({
             />
           </label>
           <label className="layer-toggle-item">
-            <span>Stretch compensation (%)</span>
+            <span>{t('Stretch compensation (%)')}</span>
             <input
               type="number"
               min={25}
@@ -791,12 +793,12 @@ export function OptionsModal({
         </section>
 
         <section className="help-section">
-          <h4>Print calibration</h4>
+          <h4>{t('Print calibration')}</h4>
           <p className="options-modal-hint">
-            Compensate for printer scale errors. 100 % matches the ruler test square exactly.
+            {t('Compensate for printer scale errors. 100 % matches the ruler test square exactly.')}
           </p>
           <label className="layer-toggle-item">
-            <span>X-axis calibration (%)</span>
+            <span>{t('X-axis calibration (%)')}</span>
             <input
               type="number"
               min={50}
@@ -812,7 +814,7 @@ export function OptionsModal({
             />
           </label>
           <label className="layer-toggle-item">
-            <span>Y-axis calibration (%)</span>
+            <span>{t('Y-axis calibration (%)')}</span>
             <input
               type="number"
               min={50}
@@ -829,13 +831,12 @@ export function OptionsModal({
           </label>
 
           <div className="control-block">
-            <h4>Derive from measured length</h4>
+            <h4>{t('Derive from measured length')}</h4>
             <p className="options-modal-hint">
-              Print a known reference (default 100 mm), measure it with a ruler, enter the measured X/Y here, then
-              press Apply to update the corresponding calibration percentage.
+              {t('Print a known reference (default 100 mm), measure it with a ruler, enter the measured X/Y here, then press Apply to update the corresponding calibration percentage.')}
             </p>
             <label className="layer-toggle-item">
-              <span>Reference length (mm)</span>
+              <span>{t('Reference length (mm)')}</span>
               <input
                 type="number"
                 min={1}
@@ -851,7 +852,7 @@ export function OptionsModal({
               />
             </label>
             <label className="layer-toggle-item">
-              <span>Measured X length (mm)</span>
+              <span>{t('Measured X length (mm)')}</span>
               <input
                 type="number"
                 min={0.1}
@@ -860,11 +861,11 @@ export function OptionsModal({
                 onChange={(e) => setMeasuredXMm(e.target.value)}
               />
               <button type="button" onClick={() => applyCalibrationFromMeasured('x')}>
-                Apply X
+                {t('Apply X')}
               </button>
             </label>
             <label className="layer-toggle-item">
-              <span>Measured Y length (mm)</span>
+              <span>{t('Measured Y length (mm)')}</span>
               <input
                 type="number"
                 min={0.1}
@@ -873,14 +874,14 @@ export function OptionsModal({
                 onChange={(e) => setMeasuredYMm(e.target.value)}
               />
               <button type="button" onClick={() => applyCalibrationFromMeasured('y')}>
-                Apply Y
+                {t('Apply Y')}
               </button>
             </label>
           </div>
         </section>
 
         <div className="modal-actions">
-          <button onClick={onClose}>Close</button>
+          <button onClick={onClose}>{t('Close')}</button>
         </div>
       </div>
     </div>

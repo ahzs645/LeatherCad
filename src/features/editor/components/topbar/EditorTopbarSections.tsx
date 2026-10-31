@@ -1,3 +1,5 @@
+import { LanguageSelector } from '../LanguageSelector'
+import { useTranslate } from '../../hooks/useTranslate'
 import { useState } from 'react'
 import { clamp } from '../../cad/cad-geometry'
 import { MOBILE_OPTIONS_TABS } from '../../editor-constants'
@@ -19,17 +21,19 @@ export function MobileQuickActions({
   onOpenProjectMemoModal,
   onOpenTemplateRepositoryModal,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group mobile-quick-actions">
       <button type="button" onClick={onOpenPrecisionModal}>
-        Precision
+        {t('Precision')}
       </button>
       <button type="button" onClick={onOpenProjectMemoModal}>
-        Project Memo
+        {t('Project Memo')}
       </button>
       <button type="button" onClick={onOpenTemplateRepositoryModal}>
-        Catalog
+        {t('Catalog')}
       </button>
+      <LanguageSelector compact />
     </div>
   )
 }
@@ -55,6 +59,7 @@ export function MobilePiecesSection({
   onSelectSeam,
   onDeleteSeamConnection,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   const pieceNameById = new Map(patternPieces.map((piece) => [piece.id, piece.name]))
 
   return (
@@ -65,21 +70,21 @@ export function MobilePiecesSection({
           onClick={onCreatePatternPieceFromSelection}
           disabled={!canCreatePatternPiece}
           title={
-            canCreatePatternPiece
+            t(canCreatePatternPiece
               ? 'Create a pattern piece from the selected closed outline'
-              : 'Select a closed outline first'
+              : 'Select a closed outline first')
           }
         >
-          Create Piece
+          {t('Create Piece')}
         </button>
         <button type="button" onClick={onOpenPieceInspector} disabled={selectedPatternPieceId === null}>
-          Edit Piece
+          {t('Edit Piece')}
         </button>
       </div>
 
       {patternPieces.length === 0 ? (
         <p className="hint">
-          No pattern pieces yet. Select a closed outline on the canvas, then Create Piece.
+          {t('No pattern pieces yet. Select a closed outline on the canvas, then Create Piece.')}
         </p>
       ) : (
         <ul className="mobile-pieces-list">
@@ -101,7 +106,7 @@ export function MobilePiecesSection({
       <h3 className="mobile-pieces-heading">{`Seams (${seamConnections.length})`}</h3>
       {seamConnections.length === 0 ? (
         <p className="hint">
-          No seams yet. Pick the Seam tool, then tap one piece edge and the edge it joins.
+          {t('No seams yet. Pick the Seam tool, then tap one piece edge and the edge it joins.')}
         </p>
       ) : (
         <ul className="mobile-pieces-list">
@@ -135,6 +140,7 @@ export function MobileOptionsTabs({
   mobileOptionsTab,
   onSetMobileOptionsTab,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group mobile-options-tabs">
       {MOBILE_OPTIONS_TABS.map((tab) => (
@@ -143,7 +149,7 @@ export function MobileOptionsTabs({
           className={mobileOptionsTab === tab.value ? 'active' : ''}
           onClick={() => onSetMobileOptionsTab(tab.value)}
         >
-          {tab.label}
+          {t(tab.label)}
         </button>
       ))}
     </div>
@@ -162,31 +168,32 @@ export function WorkspaceViewSection({
   themeMode,
   onSetThemeMode,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group zoom-controls ribbon-section" data-section="View">
-      <div className="view-mode-toggle" role="tablist" aria-label="Workspace view mode">
+      <div className="view-mode-toggle" role="tablist" aria-label={t('Workspace view mode')}>
         <button className={sketchWorkspaceMode === 'assembly' ? 'active' : ''} onClick={() => onSetSketchWorkspaceMode('assembly')}>
-          Assembly
+          {t('Assembly')}
         </button>
         <button className={sketchWorkspaceMode === 'sketch' ? 'active' : ''} onClick={() => onSetSketchWorkspaceMode('sketch')}>
-          Sketch Focus
+          {t('Sketch Focus')}
         </button>
       </div>
-      <button onClick={onToggleDimensions}>{showDimensions ? 'Hide Dimensions' : 'Show Dimensions'}</button>
-      <div className="view-mode-toggle" role="group" aria-label="Grid background">
+      <button onClick={onToggleDimensions}>{t(showDimensions ? 'Hide Dimensions' : 'Show Dimensions')}</button>
+      <div className="view-mode-toggle" role="group" aria-label={t('Grid background')}>
         <button
           className={gridBackgroundMode === 'light' ? 'active' : ''}
           onClick={onSetGridBackgroundLight}
-          title="Set grid background to white"
+          title={t('Set grid background to white')}
         >
-          Grid: White
+          {t('Grid: White')}
         </button>
         <button
           className={gridBackgroundMode === 'dark' ? 'active' : ''}
           onClick={onSetGridBackgroundDark}
-          title="Set grid background to black"
+          title={t('Set grid background to black')}
         >
-          Grid: Black
+          {t('Grid: Black')}
         </button>
       </div>
       {isMobileLayout && (
@@ -235,55 +242,56 @@ export function TransformSection({
   onConvertACopyToPath,
   onNotchSelectedShape,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group transform-controls ribbon-section" data-section="Transform">
-      <button onClick={onAlignSelectionLeft} disabled={selectedShapeCount < 2}>Align L</button>
-      <button onClick={onAlignSelectionRight} disabled={selectedShapeCount < 2}>Align R</button>
-      <button onClick={onAlignSelectionTop} disabled={selectedShapeCount < 2}>Align T</button>
-      <button onClick={onAlignSelectionBottom} disabled={selectedShapeCount < 2}>Align B</button>
-      <button onClick={onAlignSelectionMiddleH} disabled={selectedShapeCount < 2}>Center H</button>
-      <button onClick={onAlignSelectionMiddleV} disabled={selectedShapeCount < 2}>Center V</button>
-      <button onClick={onFlipSelectionHorizontally} disabled={selectedShapeCount === 0}>Flip H</button>
-      <button onClick={onFlipSelectionVertically} disabled={selectedShapeCount === 0}>Flip V</button>
-      <button onClick={onReverseSelectedPaths} disabled={selectedShapeCount === 0}>Reverse Path</button>
-      <button onClick={onSpecifyRotationAngle} disabled={selectedShapeCount === 0}>Rotate…</button>
-      <button onClick={onSpecifyScaleRatio} disabled={selectedShapeCount === 0}>Scale…</button>
-      <button onClick={onSpecifyScaleRatioHorizontally} disabled={selectedShapeCount === 0}>Scale X…</button>
-      <button onClick={onSpecifyScaleRatioVertically} disabled={selectedShapeCount === 0}>Scale Y…</button>
+      <button onClick={onAlignSelectionLeft} disabled={selectedShapeCount < 2}>{t('Align L')}</button>
+      <button onClick={onAlignSelectionRight} disabled={selectedShapeCount < 2}>{t('Align R')}</button>
+      <button onClick={onAlignSelectionTop} disabled={selectedShapeCount < 2}>{t('Align T')}</button>
+      <button onClick={onAlignSelectionBottom} disabled={selectedShapeCount < 2}>{t('Align B')}</button>
+      <button onClick={onAlignSelectionMiddleH} disabled={selectedShapeCount < 2}>{t('Center H')}</button>
+      <button onClick={onAlignSelectionMiddleV} disabled={selectedShapeCount < 2}>{t('Center V')}</button>
+      <button onClick={onFlipSelectionHorizontally} disabled={selectedShapeCount === 0}>{t('Flip H')}</button>
+      <button onClick={onFlipSelectionVertically} disabled={selectedShapeCount === 0}>{t('Flip V')}</button>
+      <button onClick={onReverseSelectedPaths} disabled={selectedShapeCount === 0}>{t('Reverse Path')}</button>
+      <button onClick={onSpecifyRotationAngle} disabled={selectedShapeCount === 0}>{t('Rotate…')}</button>
+      <button onClick={onSpecifyScaleRatio} disabled={selectedShapeCount === 0}>{t('Scale…')}</button>
+      <button onClick={onSpecifyScaleRatioHorizontally} disabled={selectedShapeCount === 0}>{t('Scale X…')}</button>
+      <button onClick={onSpecifyScaleRatioVertically} disabled={selectedShapeCount === 0}>{t('Scale Y…')}</button>
       <button
         onClick={hasCustomRotationPivot ? onClearRotationCenter : onSetAsRotationCenter}
         disabled={selectedShapeCount === 0 && !hasCustomRotationPivot}
-        title={hasCustomRotationPivot ? 'Custom rotation pivot active — click to clear' : 'Set selection center as rotation pivot'}
+        title={t(hasCustomRotationPivot ? 'Custom rotation pivot active — click to clear' : 'Set selection center as rotation pivot')}
       >
-        {hasCustomRotationPivot ? 'Clear Pivot' : 'Set Pivot'}
+        {t(hasCustomRotationPivot ? 'Clear Pivot' : 'Set Pivot')}
       </button>
       <button
         onClick={hasCustomSnapPoint ? onClearSnapPoint : onSetAsSnapPoint}
         disabled={selectedShapeCount === 0 && !hasCustomSnapPoint}
-        title={hasCustomSnapPoint ? 'Custom snap anchor active — click to clear' : 'Set selection center as snap anchor'}
+        title={t(hasCustomSnapPoint ? 'Custom snap anchor active — click to clear' : 'Set selection center as snap anchor')}
       >
-        {hasCustomSnapPoint ? 'Clear Snap Pt' : 'Set Snap Pt'}
+        {t(hasCustomSnapPoint ? 'Clear Snap Pt' : 'Set Snap Pt')}
       </button>
-      <button onClick={onMakeSelectedLineHorizontal} disabled={selectedShapeCount === 0}>Make Horiz</button>
-      <button onClick={onMakeSelectedLineVertical} disabled={selectedShapeCount === 0}>Make Vert</button>
-      <button onClick={onLineSymmetry} disabled={selectedShapeCount === 0}>Line Symmetry</button>
-      <button onClick={onCenterLineBetweenSelection} disabled={selectedShapeCount !== 2}>Center Line</button>
-      <button onClick={onEditSelectedLineAngle} disabled={selectedShapeCount === 0}>Edit Angle…</button>
-      <button onClick={onDeleteDuplicates}>Dedupe</button>
-      <button onClick={onSplitIntoN} disabled={selectedShapeCount === 0}>Split N…</button>
-      <button onClick={onDrawBoundaryAroundSelection} disabled={selectedShapeCount === 0}>Boundary</button>
-      <button onClick={onFilletSelectedCorner} disabled={selectedShapeCount !== 2}>Fillet…</button>
+      <button onClick={onMakeSelectedLineHorizontal} disabled={selectedShapeCount === 0}>{t('Make Horiz')}</button>
+      <button onClick={onMakeSelectedLineVertical} disabled={selectedShapeCount === 0}>{t('Make Vert')}</button>
+      <button onClick={onLineSymmetry} disabled={selectedShapeCount === 0}>{t('Line Symmetry')}</button>
+      <button onClick={onCenterLineBetweenSelection} disabled={selectedShapeCount !== 2}>{t('Center Line')}</button>
+      <button onClick={onEditSelectedLineAngle} disabled={selectedShapeCount === 0}>{t('Edit Angle…')}</button>
+      <button onClick={onDeleteDuplicates}>{t('Dedupe')}</button>
+      <button onClick={onSplitIntoN} disabled={selectedShapeCount === 0}>{t('Split N…')}</button>
+      <button onClick={onDrawBoundaryAroundSelection} disabled={selectedShapeCount === 0}>{t('Boundary')}</button>
+      <button onClick={onFilletSelectedCorner} disabled={selectedShapeCount !== 2}>{t('Fillet…')}</button>
       <button onClick={onDistanceMarkSelectedPath} disabled={selectedShapeCount !== 1}>
-        Distance Marks…
+        {t('Distance Marks…')}
       </button>
       <button onClick={onConvertSelectionToPath} disabled={selectedShapeCount === 0}>
-        → Path
+        {t('→ Path')}
       </button>
       <button onClick={onConvertACopyToPath} disabled={selectedShapeCount === 0}>
-        Copy → Path
+        {t('Copy → Path')}
       </button>
       <button onClick={onNotchSelectedShape} disabled={selectedShapeCount !== 1}>
-        Notch (Kama)…
+        {t('Notch (Kama)…')}
       </button>
     </div>
   )
@@ -296,9 +304,10 @@ export function LineTypeSection({
   onToggleActiveLineTypeVisibility,
   onOpenLineTypePalette,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group line-type-controls ribbon-section" data-section="Line Types">
-      <span className="line-type-label">Line Type</span>
+      <span className="line-type-label">{t('Line Type')}</span>
       <select
         className="line-type-select"
         value={activeLineType?.id ?? ''}
@@ -308,14 +317,14 @@ export function LineTypeSection({
           <option key={lineType.id} value={lineType.id}>
             {lineType.name}
             {` [${lineType.role}]`}
-            {lineType.visible ? '' : ' (hidden)'}
+            {t(lineType.visible ? '' : ' (hidden)')}
           </option>
         ))}
       </select>
       <button onClick={onToggleActiveLineTypeVisibility} disabled={!activeLineType}>
-        {activeLineType?.visible ? 'Hide Type' : 'Show Type'}
+        {t(activeLineType?.visible ? 'Hide Type' : 'Show Type')}
       </button>
-      <button onClick={onOpenLineTypePalette}>Palette</button>
+      <button onClick={onOpenLineTypePalette}>{t('Palette')}</button>
     </div>
   )
 }
@@ -421,9 +430,10 @@ export function LayerSection({
   onToggleLayerIgnored,
   onToggleIndependentLayer,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group layer-controls ribbon-section" data-section="Layers">
-      <span className="layer-label">Layer</span>
+      <span className="layer-label">{t('Layer')}</span>
       <select
         className="layer-select"
         value={activeLayer?.id ?? ''}
@@ -436,8 +446,8 @@ export function LayerSection({
           <option key={layer.id} value={layer.id}>
             {index + 1}. {layer.name}
             {` [z${layerStackLevels[layer.id] ?? index}]`}
-            {layer.visible ? '' : ' (hidden)'}
-            {layer.locked ? ' (locked)' : ''}
+            {t(layer.visible ? '' : ' (hidden)')}
+            {t(layer.locked ? ' (locked)' : '')}
           </option>
         ))}
       </select>
@@ -448,123 +458,123 @@ export function LayerSection({
             value={mobileLayerAction}
             onChange={(event) => onSetMobileLayerAction(event.target.value as MobileLayerAction)}
           >
-            <option value="add">Add Layer</option>
-            <option value="rename">Rename Layer</option>
-            <option value="toggle-visibility">{activeLayer?.visible ? 'Hide Layer' : 'Show Layer'}</option>
-            <option value="toggle-lock">{activeLayer?.locked ? 'Unlock Layer' : 'Lock Layer'}</option>
-            <option value="move-up">Move Layer Up</option>
-            <option value="move-down">Move Layer Down</option>
-            <option value="delete">Delete Layer</option>
-            <option value="show-all">Show All Layers</option>
-            <option value="hide-others">Hide Other Layers</option>
-            <option value="merge-below">Merge Into Below</option>
-            <option value="flatten-all">Flatten All Layers</option>
-            <option value="colors">Layer Colors</option>
+            <option value="add">{t('Add Layer')}</option>
+            <option value="rename">{t('Rename Layer')}</option>
+            <option value="toggle-visibility">{t(activeLayer?.visible ? 'Hide Layer' : 'Show Layer')}</option>
+            <option value="toggle-lock">{t(activeLayer?.locked ? 'Unlock Layer' : 'Lock Layer')}</option>
+            <option value="move-up">{t('Move Layer Up')}</option>
+            <option value="move-down">{t('Move Layer Down')}</option>
+            <option value="delete">{t('Delete Layer')}</option>
+            <option value="show-all">{t('Show All Layers')}</option>
+            <option value="hide-others">{t('Hide Other Layers')}</option>
+            <option value="merge-below">{t('Merge Into Below')}</option>
+            <option value="flatten-all">{t('Flatten All Layers')}</option>
+            <option value="colors">{t('Layer Colors')}</option>
           </select>
           <button onClick={onRunMobileLayerAction} disabled={layers.length === 0}>
-            Apply
+            {t('Apply')}
           </button>
         </div>
       ) : (
         <>
-          <button onClick={onAddLayer}>+ Layer</button>
+          <button onClick={onAddLayer}>{t('+ Layer')}</button>
           <button onClick={onRenameActiveLayer} disabled={!activeLayer}>
-            Rename
+            {t('Rename')}
           </button>
           <button onClick={onToggleLayerVisibility} disabled={!activeLayer}>
-            {activeLayer?.visible ? 'Hide' : 'Show'}
+            {t(activeLayer?.visible ? 'Hide' : 'Show')}
           </button>
           <button onClick={onToggleLayerLock} disabled={!activeLayer}>
-            {activeLayer?.locked ? 'Unlock' : 'Lock'}
+            {t(activeLayer?.locked ? 'Unlock' : 'Lock')}
           </button>
           <button onClick={onMoveLayerUp} disabled={!activeLayer || layers.length < 2}>
-            Up
+            {t('Up')}
           </button>
           <button onClick={onMoveLayerDown} disabled={!activeLayer || layers.length < 2}>
-            Down
+            {t('Down')}
           </button>
           <button onClick={onDeleteLayer} disabled={!activeLayer || layers.length < 2}>
-            Delete
+            {t('Delete')}
           </button>
           <button
             onClick={onShowAllLayers}
             disabled={layers.length === 0}
-            title="Show every layer"
+            title={t('Show every layer')}
           >
-            Show All
+            {t('Show All')}
           </button>
           <button
             onClick={onHideOtherLayers}
             disabled={!activeLayer || layers.length < 2}
-            title="Hide every layer except the active layer"
+            title={t('Hide every layer except the active layer')}
           >
-            Hide Others
+            {t('Hide Others')}
           </button>
           <button
             onClick={onMergeActiveLayerIntoBelow}
             disabled={!activeLayer || layers.length < 2}
-            title="Merge the active layer into the layer directly below it"
+            title={t('Merge the active layer into the layer directly below it')}
           >
-            Merge Below
+            {t('Merge Below')}
           </button>
           <button
             onClick={onFlattenAllLayers}
             disabled={layers.length < 2}
-            title="Move all layer contents onto the active layer and remove the other layers"
+            title={t('Move all layer contents onto the active layer and remove the other layers')}
           >
-            Flatten All
+            {t('Flatten All')}
           </button>
           <button onClick={onOpenLayerColorModal} disabled={layers.length === 0}>
-            Colors
+            {t('Colors')}
           </button>
           <button
             onClick={onActivateLayerOfSelectedShape}
             disabled={selectedShapeCount === 0}
-            title="Activate the layer containing the selected shape"
+            title={t('Activate the layer containing the selected shape')}
           >
-            Activate Selected
+            {t('Activate Selected')}
           </button>
           <button
             onClick={onHighlightShapesOnCurrentLayer}
             disabled={!activeLayer}
-            title="Select all shapes on the active layer"
+            title={t('Select all shapes on the active layer')}
           >
-            Highlight Layer
+            {t('Highlight Layer')}
           </button>
           <button
             onClick={onMoveSelectionToAnotherLayer}
             disabled={selectedShapeCount === 0 || layers.length < 2}
-            title="Move selection to another layer by name"
+            title={t('Move selection to another layer by name')}
           >
-            Move To Layer…
+            {t('Move To Layer…')}
           </button>
           <button
             onClick={onMoveSelectionToLayerBelow}
             disabled={selectedShapeCount === 0 || layers.length < 2}
-            title="Move selection to the layer directly below the active one"
+            title={t('Move selection to the layer directly below the active one')}
           >
-            Move To Below
+            {t('Move To Below')}
           </button>
           <button
             onClick={onDuplicateSelectionOnLayerBelow}
             disabled={selectedShapeCount === 0 || layers.length < 2}
-            title="Duplicate selection onto the layer directly below the active one"
+            title={t('Duplicate selection onto the layer directly below the active one')}
           >
-            Duplicate To Below
+            {t('Duplicate To Below')}
           </button>
           <button
             onClick={onToggleLayerIgnored}
             disabled={!activeLayer}
-            title="Toggle whether the active layer is ignored by operations"
+            title={t('Toggle whether the active layer is ignored by operations')}
           >
-            {activeLayer?.ignored ? 'Unignore' : 'Ignore'}
+            {t(activeLayer?.ignored ? 'Unignore' : 'Ignore')}
           </button>
           <button
             onClick={onToggleIndependentLayer}
             disabled={!activeLayer}
-            title="Toggle whether the active layer is independent of linked-group transforms"
+            title={t('Toggle whether the active layer is independent of linked-group transforms')}
           >
-            {activeLayer?.independent ? 'Make Linked' : 'Make Independent'}
+            {t(activeLayer?.independent ? 'Make Linked' : 'Make Independent')}
           </button>
         </>
       )}
@@ -578,6 +588,7 @@ export function LeatherCatalogSection({
   onSelectCatalogShop,
   onOpenTemplateRepositoryModal,
 }: Pick<EditorTopbarProps, 'catalogRepository' | 'selectedCatalogShopId' | 'onSelectCatalogShop' | 'onOpenTemplateRepositoryModal'>) {
+  const t = useTranslate()
   const [groupId, setGroupId] = useState<string | null>(null)
   const [itemId, setItemId] = useState<string | null>(null)
   const selectedShop = catalogRepository.find((shop) => shop.id === selectedCatalogShopId) ?? null
@@ -588,7 +599,7 @@ export function LeatherCatalogSection({
   return (
     <div className="group leather-catalog-controls ribbon-section" data-section="Leather">
       <label className="field-row">
-        <span>Shop</span>
+        <span>{t('Shop')}</span>
         <select
           className="action-select"
           value={selectedCatalogShopId ?? ''}
@@ -599,7 +610,7 @@ export function LeatherCatalogSection({
             setItemId(null)
           }}
         >
-          <option value="">— pick a shop —</option>
+          <option value="">{t('— pick a shop —')}</option>
           {catalogRepository.map((shop) => (
             <option key={shop.id} value={shop.id}>
               {shop.name}
@@ -608,7 +619,7 @@ export function LeatherCatalogSection({
         </select>
       </label>
       <label className="field-row">
-        <span>Brand</span>
+        <span>{t('Brand')}</span>
         <select
           className="action-select"
           value={selectedGroup?.id ?? ''}
@@ -618,7 +629,7 @@ export function LeatherCatalogSection({
             setItemId(null)
           }}
         >
-          <option value="">— pick a brand —</option>
+          <option value="">{t('— pick a brand —')}</option>
           {groups.map((group) => (
             <option key={group.id} value={group.id}>
               {group.name}
@@ -627,14 +638,14 @@ export function LeatherCatalogSection({
         </select>
       </label>
       <label className="field-row">
-        <span>Item</span>
+        <span>{t('Item')}</span>
         <select
           className="action-select"
           value={selectedItem?.id ?? ''}
           disabled={items.length === 0}
           onChange={(event) => setItemId(event.target.value || null)}
         >
-          <option value="">— pick an item —</option>
+          <option value="">{t('— pick an item —')}</option>
           {items.map((item) => (
             <option key={item.id} value={item.id}>
               {item.name}
@@ -649,9 +660,9 @@ export function LeatherCatalogSection({
           if (selectedShop) onSelectCatalogShop(selectedShop.id)
           onOpenTemplateRepositoryModal()
         }}
-        title="Open this item in the Template Repository → Catalog tab"
+        title={t('Open this item in the Template Repository → Catalog tab')}
       >
-        Open in Repository…
+        {t('Open in Repository…')}
       </button>
     </div>
   )
@@ -688,6 +699,7 @@ export function FileSection({
   onSelectConnectedChain,
   onOpenLengthAdjustModal,
 }: EditorTopbarProps) {
+  const t = useTranslate()
   return (
     <div className="group file-controls ribbon-section" data-section="Output">
       {isMobileLayout ? (
@@ -697,85 +709,86 @@ export function FileSection({
             value={mobileFileAction}
             onChange={(event) => onSetMobileFileAction(event.target.value as MobileFileAction)}
           >
-            <optgroup label="Inputs">
-              <option value="load-json">Load JSON / LCC</option>
-              <option value="import-svg">Import SVG</option>
-              <option value="load-preset">Load Preset</option>
-              <option value="import-tracing">Import Image / PDF Tracing</option>
-              <option value="import-pattern-pdf">Import Pattern PDF</option>
+            <optgroup label={t('Inputs')}>
+              <option value="load-json">{t('Load JSON / LCC')}</option>
+              <option value="import-svg">{t('Import SVG')}</option>
+              <option value="load-preset">{t('Load Preset')}</option>
+              <option value="import-tracing">{t('Import Image / PDF Tracing')}</option>
+              <option value="import-pattern-pdf">{t('Import Pattern PDF')}</option>
             </optgroup>
-            <optgroup label="Exports">
-              <option value="save-json">Save JSON</option>
-              <option value="save-lcc">Save LCC</option>
-              <option value="export-svg">Export SVG</option>
-              <option value="export-pdf">Export PDF</option>
-              <option value="export-dxf">Export DXF</option>
-              <option value="export-options">Export Options</option>
-              <option value="print-preview">Print Preview</option>
+            <optgroup label={t('Exports')}>
+              <option value="save-json">{t('Save JSON')}</option>
+              <option value="save-lcc">{t('Save LCC')}</option>
+              <option value="export-svg">{t('Export SVG')}</option>
+              <option value="export-pdf">{t('Export PDF')}</option>
+              <option value="export-dxf">{t('Export DXF')}</option>
+              <option value="export-options">{t('Export Options')}</option>
+              <option value="print-preview">{t('Print Preview')}</option>
             </optgroup>
-            <optgroup label="Tools">
-              <option value="local-projects">Local Projects</option>
-              <option value="template-repository">Template Repository</option>
-              <option value="pattern-tools">Pattern Tools</option>
+            <optgroup label={t('Tools')}>
+              <option value="file-tools">{t('File tools')}</option>
+              <option value="local-projects">{t('Local Projects')}</option>
+              <option value="template-repository">{t('Template Repository')}</option>
+              <option value="pattern-tools">{t('Pattern Tools')}</option>
             </optgroup>
-            <optgroup label="Edit">
-              <option value="undo">Undo</option>
-              <option value="redo">Redo</option>
-              <option value="copy">Copy Selection</option>
-              <option value="paste">Paste</option>
-              <option value="delete">Delete Selection</option>
+            <optgroup label={t('Edit')}>
+              <option value="undo">{t('Undo')}</option>
+              <option value="redo">{t('Redo')}</option>
+              <option value="copy">{t('Copy Selection')}</option>
+              <option value="paste">{t('Paste')}</option>
+              <option value="delete">{t('Delete Selection')}</option>
             </optgroup>
-            <optgroup label="View / Reset">
-              <option value="toggle-3d">{showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel'}</option>
-              <option value="clear">Clear Document</option>
+            <optgroup label={t('View / Reset')}>
+              <option value="toggle-3d">{t(showThreePreview ? 'Hide 3D Panel' : 'Show 3D Panel')}</option>
+              <option value="clear">{t('Clear Document')}</option>
             </optgroup>
           </select>
-          <button onClick={onRunMobileFileAction}>Apply</button>
+          <button onClick={onRunMobileFileAction}>{t('Apply')}</button>
         </div>
       ) : (
         <>
-          <div className="file-action-cluster" role="group" aria-label="Input actions">
-            <span className="file-action-cluster-label">Inputs</span>
+          <div className="file-action-cluster" role="group" aria-label={t('Input actions')}>
+            <span className="file-action-cluster-label">{t('Inputs')}</span>
             <div className="file-action-row">
-              <button onClick={onOpenLoadJson}>Load JSON / LCC</button>
-              <button onClick={onOpenImportSvg}>Import SVG</button>
-              <button onClick={onLoadPreset}>Load Preset</button>
-              <button onClick={onOpenTracingImport}>Import Tracing (Image / PDF)</button>
-              <button onClick={onOpenPatternPdfImport}>Import Pattern PDF</button>
+              <button onClick={onOpenLoadJson}>{t('Load JSON / LCC')}</button>
+              <button onClick={onOpenImportSvg}>{t('Import SVG')}</button>
+              <button onClick={onLoadPreset}>{t('Load Preset')}</button>
+              <button onClick={onOpenTracingImport}>{t('Import Tracing (Image / PDF)')}</button>
+              <button onClick={onOpenPatternPdfImport}>{t('Import Pattern PDF')}</button>
             </div>
           </div>
-          <div className="file-action-cluster" role="group" aria-label="Export actions">
-            <span className="file-action-cluster-label">Exports</span>
+          <div className="file-action-cluster" role="group" aria-label={t('Export actions')}>
+            <span className="file-action-cluster-label">{t('Exports')}</span>
             <div className="file-action-row">
-              <button onClick={onOpenInNewTab}>Open in New Tab</button>
-              <button onClick={onOpenLocalProjectsModal}>Projects</button>
-              <button onClick={onOpenExportModal}>Open Export Center</button>
+              <button onClick={onOpenInNewTab}>{t('Open in New Tab')}</button>
+              <button onClick={onOpenLocalProjectsModal}>{t('Projects')}</button>
+              <button onClick={onOpenExportModal}>{t('Open Export Center')}</button>
             </div>
           </div>
-          <div className="file-action-cluster" role="group" aria-label="Output tools">
-            <span className="file-action-cluster-label">Tools</span>
+          <div className="file-action-cluster" role="group" aria-label={t('Output tools')}>
+            <span className="file-action-cluster-label">{t('Tools')}</span>
             <div className="file-action-row">
-              <button onClick={onOpenPatternToolsModal}>Pattern Tools</button>
-              <button onClick={onOpenTemplateRepositoryModal}>Templates</button>
+              <button onClick={onOpenPatternToolsModal}>{t('Pattern Tools')}</button>
+              <button onClick={onOpenTemplateRepositoryModal}>{t('Templates')}</button>
               <button onClick={onOpenTracingModal} disabled={!hasTracingOverlays}>
-                Tracing Controls
+                {t('Tracing Controls')}
               </button>
-              <button onClick={onResetDocument}>Clear</button>
-              <button onClick={onCloseProject}>Close Project…</button>
-              <button onClick={onAddBackdrop}>Add Backdrop</button>
-              <button onClick={onOpenFontListModal}>Fonts…</button>
-              <button onClick={onOpenSecretFeatures}>Bonus Features…</button>
-              <button onClick={onOpenOptionsModal}>Options…</button>
-              <button onClick={onImportTranslation}>Load Translation…</button>
+              <button onClick={onResetDocument}>{t('Clear')}</button>
+              <button onClick={onCloseProject}>{t('Close Project…')}</button>
+              <button onClick={onAddBackdrop}>{t('Add Backdrop')}</button>
+              <button onClick={onOpenFontListModal}>{t('Fonts…')}</button>
+              <button onClick={onOpenSecretFeatures}>{t('Bonus Features…')}</button>
+              <button onClick={onOpenOptionsModal}>{t('Options…')}</button>
+              <button onClick={onImportTranslation}>{t('Load Translation…')}</button>
               <button onClick={onStampSimulator} disabled={selectedShapeCount === 0}>
-                Stamp Simulator…
+                {t('Stamp Simulator…')}
               </button>
-              <button onClick={onClearAll}>Clear All</button>
+              <button onClick={onClearAll}>{t('Clear All')}</button>
               <button onClick={onSelectConnectedChain} disabled={selectedShapeCount !== 1}>
-                Select Chain
+                {t('Select Chain')}
               </button>
               <button onClick={onOpenLengthAdjustModal} disabled={selectedShapeCount === 0}>
-                Length Adjust…
+                {t('Length Adjust…')}
               </button>
             </div>
           </div>

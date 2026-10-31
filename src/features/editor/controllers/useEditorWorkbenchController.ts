@@ -61,6 +61,10 @@ type UseEditorWorkbenchControllerParams = {
   isMobileLayout: boolean
   workspaceMode: WorkspaceMode
   handleSaveJson: () => void
+  handleSaveLcad: () => void
+  handleOpenFileTools: () => void
+  handleOpenStlExport: () => void
+  handleOpenCloudCommunity: () => void
   handleUndo: () => void
   handleRedo: () => void
   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>
@@ -164,6 +168,10 @@ export function useEditorWorkbenchController({
   isMobileLayout,
   workspaceMode,
   handleSaveJson,
+  handleSaveLcad,
+  handleOpenFileTools,
+  handleOpenStlExport,
+  handleOpenCloudCommunity,
   handleUndo,
   handleRedo,
   setShowHelpModal,
@@ -307,6 +315,19 @@ export function useEditorWorkbenchController({
     switch (actionId) {
       case 'save-json':
         handleSaveJson()
+        break
+      case 'save-lcad':
+        handleSaveLcad()
+        break
+      case 'file-tools':
+      case 'import-dxf':
+        handleOpenFileTools()
+        break
+      case 'export-stl':
+        handleOpenStlExport()
+        break
+      case 'cloud-community':
+        handleOpenCloudCommunity()
         break
       case 'undo':
         handleUndo()
@@ -468,6 +489,19 @@ export function useEditorWorkbenchController({
         break
       case 'save-json':
         handleSaveJson()
+        break
+      case 'save-lcad':
+        handleSaveLcad()
+        break
+      case 'file-tools':
+      case 'import-dxf':
+        handleOpenFileTools()
+        break
+      case 'export-stl':
+        handleOpenStlExport()
+        break
+      case 'cloud-community':
+        handleOpenCloudCommunity()
         break
       case 'local-projects':
         setShowLocalProjectsModal(true)

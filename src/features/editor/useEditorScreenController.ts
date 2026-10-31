@@ -13,6 +13,7 @@ import { useLayerActions } from './hooks/useLayerActions'
 import { useConstraintActions } from './hooks/useConstraintActions'
 import { useStitchActions } from './hooks/useStitchActions'
 import { useFileActions } from './hooks/useFileActions'
+import { useInterchangePanels } from './hooks/useInterchangePanels'
 import { useTemplateActions } from './hooks/useTemplateActions'
 import { useTracingActions } from './hooks/useTracingActions'
 import { useBackdropActions } from './hooks/useBackdropActions'
@@ -94,6 +95,7 @@ export function useEditorScreenController() {
     backdrops, setBackdrops,
     activeBackdropId, setActiveBackdropId,
     projectMemo, setProjectMemo,
+    communityProvenance, setCommunityProvenance,
     stitchAlwaysShapeIds, setStitchAlwaysShapeIds,
     stitchThreadColor, setStitchThreadColor,
     threePreviewSettings, setThreePreviewSettings,
@@ -351,6 +353,7 @@ export function useEditorScreenController() {
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    setCommunityProvenance,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -408,6 +411,7 @@ export function useEditorScreenController() {
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    setCommunityProvenance,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -538,6 +542,7 @@ export function useEditorScreenController() {
     tracingOverlays,
     backdrops,
     projectMemo,
+    communityProvenance,
     stitchAlwaysShapeIds,
     stitchThreadColor,
     threePreviewSettings,
@@ -859,6 +864,7 @@ export function useEditorScreenController() {
     setShowMobileMenu,
   })
   const { handleSaveJson, handleSaveLcc, handleLoadPreset } = fileActions
+  const interchangePanels = useInterchangePanels()
 
   useAutoSave({
     enabled: autoSaveEnabled,
@@ -1111,6 +1117,7 @@ export function useEditorScreenController() {
   })
 
   const mobileActions = useMobileActions({
+    handleOpenFileTools: interchangePanels.openFiles,
     mobileLayerAction,
     mobileFileAction,
     fileInputRef,
@@ -1182,7 +1189,7 @@ export function useEditorScreenController() {
     lineTypesById,
   })
   const screenActions: EditorScreenShellActions = {
-    editorStateActions, documentCommands, exportActions, fileActions, historyActions, selectionActions, transformActions,
+    editorStateActions, documentCommands, exportActions, fileActions, interchangePanels, historyActions, selectionActions, transformActions,
     layerActions, lineTypeActions, leatherImageFillActions, layerColorActions, constraintActions, sketchGroupActions,
     patternPieceCommands, hardwareMarkerActions, stitchActions, geometryActions, creationController, mobileActions, themeActions,
   }
@@ -1258,6 +1265,17 @@ export function useEditorScreenController() {
     },
     mobileShell,
     desktopShell,
-    overlay,
+    overlay: {
+      ...overlay,
+      interchangeProps: {
+        panels: interchangePanels,
+        buildCurrentDocFile,
+        onSaveLcad: fileActions.handleSaveLcad,
+        onLoadDocument: (doc: Parameters<typeof applyLoadedDocument>[0]) => applyLoadedDocument(doc, 'Loaded cloud project'),
+        onStatus: setStatus,
+        selectedShapeIds,
+        dxfImportProps: { setLayers, setLineTypes, setShapes, setSelectedShapeIds, setStatus, importSessionKey: shapes },
+      },
+    },
   }
 }

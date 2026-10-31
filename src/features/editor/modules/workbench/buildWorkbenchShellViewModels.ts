@@ -40,6 +40,7 @@ type BuildWorkbenchPropsParams = {
   onToggleInspector: () => void
   zoomScale: number
   displayUnit: DisplayUnit
+  statusText?: string
   activeLayer: Layer | null
   activeLineType: LineType | null
   onTogglePrecision: () => void
@@ -73,6 +74,7 @@ export function buildWorkbenchProps({
   onToggleInspector,
   zoomScale,
   displayUnit,
+  statusText,
   activeLayer,
   activeLineType,
   onTogglePrecision,
@@ -139,6 +141,7 @@ export function buildWorkbenchProps({
     onToggleInspector,
     toolLabel: toolLabel(tool),
     selectionText: controller.selectionText,
+    statusText,
     zoomPercent: Math.round(zoomScale * 100),
     displayUnit,
     activeLayerName: activeLayer?.name ?? 'None',

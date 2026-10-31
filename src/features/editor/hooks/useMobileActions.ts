@@ -19,6 +19,7 @@ type UseMobileActionsParams = {
   handleMergeActiveLayerIntoBelow: () => void
   handleFlattenAllLayers: () => void
   handleSaveJson: () => void
+  handleOpenFileTools: () => void
   handleSaveLcc: () => void
   handleLoadPreset: () => void
   handleExportSvg: () => void
@@ -58,6 +59,7 @@ export function useMobileActions(params: UseMobileActionsParams) {
     handleMergeActiveLayerIntoBelow,
     handleFlattenAllLayers,
     handleSaveJson,
+    handleOpenFileTools,
     handleSaveLcc,
     handleLoadPreset,
     handleExportSvg,
@@ -138,6 +140,10 @@ export function useMobileActions(params: UseMobileActionsParams) {
   }
 
   const handleRunMobileFileAction = () => {
+    if (mobileFileAction === 'file-tools') {
+      handleOpenFileTools()
+      return
+    }
     if (mobileFileAction === 'save-json') {
       handleSaveJson()
       return

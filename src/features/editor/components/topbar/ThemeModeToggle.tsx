@@ -1,3 +1,4 @@
+import { useTranslate } from '../../hooks/useTranslate'
 import type { ThemeMode } from '../../editor-types'
 
 const THEME_OPTIONS: Array<{ mode: ThemeMode; label: string }> = [
@@ -47,16 +48,17 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
 }
 
 export function ThemeModeToggle({ themeMode, onSetThemeMode, className }: ThemeModeToggleProps) {
+  const t = useTranslate()
   return (
-    <div className={`theme-mode-toggle${className ? ` ${className}` : ''}`} role="group" aria-label="Theme mode">
+    <div className={`theme-mode-toggle${className ? ` ${className}` : ''}`} role="group" aria-label={t('Theme mode')}>
       {THEME_OPTIONS.map(({ mode, label }) => (
         <button
           key={mode}
           type="button"
           className={`theme-mode-button${themeMode === mode ? ' active' : ''}`}
           onClick={() => onSetThemeMode(mode)}
-          aria-label={label}
-          title={label}
+          aria-label={t(label)}
+          title={t(label)}
         >
           <ThemeModeIcon mode={mode} />
         </button>

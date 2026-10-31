@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import { useState } from 'react'
 
 export type SvgImportMode = 'grouped' | 'exploded'
@@ -23,6 +24,7 @@ export function SvgImportOptionsModal({
   onClose,
   onApply,
 }: SvgImportOptionsModalProps) {
+  const t = useTranslate()
   const [targetWidthMm, setTargetWidthMm] = useState(Math.max(0.01, sourceWidthMm))
   const [mode, setMode] = useState<SvgImportMode>('grouped')
 
@@ -35,17 +37,17 @@ export function SvgImportOptionsModal({
   const canApply = Number.isFinite(targetWidthMm) && targetWidthMm > 0
 
   return (
-    <div className="modal-overlay" onClick={onClose} aria-label="SVG Import Options">
+    <div className="modal-overlay" onClick={onClose} aria-label={t('SVG Import Options')}>
       <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-        <h3>SVG Import Options</h3>
+        <h3>{t('SVG Import Options')}</h3>
 
         <p>
-          {fileName}: {shapeCount} shape{shapeCount === 1 ? '' : 's'}
+          {fileName}: {shapeCount} {t('shape')}{t(shapeCount === 1 ? '' : 's')}
           {warningCount > 0 ? `, ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}
         </p>
 
         <label className="field-row">
-          <span>Import width (mm)</span>
+          <span>{t('Import width (mm)')}</span>
           <input
             type="number"
             min={0.01}
@@ -56,22 +58,22 @@ export function SvgImportOptionsModal({
         </label>
 
         <p>
-          Height: {targetHeightMm.toFixed(2)} mm | Scale: {scalePercent.toFixed(1)}%
+          {t('Height:')} {targetHeightMm.toFixed(2)} {t('mm | Scale:')} {scalePercent.toFixed(1)}%
         </p>
 
-        <div className="view-mode-toggle" role="tablist" aria-label="SVG import mode">
+        <div className="view-mode-toggle" role="tablist" aria-label={t('SVG import mode')}>
           <button className={mode === 'grouped' ? 'active' : ''} onClick={() => setMode('grouped')}>
-            Grouped
+            {t('Grouped')}
           </button>
           <button className={mode === 'exploded' ? 'active' : ''} onClick={() => setMode('exploded')}>
-            Exploded
+            {t('Exploded')}
           </button>
         </div>
 
         <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
+          <button onClick={onClose}>{t('Cancel')}</button>
           <button onClick={() => onApply(targetWidthMm, mode)} disabled={!canApply}>
-            Import
+            {t('Import')}
           </button>
         </div>
       </div>

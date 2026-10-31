@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import type { RibbonCommandGroup } from './workbench-types'
 import { WorkbenchIcon } from './workbench-icons'
 import { resolveRibbonCommandIcon } from './workbench-icon-resolvers'
@@ -11,11 +12,12 @@ export function WorkbenchRibbon({
   groups,
   onInvokeCommand,
 }: WorkbenchRibbonProps) {
+  const t = useTranslate()
   return (
     <section className="workbench-ribbon">
       <div className="workbench-ribbon-groups">
         {groups.map((group) => (
-          <section key={group.id} className="workbench-ribbon-group" aria-label={group.title}>
+          <section key={group.id} className="workbench-ribbon-group" aria-label={t(group.title)}>
             <div className="workbench-ribbon-buttons">
               {group.items.map((item) => (
                 <button
@@ -29,11 +31,11 @@ export function WorkbenchRibbon({
                   <span className="workbench-ribbon-command-icon" aria-hidden="true">
                     <WorkbenchIcon name={resolveRibbonCommandIcon(item)} />
                   </span>
-                  <span className="workbench-ribbon-command-label">{item.label}</span>
+                  <span className="workbench-ribbon-command-label">{t(item.label)}</span>
                 </button>
               ))}
             </div>
-            <div className="workbench-ribbon-group-title">{group.title}</div>
+            <div className="workbench-ribbon-group-title">{t(group.title)}</div>
           </section>
         ))}
       </div>

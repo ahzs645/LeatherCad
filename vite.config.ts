@@ -16,9 +16,37 @@ const ATELIER = [
   '@atelier/viewport',
 ]
 
+// Linked engine source is excluded from scanning below. Discovering its lazy
+// browser dependencies on first use otherwise makes Vite re-optimize and reload
+// an already edited document. Include the known runtime imports at startup.
+const LAZY_BROWSER_DEPENDENCIES = [
+  'clipper-lib', 'dexie', 'opentype.js', 'pdfjs-dist/legacy/build/pdf.mjs', 'three',
+  '@atelier/geometry > delaunator',
+  'three/addons/controls/OrbitControls.js',
+  'three/addons/controls/TransformControls.js',
+  'three/addons/environments/RoomEnvironment.js',
+  'three/addons/lines/LineMaterial.js',
+  'three/addons/lines/LineSegments2.js',
+  'three/addons/lines/LineSegmentsGeometry.js',
+  'three/addons/loaders/RGBELoader.js',
+  'three/addons/postprocessing/BokehPass.js',
+  'three/addons/postprocessing/EffectComposer.js',
+  'three/addons/postprocessing/GTAOPass.js',
+  'three/addons/postprocessing/OutputPass.js',
+  'three/addons/postprocessing/Pass.js',
+  'three/addons/postprocessing/RenderPass.js',
+  'three/addons/postprocessing/SMAAPass.js',
+  'three/examples/jsm/controls/OrbitControls.js',
+  'three/examples/jsm/exporters/GLTFExporter.js',
+  'three/examples/jsm/exporters/OBJExporter.js',
+  'three/examples/jsm/exporters/STLExporter.js',
+  'three/examples/jsm/loaders/GLTFLoader.js',
+]
+
 export default defineConfig({
   plugins: [react()],
   base: process.env.VITE_BASE_PATH || '/',
+  cacheDir: process.env.VITE_CACHE_DIR || 'node_modules/.vite',
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),
@@ -28,6 +56,7 @@ export default defineConfig({
     dedupe: ['three'],
   },
   optimizeDeps: {
+    include: LAZY_BROWSER_DEPENDENCIES,
     // The engine ships .ts source with no build step. Vite's dependency
     // optimizer parses linked deps as plain JS and chokes on `import type`,
     // so these must go through the normal source pipeline instead.

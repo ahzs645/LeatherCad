@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import type { ReactNode } from 'react'
 import type { WorkbenchInspectorTab } from './workbench-types'
 import { WorkbenchIcon } from './workbench-icons'
@@ -30,6 +31,7 @@ export function WorkbenchInspectorDock({
   onRequestPreview3D,
   onToggleInspector,
 }: WorkbenchInspectorDockProps) {
+  const t = useTranslate()
   const contentByTab: Record<WorkbenchInspectorTab, ReactNode> = {
     inspect: inspectContent,
     piece: pieceContent,
@@ -38,8 +40,8 @@ export function WorkbenchInspectorDock({
   }
 
   return (
-    <aside className="workbench-inspector-dock" aria-label="Inspector dock">
-      <div className="workbench-inspector-tabs" role="tablist" aria-label="Inspector tabs">
+    <aside className="workbench-inspector-dock" aria-label={t('Inspector dock')}>
+      <div className="workbench-inspector-tabs" role="tablist" aria-label={t('Inspector tabs')}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -56,15 +58,15 @@ export function WorkbenchInspectorDock({
               onSetActiveTab(tab.id)
             }}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
         <button
           type="button"
           className="workbench-inspector-collapse"
           data-testid="workbench-inspector-hide"
-          aria-label="Hide inspector dock"
-          title="Hide inspector dock"
+          aria-label={t('Hide inspector dock')}
+          title={t('Hide inspector dock')}
           onClick={onToggleInspector}
         >
           <WorkbenchIcon name="clear" />

@@ -63,6 +63,7 @@ import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from './editor-
 import { normalizeStitchHoleSequences, parseStitchHole } from './ops/stitch-hole-ops'
 import { sanitizeSketchGroupLinks } from './ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from './ops/pattern-piece-ops'
+import { parseCommunityProvenance } from './ops/community-provenance'
 
 type ImportedJsonCandidate = {
   documentName?: unknown
@@ -88,6 +89,7 @@ type ImportedJsonCandidate = {
   tracingOverlays?: unknown[]
   backdrops?: unknown[]
   projectMemo?: unknown
+  communityProvenance?: unknown
   stitchAlwaysShapeIds?: unknown[]
   stitchThreadColor?: unknown
   threePreviewSettings?: unknown
@@ -117,7 +119,7 @@ export type ImportedJsonResult = {
   }
 }
 
-export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
+export function parseImportedJsonDocument(raw: string, options: { preserveShapeIds?: boolean } = {}): ImportedJsonResult {
   const parsed = JSON.parse(raw) as ImportedJsonCandidate
 
   if (!Array.isArray(parsed.objects)) {
@@ -202,7 +204,10 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       typeof (candidate as { id?: unknown }).id === 'string' && (candidate as { id: string }).id.length > 0
         ? (candidate as { id: string }).id
         : uid()
-    const nextShapeId = uid()
+    if (options.preserveShapeIds && (typeof (candidate as { id?: unknown }).id !== 'string' || !(candidate as { id: string }).id || shapeIdMap.has(sourceShapeId))) {
+      throw new Error('Cloud drawing contains missing or duplicate shape IDs')
+    }
+    const nextShapeId = options.preserveShapeIds ? sourceShapeId : uid()
     shapeIdMap.set(sourceShapeId, nextShapeId)
 
     const arrowStart =
@@ -311,6 +316,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
   const normalizedStitchHoles = normalizeStitchHoleSequences(nextStitchHoles)
   const nextShapeIdSet = new Set(nextShapes.map((shape) => shape.id))
   const projectMemo = typeof parsed.projectMemo === 'string' ? parsed.projectMemo.slice(0, 8000) : ''
+  const communityProvenance = parseCommunityProvenance(parsed.communityProvenance)
   const stitchAlwaysShapeIds = Array.isArray(parsed.stitchAlwaysShapeIds)
     ? parsed.stitchAlwaysShapeIds
         .map((shapeId) => (typeof shapeId === 'string' ? shapeIdMap.get(shapeId) ?? null : null))
@@ -543,6 +549,7 @@ export function parseImportedJsonDocument(raw: string): ImportedJsonResult {
       tracingOverlays: nextTracingOverlays,
       backdrops: nextBackdrops,
       projectMemo,
+      communityProvenance,
       stitchAlwaysShapeIds,
       stitchThreadColor,
       threePreviewSettings,

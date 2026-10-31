@@ -1,5 +1,6 @@
 import type {
   AvatarSpec,
+  CommunityPatternProvenance,
   Backdrop,
   DimensionLine,
   FoldLine,
@@ -77,6 +78,7 @@ export type EditorDocumentState = {
   backdrops: Backdrop[]
   activeBackdropId: string | null
   projectMemo: string
+  communityProvenance: CommunityPatternProvenance[]
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
   threePreviewSettings: ThreePreviewSettings

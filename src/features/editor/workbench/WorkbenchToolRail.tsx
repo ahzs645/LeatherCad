@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import { DESKTOP_TOOL_ICON_ITEMS } from '../editor-constants'
 import type { Tool } from '../cad/cad-types'
 
@@ -7,8 +8,9 @@ type WorkbenchToolRailProps = {
 }
 
 export function WorkbenchToolRail({ tool, onSetActiveTool }: WorkbenchToolRailProps) {
+  const t = useTranslate()
   return (
-    <aside className="workbench-tool-rail" aria-label="Geometry tools">
+    <aside className="workbench-tool-rail" aria-label={t('Geometry tools')}>
       <div className="workbench-tool-rail-grid">
         {DESKTOP_TOOL_ICON_ITEMS.map((toolItem) => (
           <button
@@ -16,9 +18,9 @@ export function WorkbenchToolRail({ tool, onSetActiveTool }: WorkbenchToolRailPr
             type="button"
             className={tool === toolItem.value ? 'tool-icon-button active' : 'tool-icon-button'}
             onClick={() => onSetActiveTool(toolItem.value)}
-            title={toolItem.label}
-            aria-label={toolItem.label}
-            data-tooltip={toolItem.label}
+            title={t(toolItem.label)}
+            aria-label={t(toolItem.label)}
+            data-tooltip={t(toolItem.label)}
           >
             <span className="tool-icon-badge" aria-hidden="true">
               <img src={toolItem.iconSrc} alt="" />

@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import { useEffect, useMemo, useState } from 'react'
 import type { StoredEditorDocument } from '../localdb/app-data-client'
 import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
@@ -34,6 +35,7 @@ export function LocalProjectsModal({
   onLoadProject,
   onDeleteProject,
 }: LocalProjectsModalProps) {
+  const t = useTranslate()
   const [projects, setProjects] = useState<StoredEditorDocument[]>([])
   const [manualSelectedProjectId, setManualSelectedProjectId] = useState<string | null | undefined>(undefined)
   const [loading, setLoading] = useState(false)
@@ -78,10 +80,10 @@ export function LocalProjectsModal({
     >
       <div className="line-type-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
         <div className="line-type-modal-header">
-          <h2>Local Projects</h2>
-          <button onClick={onClose}>Done</button>
+          <h2>{t('Local Projects')}</h2>
+          <button onClick={onClose}>{t('Done')}</button>
         </div>
-        <p className="hint">Open, save, or remove projects stored in this browser.</p>
+        <p className="hint">{t('Open, save, or remove projects stored in this browser.')}</p>
 
         <div className="line-type-modal-actions">
           <button
@@ -89,16 +91,16 @@ export function LocalProjectsModal({
               void onSaveCurrent().then(refreshProjects)
             }}
           >
-            Save Current Project
+            {t('Save Current Project')}
           </button>
-          <button onClick={() => void refreshProjects()}>Refresh</button>
+          <button onClick={() => void refreshProjects()}>{t('Refresh')}</button>
         </div>
 
         <div className="template-list">
           {loading ? (
-            <p className="hint">Loading local projects...</p>
+            <p className="hint">{t('Loading local projects...')}</p>
           ) : projects.length === 0 ? (
-            <p className="hint">No local projects saved yet.</p>
+            <p className="hint">{t('No local projects saved yet.')}</p>
           ) : (
             projects.map((project) => (
               <label key={project.id} className="template-item">
@@ -110,10 +112,10 @@ export function LocalProjectsModal({
                 />
                 <span className="template-item-name">
                   {project.name}
-                  {activeLocalDocumentId === project.id ? ' (current)' : ''}
+                  {t(activeLocalDocumentId === project.id ? ' (current)' : '')}
                 </span>
                 <span className="template-item-meta">
-                  {projectMeta(project)} · updated {formatDate(project.updatedAt)}
+                  {projectMeta(project)} {t('· updated')} {formatDate(project.updatedAt)}
                 </span>
               </label>
             ))
@@ -130,7 +132,7 @@ export function LocalProjectsModal({
             }}
             disabled={!selectedProject}
           >
-            Open Project
+            {t('Open Project')}
           </button>
           <button
             onClick={() => {
@@ -144,7 +146,7 @@ export function LocalProjectsModal({
             }}
             disabled={!selectedProject}
           >
-            Delete Project
+            {t('Delete Project')}
           </button>
         </div>
       </div>

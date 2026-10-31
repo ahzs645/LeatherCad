@@ -5,6 +5,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { PieceInspectorModal, type PieceInspectorModalProps } from './PieceInspectorModal'
 import type { NestingModalProps } from './NestingModal'
 import type { ProjectMemoModalProps } from './ProjectMemoModal'
+import { EditorInterchangeOverlays, type EditorInterchangeOverlaysProps } from './EditorInterchangeOverlays'
 
 const ProjectMemoModal = lazy(() =>
   import('./ProjectMemoModal').then((mod) => ({ default: mod.ProjectMemoModal })),
@@ -21,6 +22,7 @@ export type EditorOverlayHostProps = {
   hiddenInputsProps: EditorHiddenInputsProps
   fontInputRef: RefObject<HTMLInputElement | null>
   onFontInputChange: ChangeEventHandler<HTMLInputElement>
+  interchangeProps?: EditorInterchangeOverlaysProps
 }
 
 export function EditorOverlayHost({
@@ -31,6 +33,7 @@ export function EditorOverlayHost({
   hiddenInputsProps,
   fontInputRef,
   onFontInputChange,
+  interchangeProps,
 }: EditorOverlayHostProps) {
   return (
     <>
@@ -45,6 +48,7 @@ export function EditorOverlayHost({
         <NestingModal {...nestingModalProps} />
       </Suspense>
       <EditorHiddenInputs {...hiddenInputsProps} />
+      {interchangeProps ? <div className="editor-interchange-overlays"><EditorInterchangeOverlays {...interchangeProps} /></div> : null}
       <input
         ref={fontInputRef}
         type="file"

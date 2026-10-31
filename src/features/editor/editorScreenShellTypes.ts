@@ -15,6 +15,7 @@ import type { useEditorUIState } from './hooks/useEditorUIState'
 import type { useEditorViewport } from './hooks/useEditorViewport'
 import type { useExportActions } from './hooks/useExportActions'
 import type { useFileActions } from './hooks/useFileActions'
+import type { useInterchangePanels } from './hooks/useInterchangePanels'
 import type { useGeometryEditingActions } from './hooks/useGeometryEditingActions'
 import type { useHardwareMarkerActions } from './hooks/useHardwareMarkerActions'
 import type { useHistoryActions } from './hooks/useHistoryActions'
@@ -43,6 +44,7 @@ export type EditorScreenShellActions = {
   documentCommands: ReturnType<typeof useEditorDocumentCommands>
   exportActions: ReturnType<typeof useExportActions>
   fileActions: ReturnType<typeof useFileActions>
+  interchangePanels: ReturnType<typeof useInterchangePanels>
   historyActions: ReturnType<typeof useHistoryActions>
   selectionActions: ReturnType<typeof useSelectionActions>
   transformActions: ReturnType<typeof useTransformActions>

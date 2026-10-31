@@ -35,6 +35,7 @@ type UseEditorDocumentCommandsParams = {
   tracingOverlays: DocFile['tracingOverlays']
   backdrops: DocFile['backdrops']
   projectMemo: string
+  communityProvenance?: DocFile['communityProvenance']
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
   threePreviewSettings: DocFile['threePreviewSettings']
@@ -93,6 +94,7 @@ export function useEditorDocumentCommands({
   tracingOverlays,
   backdrops,
   projectMemo,
+  communityProvenance,
   stitchAlwaysShapeIds,
   stitchThreadColor,
   threePreviewSettings,
@@ -151,6 +153,7 @@ export function useEditorDocumentCommands({
       tracingOverlays,
       backdrops,
       projectMemo,
+      communityProvenance,
       stitchAlwaysShapeIds: stitchAlwaysShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
       stitchThreadColor,
       piecePlacements3d: (piecePlacements3d ?? []).filter((placement) => (patternPieces ?? []).some((piece) => piece.id === placement.pieceId)),
@@ -196,6 +199,7 @@ export function useEditorDocumentCommands({
       piecePlacements3d,
       printAreas,
       projectMemo,
+      communityProvenance,
       seamAllowances,
       seamConnections,
       shapes,
