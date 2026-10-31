@@ -1,5 +1,6 @@
 import type {
   AvatarSpec,
+  DocFile,
   CommunityPatternProvenance,
   Backdrop,
   DimensionLine,
@@ -48,6 +49,8 @@ import type { PrintOrientation, PrintPaper } from '../preview/print-preview'
 import type { SecondaryPreviewMode, WorkbenchRibbonTab, WorkspaceMode } from '../workbench/workbench-types'
 
 export type EditorDocumentState = {
+  /** Runtime identity; changes only when opening/resetting a document. */
+  documentSessionId: number
   documentName: string | null
   activeLocalDocumentId: string | null
   lineTypes: LineType[]
@@ -79,6 +82,7 @@ export type EditorDocumentState = {
   activeBackdropId: string | null
   projectMemo: string
   communityProvenance: CommunityPatternProvenance[]
+  manufacturing: DocFile['manufacturing']
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
   threePreviewSettings: ThreePreviewSettings

@@ -1,4 +1,4 @@
-import { uid } from '../cad/cad-geometry'
+import { isShapeLike, uid } from '../cad/cad-geometry'
 import type {
   PatternPiece,
   PieceGrainline,
@@ -10,6 +10,7 @@ import type {
   StitchHole,
 } from '../cad/cad-types'
 import { clonePatternPieceSelection } from './pattern-piece-ops'
+import { isNativeCurve, nativeCurveBounds, nativeCurveEndpoints, transformNativeCurve } from '../cad/native-curve-ops'
 
 export type ClipboardPayload = {
   shapes: Shape[]
@@ -31,6 +32,8 @@ type ClipboardEnvelope = {
 type Point = { x: number; y: number }
 
 function cloneShape(shape: Shape): Shape {
+  if (shape.type === 'cubic') return { ...shape, start: { ...shape.start }, control1: { ...shape.control1 }, control2: { ...shape.control2 }, end: { ...shape.end } }
+  if (shape.type === 'ellipse') return { ...shape, center: { ...shape.center } }
   if (shape.type === 'line') {
     return {
       ...shape,
@@ -115,6 +118,7 @@ export function parseClipboardPayload(raw: string): ClipboardPayload | null {
     if (!Array.isArray(parsed.payload.shapes) || !Array.isArray(parsed.payload.stitchHoles)) {
       return null
     }
+    if (!parsed.payload.shapes.every(isShapeLike)) return null
     return {
       shapes: parsed.payload.shapes.map((shape) => cloneShape(shape)),
       stitchHoles: parsed.payload.stitchHoles.map((stitchHole) => ({
@@ -134,6 +138,7 @@ export function parseClipboardPayload(raw: string): ClipboardPayload | null {
 }
 
 function shiftShape(shape: Shape, dx: number, dy: number): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
   if (shape.type === 'line') {
     return {
       ...shape,
@@ -280,6 +285,10 @@ export function moveSelectionToEdge(
 }
 
 function shapeCenter(shape: Shape): Point {
+  if (isNativeCurve(shape)) {
+    const bounds = nativeCurveBounds(shape)
+    return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
+  }
   if (shape.type === 'line' || shape.type === 'text') {
     return {
       x: (shape.start.x + shape.end.x) / 2,
@@ -312,7 +321,9 @@ export function findConnectedShapeIds(
   const visited = new Set<string>([seedShapeId])
   const queue: string[] = [seedShapeId]
   const pointsOf = (shape: Shape): Point[] =>
-    shape.type === 'arc'
+    isNativeCurve(shape)
+      ? Object.values(nativeCurveEndpoints(shape))
+      : shape.type === 'arc'
       ? [shape.start, shape.mid, shape.end]
       : shape.type === 'bezier'
         ? [shape.start, shape.control, shape.end]
@@ -359,7 +370,12 @@ export function getSelectionCenter(shapes: Shape[], selectedShapeIds: Set<string
   return { x: sumX / count, y: sumY / count }
 }
 
-function mapShapePoints(shape: Shape, mapPoint: (point: Point) => Point): Shape {
+/** Map an affine point operation while retaining native primitive parameters. */
+export function mapShapePoints(shape: Shape, mapPoint: (point: Point) => Point): Shape {
+  if (isNativeCurve(shape)) {
+    const origin = mapPoint({ x: 0, y: 0 }), x = mapPoint({ x: 1, y: 0 }), y = mapPoint({ x: 0, y: 1 })
+    return transformNativeCurve(shape, [x.x - origin.x, x.y - origin.y, y.x - origin.x, y.y - origin.y, origin.x, origin.y])
+  }
   if (shape.type === 'line') {
     return {
       ...shape,

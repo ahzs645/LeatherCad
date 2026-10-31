@@ -16,7 +16,7 @@ export type ShapeDragState = {
   didMove: boolean
 }
 
-export type HandlePointKey = 'start' | 'mid' | 'control' | 'end'
+export type HandlePointKey = 'start' | 'mid' | 'control' | 'control1' | 'control2' | 'center' | 'end'
 
 export type CanvasInteractionPreview =
   | {
@@ -30,6 +30,7 @@ export type CanvasInteractionPreview =
       shapeId: string
       pointKey: HandlePointKey
       point: Point
+      followControl?: boolean
     }
   | {
       kind: 'selection-box'

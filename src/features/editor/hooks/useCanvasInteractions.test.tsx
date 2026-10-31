@@ -194,6 +194,7 @@ describe('useCanvasInteractions CAD command mode', () => {
     const previewState = readJson<{ cadCommandMode: string | null; commandPreviewShapes: Shape[] }>(rendered.container, 'tool-state')
     expect(previewState.cadCommandMode).toBe('trim')
     expect(previewState.commandPreviewShapes).toHaveLength(1)
+    if (previewState.commandPreviewShapes[0].type !== 'line') throw new Error('Expected a line trim preview')
     expect(previewState.commandPreviewShapes[0].start.x).toBe(0)
     expect(previewState.commandPreviewShapes[0].end.x).toBe(6)
 
@@ -202,6 +203,7 @@ describe('useCanvasInteractions CAD command mode', () => {
     const shapes = readJson<Shape[]>(rendered.container, 'shapes')
     const selected = readJson<string[]>(rendered.container, 'selected')
     const committedState = readJson<{ cadCommandMode: string | null; commandPreviewShapes: Shape[] }>(rendered.container, 'tool-state')
+    if (shapes[0].type !== 'line') throw new Error('Expected a committed trimmed line')
     expect(shapes[0].start.x).toBe(0)
     expect(shapes[0].end.x).toBe(6)
     expect(selected).toEqual(['trim-line'])

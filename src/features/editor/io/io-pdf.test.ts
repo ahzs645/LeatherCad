@@ -29,6 +29,15 @@ function makeStitchHole(overrides: Partial<StitchHole> = {}): StitchHole {
 }
 
 describe('buildPdfFromShapes', () => {
+  it('uses separate alpha states for transparent and opaque shapes and inherited stitch holes', () => {
+    const pdf = buildPdfFromShapes([makeLineShape({ opacity: 0.4 }), makeLineShape({ id: 'opaque' })], { stitchHoles: [makeStitchHole()] })
+    expect(pdf).toContain('/ExtGState')
+    expect(pdf).toContain('/CA 0.400 /ca 0.400')
+    expect(pdf).toContain('/CA 1.000 /ca 1.000')
+    expect(pdf.match(/\/Opacity0 gs/g)).toHaveLength(2)
+    expect(pdf.match(/\/Opacity1 gs/g)).toHaveLength(1)
+    expect(pdf).not.toContain('NaN')
+  })
   it('exports a valid empty-page PDF for empty shape input', () => {
     const pdf = buildPdfFromShapes([])
 

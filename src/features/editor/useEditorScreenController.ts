@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { STITCH_LINE_TYPE_ID } from './cad/line-types'
 import { checkForNewerVersion } from './version-check'
@@ -33,6 +34,8 @@ import { useEditorStateActions } from './hooks/useEditorStateActions'
 import { useSelectionActions } from './hooks/useSelectionActions'
 import { useTransformActions } from './hooks/useTransformActions'
 import { useAutoSave } from './hooks/useAutoSave'
+import { useDraftRecovery } from './hooks/useDraftRecovery'
+import { useStartupDemoGuard } from './hooks/useStartupDemoGuard'
 import { useThemeActions } from './hooks/useThemeActions'
 import { useEditorPanelState } from './hooks/useEditorPanelState'
 import { useEditorViewport } from './hooks/useEditorViewport'
@@ -95,7 +98,7 @@ export function useEditorScreenController() {
     backdrops, setBackdrops,
     activeBackdropId, setActiveBackdropId,
     projectMemo, setProjectMemo,
-    communityProvenance, setCommunityProvenance,
+    communityProvenance, setCommunityProvenance, manufacturing, setManufacturing, documentSessionId, advanceDocumentSession,
     stitchAlwaysShapeIds, setStitchAlwaysShapeIds,
     stitchThreadColor, setStitchThreadColor,
     threePreviewSettings, setThreePreviewSettings,
@@ -353,7 +356,9 @@ export function useEditorScreenController() {
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    advanceDocumentSession,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -411,7 +416,9 @@ export function useEditorScreenController() {
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    advanceDocumentSession,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -543,6 +550,7 @@ export function useEditorScreenController() {
     backdrops,
     projectMemo,
     communityProvenance,
+    manufacturing,
     stitchAlwaysShapeIds,
     stitchThreadColor,
     threePreviewSettings,
@@ -823,6 +831,9 @@ export function useEditorScreenController() {
     ensureActiveLineTypeWritable,
   })
   const exportActions = useExportActions({
+    documentSessionKey: documentSessionId,
+    onReviewExport: review => fileActions.reviewTransfer(review),
+    layers,
     shapes: assemblyShapes,
     foldLines,
     stitchHoles,
@@ -844,6 +855,7 @@ export function useEditorScreenController() {
   const { handleExportSvg, handleExportDxf, handleExportPdf } = exportActions
 
   const fileActions = useFileActions({
+    documentSessionKey: documentSessionId,
     buildCurrentDocFile,
     applyLoadedDocument,
     activeLocalDocumentId,
@@ -866,15 +878,21 @@ export function useEditorScreenController() {
   const { handleSaveJson, handleSaveLcc, handleLoadPreset } = fileActions
   const interchangePanels = useInterchangePanels()
 
+  const recovery = useDraftRecovery({ buildDoc: buildCurrentDocFile, applyLoadedDocument,
+    activeLocalDocumentId, setActiveLocalDocumentId, setStatus })
+
   useAutoSave({
-    enabled: autoSaveEnabled,
+    enabled: autoSaveEnabled && recovery.ready,
     buildDoc: () => buildCurrentDocFile(),
     setStatus,
+    localDocumentId: activeLocalDocumentId,
+    onFailure: recovery.onAutoSaveFailure,
   })
 
   // Auto-load the demo project on first launch when the option is enabled
   // (source-app v2.0.7 default-on, toggleable in Options).
   const demoAutoLoadedRef = useRef(false)
+  const beginStartupDemo = useStartupDemoGuard(buildCurrentDocFile)
   const launchedWithDocumentTransferRef = useRef(
     typeof window !== 'undefined' &&
       (new URL(window.location.href).searchParams.has('openDoc') ||
@@ -882,6 +900,8 @@ export function useEditorScreenController() {
   )
   useEffect(() => {
     if (demoAutoLoadedRef.current) return
+    if (!recovery.ready) return
+    if (recovery.restored) { demoAutoLoadedRef.current = true; return }
     if (launchedWithDocumentTransferRef.current) {
       demoAutoLoadedRef.current = true
       return
@@ -889,8 +909,8 @@ export function useEditorScreenController() {
     if (!panelState.loadDemoOnStartup) return
     if (shapes.length > 0 || foldLines.length > 0 || stitchHoles.length > 0) return
     demoAutoLoadedRef.current = true
-    void handleLoadPreset()
-  }, [panelState.loadDemoOnStartup, shapes.length, foldLines.length, stitchHoles.length, handleLoadPreset])
+    void handleLoadPreset(undefined, beginStartupDemo())
+  }, [beginStartupDemo, recovery.ready, recovery.restored, panelState.loadDemoOnStartup, shapes.length, foldLines.length, stitchHoles.length, handleLoadPreset])
 
   // Surface a one-shot status banner if a newer build is bundled (source v1.7.0).
   const versionCheckRanRef = useRef(false)
@@ -983,6 +1003,7 @@ export function useEditorScreenController() {
     setStatus,
   })
   const constraintActions = useConstraintActions({
+    sketchGroups,
     activeLayer,
     activeLayerId: activeLayer?.id ?? null,
     activeLineTypeId,
@@ -1061,6 +1082,7 @@ export function useEditorScreenController() {
     setStatus,
   })
   const stitchActions = useStitchActions({
+    sketchGroups,
     selectedShapeIdSet,
     selectedStitchHoleCount,
     stitchHoles,
@@ -1267,14 +1289,17 @@ export function useEditorScreenController() {
     desktopShell,
     overlay: {
       ...overlay,
+      recoveryProps: recovery.props,
       interchangeProps: {
         panels: interchangePanels,
+        documentSessionKey: documentSessionId,
         buildCurrentDocFile,
         onSaveLcad: fileActions.handleSaveLcad,
-        onLoadDocument: (doc: Parameters<typeof applyLoadedDocument>[0]) => applyLoadedDocument(doc, 'Loaded cloud project'),
+        onManufacturingSettingsChange: setManufacturing,
+        onLoadDocument: (doc: Parameters<typeof applyLoadedDocument>[0]) => flushSync(() => applyLoadedDocument(doc, 'Loaded cloud project')),
         onStatus: setStatus,
         selectedShapeIds,
-        dxfImportProps: { setLayers, setLineTypes, setShapes, setSelectedShapeIds, setStatus, importSessionKey: shapes },
+        dxfImportProps: { setLayers, setLineTypes, setShapes, setSelectedShapeIds, setStatus, importSessionKey: documentSessionId },
       },
     },
   }

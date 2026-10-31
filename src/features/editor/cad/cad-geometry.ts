@@ -2,6 +2,7 @@ import { dist } from '@atelier/geometry'
 
 import type { Point, Shape } from './cad-types'
 import { normalizeTextShape, sampleTextShapePoints } from '../ops/text-shape-ops'
+import { isNativeCurve, nativeCurveBounds, nativeCurvePath, nativeCurvePointAt } from './native-curve-ops'
 
 const TAU = Math.PI * 2
 
@@ -86,6 +87,7 @@ export function arcPath(start: Point, mid: Point, end: Point) {
 }
 
 export function shapeToSvg(shape: Shape) {
+  if (isNativeCurve(shape)) return `<path d="${nativeCurvePath(shape)}" stroke="#0f172a" stroke-width="2" fill="none" />`
   if (shape.type === 'line') {
     return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="#0f172a" stroke-width="2" fill="none" />`
   }
@@ -103,6 +105,8 @@ export function shapeToSvg(shape: Shape) {
 }
 
 export function getShapePoints(shape: Shape) {
+  if (shape.type === 'cubic') return [shape.start, shape.control1, shape.control2, shape.end]
+  if (shape.type === 'ellipse') return [shape.center, ...[0, 0.25, 0.5, 0.75, 1].map(t => nativeCurvePointAt(shape, t))]
   if (shape.type === 'line') {
     return [shape.start, shape.end]
   }
@@ -131,6 +135,12 @@ export function getBounds(shapes: Shape[]) {
   let maxY = Number.NEGATIVE_INFINITY
 
   for (const shape of shapes) {
+    if (isNativeCurve(shape)) {
+      const bounds = nativeCurveBounds(shape)
+      minX = Math.min(minX, bounds.minX); minY = Math.min(minY, bounds.minY)
+      maxX = Math.max(maxX, bounds.maxX); maxY = Math.max(maxY, bounds.maxY)
+      continue
+    }
     for (const point of getShapePoints(shape)) {
       minX = Math.min(minX, point.x)
       minY = Math.min(minY, point.y)
@@ -149,6 +159,10 @@ export function getBounds(shapes: Shape[]) {
 }
 
 export function sampleShapePoints(shape: Shape, segments = 20) {
+  if (isNativeCurve(shape)) {
+    const count = Number.isFinite(segments) ? Math.max(1, Math.min(10_000, Math.ceil(segments))) : 20
+    return Array.from({ length: count + 1 }, (_, index) => nativeCurvePointAt(shape, index / count))
+  }
   if (shape.type === 'line') {
     return [shape.start, shape.end]
   }
@@ -209,7 +223,8 @@ export function isPointLike(value: unknown): value is Point {
     'x' in value &&
     'y' in value &&
     typeof (value as { x: unknown }).x === 'number' &&
-    typeof (value as { y: unknown }).y === 'number'
+    typeof (value as { y: unknown }).y === 'number' &&
+    Number.isFinite((value as Point).x) && Number.isFinite((value as Point).y) && Math.abs((value as Point).x) <= 1e9 && Math.abs((value as Point).y) <= 1e9
   )
 }
 
@@ -224,6 +239,13 @@ export function isShapeLike(value: unknown): value is Shape {
     end?: unknown
     mid?: unknown
     control?: unknown
+    control1?: unknown
+    control2?: unknown
+    center?: unknown
+    radiusX?: unknown
+    radiusY?: unknown
+    rotationDeg?: unknown
+    startAngleDeg?: unknown
     text?: unknown
     fontFamily?: unknown
     fontSizeMm?: unknown
@@ -240,6 +262,8 @@ export function isShapeLike(value: unknown): value is Shape {
   if (shape.type === 'bezier') {
     return isPointLike(shape.start) && isPointLike(shape.control) && isPointLike(shape.end)
   }
+  if (shape.type === 'cubic') return isPointLike(shape.start) && isPointLike(shape.control1) && isPointLike(shape.control2) && isPointLike(shape.end)
+  if (shape.type === 'ellipse') return isPointLike(shape.center) && typeof shape.radiusX === 'number' && shape.radiusX > 0 && shape.radiusX <= 1e9 && typeof shape.radiusY === 'number' && shape.radiusY > 0 && shape.radiusY <= 1e9 && typeof shape.rotationDeg === 'number' && Number.isFinite(shape.rotationDeg) && typeof shape.startAngleDeg === 'number' && Number.isFinite(shape.startAngleDeg) && typeof shape.sweepDeg === 'number' && Number.isFinite(shape.sweepDeg) && Math.abs(shape.sweepDeg) > 0 && Math.abs(shape.sweepDeg) <= 360 + 1e-8
   if (shape.type === 'text') {
     return (
       isPointLike(shape.start) &&

@@ -12,6 +12,7 @@ const server = await createServer({
   root: projectRoot,
   configFile: false,
   logLevel: 'error',
+  optimizeDeps: { noDiscovery: true, include: [] },
   server: { middlewareMode: true },
   appType: 'custom',
 })
@@ -33,9 +34,9 @@ try {
   importedLcad.doc.objects[0].strokeWidthOverride = 0.33
   const exportedLcad = exportLcadDocument(importedLcad.doc)
   const exportedLcadWidth = JSON.parse(exportedLcad.text).shapes[0].strokeWidth
-  assert.equal(lcadImportObservation.lineTypeWidthMm, 0.8)
-  assert.equal(lcadImportObservation.shapeWidthOverride, null)
-  assert.equal(exportedLcadWidth, 0.8)
+  assert.equal(lcadImportObservation.lineTypeWidthMm, 0.65)
+  assert.equal(lcadImportObservation.shapeWidthOverride, 0.25)
+  assert.equal(exportedLcadWidth, 0.33)
   assert.deepEqual(importedLcad.warnings, [])
   assert.deepEqual(exportedLcad.warnings, [])
 
@@ -51,8 +52,8 @@ try {
   ].join('\n')
   const importedDxf = importDxfDocument(dxfInput)
   const dxfWidths = importedDxf.shapes.map(shape => importedDxf.lineTypes.find(type => type.id === shape.lineTypeId)?.strokeWidthMm ?? null)
-  assert.deepEqual(dxfWidths, [0.25, 0.25])
-  assert.equal(importedDxf.lineTypes.length, 1)
+  assert.deepEqual(dxfWidths, [0.25, 0.8])
+  assert.equal(importedDxf.lineTypes.length, 2)
   assert.deepEqual(importedDxf.warnings, [])
 
   const { importLccDocument } = await server.ssrLoadModule('/src/features/editor/io/io-lcc.ts')
@@ -62,21 +63,19 @@ try {
     shapes: [{ id: '1', type: 'LINE', layer: '0', color: 'Aqua', dash: 'Solid', sp: [0, 0], ep: [100, 0], bz1: [0, 100], bz2: [100, 100] }],
   }
   const importedLcc = importLccDocument(JSON.stringify(lccInput))
-  const curve = importedLcc.doc.objects[0]
-  assert.equal(curve.type, 'bezier')
-  const importedMidpoint = {
-    x: 0.25 * curve.start.x + 0.5 * curve.control.x + 0.25 * curve.end.x,
-    y: 0.25 * curve.start.y + 0.5 * curve.control.y + 0.25 * curve.end.y,
-  }
+  const { nativeCurvePointAt } = await server.ssrLoadModule('/src/features/editor/cad/native-curve-ops.ts')
   const sourceMidpoint = { x: 50, y: 75 }
+  const curve = importedLcc.doc.objects[0]
+  assert.equal(curve.type, 'cubic')
+  const importedMidpoint = nativeCurvePointAt(curve, 0.5)
   const errorMm = Math.hypot(importedMidpoint.x - sourceMidpoint.x, importedMidpoint.y - sourceMidpoint.y)
-  assert.deepEqual(importedMidpoint, { x: 50, y: 50 })
-  assert.equal(errorMm, 25)
+  assert.deepEqual(importedMidpoint, sourceMidpoint)
+  assert.equal(errorMm, 0)
   assert.deepEqual(importedLcc.warnings, [])
 
   process.stdout.write(JSON.stringify({
     syntheticOnly: true,
-    description: 'Observed behavior of commit 41da8db; assertions intentionally document unresolved fidelity defects, not desired behavior.',
+    description: 'Corrected interchange regression behavior: palette/shape widths and mixed DXF weights survive; legacy cubic control points and analytic geometry are retained exactly.',
     lcadStrokeWidth: {
       input: lcadInput,
       imported: lcadImportObservation,

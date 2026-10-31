@@ -1,6 +1,8 @@
 import type { Point, Shape, LineShape, BezierShape } from '../../cad/cad-types'
 import { uid, round } from '../../cad/cad-geometry'
 import { copyShapeProps, evaluateShapeAt } from './path-core'
+import { isNativeCurve, nativeCurveBounds, transformNativeCurve } from '../../cad/native-curve-ops'
+import { nativeCurveSubsegment } from './native-curve-editing'
 
 // ---------------------------------------------------------------------------
 // 8. mirrorPoint
@@ -37,6 +39,12 @@ export function mirrorShape(
   axisStart: Point,
   axisEnd: Point,
 ): Shape {
+  if (isNativeCurve(shape)) {
+    const dx = axisEnd.x - axisStart.x, dy = axisEnd.y - axisStart.y, lengthSq = dx * dx + dy * dy
+    if (lengthSq < 1e-10) return { ...shape, id: uid() }
+    const a = 2 * dx * dx / lengthSq - 1, b = 2 * dx * dy / lengthSq, d = 2 * dy * dy / lengthSq - 1
+    return { ...transformNativeCurve(shape, [a, b, b, d, axisStart.x - a * axisStart.x - b * axisStart.y, axisStart.y - b * axisStart.x - d * axisStart.y]), id: uid() }
+  }
   if (shape.type === 'line') {
     return {
       ...shape,
@@ -101,6 +109,13 @@ export function resizeShapeToDimensions(
   newWidth: number,
   newHeight: number,
 ): Shape {
+  if (isNativeCurve(shape)) {
+    const bounds = nativeCurveBounds(shape), width = bounds.maxX - bounds.minX, height = bounds.maxY - bounds.minY
+    if (!Number.isFinite(newWidth) || !Number.isFinite(newHeight) || newWidth <= 0 || newHeight <= 0) return shape
+    const sx = width > 1e-10 ? newWidth / width : 1, sy = height > 1e-10 ? newHeight / height : 1
+    const cx = (bounds.minX + bounds.maxX) / 2, cy = (bounds.minY + bounds.maxY) / 2
+    return transformNativeCurve(shape, [sx, 0, 0, sy, cx * (1 - sx), cy * (1 - sy)])
+  }
   // Collect all mutable points from the shape
   const points = getShapePointRefs(shape)
   if (points.length === 0) return { ...shape }
@@ -167,6 +182,10 @@ export function resizeShapeToDimensions(
 }
 
 function getShapePointRefs(shape: Shape): Point[] {
+  if (isNativeCurve(shape)) {
+    const bounds = nativeCurveBounds(shape)
+    return [{ x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.maxY }]
+  }
   if (shape.type === 'line') return [shape.start, shape.end]
   if (shape.type === 'arc') return [shape.start, shape.mid, shape.end]
   if (shape.type === 'bezier') return [shape.start, shape.control, shape.end]
@@ -188,6 +207,7 @@ export function splitShapeIntoN(
 ): Shape[] {
   if (count < 2) return [shape]
   if (shape.type === 'text') return [shape]
+  if (isNativeCurve(shape)) return Array.from({ length: count }, (_, index) => ({ ...nativeCurveSubsegment(shape, index / count, (index + 1) / count), id: uid() }))
 
   const segments: Shape[] = []
   const props = copyShapeProps(shape)

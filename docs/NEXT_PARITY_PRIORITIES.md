@@ -1,64 +1,37 @@
-# Next parity and interface priorities
+# Current follow-up priorities
 
-Reviewed 2026-10-31 against the implemented source and the previously inspected Coffee Craft CAD web capture (build `2026-10-27`). This is the current follow-up list. Older desktop audit checkboxes are historical evidence; some unchecked entries already have working controls.
+The recovery/fidelity/interface/manufacturing/cloud implementation from the [remaining-work analysis](REMAINING_PARITY_ANALYSIS_2026-10-31.md) has been worked through. Read the [follow-up implementation report](FOLLOWUP_IMPLEMENTATION_2026-10-31.md) for shipped behavior and verification. The older comparison and unchecked desktop lists are historical evidence, not a current missing-feature inventory.
 
-The [full remaining-work analysis](REMAINING_PARITY_ANALYSIS_2026-10-31.md) adds six focused reviews, synthetic reproductions, dependencies and completion criteria. Its confirmed recovery/fidelity findings take precedence over the earlier interface-first recommendation.
+## Completed in source
 
-## Recovery and fidelity first
+- Acknowledged autosave, startup recovery/download/discard, unread-store handling, sign-in draft preservation and backup/restore UI.
+- LCAD palette/shape widths, DXF weights and default Y-axis orientation; exact native cubic/ellipse models and legacy LCC cubic controls.
+- Import workers/budgets, preflight/layer selection, export loss review and explicit document-session cancellation.
+- Settings categories/search/scoped reset, consistent dialogs, wheel/trackpad options, tool ordering, canvas-first presets, phone shortcuts and nested groups.
+- Physical STL tolerance, saved settings/fonts, jig outlines/drilling/finger holes, face depths/through cuts, engraving and supported edge finishing.
+- Cloud update/save-as-copy, stale-action checks, incremental lists, Trash/purge, image/font storage, quotas, publication retirement, board image attachments, moderation, search and notifications.
+- Pinned engine pairing, built-bundle browser checks, independent DXF/PDF/mesh validation and localization inventory.
 
-- Autosave writes snapshots, but startup recovery is not wired; success is announced without awaiting a durable write. Add recovery and truthful failure feedback before relying on autosave.
-- Built-in OIDC sign-in redirects without capturing/restoring the unsaved drawing. Add a durable draft/recovery bridge before activating that flow; nonblocking SDK startup does not cover navigation.
-- Synthetic checks reproduce silent LCAD stroke-width loss, DXF mixed-lineweight collision, and a legacy LCC cubic with 25 mm midpoint error. Fix these before broader format expansion. See [diagnostic results](verification/remaining-interchange-2026-10-31.json).
-- STL cut arcs/quadratics use 48 segments per authored curve without a dimensional error bound. Add adaptive manufacturing tolerance before adding finishing controls.
-- Add import review, aggregate expansion/byte budgets and session cancellation for pending LCAD/LCC/JSON reads. Pattern-PDF needs page selection and inference review before replacing a document.
+## Next acceptance work
 
-## Interface and options
+| Priority | Work | Completion criterion |
+| --- | --- | --- |
+| P0 for service activation | Configure an actual Convex deployment and registered OIDC client. | Normal codegen/deployment; production-origin callback, expiry and network failure; independent users/anonymous access checks; confirmed draft preservation through real redirects. Follow [the runbook](CLOUD_DEPLOYMENT_RUNBOOK.md). |
+| P1 for physical production | Validate paper output and printed tool fit. | Measure a 100mm calibration sheet, tiled asymmetric pattern and known stitch pitch; inspect STL in the intended slicer and measure a printed clearance fixture. Existing automated geometry checks are not physical measurements. |
+| P1 for supported devices | Exercise real Safari/iOS storage, download, touch and WebGL. | A device walkthrough using recovery, file review, 2D/3D routes and downloads. Chromium phone emulation establishes a different test surface. |
+| P2 | Complete specialist localization by workflow. | Use [the inventory](verification/localization-coverage.json), translate used labels/accessibility/errors, test layout expansion and obtain native-language review. Shared-core checks pass in all 20 locales; the 18 smaller dictionaries still use English fallback outside that core. |
+| P2 | Extend supported native constraints and manufacturing combinations where designs require them. | Measured native-curve constraints and topology-safe finishing across engraving/unequal depths/jigs. Current unsupported combinations reject explicitly. |
+| P2 | Broaden reference-and-LeatherCad behavioral fixtures. | Matched asymmetric curves, stitches, images, dimensions and physical outputs; classify evidence as runtime-tested, code-only or blocked. Complete the missing reference STL asset capture if available. |
 
-| Area | Available now | Remaining work | Evidence / classification |
-| --- | --- | --- | --- |
-| General Options | Titled sections for autosave, workspace, editing behaviors, dimensions, print calibration, zoom/grid, language and translation import. | Add navigable categories, search, section-level reset and explicit global/project scope. Apply named dialogs, focus trapping and consistent validation to older dialogs too. | Reference has six settings tabs; navigable categorization is source-confirmed. Search/reset are recommendations. `OptionsModal.tsx`, `ChangeShapeSizeModal.tsx`, `MandalaModal.tsx` still use older modal structure. |
-| Input/display/tool options | Reverse zoom/pan, anchored wheel zoom, modifier editing, fixed tool rail and canonical mm geometry. | Wheel Auto/Zoom/Pan, trackpad sensitivity, configurable tool order, and consistent mm/inch display preference. | Confirmed reference controls and current behavior gaps. Full unit display touches formatting/input and export boundaries; keep geometry in mm. |
-| Workspace layout | 2D/3D/Split modes, persisted panel widths, inspector pin/auto-hide and theme selection. | Named drafting/assembly/printing presets, a canvas-first layout, and customizable/reorderable command groups. Keep common file actions easier to reach on phones. | Product recommendations. Existing modes/resizing should not be rebuilt as “missing” features. |
-| Geometry/style options | Numeric line length/angle, arc radius/sweep, curved-text controls and shared line types. | Preserve native ellipses/cubic curves where exact editing matters; add per-shape opacity/locking and nested-group fidelity; clarify what numeric edits change. | Confirmed native interchange limitations: current adapter flattens groups/ellipses and warns about opacity/shape locks. |
-| STL pattern controls | Pattern/jig modes, global thickness, selected shapes, round/original stitch holes, validated output and preview. | Adaptive tolerance, persisted manufacturing settings, per-face thickness/depth/through regions; top/bottom engraving; chamfer/fillet; export-time nonround hole sizing; material/color preview choices. | Confirmed reference options plus accuracy/reproducibility work. A visible geometry control must change validated output. |
-| Jig controls | Solid floor, pocket depth, outer margin and positive clearance. | Finger-hole placement/diameter; stitch-through drilling; pattern-offset vs explicit rectangular outside dimensions; richer pocket/region selection. | Confirmed reference controls; requires geometric and watertight-mesh tests. Negative clearance needs explicit interference-fit validation. |
-| Import feedback | DXF units, inline errors/warnings, safe cancellation and document-preserving failures. | Preview imported pieces/layers, surface approximation/loss warnings before committing, and offer layer/style choices where appropriate. | Recommended UI improvement. Do not imply current warning-bearing imports are lossless. |
-| Languages | English default; Japanese broad coverage; 18 additional core-shell dictionaries. | Translate advanced inspectors, specialist dialogs and diagnostics; add coverage tracking and native-language review. | Confirmed: Japanese has 555 entries; the 18 smaller dictionaries have 60 entries each. See `LOCALIZATION.md`. |
+## Explicit format and product boundaries
 
-The interface work should keep command IDs separate from translated labels, preserve user-created names, and use the shared focus helper for new/refactored dialogs. Phone controls should retain 44px touch targets and keyboard/assistive-technology names.
+- Sealed LCC requires a supported signature/version reader; it remains rejected before document mutation. LCAD, SVG or a compatible plain LCC export is the available route.
+- Partial ellipses use a warned bounded fallback in LCAD. JSON and modern DXF retain their analytic parameters. General rational/multispan DXF splines have a reported approximation target; unsupported binary/3D/text/hatch entities remain documented in [DXF_IMPORT.md](DXF_IMPORT.md).
+- LCAD/legacy LCC do not preserve all LeatherCad manufacturing/assembly/project state. Loss review recommends JSON for the complete project.
+- Finishing currently supports uniform-thickness patterns without engraving. The UI explains unsupported combinations; it does not emit a misleading mesh.
+- Whole-library database restore is transactional, while database plus browser preferences cannot be made crash-atomic across two stores. Keep a prior backup until checking restoration.
+- Live collaboration, billing/membership and account-wide erasure are separate product work. Retained immutable publication credits can eventually require the documented operator allowance/recovery path.
 
-## Interchange and geometry gaps
+Reference-only controls such as pen-lift guard, loupe/modifier-pad behavior, recording/grant UI and every adjustable picking variant still need a focused behavior mapping before adding controls. LeatherCad already has snap indicators, coarse-pointer picking, existing AI/automation surfaces, print calibration, Mandala controls and pricking-iron groups/presets; do not rebuild them from stale checkboxes.
 
-- **Sealed LCC remains unsupported.** It is rejected before changing the document. Proper support needs a supported, validated reader/version contract; inflating the payload without verifying it is not full compatibility. LCAD or SVG is the working alternative.
-- **LCAD is an interchange format, not a complete backup of our model.** Native source provenance/recordings, SVG-image shapes, radius dimensions, per-shape style/locks, and nested groups still need deeper support. Our own structured community provenance survives through a versioned extension, but that does not import the reference service's provenance history.
-- **Our advanced state does not all fit LCAD.** Constraints, pattern pieces, seam/assembly connections, seam allowances, hardware and some image/fold settings produce export warnings. Document JSON remains the full project backup. A transfer preview should make these losses obvious before download.
-- **DXF scope is planar ASCII geometry.** Text, hatches, dimensions, attributes, meshes/solids and unsupported external references are not converted; nonplanar entities are skipped. Splines/ellipses are approximated with reported tolerance. See `DXF_IMPORT.md`.
-- **Broader cross-app fixtures are still valuable.** Add curved and asymmetric parts, linked stitch runs, text/fonts, calibrated images, grouping and physical print measurements. Four-edge rectangle interoperability proves the basic path, not complete file parity.
-
-## Cloud and community gaps
-
-1. **Activate a real deployment and sign-in provider.** Configure Convex, the OIDC authority/client, exact registered redirect URI and matching backend issuer/audience; regenerate Convex types and exercise actual multi-account behavior. The backend and OIDC code are implemented, but no live service or account was configured in this work.
-2. **Handle larger drawings and embedded images.** Current remote serialized records are capped at 512 KiB. Move large assets to owner-authorized file storage with upload/progress/retry and size-aware UI.
-3. **Complete library UX.** Add a trash browser for the existing restoration capability, clearer sync/conflict recovery, and operational backup/recovery workflows.
-4. **Expand community UX where needed.** Attachments, administrator moderation/reporting, notifications, search and automatic live refresh are absent. The implemented board already has topics, private drafts, replies, likes, owner edits/removals, pagination and stale-edit protection.
-5. **Treat live collaboration separately.** Concurrent multi-user editing, presence and automatic translation services were not implemented. Billing/membership parity was also outside this pass.
-
-The deeper review also found that the current save button always creates a new cloud copy: updating an existing drawing needs UI association with its remote ID/revision. Delete and visibility actions need stale-revision checks. Client listing eagerly consumes every server page/full document; add incremental metadata loading. Public expansion additionally needs moderation/reporting, quotas and resource policies. These are implementation gaps distinct from configuring a deployment.
-
-## Existing functionality that should not be listed as missing
-
-- Mandala UI already has selection-based centers, rotation, intersection controls and help hooks. Verify behavior/controller wiring for a specific discrepancy instead of reusing the old blanket backlog item.
-- Pricking-iron controls already expose group/name editing and preset saving. A remaining even-hole-count operation still uses a browser prompt; replace individual prompt-driven flows with forms when polishing that workflow.
-- Sidebar pin/auto-hide, basic print calibration, SVG import scale/grouping and catalog editing already exist. The next step is a behavior/visual parity review, not duplicate controls.
-
-## Recommended next implementation order
-
-1. **Protect and preserve work:** recovery, truthful save status, width/legacy-curve fixes, import review and bounds.
-2. **Interface/options pass:** consistent dialogs/validation, settings tabs/scope, wheel/trackpad controls and tool ordering. Search and workspace presets follow.
-3. **Manufacturing accuracy and jig options:** adaptive tolerance and persisted settings, then drilling/finger holes/outlines; per-face depths precede engraving/finishing.
-4. **Cloud workflow and activation:** update/conflict UI, stale-action checks, incremental loading, real account/deployment tests and image-capable storage.
-5. **Exact model fidelity and localization depth:** native curves/style/hierarchy, richer cross-app fixtures and specialist translations.
-
-Record the compatible Atelier revision for releases and verify the built lazy workflows, real supported devices and physical print/fit. Passing Chromium viewport tests do not establish Safari/iOS or physical manufacturing performance.
-
-Reorder exact interchange first if a specific production file is currently blocked. Local verification at this handoff is 1,025 unit tests and 28 cold-cache browser tests passing; live cloud/provider validation remains separate.
+The separate jsmap fixes and coverage tooling remain in their own checkout. They do not turn the preserved captured runtime into a recovered standalone source application.

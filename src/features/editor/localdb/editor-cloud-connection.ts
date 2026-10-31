@@ -1,6 +1,7 @@
 import { createCommunityDataClient } from './community-data-client'
 import { createConvexDataClient } from './convex-data-client'
 import { createConvexTransport, normalizeConvexUrl } from './convex-transport'
+import { preserveEditorDraftForSignIn } from './editor-draft-bridge'
 
 export type EditorCloudUser = { id: string; displayName: string }
 /** Supplied by the host's established OIDC sign-in integration. Tokens stay in memory. */
@@ -39,6 +40,7 @@ export const getEditorCloudState = () => state
 export function subscribeEditorCloudState(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener) } }
 export async function signInToEditorCloud() {
   if (!auth) throw new Error('Sign-in is not available in this installation')
+  await preserveEditorDraftForSignIn()
   await auth.signIn(); update()
 }
 export async function signOutOfEditorCloud() { if (auth) await auth.signOut(); update() }

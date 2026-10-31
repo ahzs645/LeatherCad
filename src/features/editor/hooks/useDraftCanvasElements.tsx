@@ -171,6 +171,13 @@ export function useDraftPreviewElement(params: UseDraftPreviewElementParams) {
       )
     }
 
+    if (tool === 'cubic') {
+      const start = draftPoints[0]
+      const c1 = draftPoints[1] ?? cursorPoint
+      const c2 = draftPoints[2] ?? cursorPoint
+      return <path d={`M ${start.x} ${start.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${cursorPoint.x} ${cursorPoint.y}`} className="shape-preview" style={{ stroke: activeLineTypeStrokeColor, strokeDasharray: activeLineTypeDasharray }} />
+    }
+
     if (tool === 'bezier') {
       if (draftPoints.length === 1) {
         return (

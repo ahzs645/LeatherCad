@@ -1,0 +1,137 @@
+{
+  "r12": {
+    "units": 4,
+    "layers": [
+      "0",
+      "Cutting master",
+      "Defpoints"
+    ],
+    "audit_errors": 0,
+    "audit_fixes": 0,
+    "entity_count": 228,
+    "entity_types": [
+      "LINE"
+    ]
+  },
+  "r14": {
+    "units": 4,
+    "layers": [
+      "0",
+      "Cutting master",
+      "Defpoints"
+    ],
+    "audit_errors": 0,
+    "audit_fixes": 0,
+    "cubic_control_points": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        100.0,
+        0.0
+      ],
+      [
+        100.0,
+        100.0,
+        0.0
+      ],
+      [
+        100.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "ellipse": {
+      "center": [
+        150.0,
+        40.0,
+        0.0
+      ],
+      "major_axis": [
+        16.383040886,
+        11.471528727,
+        0.0
+      ],
+      "ratio": 0.5
+    },
+    "entity_count": 2,
+    "entity_types": [
+      "ELLIPSE",
+      "SPLINE"
+    ]
+  },
+  "r2004": {
+    "units": 4,
+    "layers": [
+      "0",
+      "Cutting master",
+      "Defpoints"
+    ],
+    "audit_errors": 0,
+    "audit_fixes": 0,
+    "cubic_control_points": [
+      [
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        100.0,
+        0.0
+      ],
+      [
+        100.0,
+        100.0,
+        0.0
+      ],
+      [
+        100.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "ellipse": {
+      "center": [
+        150.0,
+        40.0,
+        0.0
+      ],
+      "major_axis": [
+        16.383040886,
+        11.471528727,
+        0.0
+      ],
+      "ratio": 0.5
+    },
+    "entity_count": 2,
+    "entity_types": [
+      "ELLIPSE",
+      "SPLINE"
+    ]
+  },
+  "pdf": {
+    "pages": 1,
+    "width_pt": 531.081,
+    "height_pt": 269.291,
+    "alpha_states": {
+      "/Opacity0": {
+        "CA": 0.4,
+        "ca": 0.4
+      },
+      "/Opacity1": {
+        "CA": 1.0,
+        "ca": 1.0
+      }
+    },
+    "cubic_commands": 1
+  },
+  "readers": {
+    "ezdxf": "1.4.4",
+    "pypdf": "6.10.0"
+  },
+  "synthetic_only": true
+}

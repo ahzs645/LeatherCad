@@ -16,6 +16,7 @@ import { useHistoryActions } from './useHistoryActions'
 import { useEditorDocumentCommands } from '../useEditorDocumentCommands'
 import { useEditorHistoryActions } from '../state/providers/EditorHistoryStateProvider'
 import { cleanupRender, renderForTest } from '../../../test/render'
+import { DEFAULT_MANUFACTURING_SETTINGS } from '../io/manufacturing/manufacturing-settings'
 
 let rendered: ReturnType<typeof renderForTest> | null = null
 afterEach(() => { cleanupRender(rendered); rendered = null })
@@ -32,10 +33,46 @@ function useHarnessApi() {
   const history = useHistoryActions({ currentSnapshot: derived.currentSnapshot, applyEditorSnapshot: actions.applyEditorSnapshot })
   const historyState = useEditorHistoryActions()
   const commands = useEditorDocumentCommands({ ...common, selectedShapeIdSet: new Set<string>(), selectedEditableShape: null, selectedStitchHole: null })
-  return { doc, loaded, derived, actions, history, historyState, commands }
+  return { doc, loaded, derived, actions, history, historyState, commands, selection }
 }
 
 describe('structured community attribution in the actual editor hooks', () => {
+  it('preserves manufacturing and protected nested shapes through save, reopen and history', () => {
+    let api!: ReturnType<typeof useHarnessApi>
+    function Harness() {
+      const current = useHarnessApi()
+      useLayoutEffect(() => { api = current }, [current])
+      return null
+    }
+    rendered = renderForTest(createElement(EditorStateProviders, null, createElement(Harness)))
+    const manufacturing = { ...DEFAULT_MANUFACTURING_SETTINGS, mode: 'jig' as const, jigStitchThrough: true, fingerHoles: [{ id: 'finger', x: 10, y: 10, diameterMm: 8 }] }
+    const imported = parseImportedJsonDocument(JSON.stringify({
+      objects: [{ id: 'protected', type: 'line', layerId: 'main', lineTypeId: 'cut', groupId: 'child', start: { x: 0, y: 0 }, end: { x: 20, y: 0 }, locked: true, opacity: 0.4 }],
+      layers: [{ id: 'main', name: 'Main', visible: true, locked: false }],
+      lineTypes: [{ id: 'cut', name: 'Cut', role: 'cut', style: 'solid', visible: true, color: '#111111' }],
+      sketchGroups: [{ id: 'parent', name: 'Parent', layerId: 'main', visible: false, locked: true }, { id: 'child', name: 'Child', layerId: 'main', visible: true, locked: false, parentId: 'parent' }], manufacturing,
+    })).doc
+    act(() => { api.loaded.applyLoadedDocument(imported, 'Loaded jig'); api.selection.setSelectedShapeIds(['protected']) })
+    expect(api.derived.visibleShapes).toHaveLength(0)
+    expect(api.derived.selectedShapeIdSet.size).toBe(0)
+    act(() => api.doc.setShapes(previous => previous.map(shape => ({ ...shape, opacity: 1 }))))
+    expect(api.doc.shapes[0].opacity).toBe(0.4)
+    const saved = api.commands.buildCurrentDocFile()
+    expect(saved.manufacturing).toEqual(manufacturing)
+    const reopened = parseImportedJsonDocument(JSON.stringify(saved)).doc
+    expect(reopened.objects[0]).toMatchObject({ locked: true, opacity: 0.4 })
+    expect(reopened.sketchGroups?.[1].parentId).toBe('parent')
+    const snapshot = api.derived.currentSnapshot
+    expect(snapshot.manufacturing).toEqual(manufacturing)
+    expect(snapshot.manufacturing).not.toBe(api.doc.manufacturing)
+    act(() => { api.historyState.setHistoryState({ past: [snapshot], future: [] }); api.actions.resetDocument() })
+    expect(api.commands.buildCurrentDocFile().manufacturing).toBeUndefined()
+    act(() => api.history.handleUndo())
+    expect(api.commands.buildCurrentDocFile().manufacturing).toEqual(manufacturing)
+    expect(api.doc.shapes[0]).toMatchObject({ locked: true, opacity: 0.4 })
+    act(() => api.history.handleRedo())
+    expect(api.commands.buildCurrentDocFile().manufacturing).toBeUndefined()
+  })
   it('survives load, document build, JSON reopen and undo/redo; new documents clear it', () => {
     let api!: ReturnType<typeof useHarnessApi>
     function Harness() {

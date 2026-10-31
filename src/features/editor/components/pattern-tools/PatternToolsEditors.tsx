@@ -17,7 +17,7 @@ export function ShapeNodeEditorBlock({
   return (
     <div className="control-block">
       <h3>Shape Node Editor</h3>
-      {selectedEditableShape ? (
+      {selectedEditableShape && selectedEditableShape.type !== 'ellipse' ? (
         <div className="line-type-edit-grid">
           <label className="field-row">
             <span>Start X</span>
@@ -101,7 +101,7 @@ export function ShapeNodeEditorBlock({
           </label>
         </div>
       ) : (
-        <p className="hint">Select exactly one shape in Move tool to edit points.</p>
+        <p className="hint">{selectedEditableShape?.type === 'ellipse' ? 'Ellipse endpoints are derived from its center, radii and angles. They cannot be edited as independent nodes.' : 'Select exactly one shape in Move tool to edit points.'}</p>
       )}
     </div>
   )

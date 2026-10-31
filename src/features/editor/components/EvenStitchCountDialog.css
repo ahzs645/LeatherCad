@@ -1,0 +1,6 @@
+.even-stitch-count-dialog { color: var(--text-main, #eee); background: var(--surface-panel, #20242c); border: 1px solid var(--border-soft, #687080); border-radius: 10px; width: min(420px, calc(100vw - 32px)); padding: 20px; }
+.even-stitch-count-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.even-stitch-count-dialog label { display: flex; flex-direction: column; gap: 8px; }
+.even-stitch-count-dialog input { min-height: 44px; }
+.even-stitch-count-dialog button { margin-right: 8px; min-height: 44px; }
+.even-stitch-count-dialog [role='alert'] { color: #ff9d9d; }

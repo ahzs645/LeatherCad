@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildDxfFromShapes } from './io-dxf'
 import type { ArcShape, BezierShape, LineShape, StitchHole } from '../cad/cad-types'
+import { importDxfDocument } from './io-dxf-import'
 
 function makeLineShape(overrides: Partial<LineShape> = {}): LineShape {
   return {
@@ -30,6 +31,33 @@ function makeStitchHole(overrides: Partial<StitchHole> = {}): StitchHole {
 }
 
 describe('buildDxfFromShapes', () => {
+  it('writes reader-compatible modern subclasses and retains Unicode names, RGB and mixed widths', () => {
+    const first = makeLineShape({ strokeWidthOverride: 0.25 }), second = makeLineShape({ id: 'b', strokeWidthOverride: 0.8 })
+    const result = buildDxfFromShapes([first, second], { version: 'r2004', layers: [{ id: first.layerId, name: '皮革 Cut', visible: true, locked: true }], lineTypes: [{ id: first.lineTypeId, name: 'Cut', color: '#123456', role: 'cut', style: 'dashed', visible: true, strokeWidthMm: 0.35 }] })
+    expect(result.content).toContain('AcDbEntity')
+    expect(result.content).toContain('AcDbLine')
+    expect(result.content).toContain('AcDbBlockTableRecord')
+    expect(result.content).toContain('\\U+76AE\\U+9769 Cut')
+    const imported = importDxfDocument(result.content, { flipY: false })
+    expect(imported.layers[0]).toMatchObject({ name: '皮革 Cut', locked: true })
+    expect(imported.lineTypes.map(type => type.strokeWidthMm)).toEqual([0.25, 0.8])
+    expect(imported.lineTypes.every(type => type.color === '#123456' && type.style === 'dashed')).toBe(true)
+    expect(result.warnings).toEqual([])
+  })
+
+  it('uses a physical tolerance instead of a fixed segment count for large R12 arcs', () => {
+    const arc: ArcShape = { id: 'large', type: 'arc', layerId: 'L', lineTypeId: 'cut', start: { x: 1000, y: 0 }, mid: { x: 0, y: 1000 }, end: { x: -1000, y: 0 } }
+    const result = buildDxfFromShapes([arc], { version: 'r12', curveToleranceMm: 0.01 })
+    expect(result.segmentCount).toBeGreaterThan(300)
+    expect(1000 * (1 - Math.cos(Math.PI / (2 * result.segmentCount)))).toBeLessThanOrEqual(0.01)
+  })
+
+  it('reports rounding of widths outside the standard DXF lineweight set', () => {
+    const result = buildDxfFromShapes([makeLineShape({ strokeWidthOverride: 0.33 })], { version: 'r2004' })
+    const imported = importDxfDocument(result.content)
+    expect(imported.lineTypes[0].strokeWidthMm).toBe(0.35)
+    expect(result.warnings.join(' ')).toContain('0.33→0.35 mm')
+  })
   it('returns valid DXF with 0 segments for empty shapes array', () => {
     const result = buildDxfFromShapes([])
     expect(result.segmentCount).toBe(0)

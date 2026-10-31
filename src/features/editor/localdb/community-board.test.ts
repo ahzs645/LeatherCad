@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { defineTestApp } from 'convex-test'
+import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { makeFunctionReference } from 'convex/server'
 import schema from '../../../../convex/schema'
 import * as communityBoard from '../../../../convex/communityBoard'
 import { createCommunityBoardClient } from './community-board-client'
 import type { ConvexTransport } from './convex-transport'
 
-const app = defineTestApp({ schema }).defineModules({ communityBoard })
+const app = defineTestApp({ schema, components: { rateLimiter: rateLimiterTest } }).defineModules({ communityBoard })
 function setup() {
   const server = app.createTest()
   const alice = server.withIdentity({ subject: 'alice', issuer: 'https://identity.test', name: 'alice@example.test', email: 'alice@example.test' })

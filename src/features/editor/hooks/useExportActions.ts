@@ -1,6 +1,9 @@
+import { isNativeCurve, nativeCurvePath } from '../cad/native-curve-ops'
+import { useLayoutEffect, useRef } from 'react'
+import type { DocumentTransferReview } from '../components/DocumentTransferReviewModal'
 import { arcPath, getBounds, round } from '../cad/cad-geometry'
 import { lineTypeStrokeDasharray, resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
-import type { FoldLine, LineType, PatternPiece, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
+import type { FoldLine, Layer, LineType, PatternPiece, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
 import { downloadFile } from '../editor-utils'
 import { buildAnnotationExportShapes } from '../ops/annotation-export-shapes'
 import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
@@ -10,6 +13,9 @@ import { useEditorPanelSelector } from '../state/providers/EditorPanelStateProvi
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 
 type UseExportActionsParams = {
+  documentSessionKey?: number
+  onReviewExport?: (review: DocumentTransferReview) => void
+  layers?: Layer[]
   shapes: Shape[]
   foldLines: FoldLine[]
   stitchHoles: StitchHole[]
@@ -30,6 +36,8 @@ type UseExportActionsParams = {
 }
 
 export function useExportActions(params: UseExportActionsParams) {
+  const documentSession = useRef(params.documentSessionKey)
+  useLayoutEffect(() => { documentSession.current = params.documentSessionKey }, [params.documentSessionKey])
   const {
     shapes,
     foldLines,
@@ -237,8 +245,10 @@ export function useExportActions(params: UseExportActionsParams) {
     const arrowParts: string[] = []
     if ('arrowStart' in shape && shape.arrowStart) arrowParts.push('marker-start="url(#arrow-start)"')
     if ('arrowEnd' in shape && shape.arrowEnd) arrowParts.push('marker-end="url(#arrow-end)"')
-    const arrowAttribute = arrowParts.length > 0 ? ' ' + arrowParts.join(' ') : ''
+    const opacityAttribute = shape.opacity === undefined ? '' : ` opacity="${round(shape.opacity)}"`
+    const arrowAttribute = (arrowParts.length > 0 ? ' ' + arrowParts.join(' ') : '') + opacityAttribute
 
+    if (isNativeCurve(shape)) return `<path d="${nativeCurvePath(shape)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttribute}${arrowAttribute} />`
     if (shape.type === 'line') {
       return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttribute}${arrowAttribute} />`
     }
@@ -258,14 +268,14 @@ export function useExportActions(params: UseExportActionsParams) {
 
     if (textShape.transform === 'none') {
       const angle = round(textBaselineAngleDeg(textShape))
-      return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${angle} ${round(textShape.start.x)} ${round(textShape.start.y)})">${content}</text>`
+      return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}"${opacityAttribute} transform="rotate(${angle} ${round(textShape.start.x)} ${round(textShape.start.y)})">${content}</text>`
     }
 
     const glyphs = buildTextGlyphPlacements(textShape)
     return glyphs
       .map(
         (glyph) =>
-          `<text x="${round(glyph.x)}" y="${round(glyph.y)}" text-anchor="middle" dominant-baseline="middle" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})">${glyph.char.replace(/[<>&]/g, (char) => (char === '<' ? '&lt;' : char === '>' ? '&gt;' : '&amp;'))}</text>`,
+          `<text x="${round(glyph.x)}" y="${round(glyph.y)}" text-anchor="middle" dominant-baseline="middle" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}"${opacityAttribute} transform="rotate(${round(glyph.rotationDeg)} ${round(glyph.x)} ${round(glyph.y)})">${glyph.char.replace(/[<>&]/g, (char) => (char === '<' ? '&lt;' : char === '>' ? '&gt;' : '&amp;'))}</text>`,
       )
       .join('')
   }
@@ -329,6 +339,7 @@ export function useExportActions(params: UseExportActionsParams) {
   }
 
   const handleExportDxf = () => {
+    const startedSession = documentSession.current
     const exportShapes = [...getExportableShapes(), ...getExportableAnnotationShapes()]
     const exportStitchHoles = getExportableStitchHoles()
     if (exportShapes.length === 0 && exportStitchHoles.length === 0) {
@@ -337,7 +348,8 @@ export function useExportActions(params: UseExportActionsParams) {
     }
     void import('../io/io-dxf')
       .then(({ buildDxfFromShapes }) => {
-        const { content, segmentCount } = buildDxfFromShapes(exportShapes, {
+        if (documentSession.current !== startedSession) return
+        const { content, segmentCount, warnings } = buildDxfFromShapes(exportShapes, {
           stitchHoles: exportStitchHoles,
           stitchHoleRenderMode: exportStitchHoleRenderMode,
           stitchDotRadiusMm: exportStitchDotRadiusMm,
@@ -346,14 +358,22 @@ export function useExportActions(params: UseExportActionsParams) {
           unit: exportUnit,
           forceSolidLineStyle: exportForceSolidStrokes,
           lineTypeStyles: lineTypeStylesById,
+          layers: params.layers, lineTypes, curveToleranceMm: 0.02,
         })
-        downloadFile('leathercraft-export.dxf', content, 'application/dxf')
-        setStatus(
-          `Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, ${exportStitchHoles.length} stitch holes, flipY ${dxfFlipY ? 'on' : 'off'})`,
-        )
+        const download = () => {
+          if (documentSession.current !== startedSession) return
+          downloadFile('leathercraft-export.dxf', content, 'application/dxf')
+          setStatus(`Exported DXF ${dxfVersion.toUpperCase()} (${segmentCount} segments, ${exportStitchHoles.length} stitch holes, flipY ${dxfFlipY ? 'on' : 'off'})${warnings.length ? ` — ${warnings.join('; ')}` : ''}`)
+        }
+        if (warnings.length && params.onReviewExport) params.onReviewExport({
+          fileName: 'leathercraft-export.dxf', title: 'Review DXF export', actionLabel: 'Download DXF',
+          summary: [{ label: 'Shapes', value: String(exportShapes.length) }, { label: 'Output units', value: exportUnit }, { label: 'Curve tolerance', value: '0.02 mm' }],
+          shapes: exportShapes, warnings, onApply: download, onClose: () => setStatus('DXF export canceled'),
+        })
+        else download()
       })
-      .catch(() => {
-        setStatus('DXF export tools failed to load')
+      .catch((error: unknown) => {
+        if (documentSession.current === startedSession) setStatus(`DXF export failed: ${error instanceof Error ? error.message : 'Could not load export tools'}`)
       })
   }
 
@@ -415,6 +435,7 @@ export function useExportActions(params: UseExportActionsParams) {
     const bounds = getBounds(exportShapes)
     const shapeMarkup = exportShapes
       .map((shape) => {
+        if (isNativeCurve(shape)) return `<path d="${nativeCurvePath(shape)}" stroke="#000000" stroke-width="0.1" fill="none" />`
         if (shape.type === 'line') {
           return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="#000000" stroke-width="0.1" fill="none" />`
         }

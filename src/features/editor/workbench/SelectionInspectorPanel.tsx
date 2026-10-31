@@ -1,6 +1,9 @@
 import type { HardwareMarker, Shape, StitchHole, StitchHoleRenderShape, StitchHoleType } from '../cad/cad-types'
 import type { InspectorContext } from './workbench-types'
 import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../ops/box-stitch-source'
+import { ShapeAppearanceControls } from './ShapeAppearanceControls'
+import { NativeCurveInspectorControls } from './NativeCurveInspectorControls'
+import { isNativeCurve } from '../cad/native-curve-ops'
 
 export type SelectionInspectorPanelProps = {
   context: InspectorContext
@@ -106,7 +109,7 @@ export function SelectionInspectorPanel({
         )}
       </div>
 
-      <div className="control-block">
+      {selectedShapeCount > 0 || canOpenPieceTab ? <div className="control-block">
         <h3>Context Actions</h3>
         <div className="workbench-action-grid">
           <button onClick={onAlignX} disabled={selectedShapeCount < 2}>Align X</button>
@@ -135,9 +138,13 @@ export function SelectionInspectorPanel({
           <button onClick={onExtractBoxStitchSource} disabled={boxStitchSourceEligibleCount === 0}>Extract Box Source</button>
           <button onClick={onClearBoxStitchSource} disabled={extractedBoxStitchSourceCount === 0}>Clear Box Source</button>
         </div>
-      </div>
+      </div> : null}
 
       {selectedEditableShape && (
+        <ShapeAppearanceControls key={selectedEditableShape.id} shape={selectedEditableShape} />
+      )}
+      {selectedEditableShape && isNativeCurve(selectedEditableShape) ? <NativeCurveInspectorControls key={JSON.stringify(selectedEditableShape)} shape={selectedEditableShape} /> : null}
+      {selectedEditableShape && !isNativeCurve(selectedEditableShape) && (
         <div className="control-block">
           <h3>Geometry</h3>
           <p className="hint">{`${selectedEditableShape.type} on layer ${selectedEditableShape.layerId}`}</p>

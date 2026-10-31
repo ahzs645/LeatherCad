@@ -338,6 +338,7 @@ export function useSketchGroupActions(params: UseSketchGroupActionsParams) {
     setSketchGroups((previous) =>
       previous
         .filter((group) => group.id !== deleteGroupId)
+        .map((group) => group.parentId === deleteGroupId ? { ...group, parentId: activeSketchGroup.parentId } : group)
         .map((group) =>
           group.baseGroupId === deleteGroupId
             ? {

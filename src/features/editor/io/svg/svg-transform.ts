@@ -1,4 +1,5 @@
 import type { Point, Shape } from '../../cad/cad-types'
+import { isNativeCurve, transformNativeCurve } from '../../cad/native-curve-ops'
 
 export type SvgMatrix = {
   a: number
@@ -153,6 +154,7 @@ export function svgMatrixScaleFactor(matrix: SvgMatrix) {
 }
 
 export function transformSvgShape(shape: Shape, matrix: SvgMatrix): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f])
   if (shape.type === 'line') {
     return {
       ...shape,

@@ -108,9 +108,18 @@ export function clipRings(subject: Point[][], clips: Point[][] = [], difference 
   return solution.map(fromPath).filter((ring) => ring.length >= 3 && Math.abs(signedArea(ring)) > 1e-6)
 }
 
-export function offsetRings(rings: Point[][], amountMm: number): Point[][] {
+export function intersectRings(subject: Point[][], clips: Point[][]): Point[][] {
+  const clipper = new ClipperLib.Clipper()
+  clipper.AddPaths(subject.map(toPath), ClipperLib.PolyType.ptSubject, true)
+  clipper.AddPaths(clips.map(toPath), ClipperLib.PolyType.ptClip, true)
+  const solution: ClipperLib.IntPoint[][] = []
+  clipper.Execute(ClipperLib.ClipType.ctIntersection, solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero)
+  return solution.map(fromPath).filter((ring) => ring.length >= 3 && Math.abs(signedArea(ring)) > 1e-6)
+}
+
+export function offsetRings(rings: Point[][], amountMm: number, toleranceMm = 0.02): Point[][] {
   if (amountMm === 0) return rings
-  const offset = new ClipperLib.ClipperOffset(2, 0.02 * SCALE)
+  const offset = new ClipperLib.ClipperOffset(2, toleranceMm * SCALE)
   offset.AddPaths(rings.map(toPath), ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon)
   const solution: ClipperLib.IntPoint[][] = []
   offset.Execute(solution, amountMm * SCALE)

@@ -24,7 +24,7 @@ import { isEngineV2Enabled } from '../render-v2/engine-v2-flags'
 import { buildCanvasRenderModel } from '../render/canvas-render-model'
 import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { safeLocalStorageGet } from '../ops/safe-storage'
-import type { CanvasInteractionPreview } from '../hooks/useCanvasInteractions'
+import type { CanvasInteractionPreview, HandlePointKey } from '../hooks/useCanvasInteractions'
 import { LayerLegendPanel } from './LayerLegendPanel'
 import { CanvasAnnotationLayer } from './canvas/CanvasAnnotationLayer'
 import { CanvasHardwareLayer } from './canvas/CanvasHardwareLayer'
@@ -104,9 +104,9 @@ export type EditorCanvasPaneProps = {
   onShapeHandlePointerDown: (
     event: PointerEvent<SVGCircleElement>,
     shapeId: string,
-    pointKey: 'start' | 'mid' | 'control' | 'end',
+    pointKey: HandlePointKey,
   ) => void
-  onShapeHandleDoubleClick?: (shapeId: string, pointKey: 'start' | 'mid' | 'control' | 'end') => void
+  onShapeHandleDoubleClick?: (shapeId: string, pointKey: HandlePointKey) => void
   showShapeHandles: boolean
   visibleStitchHoles: StitchHole[]
   selectedStitchHoleId: string | null

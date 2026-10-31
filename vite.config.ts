@@ -45,6 +45,7 @@ const LAZY_BROWSER_DEPENDENCIES = [
 
 export default defineConfig({
   plugins: [react()],
+  worker: { format: 'es' },
   base: process.env.VITE_BASE_PATH || '/',
   cacheDir: process.env.VITE_CACHE_DIR || 'node_modules/.vite',
   resolve: {

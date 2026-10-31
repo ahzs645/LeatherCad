@@ -1,4 +1,5 @@
 import { configureEditorCloudAuth, getEditorCloudState } from './editor-cloud-connection'
+import { preserveEditorDraftForSignIn } from './editor-draft-bridge'
 
 export type EditorOidcEnvironment = { authority?: string; clientId?: string; basePath?: string }
 export type EditorOidcInitialization = { status: 'local' | 'external' | 'configured' | 'failed'; message?: string; dispose?: () => void }
@@ -39,7 +40,7 @@ async function initialize(environment: EditorOidcEnvironment): Promise<EditorOid
     const { createOidcCloudAuth } = await import('./oidc-cloud-auth')
     // A trusted host may have installed its provider while the SDK chunk loaded.
     if (getEditorCloudState().authConfigured) return { status: 'external' }
-    const provider = createOidcCloudAuth({ authority: environment.authority.trim(), clientId: environment.clientId.trim(), basePath: environment.basePath, initialCallbackUrl })
+    const provider = createOidcCloudAuth({ authority: environment.authority.trim(), clientId: environment.clientId.trim(), basePath: environment.basePath, initialCallbackUrl, beforeRedirect: preserveEditorDraftForSignIn })
     const unregister = configureEditorCloudAuth(provider)
     dispose = () => { unregister(); provider.dispose() }
     await provider.initialize()

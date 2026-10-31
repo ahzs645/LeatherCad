@@ -1,4 +1,5 @@
 import type { TranslationMap } from './translation-ops'
+import { INTERFACE_SHELL_DICTIONARIES } from './locale-interface-shell'
 
 // The same main editing actions are translated in every selectable language.
 // Advanced dialogs fall back to English unless the locale supplies more keys.
@@ -181,6 +182,10 @@ export const SHELL_DICTIONARIES: Record<string, TranslationMap> = Object.fromEnt
   Object.entries(SHELL_WORDS).map(([locale, values]) => {
     if (values.length !== SHELL_TRANSLATION_KEYS.length) throw new Error(`Incomplete interface dictionary: ${locale}`)
     const entries: TranslationMap = Object.fromEntries(SHELL_TRANSLATION_KEYS.map((key, index) => [key, values[index]]))
+    Object.assign(entries, INTERFACE_SHELL_DICTIONARIES[locale])
+    entries.Drafting = entries.Draft
+    entries.Assembly = entries['3D Assembly']
+    entries.Printing = entries.Print
     // Equivalent labels from the compact ribbon and shared file-tools panel.
     entries['File Tools'] = entries['File tools']
     entries['interchange.title'] = entries['File tools']

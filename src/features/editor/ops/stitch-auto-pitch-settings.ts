@@ -21,7 +21,7 @@ export function parseStitchAutoPitchSettings(value: unknown): StitchAutoPitchSet
 
   const candidate = value as Partial<StitchAutoPitchSettings>
   return {
-    defaultMode: candidate.defaultMode === 'variable' ? 'variable' : 'fixed',
+    defaultMode: candidate.defaultMode === 'variable' || candidate.defaultMode === 'set-num' ? candidate.defaultMode : 'fixed',
     forceFitLastHole: candidate.forceFitLastHole === true,
     solverSteps:
       typeof candidate.solverSteps === 'number' && Number.isFinite(candidate.solverSteps)

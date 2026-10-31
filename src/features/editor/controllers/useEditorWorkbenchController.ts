@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { useEditorToolActions } from '../state/providers/EditorToolStateProvider'
 import type {
   AvatarSpec,
   HardwareMarker,
@@ -261,6 +262,7 @@ export function useEditorWorkbenchController({
   // param chain: it is shared with the canvas and the 3D preview, not owned here.
   const selectedSeamId = useEditorSelectionSelector((state) => state.selectedSeamId)
   const { setSelectedSeamId } = useEditorSelectionActions()
+  const { setActiveTool } = useEditorToolActions()
 
   const browserNodes = useDocumentBrowserModel({
     patternPieces,
@@ -348,6 +350,8 @@ export function useEditorWorkbenchController({
 
   const handleWorkbenchRibbonCommand = (commandId: string) => {
     switch (commandId) {
+      case 'tool-cubic': setActiveTool('cubic'); break
+      case 'tool-ellipse': setActiveTool('ellipse'); break
       case 'fit-view':
         handleFitView()
         break
@@ -659,7 +663,7 @@ export function useEditorWorkbenchController({
         setActiveInspectorTab('document')
         break
       case 'sketch':
-        setActiveSketchGroupId(parts[1])
+        setActiveSketchGroupId(node.id.slice('sketch:'.length))
         setActiveInspectorTab('document')
         break
       case 'tracing-overlay':

@@ -8,6 +8,7 @@ import type {
   Shape,
   SnapSettings,
   StitchHole,
+  SketchGroup,
 } from '../cad/cad-types'
 import {
   applyCornerOnSelectedLines,
@@ -55,6 +56,7 @@ type UseConstraintActionsParams = {
   constraints: ParametricConstraint[]
   patternPieces: PatternPiece[]
   seamAllowances: PieceSeamAllowance[]
+  sketchGroups?: SketchGroup[]
   snapSettings: SnapSettings
   boxStitchHelperSettings: BoxStitchHelperSettings
   setShapes: Dispatch<SetStateAction<Shape[]>>
@@ -78,6 +80,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     constraints,
     patternPieces,
     seamAllowances,
+    sketchGroups = [],
     snapSettings,
     boxStitchHelperSettings,
     setShapes,
@@ -86,6 +89,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
     setConstraints,
     setSeamAllowances,
   } = params
+  const editableSelectionIds = selectedShapeIds.filter(id => selectedShapeIdSet.has(id))
   const {
     constraintEdge,
     constraintOffsetMm,
@@ -136,7 +140,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
       return
     }
 
-    const firstShapeId = selectedShapeIds[0]
+    const firstShapeId = editableSelectionIds[0]
     if (!firstShapeId) {
       setStatus('Select a shape to add an edge-offset constraint')
       return
@@ -158,13 +162,13 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
   }
 
   const handleAddAlignConstraintsFromSelection = () => {
-    if (selectedShapeIds.length < 2) {
+    if (editableSelectionIds.length < 2) {
       setStatus('Select at least two shapes to add alignment constraints')
       return
     }
 
-    const referenceShapeId = selectedShapeIds[0]
-    const nextConstraints: ParametricConstraint[] = selectedShapeIds.slice(1).map((shapeId, index) => ({
+    const referenceShapeId = editableSelectionIds[0]
+    const nextConstraints: ParametricConstraint[] = editableSelectionIds.slice(1).map((shapeId, index) => ({
       id: uid(),
       name: `Align ${constraints.length + index + 1}`,
       type: 'align',
@@ -184,7 +188,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
       setStatus('No constraints to apply')
       return
     }
-    setShapes((previous) => applyParametricConstraints(previous, layers, constraints))
+    setShapes((previous) => applyParametricConstraints(previous, layers, constraints, sketchGroups))
     setStatus('Applied parametric constraints')
   }
 
@@ -301,7 +305,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
       setStatus(result.message)
       return
     }
-    setShapes(result.nextShapes)
+    setShapes(() => result.nextShapes)
     if (result.createdShapeIds.length > 0) {
       setSelectedShapeIds(result.createdShapeIds)
     }
@@ -319,7 +323,7 @@ export function useConstraintActions(params: UseConstraintActionsParams) {
       setStatus(result.message)
       return
     }
-    setShapes(result.nextShapes)
+    setShapes(() => result.nextShapes)
     if (result.createdShapeIds.length > 0) {
       setSelectedShapeIds(result.createdShapeIds)
     }

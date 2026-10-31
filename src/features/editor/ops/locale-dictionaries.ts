@@ -1,5 +1,6 @@
 import type { TranslationMap } from './translation-ops'
 import { JAPANESE_OPTIONS } from './locale-ja-options'
+import { JAPANESE_INTERFACE } from './locale-ja-interface'
 import { SHELL_DICTIONARIES } from './locale-shell-dictionaries'
 
 export const EDITOR_LANGUAGES = [
@@ -35,6 +36,7 @@ export function isEditorLocale(value: unknown): value is EditorLocale {
 // never pass through this dictionary.
 export const JAPANESE_UI: TranslationMap = {
   ...JAPANESE_OPTIONS,
+  ...JAPANESE_INTERFACE,
   Language: '言語',
   'Interface language': '表示言語',
   'Compact Workbench': 'コンパクト作業台',

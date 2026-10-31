@@ -1,0 +1,5 @@
+.draft-recovery-backdrop { z-index: 10000; }
+.draft-recovery-dialog { max-width: 640px; max-height: 90dvh; overflow: auto; }
+.draft-recovery-dialog button, .draft-recovery-dialog select, .draft-recovery-failure button { min-height: 44px; }
+.draft-recovery-dialog .line-type-modal-actions { flex-wrap: wrap; }
+.draft-recovery-failure { position: fixed; z-index: 9999; bottom: 12px; left: 12px; right: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 12px; border: 1px solid #d97706; background: #fff7ed; color: #431407; border-radius: 8px; }

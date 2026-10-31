@@ -90,6 +90,10 @@ function offsetFor(analysis: PatternPdfAnalysis, centre: boolean): Point {
 
 function shiftShape(shape: Shape, offset: Point): Shape {
   switch (shape.type) {
+    case 'cubic':
+      return { ...shape, start: translate(shape.start, offset), control1: translate(shape.control1, offset), control2: translate(shape.control2, offset), end: translate(shape.end, offset) }
+    case 'ellipse':
+      return { ...shape, center: translate(shape.center, offset) }
     case 'arc':
       return { ...shape, start: translate(shape.start, offset), mid: translate(shape.mid, offset), end: translate(shape.end, offset) }
     case 'bezier':

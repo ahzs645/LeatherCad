@@ -1,6 +1,9 @@
 import { sampleShapePoints, uid } from '../cad/cad-geometry'
 import type { Shape, TextShape } from '../cad/cad-types'
 import { collectSvgElementTransform, transformSvgShape } from './svg/svg-transform'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
+import { parseNativeSvgPath } from './svg/svg-path'
+import { assertImportGeometryBudget, assertImportTextBudget } from './import-budget'
 
 type SvgImportOptions = {
   layerId: string
@@ -75,6 +78,7 @@ function parsePointList(value: string | null, documentScaleMm = 1) {
     .split(/\s+/)
     .filter((entry) => entry.length > 0)
 
+  assertImportGeometryBudget(Math.max(0, Math.floor(chunks.length / 2) - 1))
   const points: Array<{ x: number; y: number }> = []
   for (let index = 0; index + 1 < chunks.length; index += 2) {
     const x = parseLength(chunks[index], Number.NaN, documentScaleMm)
@@ -103,6 +107,8 @@ function polylineToLines(points: Array<{ x: number; y: number }>, closed: boolea
     return shapes
   }
 
+  const closure = closed && points.length > 2 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) > 1e-6 ? 1 : 0
+  assertImportGeometryBudget(points.length - 1 + closure)
   for (let index = 1; index < points.length; index += 1) {
     shapes.push(lineShape(layerId, lineTypeId, points[index - 1], points[index]))
   }
@@ -149,17 +155,7 @@ function ellipseToLines(
     return [] as Shape[]
   }
 
-  const circumferenceEstimate = 2 * Math.PI * Math.sqrt((radiusX * radiusX + radiusY * radiusY) / 2)
-  const segments = Math.max(16, Math.min(160, Math.round(circumferenceEstimate / 8)))
-  const points: Array<{ x: number; y: number }> = []
-  for (let index = 0; index < segments; index += 1) {
-    const angle = (index / segments) * Math.PI * 2
-    points.push({
-      x: centerX + Math.cos(angle) * radiusX,
-      y: centerY + Math.sin(angle) * radiusY,
-    })
-  }
-  return polylineToLines(points, true, layerId, lineTypeId)
+  return [{ id: uid(), type: 'ellipse', layerId, lineTypeId, center: { x: centerX, y: centerY }, radiusX, radiusY, rotationDeg: 0, startAngleDeg: 0, sweepDeg: 360 }] satisfies Shape[]
 }
 
 function parseStyleAttribute(value: string | null) {
@@ -218,28 +214,12 @@ function textToShape(textElement: SVGTextElement, layerId: string, lineTypeId: s
   }
 }
 
-function pathToLines(pathElement: SVGPathElement, layerId: string, lineTypeId: string) {
-  const length = pathElement.getTotalLength()
-  if (!Number.isFinite(length) || length <= 0) {
-    return [] as Shape[]
-  }
-
-  const segments = Math.max(8, Math.min(300, Math.round(length / 8)))
-  const points: Array<{ x: number; y: number }> = []
-  for (let index = 0; index <= segments; index += 1) {
-    const sample = pathElement.getPointAtLength((index / segments) * length)
-    points.push({ x: sample.x, y: sample.y })
-  }
-
-  const startsClosed =
-    points.length > 2 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) <= 1
-  return polylineToLines(points, startsClosed, layerId, lineTypeId)
-}
-
 function scaleShapePoints(shape: Shape, scaleMm: number): Shape {
   if (Math.abs(scaleMm - 1) < 1e-6) {
     return shape
   }
+
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [scaleMm, 0, 0, scaleMm, 0, 0])
 
   if (shape.type === 'line') {
     return {
@@ -335,6 +315,7 @@ function shapesToApproximateArcs(shapes: Shape[]) {
 }
 
 export function importSvgAsShapes(svgContent: string, options: SvgImportOptions): SvgImportResult {
+  assertImportTextBudget(svgContent)
   const parser = new DOMParser()
   const parsed = parser.parseFromString(svgContent, 'image/svg+xml')
   const parserError = parsed.querySelector('parsererror')
@@ -344,6 +325,10 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
 
   const warnings: string[] = []
   const shapes: Shape[] = []
+  const append = (entries: Shape[]) => {
+    assertImportGeometryBudget(shapes.length + entries.length)
+    for (const shape of entries) shapes.push(shape)
+  }
   const layerId = options.layerId
   const lineTypeId = options.lineTypeId
   const svgRoot = parsed.querySelector('svg')
@@ -355,7 +340,7 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
     const y1 = parseLength(lineElement.getAttribute('y1'), 0, documentScaleMm)
     const x2 = parseLength(lineElement.getAttribute('x2'), 0, documentScaleMm)
     const y2 = parseLength(lineElement.getAttribute('y2'), 0, documentScaleMm)
-    shapes.push(...transformElementShapes(
+    append(transformElementShapes(
       lineElement,
       [lineShape(layerId, lineTypeId, { x: x1, y: y1 }, { x: x2, y: y2 })],
       svgRoot,
@@ -366,18 +351,18 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
   const polylineElements = parsed.querySelectorAll('polyline')
   polylineElements.forEach((polylineElement) => {
     const points = parsePointList(polylineElement.getAttribute('points'), documentScaleMm)
-    shapes.push(...transformElementShapes(polylineElement, polylineToLines(points, false, layerId, lineTypeId), svgRoot, documentScaleMm))
+    append(transformElementShapes(polylineElement, polylineToLines(points, false, layerId, lineTypeId), svgRoot, documentScaleMm))
   })
 
   const polygonElements = parsed.querySelectorAll('polygon')
   polygonElements.forEach((polygonElement) => {
     const points = parsePointList(polygonElement.getAttribute('points'), documentScaleMm)
-    shapes.push(...transformElementShapes(polygonElement, polylineToLines(points, true, layerId, lineTypeId), svgRoot, documentScaleMm))
+    append(transformElementShapes(polygonElement, polylineToLines(points, true, layerId, lineTypeId), svgRoot, documentScaleMm))
   })
 
   const rectElements = parsed.querySelectorAll('rect')
   rectElements.forEach((rectElement) => {
-    shapes.push(...transformElementShapes(rectElement, rectToLines(rectElement, layerId, lineTypeId, documentScaleMm), svgRoot, documentScaleMm))
+    append(transformElementShapes(rectElement, rectToLines(rectElement, layerId, lineTypeId, documentScaleMm), svgRoot, documentScaleMm))
   })
 
   const circleElements = parsed.querySelectorAll('circle')
@@ -385,7 +370,7 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
     const centerX = parseLength(circleElement.getAttribute('cx'), 0, documentScaleMm)
     const centerY = parseLength(circleElement.getAttribute('cy'), 0, documentScaleMm)
     const radius = parseLength(circleElement.getAttribute('r'), 0, documentScaleMm)
-    shapes.push(...transformElementShapes(
+    append(transformElementShapes(
       circleElement,
       ellipseToLines(centerX, centerY, radius, radius, layerId, lineTypeId),
       svgRoot,
@@ -399,7 +384,7 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
     const centerY = parseLength(ellipseElement.getAttribute('cy'), 0, documentScaleMm)
     const radiusX = parseLength(ellipseElement.getAttribute('rx'), 0, documentScaleMm)
     const radiusY = parseLength(ellipseElement.getAttribute('ry'), 0, documentScaleMm)
-    shapes.push(...transformElementShapes(
+    append(transformElementShapes(
       ellipseElement,
       ellipseToLines(centerX, centerY, radiusX, radiusY, layerId, lineTypeId),
       svgRoot,
@@ -414,29 +399,28 @@ export function importSvgAsShapes(svgContent: string, options: SvgImportOptions)
       return
     }
 
+    let pathShapes: Shape[]
     try {
-      const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-      const tempPath = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-      tempPath.setAttribute('d', d)
-      tempSvg.appendChild(tempPath)
-      const pathShapes = pathToLines(tempPath, layerId, lineTypeId).map((shape) =>
-        scaleShapePoints(shape, documentScaleMm),
-      )
-      if (pathShapes.length === 0) {
-        warnings.push('Skipped an unsupported path element')
-        return
-      }
-      shapes.push(...transformElementShapes(pathElement, pathShapes, svgRoot, documentScaleMm))
+      const parsedShapes = parseNativeSvgPath(d, layerId, lineTypeId).map((shape) => scaleShapePoints(shape, documentScaleMm))
+      pathShapes = transformElementShapes(pathElement, parsedShapes, svgRoot, documentScaleMm)
     } catch {
       warnings.push('Skipped an unsupported path element')
+      return
     }
+    if (!pathShapes.length) {
+      warnings.push('Skipped an unsupported path element')
+      return
+    }
+    // A global expansion failure rejects the import; it must not become a
+    // per-element warning followed by a partial document.
+    append(pathShapes)
   })
 
   const textElements = parsed.querySelectorAll('text')
   textElements.forEach((textElement) => {
     const textShape = textToShape(textElement, layerId, lineTypeId, documentScaleMm)
     if (textShape) {
-      shapes.push(...transformElementShapes(textElement, [textShape], svgRoot, documentScaleMm))
+      append(transformElementShapes(textElement, [textShape], svgRoot, documentScaleMm))
     }
   })
 

@@ -1,3 +1,5 @@
+import { validateDocumentAssets } from './cloudAssetReferences'
+import { ensurePrivateQuotaReady } from './cloudPrivateQuota'
 import { ConvexError, v } from 'convex/values'
 import { ownerMutation, ownerQuery } from './authenticated'
 import { boundedText, cursor, remoteDocument, validateDocumentJson } from './validators'
@@ -25,7 +27,9 @@ export const get = ownerQuery({
 export const create = ownerMutation({
   args: { id: v.string(), name: v.string(), docJson: v.string() }, returns: remoteDocument,
   handler: async (ctx, args) => {
+    await ensurePrivateQuotaReady(ctx, ctx.owner)
     validateDocumentJson(args.docJson)
+    await validateDocumentAssets(ctx, ctx.owner, args.docJson)
     const clientId = boundedText(args.id, 'Document ID'), name = boundedText(args.name, 'Name')
     if (await find(ctx, ctx.owner, clientId)) throw new ConvexError('A cloud document already uses this ID; create a copy instead')
     const now = Date.now(), row = { owner: ctx.owner, clientId, name, docJson: args.docJson, createdAt: now, updatedAt: now, revision: 1 }
@@ -37,7 +41,9 @@ export const create = ownerMutation({
 export const save = ownerMutation({
   args: { id: v.string(), name: v.string(), docJson: v.string(), expectedRevision: v.union(v.number(), v.null()) }, returns: remoteDocument,
   handler: async (ctx, args) => {
+    await ensurePrivateQuotaReady(ctx, ctx.owner)
     validateDocumentJson(args.docJson)
+    await validateDocumentAssets(ctx, ctx.owner, args.docJson)
     const name = boundedText(args.name, 'Name'), row = await find(ctx, ctx.owner, args.id)
     if (!row) {
       if (args.expectedRevision !== null) throw new ConvexError('Cloud drawing changed; refresh before saving')
@@ -56,10 +62,12 @@ export const save = ownerMutation({
   },
 })
 export const remove = ownerMutation({
-  args: { id: v.string() }, returns: v.null(),
+  args: { id: v.string(), expectedRevision: v.union(v.number(), v.null()) }, returns: v.null(),
   handler: async (ctx, args) => {
+    await ensurePrivateQuotaReady(ctx, ctx.owner)
     const row = await find(ctx, ctx.owner, args.id)
     if (row && !row.deletedAt) {
+      if (row.revision !== args.expectedRevision) throw new ConvexError('Cloud drawing changed; refresh before deleting')
       await recordDocumentRevision(ctx, row)
       const update = { deletedAt: Date.now(), updatedAt: Date.now(), revision: row.revision + 1 }
       await ctx.db.patch(row._id, update)

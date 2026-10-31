@@ -52,7 +52,7 @@ describe('buildPrintableHtml', () => {
   it('applies line thickness scaling and hides ignored line types by default', () => {
     const printPlan = buildPrintPlan(shapes, { paper: 'letter', marginMm: 8, overlapMm: 4, tileX: 1, tileY: 1, scalePercent: 100 })
     const html = buildPrintableHtml({
-      shapes,
+      shapes: shapes.map(shape => ({ ...shape, opacity: 0.4 })),
       stitchHoles: [],
       foldLines: [],
       lineTypesById: { cut: cutLineType, guide: guideLineType },
@@ -67,6 +67,7 @@ describe('buildPrintableHtml', () => {
     })
 
     expect(html).toContain('stroke-width="2"')
+    expect(html).toContain('opacity="0.4"')
     expect(html).toContain('active DPI 96 x 96')
     expect(html).not.toContain('data-non-print')
     expect(html).not.toContain('y1="5"')

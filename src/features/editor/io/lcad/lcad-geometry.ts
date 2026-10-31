@@ -1,8 +1,13 @@
 import type { ArcShape, BezierShape, LineShape, Point, Shape } from '../../cad/cad-types'
 
 export type LcadRecord = Record<string, unknown>
-export type ShapeBase = Pick<LineShape, 'id' | 'layerId' | 'lineTypeId' | 'groupId' | 'arrowStart' | 'arrowEnd' | 'strokeWidthOverride'>
+export type ShapeBase = Pick<LineShape, 'id' | 'layerId' | 'lineTypeId' | 'groupId' | 'arrowStart' | 'arrowEnd' | 'strokeWidthOverride' | 'locked' | 'opacity'>
 export const LCAD_CURVE_TOLERANCE_MM = 0.01
+
+/** Exact degree elevation, shared by both modern and legacy adapters. */
+export function quadraticToCubicPoints(start: Point, control: Point, end: Point): Point[] {
+  return [start, { x: start.x + (2 * (control.x - start.x)) / 3, y: start.y + (2 * (control.y - start.y)) / 3 }, { x: end.x + (2 * (control.x - end.x)) / 3, y: end.y + (2 * (control.y - end.y)) / 3 }, end]
+}
 
 export function numberField(record: LcadRecord, key: string, fallback?: number): number {
   const value = record[key] ?? fallback
@@ -36,7 +41,7 @@ export function circularArcs(cx: number, cy: number, radius: number, start: numb
   return Array.from({ length: count }, (_, index) => {
     const a = start + (sweep * index) / count
     const b = start + (sweep * (index + 1)) / count
-    return { ...base, id: `${base.id}:${index}`, type: 'arc', start: at(a), mid: at((a + b) / 2), end: at(b) }
+    return { ...base, id: `${base.id}:${index}`, arrowStart: index === 0 ? base.arrowStart : undefined, arrowEnd: index === count - 1 ? base.arrowEnd : undefined, type: 'arc', start: at(a), mid: at((a + b) / 2), end: at(b) }
   })
 }
 
@@ -63,6 +68,10 @@ export function cubicToQuadratics(points: Point[], base: ShapeBase): BezierShape
     append(center, bcd, cd, d, depth + 1)
   }
   for (let index = 0; index + 3 < points.length; index += 3) append(points[index], points[index + 1], points[index + 2], points[index + 3])
+  for (let index = 0; index < result.length; index++) {
+    result[index].arrowStart = index === 0 ? base.arrowStart : undefined
+    result[index].arrowEnd = index === result.length - 1 ? base.arrowEnd : undefined
+  }
   return result
 }
 
@@ -85,18 +94,14 @@ export function primitiveShapes(source: LcadRecord, base: ShapeBase): Shape[] {
   if (source.type === 'ellipse') {
     const cx = n('cx'), cy = n('cy'), rx = n('rx'), ry = n('ry'), angle = n('rotation', 0)
     if (!(rx > 0 && ry > 0)) throw new Error('Invalid .lcad ellipse size')
-    const count = Math.max(16, Math.ceil(Math.PI * 2 * Math.sqrt(Math.max(rx, ry) / (8 * LCAD_CURVE_TOLERANCE_MM))))
-    if (count > 8192) throw new Error('.lcad ellipse exceeds the supported precision/complexity limit')
-    const points = Array.from({ length: count }, (_, index) => {
-      const t = (index * Math.PI * 2) / count, x = rx * Math.cos(t), y = ry * Math.sin(t)
-      return { x: cx + Math.cos(angle) * x - Math.sin(angle) * y, y: cy + Math.sin(angle) * x + Math.cos(angle) * y }
-    })
-    return linePoints(points, true, base)
+    return [{ ...base, type: 'ellipse', center: { x: cx, y: cy }, radiusX: rx, radiusY: ry, rotationDeg: angle * 180 / Math.PI, startAngleDeg: 0, sweepDeg: 360 }]
   }
   if (source.type === 'bezier') {
     if (!Array.isArray(source.points)) throw new Error('Invalid .lcad Bézier points')
     const points = source.points.map(pointValue)
-    const curves = cubicToQuadratics(points, base)
+    if (points.length < 4 || (points.length - 1) % 3 !== 0) throw new Error('Invalid .lcad cubic Bézier point chain')
+    const curves: Shape[] = []
+    for (let index = 0; index + 3 < points.length; index += 3) curves.push({ ...base, id: `${base.id}:${index / 3}`, type: 'cubic', start: points[index], control1: points[index + 1], control2: points[index + 2], end: points[index + 3], arrowStart: index === 0 ? base.arrowStart : undefined, arrowEnd: index + 4 === points.length ? base.arrowEnd : undefined })
     if (source.closed === true && points.length > 1 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) > 1e-8) {
       curves.push({ ...base, id: `${base.id}:close`, type: 'bezier', start: points[points.length - 1], control: midpoint(points[points.length - 1], points[0]), end: points[0] })
     }

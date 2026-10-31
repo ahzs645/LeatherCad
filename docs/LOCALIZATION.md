@@ -9,10 +9,10 @@ The catalog offers the same 20 languages as the reviewed reference app. Coverage
 | Language | Bundled translation entries | Scope |
 | --- | ---: | --- |
 | English | Source text | Default interface and fallback |
-| Japanese | 555 | Main workbench and phone controls, Options, export options, SVG import, stitch simulator, local projects, file tools, DXF units and STL controls |
-| Armenian, Danish, German, Spanish, Finnish, French, Italian, Korean, Norwegian, Polish, Brazilian Portuguese, Portuguese, Romanian, Russian, Turkish, Ukrainian, Traditional Chinese, Simplified Chinese | 60 each | Main editing tabs, geometry tools, common file actions, core buttons, workspace views and file-tools aliases |
+| Japanese | 654 | Main workbench and phone controls, Options and new input/preset controls, size editing, export options, SVG import, stitch simulator, local projects, file tools, DXF units and STL controls |
+| Armenian, Danish, German, Spanish, Finnish, French, Italian, Korean, Norwegian, Polish, Brazilian Portuguese, Portuguese, Romanian, Russian, Turkish, Ukrainian, Traditional Chinese, Simplified Chinese | 72 each | Main editing tabs, geometry tools, common file actions, core buttons, workspace views and file-tools aliases |
 
-The 18 smaller dictionaries contain 48 shared editing actions and 12 equivalent labels/keys. They are working core translations, not complete translations of every inspector or advanced dialog. Japanese also retains English for remaining unwired specialist controls and technical diagnostics. New parser/mesh/cloud error details can remain English. Translation counts are entries, not the percentage of all application text.
+The 18 smaller dictionaries contain 48 shared editing actions, 12 equivalent labels/keys and 12 interface/native-geometry additions. They are working core translations, not complete translations of every inspector or advanced dialog. Japanese also retains English for remaining unwired specialist controls and technical diagnostics. New parser/mesh/cloud error details can remain English. Translation counts are entries, not the percentage of all application text.
 
 `getLocaleCoverage` in `ops/locale-dictionaries.ts` exposes counts and scope from the actual dictionaries. Brazilian Portuguese uses `pt-BR`, Traditional Chinese uses `zh-TW`, and Simplified Chinese uses `zh-CN` so the HTML language is a valid locale tag.
 
@@ -54,3 +54,9 @@ The hook uses browser preference/override stores and can render in reusable work
 `LanguageSelector.test.tsx` verifies actual header/ribbon switching, persistence, imported overrides, fallback, cross-tab updates, sample German/French/Chinese controls and complete core-key coverage for all selectable languages. Existing Workbench tests continue to run in English.
 
 `e2e/localization.spec.ts` checks switching the real desktop interface to Japanese, reloading, changing to German, and using the phone Options language selector. The focused Chromium run passed both cases. More fluent-speaker review and deeper dictionary coverage remain useful follow-up work; this change does not claim complete localization of all 20 languages.
+
+## Source-backed coverage audit
+
+Run `node scripts/audit-localization.mjs --out docs/verification/localization-coverage.json --check-core` to regenerate the [used-key inventory](verification/localization-coverage.json). It inventories static/conditional `t()` keys and known tool/ribbon/settings label registries, reports built-in key/fallback availability by workflow and locale, and lists dynamic key expressions for manual review. Missing-key lists are deduplicated across locales with the same coverage.
+
+This measures the availability of known translation keys. It excludes application copy that is not yet wired through translation, does not assess linguistic quality, and does not turn dictionary-entry counts into product-completeness percentages. Imported custom translations are excluded. `--check-core` fails when a selectable language lacks the shared core/interface keys; deeper workflow gaps remain visible in the report.

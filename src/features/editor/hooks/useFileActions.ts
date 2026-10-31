@@ -1,4 +1,5 @@
-import { useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
+import { useLayoutEffect, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
+import { flushSync } from 'react-dom'
 import type { DocFile, Layer, Point, Shape, SketchGroup } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
 import { downloadFile } from '../editor-utils'
@@ -7,8 +8,14 @@ import { safeLocalStorageSet } from '../ops/safe-storage'
 import type { MobileViewMode } from '../editor-types'
 import { computeBoundsFromShapes } from '../ops/pattern-ops'
 import type { SvgImportMode } from '../components/SvgImportOptionsModal'
+import type { DocumentTransferReview } from '../components/DocumentTransferReviewModal'
+import { MAX_IMPORT_FILE_BYTES } from '../io/import-budget'
+import type { PatternPdfReview } from '../ops/pattern-pdf/pattern-pdf-review'
+import { parseDocumentFile } from '../io/parse-file-import'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
+type ImportSessionKey = number | readonly Shape[]
 
 type PendingSvgImport = {
   fileName: string
@@ -19,9 +26,15 @@ type PendingSvgImport = {
   heightMm: number
   minX: number
   minY: number
+  sessionKey: ImportSessionKey
+  isCurrent: () => boolean
 }
 
 function mapShapePoints(shape: Shape, mapPoint: (point: Point) => Point, scale = 1): Shape {
+  if (isNativeCurve(shape)) {
+    const origin = mapPoint({ x: 0, y: 0 }), x = mapPoint({ x: 1, y: 0 }), y = mapPoint({ x: 0, y: 1 })
+    return transformNativeCurve(shape, [x.x - origin.x, x.y - origin.y, y.x - origin.x, y.y - origin.y, origin.x, origin.y])
+  }
   if (shape.type === 'line') {
     return { ...shape, start: mapPoint(shape.start), end: mapPoint(shape.end) }
   }
@@ -51,6 +64,8 @@ export function resolveDocumentNameFromFileName(fileName: string): string | null
 }
 
 type UseFileActionsParams = {
+  /** Nonpersisted epoch advanced only by document load/new/reset. */
+  documentSessionKey?: number
   buildCurrentDocFile: () => DocFile
   applyLoadedDocument: (doc: DocFile, statusMessage: string) => void
   activeLocalDocumentId: string | null
@@ -93,6 +108,40 @@ export function useFileActions(params: UseFileActionsParams) {
     setShowMobileMenu,
   } = params
   const [pendingSvgImport, setPendingSvgImport] = useState<PendingSvgImport | null>(null)
+  const [pendingTransfer, setPendingTransfer] = useState<{ review: DocumentTransferReview; sessionKey: ImportSessionKey } | null>(null)
+  const [pendingPatternPdfReview, setPendingPatternPdfReview] = useState<{ review: PatternPdfReview; sessionKey: ImportSessionKey; isCurrent: () => boolean } | null>(null)
+  const importSessionKey = params.documentSessionKey ?? buildCurrentDocFile().objects
+  const loadIntent = useRef(0)
+  const latestDocumentBuilder = useRef(buildCurrentDocFile)
+  useLayoutEffect(() => { latestDocumentBuilder.current = buildCurrentDocFile }, [buildCurrentDocFile])
+  const lifetime = useRef({ active: false, id: 0, controller: new AbortController() })
+  useLayoutEffect(() => {
+    const current = lifetime.current
+    current.active = true
+    return () => { current.active = false; current.id++; current.controller.abort() }
+  }, [importSessionKey])
+  const beginImport = () => {
+    loadIntent.current++
+    const current = lifetime.current
+    current.controller.abort()
+    current.controller = new AbortController()
+    const id = ++current.id
+    setPendingTransfer(null)
+    setPendingPatternPdfReview(null)
+    setPendingSvgImport(null)
+    return { signal: current.controller.signal, isCurrent: () => current.active && current.id === id }
+  }
+  const closeTransfer = () => { lifetime.current.id++; lifetime.current.controller.abort(); setPendingTransfer(null) }
+  const stageExport = (fileName: string, text: string, warnings: string[], doc: DocFile, format: string) => {
+    const requestId = lifetime.current.id
+    const download = () => {
+      if (!lifetime.current.active || lifetime.current.id !== requestId) return
+      downloadFile(fileName, text, 'application/json;charset=utf-8'); setStatus(`${format} exported`); setPendingTransfer(null)
+      lifetime.current.id++
+    }
+    if (!warnings.length) { download(); return }
+    setPendingTransfer({ sessionKey: importSessionKey, review: { fileName, title: `Review ${format} export`, actionLabel: `Download ${format}`, summary: [{ label: 'Shapes', value: String(doc.objects.length) }, { label: 'Geometry units', value: 'mm' }], warnings, shapes: doc.objects, onClose: closeTransfer, onApply: download } })
+  }
 
   const saveLocalProject = async (doc: DocFile, fallbackName = 'Untitled project') => {
     const name = doc.documentName?.trim() || fallbackName
@@ -108,9 +157,16 @@ export function useFileActions(params: UseFileActionsParams) {
   }
 
   const createLocalProjectFromLoadedDoc = async (doc: DocFile, fallbackName: string) => {
+    const intent = loadIntent.current
     const saved = await withEditorLocalDataClient((client) =>
       client.documents.create({ name: doc.documentName?.trim() || fallbackName, doc }),
     )
+    // A startup/demo save can complete after a newer file read has begun.
+    // It must not re-associate that newer drawing with the old database record.
+    if (!lifetime.current.active || intent !== loadIntent.current) return
+    const current = latestDocumentBuilder.current()
+    const sourceIds = new Set(doc.objects.map(shape => shape.id))
+    if (current.documentName !== doc.documentName || current.objects.some(shape => !sourceIds.has(shape.id))) return
     setActiveLocalDocumentId(saved?.id ?? null)
   }
 
@@ -120,12 +176,14 @@ export function useFileActions(params: UseFileActionsParams) {
   }
 
   const handleLoadLocalProject = async (documentId: string) => {
+    const work = beginImport()
     const document = await withEditorLocalDataClient((client) => client.documents.get(documentId))
+    if (!work.isCurrent()) return
     if (!document) {
       setStatus('Local project could not be loaded')
       return
     }
-    applyLoadedDocument(document.doc, `Loaded local project "${document.name}"`)
+    flushSync(() => applyLoadedDocument(document.doc, `Loaded local project "${document.name}"`))
     setActiveLocalDocumentId(document.id)
   }
 
@@ -149,12 +207,13 @@ export function useFileActions(params: UseFileActionsParams) {
   }
 
   const handleSaveLcc = () => {
+    const work = beginImport()
     const doc = buildCurrentDocFile()
     void import('../io/io-lcc')
-      .then(({ exportLccDocument }) => {
+      .then(({ exportLccDocument, getLccExportWarnings }) => {
+        if (!work.isCurrent()) return
         const lccContent = exportLccDocument(doc)
-        downloadFile('leathercraft-doc.lcc', lccContent, 'application/json;charset=utf-8')
-        setStatus('Document saved as LCC')
+        stageExport('leathercraft-doc.lcc', lccContent, getLccExportWarnings(doc), doc, 'LCC')
       })
       .catch((error: unknown) => {
         setStatus(`Could not export LCC: ${error instanceof Error ? error.message : 'unknown error'}`)
@@ -162,12 +221,13 @@ export function useFileActions(params: UseFileActionsParams) {
   }
 
   const handleSaveLcad = () => {
+    const work = beginImport()
     const doc = buildCurrentDocFile()
     void import('../io/io-lcad')
       .then(({ exportLcadDocument }) => {
+        if (!work.isCurrent()) return
         const result = exportLcadDocument(doc)
-        downloadFile('leathercraft-doc.lcad', result.text, 'application/json;charset=utf-8')
-        setStatus(result.warnings.length > 0 ? `LCAD exported — ${result.warnings.join('; ')}` : 'Document saved as LCAD')
+        stageExport('leathercraft-doc.lcad', result.text, result.warnings, doc, 'LCAD')
       })
       .catch((error: unknown) => setStatus(`Could not export LCAD: ${error instanceof Error ? error.message : 'unknown error'}`))
   }
@@ -188,70 +248,46 @@ export function useFileActions(params: UseFileActionsParams) {
   const handleLoadJson = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
-
-    if (!file) {
-      return
-    }
-
+    if (!file) return
+    const work = beginImport()
     const lowerName = file.name.toLowerCase()
-    const looksLikeLccOrJson =
-      lowerName.endsWith('.lcc') || lowerName.endsWith('.lcad') || lowerName.endsWith('.json') || file.type === 'application/json'
-    if (!looksLikeLccOrJson) {
-      setStatus(
-        `"${file.name}" is not a LeatherCad (.lcc, .lcad) or JSON file. Use "Import SVG" or "Import Tracing" for images.`,
-      )
+    if (!(lowerName.endsWith('.lcc') || lowerName.endsWith('.lcad') || lowerName.endsWith('.json') || file.type === 'application/json')) {
+      setStatus(`"${file.name}" is not a LeatherCad (.lcc, .lcad) or JSON file. Use "Import SVG" or "Import Tracing" for images.`)
       return
     }
-
+    if (file.size > MAX_IMPORT_FILE_BYTES) { setStatus('Could not load drawing: file exceeds the 50 MB import limit'); return }
+    setStatus(`Reading "${file.name}"…`)
     try {
       const raw = await file.text()
-      const trimmed = raw.trim()
-      if (trimmed.length === 0) {
-        setStatus(`"${file.name}" is empty — nothing to load`)
-        return
-      }
-      const isLcc = lowerName.endsWith('.lcc')
-
-      if (isLcc) {
-        const { importLccDocument } = await import('../io/io-lcc')
-        const result = importLccDocument(raw)
-        const documentName = result.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
-        const warningNote = result.warnings.length > 0 ? ` (${result.warnings.length} warning(s))` : ''
-        applyLoadedDocument(
-          documentName ? { ...result.doc, documentName } : result.doc,
-          `Loaded LCC (${result.summary.shapeCount} shapes, ${result.summary.foldCount} folds, ${result.summary.stitchHoleCount} holes, ${result.summary.layerCount} layers)${warningNote}`,
-        )
-        void createLocalProjectFromLoadedDoc(documentName ? { ...result.doc, documentName } : result.doc, file.name)
-        return
-      }
-
-      if (!(trimmed.startsWith('{') || trimmed.startsWith('['))) {
-        setStatus(`"${file.name}" does not look like valid JSON — skipped`)
-        return
-      }
-
-      const { importLcadDocument, isLcadDocument } = await import('../io/io-lcad')
-      if (lowerName.endsWith('.lcad') || isLcadDocument(JSON.parse(trimmed))) {
-        const imported = importLcadDocument(raw)
-        const documentName = imported.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
-        const warningNote = imported.warnings.length > 0 ? ` — ${imported.warnings.join('; ')}` : ''
-        const doc = documentName ? { ...imported.doc, documentName } : imported.doc
-        applyLoadedDocument(doc, `Loaded LCAD (${imported.summary.shapeCount} shapes, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers)${warningNote}`)
-        void createLocalProjectFromLoadedDoc(doc, file.name)
-        return
-      }
-
-      const { parseImportedJsonDocument } = await import('../editor-json-import')
-      const imported = parseImportedJsonDocument(raw)
+      if (!work.isCurrent()) return
+      const imported = await parseDocumentFile(raw, file.name, work.signal)
+      if (!work.isCurrent()) return
       const documentName = imported.doc.documentName ?? resolveDocumentNameFromFileName(file.name)
-      applyLoadedDocument(
-        documentName ? { ...imported.doc, documentName } : imported.doc,
-        `Loaded JSON (${imported.summary.shapeCount} shapes, ${imported.summary.foldCount} folds, ${imported.summary.stitchHoleCount} holes, ${imported.summary.layerCount} layers, ${imported.summary.hardwareMarkerCount} hardware markers)`,
-      )
-      void createLocalProjectFromLoadedDoc(documentName ? { ...imported.doc, documentName } : imported.doc, file.name)
+      const doc = documentName ? { ...imported.doc, documentName } : imported.doc
+      const bounds = computeBoundsFromShapes(doc.objects)
+      setPendingTransfer({ sessionKey: importSessionKey, review: {
+        fileName: file.name, title: 'Review drawing import', actionLabel: 'Replace current drawing',
+        summary: [
+          { label: 'Format', value: imported.format },
+          { label: 'Shapes', value: String(doc.objects.length) },
+          { label: 'Stitch holes', value: String(doc.stitchHoles?.length ?? 0) },
+          { label: 'Layers', value: doc.layers.slice(0, 20).map(layer => layer.name).join(', ') + (doc.layers.length > 20 ? ` … (${doc.layers.length} total)` : '') },
+          { label: 'Geometry units', value: 'mm' },
+          { label: 'Drawing size', value: bounds ? `${(bounds.maxX - bounds.minX).toFixed(2)} × ${(bounds.maxY - bounds.minY).toFixed(2)} mm` : 'Empty drawing' },
+        ],
+        warnings: imported.warnings, shapes: doc.objects, onClose: closeTransfer,
+        onApply: () => {
+          if (!work.isCurrent()) return
+          lifetime.current.id++
+          setPendingTransfer(null)
+          applyLoadedDocument(doc, `Loaded ${imported.format} (${doc.objects.length} shapes, ${doc.layers.length} layers)${imported.warnings.length ? ` — ${imported.warnings.join('; ')}` : ''}`)
+          void createLocalProjectFromLoadedDoc(doc, file.name)
+        },
+      } })
+      setStatus(`Review "${file.name}" before replacing the current drawing`)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`Could not load "${file.name}": ${message}`)
+      if (!work.isCurrent()) return
+      setStatus(`Could not load "${file.name}": ${error instanceof Error ? error.message : 'unknown error'}`)
     }
   }
 
@@ -267,9 +303,13 @@ export function useFileActions(params: UseFileActionsParams) {
       return
     }
 
+    const work = beginImport()
+    if (file.size > MAX_IMPORT_FILE_BYTES) { setStatus('SVG exceeds the 50 MB import limit'); return }
     try {
       const rawSvg = await file.text()
+      if (!work.isCurrent()) return
       const { importSvgAsShapes } = await import('../io/io-svg')
+      if (!work.isCurrent()) return
       const imported = importSvgAsShapes(rawSvg, {
         layerId: activeLayer.id,
         lineTypeId: activeLineTypeId,
@@ -285,6 +325,7 @@ export function useFileActions(params: UseFileActionsParams) {
       }
       setPendingSvgImport({
         fileName: file.name,
+        sessionKey: importSessionKey, isCurrent: work.isCurrent,
         shapes: imported.shapes,
         warnings: imported.warnings,
         layerId: activeLayer.id,
@@ -296,12 +337,12 @@ export function useFileActions(params: UseFileActionsParams) {
       setStatus(`Review SVG import options for "${file.name}"`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`SVG import failed: ${message}`)
+      if (work.isCurrent()) setStatus(`SVG import failed: ${message}`)
     }
   }
 
   const handleApplyPendingSvgImport = (targetWidthMm: number, mode: SvgImportMode) => {
-    if (!pendingSvgImport) {
+    if (!pendingSvgImport || !pendingSvgImport.isCurrent()) {
       setStatus('No SVG import is pending')
       return
     }
@@ -379,39 +420,33 @@ export function useFileActions(params: UseFileActionsParams) {
       return
     }
 
+    const work = beginImport()
+    if (file.size > MAX_IMPORT_FILE_BYTES) { setStatus('Pattern PDF exceeds the 50 MB import limit'); return }
     setStatus(`Reading "${file.name}"…`)
     try {
-      const { importPatternPdf } = await import('../ops/pattern-pdf/pattern-pdf-import')
-      const documentName = resolveDocumentNameFromFileName(file.name) ?? 'Imported pattern'
-      const result = await importPatternPdf(new Uint8Array(await file.arrayBuffer()), { documentName })
-
-      if (result.analysis.pieces.length === 0) {
-        // Nothing usable came off the page — say why rather than replacing the
-        // user's document with an empty one.
-        setStatus(
-          `No pattern pieces found on page ${result.pageNumber} of "${file.name}". ` +
-            (result.pageCount > 1
-              ? `The sheet has ${result.pageCount} pages — the pieces may be on another one.`
-              : 'Try "Import Tracing" to trace it by hand instead.'),
-        )
-        return
-      }
-
-      const pageNote = result.pageCount > 1 ? `, page ${result.pageNumber} of ${result.pageCount}` : ''
-      applyLoadedDocument(result.doc, `Imported "${file.name}"${pageNote} — ${result.summary}`)
-      for (const warning of result.warnings) {
-        console.warn(`[pattern-pdf] ${warning}`)
-      }
-      void createLocalProjectFromLoadedDoc(result.doc, file.name)
+      const { preparePatternPdfReview } = await import('../ops/pattern-pdf/pattern-pdf-review')
+      if (!work.isCurrent()) return
+      const data = await file.arrayBuffer()
+      if (!work.isCurrent()) return
+      const review = await preparePatternPdfReview(data, file.name, work.signal)
+      if (!work.isCurrent()) return
+      setPendingPatternPdfReview({ review, sessionKey: importSessionKey, isCurrent: work.isCurrent })
+      setStatus(`Review pages and inferred geometry in "${file.name}" before importing`)
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'unknown error'
-      setStatus(`Could not read "${file.name}" as a pattern: ${message}`)
+      if (!work.isCurrent()) return
+      setStatus(`Could not read "${file.name}" as a pattern: ${error instanceof Error ? error.message : 'unknown error'}`)
     }
   }
 
-  const handleLoadPreset = async (presetId?: string) => {
+  const handleLoadPreset = async (presetId?: string, shouldApply?: () => boolean) => {
+    // Startup demo is lower priority than any explicit file/project intent,
+    // including a file change event before the first passive startup effect.
+    if (shouldApply && (loadIntent.current > 0 || !shouldApply())) return
+    const work = beginImport()
     try {
       const { DEFAULT_PRESET_ID, PRESET_DOCS } = await import('../data/sample-doc')
+      if (!work.isCurrent()) return
+      if (shouldApply && !shouldApply()) return
       const requestedPresetId = presetId || selectedPresetId || DEFAULT_PRESET_ID
       const preset =
         PRESET_DOCS.find((entry) => entry.id === requestedPresetId) ??
@@ -437,12 +472,18 @@ export function useFileActions(params: UseFileActionsParams) {
         preset.id === requestedPresetId
           ? `Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
           : `Requested preset was unavailable. Loaded preset: ${preset.label} (${sample.objects.length} shapes, ${sample.foldLines.length} folds)`
-      applyLoadedDocument(sample, loadedMessage)
+      // This async continuation runs outside a React event. Commit its document
+      // epoch and artwork together before a later file-change event can start.
+      flushSync(() => applyLoadedDocument(sample, loadedMessage))
       void createLocalProjectFromLoadedDoc(sample, preset.label)
-      setShowThreePreview(true)
-      if (isMobileLayout) {
-        setMobileViewMode('editor')
-        setShowMobileMenu(false)
+      // Guarded startup loads only supply artwork. Keep an explicit deep link,
+      // current view and open controls while its lazy sample data arrives.
+      if (!shouldApply) {
+        setShowThreePreview(true)
+        if (isMobileLayout) {
+          setMobileViewMode('editor')
+          setShowMobileMenu(false)
+        }
       }
     } catch {
       setStatus('Preset library failed to load')
@@ -486,6 +527,13 @@ export function useFileActions(params: UseFileActionsParams) {
 
   return {
     handleSaveJson,
+    reviewTransfer: (review: DocumentTransferReview) => {
+      const work = beginImport()
+      setPendingTransfer({ sessionKey: importSessionKey, review: { ...review,
+        onClose: () => { closeTransfer(); review.onClose() },
+        onApply: layerIds => { if (!work.isCurrent()) return; lifetime.current.id++; setPendingTransfer(null); review.onApply(layerIds) },
+      } })
+    },
     handleSaveLcc,
     handleSaveLcad,
     handleExportGarmentJson,
@@ -497,12 +545,34 @@ export function useFileActions(params: UseFileActionsParams) {
     handleSaveLocalProject,
     handleLoadLocalProject,
     handleDeleteLocalProject,
-    svgImportOptionsModalProps: pendingSvgImport
+    svgImportOptionsModalProps: pendingPatternPdfReview?.sessionKey === importSessionKey
+      ? {
+          open: true, fileName: pendingPatternPdfReview.review.fileName, shapeCount: 0, warningCount: 0,
+          sourceWidthMm: 0, sourceHeightMm: 0, onClose: () => setPendingPatternPdfReview(null), onApply: () => undefined,
+          patternPdfReview: {
+            review: pendingPatternPdfReview.review,
+            onClose: () => { lifetime.current.id++; setPendingPatternPdfReview(null) },
+            onConfirm: (result: import('../ops/pattern-pdf/pattern-pdf-import').PatternPdfImport) => {
+              if (!pendingPatternPdfReview.isCurrent()) return
+              setPendingPatternPdfReview(null)
+              applyLoadedDocument(result.doc, `Imported "${pendingPatternPdfReview.review.fileName}", page ${result.pageNumber} of ${result.pageCount} — ${result.summary}`)
+              void createLocalProjectFromLoadedDoc(result.doc, pendingPatternPdfReview.review.fileName)
+            },
+          },
+        }
+      : pendingTransfer?.sessionKey === importSessionKey
+      ? {
+          open: true, fileName: pendingTransfer.review.fileName, shapeCount: 0, warningCount: pendingTransfer.review.warnings.length,
+          sourceWidthMm: 0, sourceHeightMm: 0, onClose: closeTransfer, onApply: () => undefined,
+          transferReview: pendingTransfer.review,
+        }
+      : pendingSvgImport?.sessionKey === importSessionKey
       ? {
           open: true,
           fileName: pendingSvgImport.fileName,
           shapeCount: pendingSvgImport.shapes.length,
           warningCount: pendingSvgImport.warnings.length,
+          warnings: pendingSvgImport.warnings,
           sourceWidthMm: pendingSvgImport.widthMm,
           sourceHeightMm: pendingSvgImport.heightMm,
           onClose: () => setPendingSvgImport(null),

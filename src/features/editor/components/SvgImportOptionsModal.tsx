@@ -1,5 +1,8 @@
 import { useTranslate } from '../hooks/useTranslate'
-import { useState } from 'react'
+import { lazy, Suspense, useRef, useState, type ComponentProps } from 'react'
+import { DocumentTransferReviewModal, type DocumentTransferReview } from './DocumentTransferReviewModal'
+import { useModalDialogFocus } from '../hooks/useModalDialogFocus'
+const PatternPdfReviewModal = lazy(() => import('./PatternPdfReviewModal').then(module => ({ default: module.PatternPdfReviewModal })))
 
 export type SvgImportMode = 'grouped' | 'exploded'
 
@@ -8,10 +11,13 @@ type SvgImportOptionsModalProps = {
   fileName: string
   shapeCount: number
   warningCount: number
+  warnings?: string[]
   sourceWidthMm: number
   sourceHeightMm: number
   onClose: () => void
   onApply: (targetWidthMm: number, mode: SvgImportMode) => void
+  transferReview?: DocumentTransferReview
+  patternPdfReview?: ComponentProps<typeof PatternPdfReviewModal>
 }
 
 export function SvgImportOptionsModal({
@@ -19,18 +25,25 @@ export function SvgImportOptionsModal({
   fileName,
   shapeCount,
   warningCount,
+  warnings,
   sourceWidthMm,
   sourceHeightMm,
   onClose,
   onApply,
+  transferReview,
+  patternPdfReview,
 }: SvgImportOptionsModalProps) {
   const t = useTranslate()
   const [targetWidthMm, setTargetWidthMm] = useState(Math.max(0.01, sourceWidthMm))
   const [mode, setMode] = useState<SvgImportMode>('grouped')
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModalDialogFocus({ dialogRef, open: open && !transferReview && !patternPdfReview, onClose })
 
   if (!open) {
     return null
   }
+  if (transferReview) return <DocumentTransferReviewModal review={transferReview} />
+  if (patternPdfReview) return <Suspense fallback={<p>{t('Loading PDF review…')}</p>}><PatternPdfReviewModal {...patternPdfReview} /></Suspense>
 
   const scalePercent = sourceWidthMm > 0 ? (targetWidthMm / sourceWidthMm) * 100 : 100
   const targetHeightMm = sourceWidthMm > 0 ? sourceHeightMm * (targetWidthMm / sourceWidthMm) : sourceHeightMm
@@ -38,13 +51,14 @@ export function SvgImportOptionsModal({
 
   return (
     <div className="modal-overlay" onClick={onClose} aria-label={t('SVG Import Options')}>
-      <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-        <h3>{t('SVG Import Options')}</h3>
+      <div className="modal-content" ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="svg-import-title" onClick={(event) => event.stopPropagation()}>
+        <h3 id="svg-import-title">{t('SVG Import Options')}</h3>
 
         <p>
           {fileName}: {shapeCount} {t('shape')}{t(shapeCount === 1 ? '' : 's')}
           {warningCount > 0 ? `, ${warningCount} warning${warningCount === 1 ? '' : 's'}` : ''}
         </p>
+        {warnings && warnings.length > 0 && <ul role="status">{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>}
 
         <label className="field-row">
           <span>{t('Import width (mm)')}</span>

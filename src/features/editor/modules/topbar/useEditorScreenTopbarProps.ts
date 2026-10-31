@@ -97,6 +97,7 @@ export function useEditorScreenTopbarProps({
     documentCommands,
     exportActions,
     fileActions,
+    interchangePanels,
     historyActions,
     selectionActions,
     transformActions,
@@ -199,6 +200,7 @@ export function useEditorScreenTopbarProps({
 
   const { patternPieces, seamConnections } = documentState
   const topbarViewModel = useEditorTopbarViewModel({
+    handleOpenFileTools: interchangePanels.openFiles,
     tracingInputRef,
     patternPdfInputRef,
     translationInputRef,

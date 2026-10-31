@@ -24,6 +24,9 @@ async function importRectangle(page: Page) {
   await page.locator('input[accept*=".lcad"]').setInputFiles({
     name: 'rectangle.lcad', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(referenceRectangle())),
   })
+  const review = page.getByRole('dialog', { name: 'Review drawing import' })
+  await expect(review).toBeVisible()
+  await review.getByRole('button', { name: 'Replace current drawing', exact: true }).click()
   await expect(page.getByText('Interchange rectangle', { exact: true })).toBeVisible()
   await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(4)
   await page.getByTestId('ribbon-tab-output').click()
@@ -82,6 +85,7 @@ test('DXF imports append geometry and cloud setup is explicit', async ({ page })
   await expect(dialog.getByRole('button', { name: 'Import DXF', exact: true })).toBeVisible()
   const dxf = ['0','SECTION','2','HEADER','9','$INSUNITS','70','4','0','ENDSEC','0','SECTION','2','ENTITIES','0','LINE','8','Imported DXF','10','100','20','0','11','120','21','0','0','ENDSEC','0','EOF',''].join('\n')
   await dialog.locator('input[accept*=".dxf"]').setInputFiles({ name: 'line.dxf', mimeType: 'application/dxf', buffer: Buffer.from(dxf) })
+  await page.getByRole('dialog', { name: 'Review DXF import' }).getByRole('button', { name: 'Append selected layers', exact: true }).click()
   await expect(page.locator('.workbench-statusbar [role="status"]')).toContainText('Imported 1 DXF shapes')
   await dialog.getByRole('button', { name: 'Done', exact: true }).click()
   await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(5)
@@ -93,7 +97,7 @@ test('DXF imports append geometry and cloud setup is explicit', async ({ page })
 
 test('a failed tool download can be closed without reloading the drawing', async ({ page }) => {
   await importRectangle(page)
-  await page.route('**/StlExportModal.tsx*', route => route.abort())
+  await page.route('**/*StlExportModal*', route => route.abort())
   await page.getByTestId('ribbon-command-export-stl').click()
   const failedTool = page.getByRole('alertdialog', { name: 'Tool unavailable' })
   await expect(failedTool).toBeVisible()
@@ -121,7 +125,10 @@ test('phone file tools keep touch targets and keyboard focus inside the dialog',
   expect(smallTargets).toEqual([])
   await dialog.getByRole('button', { name: 'Done', exact: true }).focus()
   await page.keyboard.press('Shift+Tab')
-  await expect(dialog.getByRole('button', { name: 'Cloud / Community', exact: true })).toBeFocused()
+  await expect.poll(() => dialog.evaluate(element => {
+    const target = element as unknown as { contains(node: unknown): boolean; ownerDocument: { activeElement: unknown } }
+    return target.contains(target.ownerDocument.activeElement)
+  })).toBe(true)
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   await expect(launcher).toBeFocused()

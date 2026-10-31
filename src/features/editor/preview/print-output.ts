@@ -1,3 +1,4 @@
+import { isNativeCurve, nativeCurvePath } from '../cad/native-curve-ops'
 import { arcPath, round } from '../cad/cad-geometry'
 import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 import type { FoldLine, LineType, Shape, StitchHole } from '../cad/cad-types'
@@ -88,9 +89,10 @@ function shapeToSvgMarkup(
   const dashAttr = dash ? ` stroke-dasharray="${dash}"` : ''
   const arrows = arrowAttrs(shape)
   const strokeWidth = round(resolveStrokeWidth(shape, lineTypesById, options.lineThicknessScalePercent))
-  const ignoredAttr =
-    options.showIgnoredLineTypes && shouldIgnoreLineTypeInPrint(lineType) ? ' opacity="0.35" data-non-print="true"' : ''
+  const opacity = (shape.opacity ?? 1) * (options.showIgnoredLineTypes && shouldIgnoreLineTypeInPrint(lineType) ? 0.35 : 1)
+  const ignoredAttr = `${opacity !== 1 ? ` opacity="${opacity}"` : ''}${options.showIgnoredLineTypes && shouldIgnoreLineTypeInPrint(lineType) ? ' data-non-print="true"' : ''}`
 
+  if (isNativeCurve(shape)) return `<path d="${nativeCurvePath(shape)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttr}${arrows}${ignoredAttr} />`
   if (shape.type === 'line') {
     return `<line x1="${round(shape.start.x)}" y1="${round(shape.start.y)}" x2="${round(shape.end.x)}" y2="${round(shape.end.y)}" stroke="${stroke}" stroke-width="${strokeWidth}" fill="none"${dashAttr}${arrows}${ignoredAttr} />`
   }

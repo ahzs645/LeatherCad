@@ -1,0 +1,40 @@
+.options-navigation { position: sticky; top: 0; padding: 8px 0; background: var(--surface-panel, #20242c); z-index: 1; }
+.options-navigation nav { display: flex; flex-wrap: wrap; gap: 4px; }
+.options-navigation button[aria-pressed='true'] { outline: 2px solid var(--accent, #79a9ee); outline-offset: -2px; }
+.options-scope { opacity: .72; font-size: .8rem; margin: 0 0 6px; }
+.options-sections [hidden] { display: none !important; }
+.options-tool-order { list-style: none; margin: 8px 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.options-tool-order li { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+.options-tool-order li > span { flex: 1; }
+.options-tool-order button { min-width: 36px; }
+.tool-rail-label { font-size: 9px; max-width: 45px; overflow: hidden; text-overflow: ellipsis; }
+.numeric-dialog-error { color: #ff9d9d; }
+.modal-content.options-modal { width: min(800px, calc(100vw - 48px)); max-height: min(88dvh, 880px); box-sizing: border-box; padding: 24px; gap: 16px; }
+.options-modal > h3, .options-modal > [role='status'] { margin: 0; }
+.options-modal > [role='status'], .options-reset-hint { font-size: 13px; color: var(--text-muted-strong); }
+.options-modal .options-navigation { padding: 12px; border-radius: 8px; display: grid; gap: 10px; }
+.options-modal .options-navigation > p { margin: 0; line-height: 1.45; }
+.options-modal .options-navigation > button { justify-self: start; }
+.options-modal .help-section { display: grid; gap: 12px; margin: 0; padding: 16px 0; border-top: 1px solid var(--border-soft, #cbd5e1); }
+.options-modal .help-section :is(h4, h5, p) { margin: 0; line-height: 1.45; }
+.options-modal .options-sections :is(.field-row, .layer-toggle-item):has(> input[type='number'], > input[type='text'], > select) { display: grid; grid-template-columns: minmax(0, 1fr) 176px; align-items: center; gap: 8px 16px; font-size: 13px; }
+.options-modal .options-sections .field-row:has(> output) { display: grid; grid-template-columns: minmax(0, 1fr) 176px 48px; align-items: center; gap: 8px 12px; }
+.options-modal .options-sections :is(.field-row, .layer-toggle-item):has(> input[type='number']):has(> button) { grid-template-columns: minmax(0, 1fr) 176px auto; }
+.options-modal :is(input[type='number'], input[type='text'], input[type='search'], select) { width: 100%; min-width: 0; min-height: 36px; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--surface-input); color: var(--app-text); font: inherit; font-size: 13px; }
+.options-modal input[type='range'] { width: 100%; min-width: 0; }
+.options-modal .numeric-dialog-error { grid-column: 1 / -1; }
+.options-modal .layer-toggle-item:has(> input[type='checkbox'], > input[type='radio']) { align-items: flex-start; line-height: 1.45; }
+.options-modal .layer-toggle-item > :is(input[type='checkbox'], input[type='radio']) { flex-shrink: 0; margin-top: 2px; }
+@media (max-width: 767px) {
+  .options-navigation button, .options-tool-order button { min-height: 44px; min-width: 44px; }
+  .options-navigation { position: static; }
+  .options-navigation input { min-height: 44px; max-width: 100%; }
+  .modal-content.options-modal { width: 100%; max-width: 100%; max-height: 90dvh; padding: 16px; gap: 12px; }
+  .options-modal .options-sections :is(.field-row, .layer-toggle-item):has(> input[type='number'], > input[type='text'], > select) { grid-template-columns: minmax(0, 1fr) 112px; gap: 8px; }
+  .options-modal .options-sections .field-row:has(> output) { grid-template-columns: minmax(0, 1fr) 48px; }
+  .options-modal .options-sections .field-row:has(> output) > span:first-child { grid-column: 1 / -1; }
+  .options-modal .options-sections :is(.field-row, .layer-toggle-item):has(> input[type='number']):has(> button) { grid-template-columns: minmax(0, 1fr) auto; }
+  .options-modal .options-sections label:has(> input[type='number']):has(> button) > span:first-child { grid-column: 1 / -1; }
+  .options-modal :is(input[type='number'], input[type='text'], input[type='search'], select), .options-modal button { min-height: 44px; }
+  .options-modal .layer-toggle-item:has(> input[type='checkbox'], > input[type='radio']) { min-height: 44px; align-items: center; }
+}

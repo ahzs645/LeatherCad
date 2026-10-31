@@ -1,4 +1,5 @@
 import type { Point, Shape, SketchGroup } from '../cad/cad-types'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 import { computeBoundsFromShapes } from './pattern-ops'
 
 type LinkMode = NonNullable<SketchGroup['linkMode']>
@@ -54,8 +55,14 @@ function projectShape(
   offsetX: number,
   offsetY: number,
 ): Shape {
+  if (isNativeCurve(shape)) {
+    const sx = mode === 'mirror-x' ? -1 : 1, sy = mode === 'mirror-y' ? -1 : 1
+    const dx = offsetX + (sx < 0 ? bounds.minX + bounds.maxX : 0), dy = offsetY + (sy < 0 ? bounds.minY + bounds.maxY : 0)
+    return { ...transformNativeCurve(shape, [sx, 0, 0, sy, dx, dy]), id: toLinkedShapeId(group.id, shape.id), layerId: group.layerId, groupId: group.id }
+  }
   if (shape.type === 'line') {
     return {
+      ...shape,
       id: toLinkedShapeId(group.id, shape.id),
       type: 'line',
       layerId: group.layerId,
@@ -68,6 +75,7 @@ function projectShape(
 
   if (shape.type === 'arc') {
     return {
+      ...shape,
       id: toLinkedShapeId(group.id, shape.id),
       type: 'arc',
       layerId: group.layerId,
@@ -93,6 +101,7 @@ function projectShape(
   }
 
   return {
+    ...shape,
     id: toLinkedShapeId(group.id, shape.id),
     type: 'bezier',
     layerId: group.layerId,

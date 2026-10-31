@@ -14,6 +14,7 @@ import {
 } from './operation-history'
 import type { EditorSnapshot } from '../editor-types'
 import { DEFAULT_THREE_PREVIEW_SETTINGS } from '../editor-constants'
+import type { CubicShape, EllipseShape } from '../cad/cad-types'
 
 function makeSnapshot(shapes: { id: string }[] = []): EditorSnapshot {
   return {
@@ -72,6 +73,32 @@ describe('createOperationHistory', () => {
     expect(h.past).toHaveLength(0)
     expect(h.future).toHaveLength(0)
     expect(h.maxOps).toBe(500)
+  })
+})
+
+describe('native curve operation history', () => {
+  it('moves and undoes native controls/ellipse centers without flattening or losing style metadata', () => {
+    const cubic: CubicShape = { id: 'cubic', type: 'cubic', layerId: 'l1', lineTypeId: 'lt1', start: { x: 0, y: 0 }, control1: { x: 5, y: 20 }, control2: { x: 30, y: -10 }, end: { x: 40, y: 0 }, opacity: 0.5, locked: true }
+    const ellipse: EllipseShape = { id: 'ellipse', type: 'ellipse', layerId: 'l1', lineTypeId: 'lt1', center: { x: 80, y: 20 }, radiusX: 20, radiusY: 8, rotationDeg: 30, startAngleDeg: 0, sweepDeg: 360, strokeWidthOverride: 0.35 }
+    const snapshot = { ...makeSnapshot(), shapes: [cubic, ellipse] }
+    const op: MoveShapesOp = { type: 'move-shapes', label: 'Move curves', shapeIds: ['cubic', 'ellipse'], dx: 12, dy: -3 }
+    const changed = applyOperationForward(snapshot, op)
+    const changedCubic = changed.shapes[0]
+    if (changedCubic.type !== 'cubic') throw new Error('Expected cubic')
+    expect(changedCubic.control1).toEqual({ x: 17, y: 17 })
+    expect(changedCubic.locked).toBe(true)
+    const changedEllipse = changed.shapes[1]
+    if (changedEllipse.type !== 'ellipse') throw new Error('Expected ellipse')
+    expect(changedEllipse.center).toEqual({ x: 92, y: 17 })
+    expect(changedEllipse.strokeWidthOverride).toBe(0.35)
+    const restored = applyOperationReverse(changed, op)
+    const restoredCubic = restored.shapes[0], restoredEllipse = restored.shapes[1]
+    expect(restoredCubic).toEqual(cubic)
+    if (restoredEllipse.type !== 'ellipse') throw new Error('Expected ellipse')
+    expect(restoredEllipse.center.x).toBeCloseTo(ellipse.center.x, 8)
+    expect(restoredEllipse.center.y).toBeCloseTo(ellipse.center.y, 8)
+    expect(restoredEllipse.radiusX).toBeCloseTo(ellipse.radiusX, 8)
+    expect(restoredEllipse.radiusY).toBeCloseTo(ellipse.radiusY, 8)
   })
 })
 
@@ -143,10 +170,12 @@ describe('applyOperationForward / applyOperationReverse', () => {
     const op: MoveShapesOp = { type: 'move-shapes', label: 'Move', shapeIds: ['s1'], dx: 10, dy: 20 }
 
     const after = applyOperationForward(snap, op)
+    if (after.shapes[0].type !== 'line') throw new Error('Expected moved line')
     expect(after.shapes[0].start.x).toBe(10)
     expect(after.shapes[0].start.y).toBe(20)
 
     const reverted = applyOperationReverse(after, op)
+    if (reverted.shapes[0].type !== 'line') throw new Error('Expected restored line')
     expect(reverted.shapes[0].start.x).toBe(0)
     expect(reverted.shapes[0].start.y).toBe(0)
   })

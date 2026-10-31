@@ -80,6 +80,20 @@ export const bezierSchema: ToolSchemaDef = {
   ],
 }
 
+export const cubicSchema: ToolSchemaDef = {
+  toolId: 'cubic', label: 'Cubic Bézier',
+  fields: [
+    { key: 'startX', label: 'Start X', type: 'number', default: 0, step: 0.1, unit: 'mm', required: true },
+    { key: 'startY', label: 'Start Y', type: 'number', default: 0, step: 0.1, unit: 'mm', required: true },
+    { key: 'control1X', label: 'First control X', type: 'number', default: 20, step: 0.1, unit: 'mm', required: true },
+    { key: 'control1Y', label: 'First control Y', type: 'number', default: 30, step: 0.1, unit: 'mm', required: true },
+    { key: 'control2X', label: 'Second control X', type: 'number', default: 40, step: 0.1, unit: 'mm', required: true },
+    { key: 'control2Y', label: 'Second control Y', type: 'number', default: -20, step: 0.1, unit: 'mm', required: true },
+    { key: 'endX', label: 'End X', type: 'number', default: 60, step: 0.1, unit: 'mm', required: true },
+    { key: 'endY', label: 'End Y', type: 'number', default: 0, step: 0.1, unit: 'mm', required: true },
+  ],
+}
+
 export const textSchema: ToolSchemaDef = {
   toolId: 'text',
   label: 'Text',
@@ -151,6 +165,7 @@ export const toolSchemas: Record<string, ToolSchemaDef> = {
   circle: circleSchema,
   arc: arcSchema,
   bezier: bezierSchema,
+  cubic: cubicSchema,
   text: textSchema,
   'stitch-hole': stitchHoleSchema,
   hardware: hardwareSchema,

@@ -4,7 +4,7 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 
 ## Features
 
-- 2D pattern editor with shapes, bezier curves, and text
+- 2D pattern editor with analytic cubic/ellipse geometry, text, nested sketch groups and shape protection/opacity
 - Constraint solver for parametric dimensions
 - Pattern grading
 - Geometry import: JSON, native web LCAD, legacy plain LCC, SVG, and ASCII DXF
@@ -17,6 +17,8 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - Nesting layout optimization
 - Persistent interface language selection: English, Japanese, and 18 additional core-shell translations with English fallback
 - Optional Convex cloud library, folders/revision history, licensed pattern sharing, and community discussions/likes
+- Draft recovery, acknowledged autosave, sign-in draft preservation and versioned library backup/restore
+- Searchable settings, configurable wheel/trackpad/tool rail, workspace presets and direct phone file actions
 
 The **Output** ribbon includes **DXF In**, **Save LCAD**, **STL / Jig**, and
 **Cloud**. On phones these workflows are under **Options → File → File tools → Apply**.
@@ -28,9 +30,11 @@ LCAD or SVG export for interchange. See the
 [cloud setup](docs/CLOUD_COMMUNITY.md) for supported behavior and limits.
 The current interface/options and feature backlog is in
 [NEXT_PARITY_PRIORITIES.md](docs/NEXT_PARITY_PRIORITIES.md).
-The detailed [remaining-work analysis](docs/REMAINING_PARITY_ANALYSIS_2026-10-31.md)
-includes reproduced fidelity defects, reference interface options, dependencies
-and completion criteria. The analysis identifies work still to implement.
+The [follow-up implementation report](docs/FOLLOWUP_IMPLEMENTATION_2026-10-31.md)
+records the subsequent fixes, interface improvements, manufacturing controls and
+verification. The earlier [analysis](docs/REMAINING_PARITY_ANALYSIS_2026-10-31.md)
+preserves the baseline findings that drove this work. Live cloud activation still
+requires the [deployment setup](docs/CLOUD_DEPLOYMENT_RUNBOOK.md).
 
 ## Getting Started
 

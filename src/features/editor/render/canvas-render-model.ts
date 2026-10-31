@@ -335,7 +335,7 @@ function resolvePaint(
     role === 'linked' && params.sketchWorkspaceMode === 'sketch'
       ? '8 5'
       : lineTypeStrokeDasharray(lineType?.style ?? 'solid')
-  const strokeWidthMm = resolveLineTypeStrokeWidthMm(lineType)
+  const strokeWidthMm = shape.strokeWidthOverride ?? resolveLineTypeStrokeWidthMm(lineType)
 
   if (role === 'preview') {
     return {
@@ -345,7 +345,7 @@ function resolvePaint(
       strokeColor,
       strokeDasharray,
       strokeWidthMm,
-      opacity: Math.max(0.95, params.shapeStrokeOpacity),
+      opacity: Math.max(0.95, params.shapeStrokeOpacity) * (shape.opacity ?? 1),
       interactive: false,
       selected: true,
       previewSource: false,
@@ -362,7 +362,7 @@ function resolvePaint(
       strokeColor,
       strokeDasharray,
       strokeWidthMm,
-      opacity: shape.type === 'text' ? 0.7 : params.shapeStrokeOpacity,
+      opacity: (shape.type === 'text' ? 0.7 : params.shapeStrokeOpacity) * (shape.opacity ?? 1),
       interactive: false,
       selected: false,
       previewSource: false,
@@ -387,7 +387,7 @@ function resolvePaint(
     strokeColor,
     strokeDasharray,
     strokeWidthMm,
-    opacity,
+    opacity: opacity * (shape.opacity ?? 1),
     interactive: true,
     selected,
     previewSource,

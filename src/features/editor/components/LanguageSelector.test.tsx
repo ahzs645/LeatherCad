@@ -6,6 +6,7 @@ import { WorkbenchRibbon } from '../workbench/WorkbenchRibbon'
 import { EDITOR_LOCALE_STORAGE_KEY, getEditorLocale, setEditorLocale } from '../ops/locale-store'
 import { EDITOR_LANGUAGES, getLocaleCoverage } from '../ops/locale-dictionaries'
 import { SHELL_DICTIONARIES, SHELL_TRANSLATION_KEYS } from '../ops/locale-shell-dictionaries'
+import { INTERFACE_SHELL_KEYS } from '../ops/locale-interface-shell'
 import { parseTranslationFile, saveTranslationMap, translateUiText } from '../ops/translation-ops'
 import { LanguageSelector } from './LanguageSelector'
 import { SvgImportOptionsModal } from './SvgImportOptionsModal'
@@ -39,6 +40,14 @@ function renderShell() {
 }
 
 describe('interface languages', () => {
+  it('includes the new interface and native-geometry core controls in every language', () => {
+    for (const language of EDITOR_LANGUAGES.filter(language => language.locale !== 'en' && language.locale !== 'ja')) {
+      const dictionary = SHELL_DICTIONARIES[language.locale]
+      for (const key of INTERFACE_SHELL_KEYS) expect(dictionary[key], `${language.locale}: ${key}`).toBeTruthy()
+      expect(dictionary['curve.cubic']).toBe(dictionary['Cubic curve'])
+      expect(dictionary['curve.apply']).toBe(dictionary['Apply geometry'])
+    }
+  })
   it('switches the actual header and ribbon, persists language, and leaves document names alone', () => {
     rendered = renderShell()
     expect(rendered.container.querySelector('[data-testid="ribbon-tab-draft"]')?.textContent?.trim()).toBe('Draft')

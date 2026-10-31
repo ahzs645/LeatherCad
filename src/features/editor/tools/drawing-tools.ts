@@ -268,16 +268,19 @@ export const drawingToolDefinitions = {
       }
 
       const center = runtime.draftPoints[0]
-      const radiusX = point.x - center.x
-      const radiusY = point.y - center.y
-      const points = ellipsePolylinePoints(center, radiusX, radiusY)
-      if (points.length < 2) {
+      const radiusX = Math.abs(point.x - center.x)
+      const radiusY = Math.abs(point.y - center.y)
+      if (Math.min(radiusX, radiusY) < MIN_SHAPE_DISTANCE) {
         runtime.setStatus('Ellipse ignored: radius too small')
         runtime.clearDraft()
         return
       }
 
-      createPolylineAsLines(runtime, points)
+      runtime.setShapes((previous) => [...previous, {
+        id: uid(), type: 'ellipse', layerId: runtime.activeLayerId,
+        lineTypeId: runtime.activeLineTypeId, groupId: runtime.activeSketchGroup?.id,
+        center: { ...center }, radiusX, radiusY, rotationDeg: 0, startAngleDeg: 0, sweepDeg: 360,
+      }])
       pickToolPoint(runtime, point)
       runtime.clearDraft()
       runtime.setStatus('Ellipse created')
@@ -440,6 +443,32 @@ export const drawingToolDefinitions = {
         return 'Bezier: pick end point'
       }
       return null
+    },
+  },
+  cubic: {
+    onPointerDown(point, runtime) {
+      if (!withWritableShapeTarget(runtime)) return
+      if (runtime.draftPoints.length < 3) {
+        runtime.setDraftPoints((previous) => [...previous, point])
+        pickToolPoint(runtime, point)
+        runtime.setStatus(['Cubic: pick first control point', 'Cubic: pick second control point', 'Cubic: pick end point'][runtime.draftPoints.length])
+        return
+      }
+      const [start, control1, control2] = runtime.draftPoints
+      if (Math.max(distance(start, control1), distance(start, control2), distance(start, point)) < MIN_SHAPE_DISTANCE) {
+        runtime.clearDraft(); runtime.setStatus('Cubic ignored: all points overlap'); return
+      }
+      runtime.setShapes((previous) => [...previous, {
+        id: uid(), type: 'cubic', layerId: runtime.activeLayerId,
+        lineTypeId: runtime.activeLineTypeId, groupId: runtime.activeSketchGroup?.id,
+        start: { ...start }, control1: { ...control1 }, control2: { ...control2 }, end: { ...point },
+      }])
+      pickToolPoint(runtime, point)
+      runtime.clearDraft()
+      runtime.setStatus('Cubic Bézier created')
+    },
+    getHint(draftPoints) {
+      return ['Cubic: pick start point', 'Cubic: pick first control point', 'Cubic: pick second control point', 'Cubic: pick end point'][draftPoints.length] ?? null
     },
   },
   freehand: {

@@ -1,5 +1,6 @@
-import type { ArcShape, BezierShape, LineShape, Point, Shape } from '../../cad/cad-types'
+import type { Point, Shape } from '../../cad/cad-types'
 import { distance, round } from '../../cad/cad-geometry'
+import { isNativeCurve, nativeCurvePointAt } from '../../cad/native-curve-ops'
 
 export const TAU = Math.PI * 2
 
@@ -67,6 +68,7 @@ export function evalQuadBezier(
 }
 
 export function evaluateShapeAt(shape: Shape, t: number): Point {
+  if (isNativeCurve(shape)) return nativeCurvePointAt(shape, t)
   if (shape.type === 'line') {
     return lerpPoint(shape.start, shape.end, t)
   }
@@ -116,17 +118,15 @@ export function sampleShapeWithParams(
   return result
 }
 
-export function copyShapeProps(
-  source: ArcShape | BezierShape | LineShape,
-): {
-  layerId: string
-  lineTypeId: string
-  groupId: string | undefined
-} {
+export function copyShapeProps(source: Shape): Pick<Shape, 'layerId' | 'lineTypeId' | 'groupId' | 'strokeWidthOverride' | 'locked' | 'opacity'> & { fillColor?: string } {
   return {
     layerId: source.layerId,
     lineTypeId: source.lineTypeId,
     groupId: source.groupId,
+    strokeWidthOverride: source.strokeWidthOverride,
+    fillColor: 'fillColor' in source ? source.fillColor : undefined,
+    locked: source.locked,
+    opacity: source.opacity,
   }
 }
 

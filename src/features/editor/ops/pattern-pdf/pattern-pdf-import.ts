@@ -14,10 +14,10 @@ import type { DocFile } from '../../cad/cad-types'
 import { assemblePatternDoc } from './pattern-assembly-placement'
 import { buildPatternDoc, type PatternDocBuildOptions } from './pattern-doc-builder'
 import { analyzePatternPaths, type PatternPdfAnalysis } from './pattern-pdf-analysis'
-import { loadPdfVectorPage } from './pdf-vector-source'
+import { loadPdfVectorPage, type PdfVectorPage } from './pdf-vector-source'
 
 export type PatternPdfImportOptions = {
-  /** 1-based page to read. Sheets past the first are usually instructions. */
+  /** 1-based page to read. The review step scans for likely pattern pages. */
   pageNumber: number
   /** Name for the imported project. Defaults to the analysis's own wording. */
   documentName?: string
@@ -85,12 +85,27 @@ export async function importPatternPdf(
 ): Promise<PatternPdfImport> {
   const config = { ...DEFAULT_PATTERN_PDF_IMPORT_OPTIONS, ...options }
   const page = await loadPdfVectorPage(data, config.pageNumber)
+  return buildPatternPdfImportFromPage(page, config)
+}
+
+/** Builds a reviewed page without reparsing or transferring the PDF again. */
+export function buildPatternPdfImportFromPage(
+  page: PdfVectorPage,
+  options: Partial<PatternPdfImportOptions> = {},
+  useInferredStitching = true,
+): PatternPdfImport {
+  const config = { ...DEFAULT_PATTERN_PDF_IMPORT_OPTIONS, ...options }
   const analysis = analyzePatternPaths(
     page.paths,
     { widthMm: page.widthMm, heightMm: page.heightMm },
     {},
     page.text,
   )
+  if (!useInferredStitching) {
+    analysis.pieces = analysis.pieces.map((piece) => ({ ...piece, stitchRuns: [] }))
+    analysis.seams = []
+    analysis.stitching = { pitchMm: 0, stitchesPerInch: 0, holeDiameterMm: 0, totalHoles: 0, runCount: 0 }
+  }
   const built = buildPatternDoc(analysis, {
     ...config.build,
     ...(config.documentName ? { documentName: config.documentName } : {}),

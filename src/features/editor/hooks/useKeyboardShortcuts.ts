@@ -59,6 +59,10 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const targetEl = event.target instanceof HTMLElement ? event.target : null
+      if (event.defaultPrevented || targetEl?.closest('[aria-modal="true"], dialog[open]')) return
+      const isTypingContext = Boolean(targetEl?.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'))
+      if (isTypingContext) return
       if (event.key === 'Escape') {
         clearDraft()
         handleDeselectAll()
@@ -67,8 +71,6 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
       }
 
       const isMeta = event.ctrlKey || event.metaKey
-      const targetEl = event.target as HTMLElement | null
-      const isTypingContext = targetEl?.tagName === 'INPUT' || targetEl?.tagName === 'TEXTAREA'
 
       if (!isMeta) {
         if (!isTypingContext) {

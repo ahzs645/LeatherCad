@@ -15,6 +15,7 @@
 import type { Point, Shape, FoldLine, StitchHole, HardwareMarker } from '../cad/cad-types'
 import type { EditorSnapshot } from '../editor-types'
 import { deepClone } from './history-ops'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 
 // ---------------------------------------------------------------------------
 // Operation types
@@ -482,6 +483,7 @@ export function getRedoLabels(history: OperationHistoryState): string[] {
 // ---------------------------------------------------------------------------
 
 function moveShape(shape: Shape, dx: number, dy: number): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
   const move = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy })
 
   switch (shape.type) {

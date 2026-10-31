@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { isNativeCurve, nativeCurveBounds, transformNativeCurve } from '../../cad/native-curve-ops'
 import { round } from '../../cad/cad-geometry'
 import type { Point, Shape, TextShape } from '../../cad/cad-types'
 import type { CanvasInteractionPreview, HandlePointKey } from '../../hooks/useCanvasInteractions'
@@ -30,6 +31,7 @@ export function pointInBounds(point: Point, viewportBounds: Bounds, padding = 0)
 }
 
 export function shapeBounds(shape: Shape): Bounds {
+  if (isNativeCurve(shape)) return nativeCurveBounds(shape)
   if (shape.type === 'line' || shape.type === 'text') {
     return {
       minX: Math.min(shape.start.x, shape.end.x),
@@ -109,6 +111,7 @@ export function withPreviewApplied(shape: Shape, preview: CanvasInteractionPrevi
   }
 
   if (preview.kind === 'move') {
+    if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, preview.deltaX, preview.deltaY])
     if (shape.type === 'line') {
       return {
         ...shape,
@@ -143,6 +146,15 @@ export function withPreviewApplied(shape: Shape, preview: CanvasInteractionPrevi
     return shape
   }
 
+  if (shape.type === 'ellipse') return preview.pointKey === 'center' ? { ...shape, center: preview.point } : shape
+  if (shape.type === 'cubic') {
+    if (preview.followControl && (preview.pointKey === 'start' || preview.pointKey === 'end')) {
+      const controlKey = preview.pointKey === 'start' ? 'control1' : 'control2'
+      const dx = preview.point.x - shape[preview.pointKey].x, dy = preview.point.y - shape[preview.pointKey].y
+      return { ...shape, [preview.pointKey]: preview.point, [controlKey]: { x: shape[controlKey].x + dx, y: shape[controlKey].y + dy } }
+    }
+    return ['start', 'control1', 'control2', 'end'].includes(preview.pointKey) ? { ...shape, [preview.pointKey]: preview.point } : shape
+  }
   if (shape.type === 'line' || shape.type === 'text') {
     if (preview.pointKey === 'start' || preview.pointKey === 'end') {
       return { ...shape, [preview.pointKey]: preview.point }
@@ -158,6 +170,10 @@ export function withPreviewApplied(shape: Shape, preview: CanvasInteractionPrevi
   }
 
   if (preview.pointKey === 'start' || preview.pointKey === 'control' || preview.pointKey === 'end') {
+    if (preview.followControl && (preview.pointKey === 'start' || preview.pointKey === 'end')) {
+      const dx = preview.point.x - shape[preview.pointKey].x, dy = preview.point.y - shape[preview.pointKey].y
+      return { ...shape, [preview.pointKey]: preview.point, control: { x: shape.control.x + dx, y: shape.control.y + dy } }
+    }
     return { ...shape, [preview.pointKey]: preview.point }
   }
 
@@ -176,6 +192,9 @@ export function arrowMarkerStyle(shape: Shape): Record<string, string> {
 }
 
 export function shapeHandleEntries(shape: Shape): Array<{ key: HandlePointKey; point: Point }> {
+  if (shape.locked) return []
+  if (shape.type === 'ellipse') return [{ key: 'center', point: shape.center }]
+  if (shape.type === 'cubic') return [{ key: 'start', point: shape.start }, { key: 'control1', point: shape.control1 }, { key: 'control2', point: shape.control2 }, { key: 'end', point: shape.end }]
   if (shape.type === 'line' || shape.type === 'text') {
     return [
       { key: 'start', point: shape.start },

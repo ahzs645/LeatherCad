@@ -1,4 +1,5 @@
 import type { Point, Shape } from '../cad/cad-types'
+import { isNativeCurve, nativeCurveBounds, nativeCurveEndpoints, nativeCurvePointAt, transformNativeCurve } from '../cad/native-curve-ops'
 import type {
   AngleConstraint,
   CoincidentConstraint,
@@ -35,6 +36,13 @@ export type {
 // ---------------------------------------------------------------------------
 
 export function getAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | 'center'): Point {
+  if (isNativeCurve(shape)) {
+    if (anchor === 'start' || anchor === 'end') return nativeCurveEndpoints(shape)[anchor]
+    if (anchor === 'mid') return nativeCurvePointAt(shape, 0.5)
+    if (shape.type === 'ellipse') return { ...shape.center }
+    const bounds = nativeCurveBounds(shape)
+    return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
+  }
   switch (anchor) {
     case 'start':
       return { x: shape.start.x, y: shape.start.y }
@@ -62,6 +70,12 @@ export function getAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | '
 }
 
 export function setAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | 'center', point: Point): Shape {
+  if (shape.locked) return shape
+  if (isNativeCurve(shape)) {
+    if (shape.type === 'cubic' && (anchor === 'start' || anchor === 'end')) return { ...shape, [anchor]: { ...point } }
+    const current = getAnchorPoint(shape, anchor)
+    return transformNativeCurve(shape, [1, 0, 0, 1, point.x - current.x, point.y - current.y])
+  }
   const clone = { ...shape }
 
   switch (anchor) {
@@ -98,6 +112,7 @@ export function setAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | '
 // ---------------------------------------------------------------------------
 
 function translateShape(shape: Shape, dx: number, dy: number): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
   const movePoint = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy })
 
   switch (shape.type) {
@@ -117,12 +132,12 @@ function dist(a: Point, b: Point): number {
 }
 
 function shapeLength(shape: Shape): number {
-  return dist(shape.start, shape.end)
+  return dist(getAnchorPoint(shape, 'start'), getAnchorPoint(shape, 'end'))
 }
 
 function shapeDirection(shape: Shape): { dx: number; dy: number } {
-  const dx = shape.end.x - shape.start.x
-  const dy = shape.end.y - shape.start.y
+  const dx = getAnchorPoint(shape, 'end').x - getAnchorPoint(shape, 'start').x
+  const dy = getAnchorPoint(shape, 'end').y - getAnchorPoint(shape, 'start').y
   return { dx, dy }
 }
 
@@ -201,11 +216,11 @@ function solveHorizontal(
   const shape = shapeMap.get(c.shapeId)
   if (!shape) return 0
 
-  const error = Math.abs(shape.end.y - shape.start.y)
+  const error = Math.abs(getAnchorPoint(shape, 'end').y - getAnchorPoint(shape, 'start').y)
   if (error > tolerance) {
-    const avgY = (shape.start.y + shape.end.y) / 2
-    let updated = setAnchorPoint(shape, 'start', { x: shape.start.x, y: avgY })
-    updated = setAnchorPoint(updated, 'end', { x: shape.end.x, y: avgY })
+    const avgY = (getAnchorPoint(shape, 'start').y + getAnchorPoint(shape, 'end').y) / 2
+    let updated = setAnchorPoint(shape, 'start', { x: getAnchorPoint(shape, 'start').x, y: avgY })
+    updated = setAnchorPoint(updated, 'end', { x: getAnchorPoint(shape, 'end').x, y: avgY })
     shapeMap.set(c.shapeId, updated)
   }
   return error
@@ -219,11 +234,11 @@ function solveVertical(
   const shape = shapeMap.get(c.shapeId)
   if (!shape) return 0
 
-  const error = Math.abs(shape.end.x - shape.start.x)
+  const error = Math.abs(getAnchorPoint(shape, 'end').x - getAnchorPoint(shape, 'start').x)
   if (error > tolerance) {
-    const avgX = (shape.start.x + shape.end.x) / 2
-    let updated = setAnchorPoint(shape, 'start', { x: avgX, y: shape.start.y })
-    updated = setAnchorPoint(updated, 'end', { x: avgX, y: shape.end.y })
+    const avgX = (getAnchorPoint(shape, 'start').x + getAnchorPoint(shape, 'end').x) / 2
+    let updated = setAnchorPoint(shape, 'start', { x: avgX, y: getAnchorPoint(shape, 'start').y })
+    updated = setAnchorPoint(updated, 'end', { x: avgX, y: getAnchorPoint(shape, 'end').y })
     shapeMap.set(c.shapeId, updated)
   }
   return error
@@ -255,8 +270,8 @@ function solveParallel(
     const sign = dot >= 0 ? 1 : -1
 
     const midB: Point = {
-      x: (shapeB.start.x + shapeB.end.x) / 2,
-      y: (shapeB.start.y + shapeB.end.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
     }
 
     const halfLen = lenB / 2
@@ -271,12 +286,12 @@ function solveParallel(
 
     // Only adjust half the error (split between shapes)
     const blendedStart: Point = {
-      x: (shapeB.start.x + newStart.x) / 2,
-      y: (shapeB.start.y + newStart.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + newStart.x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + newStart.y) / 2,
     }
     const blendedEnd: Point = {
-      x: (shapeB.end.x + newEnd.x) / 2,
-      y: (shapeB.end.y + newEnd.y) / 2,
+      x: (getAnchorPoint(shapeB, 'end').x + newEnd.x) / 2,
+      y: (getAnchorPoint(shapeB, 'end').y + newEnd.y) / 2,
     }
 
     let updated = setAnchorPoint(shapeB, 'start', blendedStart)
@@ -315,8 +330,8 @@ function solvePerpendicular(
     const sign = cross >= 0 ? 1 : -1
 
     const midB: Point = {
-      x: (shapeB.start.x + shapeB.end.x) / 2,
-      y: (shapeB.start.y + shapeB.end.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
     }
 
     const halfLen = lenB / 2
@@ -330,12 +345,12 @@ function solvePerpendicular(
     }
 
     const blendedStart: Point = {
-      x: (shapeB.start.x + newStart.x) / 2,
-      y: (shapeB.start.y + newStart.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + newStart.x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + newStart.y) / 2,
     }
     const blendedEnd: Point = {
-      x: (shapeB.end.x + newEnd.x) / 2,
-      y: (shapeB.end.y + newEnd.y) / 2,
+      x: (getAnchorPoint(shapeB, 'end').x + newEnd.x) / 2,
+      y: (getAnchorPoint(shapeB, 'end').y + newEnd.y) / 2,
     }
 
     let updated = setAnchorPoint(shapeB, 'start', blendedStart)
@@ -362,12 +377,12 @@ function solveEqualLength(
     const targetLen = (lenA + lenB) / 2
     // Scale shapeB to target length from its midpoint
     const midB: Point = {
-      x: (shapeB.start.x + shapeB.end.x) / 2,
-      y: (shapeB.start.y + shapeB.end.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
     }
     const dirB = normalizeDir(
-      shapeB.end.x - shapeB.start.x,
-      shapeB.end.y - shapeB.start.y,
+      getAnchorPoint(shapeB, 'end').x - getAnchorPoint(shapeB, 'start').x,
+      getAnchorPoint(shapeB, 'end').y - getAnchorPoint(shapeB, 'start').y,
     )
     const halfTarget = targetLen / 2
     let updated = setAnchorPoint(shapeB, 'start', {
@@ -416,8 +431,8 @@ function solveAngle(
   if (errorDeg > tolerance * 0.5) {
     const desiredAngle = angleA + targetNorm
     const midB: Point = {
-      x: (shapeB.start.x + shapeB.end.x) / 2,
-      y: (shapeB.start.y + shapeB.end.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
     }
     const halfLen = lenB / 2
     const newStart: Point = {
@@ -431,12 +446,12 @@ function solveAngle(
 
     // Blend for stability
     const blendedStart: Point = {
-      x: (shapeB.start.x + newStart.x) / 2,
-      y: (shapeB.start.y + newStart.y) / 2,
+      x: (getAnchorPoint(shapeB, 'start').x + newStart.x) / 2,
+      y: (getAnchorPoint(shapeB, 'start').y + newStart.y) / 2,
     }
     const blendedEnd: Point = {
-      x: (shapeB.end.x + newEnd.x) / 2,
-      y: (shapeB.end.y + newEnd.y) / 2,
+      x: (getAnchorPoint(shapeB, 'end').x + newEnd.x) / 2,
+      y: (getAnchorPoint(shapeB, 'end').y + newEnd.y) / 2,
     }
 
     let updated = setAnchorPoint(shapeB, 'start', blendedStart)
@@ -457,8 +472,8 @@ function solveSymmetric(
   if (!shapeA || !shapeB || !axisShape) return 0
 
   const pA = getAnchorPoint(shapeA, c.anchorA)
-  const axisStart = axisShape.start
-  const axisEnd = axisShape.end
+  const axisStart = getAnchorPoint(axisShape, 'start')
+  const axisEnd = getAnchorPoint(axisShape, 'end')
   const axisDir = normalizeDir(axisEnd.x - axisStart.x, axisEnd.y - axisStart.y)
 
   // Reflect pA across the axis line
@@ -499,10 +514,10 @@ function solveTangent(
 
   // Find closest endpoint pair
   const pairs = [
-    { aAnc: 'end' as const, bAnc: 'start' as const, d: dist(shapeA.end, shapeB.start) },
-    { aAnc: 'start' as const, bAnc: 'end' as const, d: dist(shapeA.start, shapeB.end) },
-    { aAnc: 'end' as const, bAnc: 'end' as const, d: dist(shapeA.end, shapeB.end) },
-    { aAnc: 'start' as const, bAnc: 'start' as const, d: dist(shapeA.start, shapeB.start) },
+    { aAnc: 'end' as const, bAnc: 'start' as const, d: dist(getAnchorPoint(shapeA, 'end'), getAnchorPoint(shapeB, 'start')) },
+    { aAnc: 'start' as const, bAnc: 'end' as const, d: dist(getAnchorPoint(shapeA, 'start'), getAnchorPoint(shapeB, 'end')) },
+    { aAnc: 'end' as const, bAnc: 'end' as const, d: dist(getAnchorPoint(shapeA, 'end'), getAnchorPoint(shapeB, 'end')) },
+    { aAnc: 'start' as const, bAnc: 'start' as const, d: dist(getAnchorPoint(shapeA, 'start'), getAnchorPoint(shapeB, 'start')) },
   ]
   pairs.sort((a, b) => a.d - b.d)
   const best = pairs[0]
@@ -607,6 +622,17 @@ export function solveConstraints(
   }
 
   const conflicts = detectConflicts(constraints)
+  const unsupported = new Set<SolverConstraint>()
+  for (const constraint of constraints) {
+    const involved = getConstraintShapeIds(constraint).map(id => shapeMap.get(id))
+    const hasNative = involved.some(shape => shape && isNativeCurve(shape))
+    const axis = constraint.type === 'symmetric' ? shapeMap.get(constraint.axisShapeId) : undefined
+    const curvedAxis = Boolean(axis && isNativeCurve(axis))
+    if (hasNative && (!['coincident', 'distance', 'symmetric'].includes(constraint.type) || curvedAxis)) {
+      unsupported.add(constraint)
+      conflicts.push(`Constraint ${constraint.id} (${constraint.type}) does not support native curve directions. Choose a position constraint or convert the curve explicitly.`)
+    }
+  }
 
   let iterations = 0
   let residual = Infinity
@@ -616,6 +642,7 @@ export function solveConstraints(
     residual = 0
 
     for (const constraint of constraints) {
+      if (unsupported.has(constraint)) continue
       let error = 0
 
       switch (constraint.type) {
@@ -681,7 +708,7 @@ export function solveConstraints(
   }
 
   return {
-    converged: residual <= tolerance,
+    converged: unsupported.size === 0 && residual <= tolerance,
     iterations,
     residual,
     updates,

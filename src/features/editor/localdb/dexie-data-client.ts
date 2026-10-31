@@ -3,6 +3,7 @@ import type { AppDataClient, AppId, LocalDbExport, StoredEditorDocument } from '
 import type { CatalogRepositoryShop } from '../templates/catalog-repository'
 import type { TemplateRepositoryEntry } from '../templates/template-repository'
 import { uid } from '../cad/cad-geometry'
+import { validateLibraryData } from './library-backup'
 
 const DATABASE_NAME = 'leathercad-local-v1'
 const AUTOSAVE_DOCUMENT_ID = 'autosave-current'
@@ -199,6 +200,27 @@ export function createDexieDataClient(options: DexieDataClientOptions = {}): App
           }
         })
       },
+    },
+
+    async restoreAll(data, mode) {
+      const checked = validateLibraryData(data)
+      if (mode !== 'merge' && mode !== 'replace') throw new Error('Unknown library restore mode.')
+      await db.transaction('rw', [db.documents, db.settings, db.templateRepository, db.catalogRepository], async () => {
+        if (mode === 'replace') {
+          await Promise.all([db.documents.clear(), db.settings.clear(), db.templateRepository.clear(), db.catalogRepository.clear()])
+        }
+        const saveMissing = async <T extends { id: string }>(table: Table<T, string>, entries: T[]) => {
+          const present = mode === 'merge' ? new Set(await table.toCollection().primaryKeys()) : new Set<string>()
+          const additions = entries.filter((entry) => !present.has(entry.id))
+          if (additions.length) await table.bulkPut(cloneJson(additions))
+        }
+        await saveMissing(db.documents, checked.documents)
+        await saveMissing(db.templateRepository, checked.templateRepository)
+        await saveMissing(db.catalogRepository, checked.catalogRepository)
+        const existingSettings = mode === 'merge' ? new Set(await db.settings.toCollection().primaryKeys()) : new Set<string>()
+        const additions = Object.entries(checked.settings).filter(([key]) => !existingSettings.has(key)).map(([key, value]) => ({ key, value, updatedAt: Date.now() }))
+        if (additions.length) await db.settings.bulkPut(additions)
+      })
     },
 
     async exportAll(): Promise<LocalDbExport> {

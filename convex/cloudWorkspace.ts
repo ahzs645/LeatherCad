@@ -1,3 +1,4 @@
+import { ensurePrivateQuotaReady } from './cloudPrivateQuota'
 import { ConvexError, v } from 'convex/values'
 import type { Doc, Id } from './_generated/dataModel'
 import type { MutationCtx, QueryCtx } from './_generated/server'
@@ -198,6 +199,8 @@ export const restoreRevision = ownerMutation({
     const row = await documentRow(ctx, ctx.owner, args.id)
     if (!row) throw new ConvexError('Drawing is not available')
     requireRevision(row.revision, args.expectedRevision, 'Drawing')
+    if (row.purgingAt) throw new ConvexError('This drawing is being permanently deleted')
+    await ensurePrivateQuotaReady(ctx, ctx.owner)
     const snapshot = await ctx.db.query('cloudDocumentRevisions').withIndex('by_owner_and_documentId_and_revision', q => q.eq('owner', ctx.owner).eq('documentId', row._id).eq('revision', args.revision)).unique()
     if (!snapshot) throw new ConvexError('Revision is not available')
     validateDocumentJson(snapshot.docJson)

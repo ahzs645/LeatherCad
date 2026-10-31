@@ -5,10 +5,12 @@ type StlMeshPreviewProps = {
   mesh: StlMesh
   label: string
   unavailableMessage: string
+  color?: string
+  materialPreset?: 'leather' | 'acrylic' | 'metal' | 'matte'
 }
 
 /** Loads the renderer only when an STL dialog has a validated mesh to show. */
-export default function StlMeshPreview({ mesh, label, unavailableMessage }: StlMeshPreviewProps) {
+export default function StlMeshPreview({ mesh, label, unavailableMessage, color = '#c79558', materialPreset = 'leather' }: StlMeshPreviewProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const [unavailable, setUnavailable] = useState(false)
 
@@ -29,7 +31,7 @@ export default function StlMeshPreview({ mesh, label, unavailableMessage }: StlM
       const center = bounds.getCenter(new three.Vector3())
       const size = bounds.getSize(new three.Vector3())
       geometry.translate(-center.x, -center.y, -center.z)
-      const material = new three.MeshStandardMaterial({ color: 0xc79558, roughness: 0.8, metalness: 0.05, flatShading: true })
+      const material = new three.MeshStandardMaterial({ color, roughness: materialPreset === 'acrylic' ? 0.12 : materialPreset === 'metal' ? 0.3 : materialPreset === 'matte' ? 1 : 0.8, metalness: materialPreset === 'metal' ? 0.8 : 0.05, flatShading: true })
       scene.add(new three.Mesh(geometry, material))
       scene.add(new three.HemisphereLight(0xffffff, 0x343947, 2.2))
       const light = new three.DirectionalLight(0xffffff, 2.5)
@@ -76,7 +78,7 @@ export default function StlMeshPreview({ mesh, label, unavailableMessage }: StlM
       }
     }).catch(() => { if (!cancelled) setUnavailable(true) })
     return () => { cancelled = true; dispose?.() }
-  }, [mesh, label])
+  }, [mesh, label, color, materialPreset])
 
   return <div ref={hostRef} style={{ width: '100%', height: 260, overflow: 'hidden', borderRadius: 6 }}>
     {unavailable && <p role="status">{unavailableMessage}</p>}

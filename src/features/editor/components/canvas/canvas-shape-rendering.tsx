@@ -1,4 +1,5 @@
 import type { PointerEvent } from 'react'
+import { isNativeCurve, nativeCurvePath } from '../../cad/native-curve-ops'
 import { arcPath, round } from '../../cad/cad-geometry'
 import type { Shape, TextShape } from '../../cad/cad-types'
 import {
@@ -45,6 +46,12 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
       : undefined
   const strokeWidth = strokeWidthOverride ?? options.strokeWidthMm
 
+  if (isNativeCurve(shape)) {
+    return <path key={options.key} d={nativeCurvePath(shape)} className={options.className} data-primitive={shape.type}
+      style={{ stroke: options.color, strokeDasharray: options.strokeDasharray, strokeOpacity: options.opacity, fillOpacity: options.opacity, strokeWidth, fill: paintedFill, ...arrowMarkerStyle(shape) }}
+      onPointerDown={options.interactive ? event => options.onShapePointerDown(event, shape.id) : undefined} />
+  }
+
   if (shape.type === 'line') {
     return (
       <line
@@ -58,6 +65,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
           stroke: options.color,
           strokeDasharray: options.strokeDasharray,
           strokeOpacity: options.opacity,
+          fillOpacity: options.opacity,
           strokeWidth,
           ...arrowMarkerStyle(shape),
         }}
@@ -76,6 +84,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
           stroke: options.color,
           strokeDasharray: options.strokeDasharray,
           strokeOpacity: options.opacity,
+          fillOpacity: options.opacity,
           strokeWidth,
           fill: paintedFill,
           ...arrowMarkerStyle(shape),
@@ -96,6 +105,7 @@ export function renderCanvasShape(shape: Shape, options: RenderShapeOptions) {
         stroke: options.color,
         strokeDasharray: options.strokeDasharray,
         strokeOpacity: options.opacity,
+        fillOpacity: options.opacity,
         strokeWidth,
         fill: paintedFill,
         ...arrowMarkerStyle(shape),

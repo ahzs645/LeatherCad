@@ -3,6 +3,7 @@ import type { DocFile } from '../cad/cad-types'
 import { useTranslate } from '../hooks/useTranslate'
 import { createCloudWorkspaceClient, type CloudDocumentRevision, type CloudFolder, type CloudWorkspaceDocument } from '../localdb/cloud-workspace-client'
 import { getEditorCloudState, getEditorCloudTransport, subscribeEditorCloudState } from '../localdb/editor-cloud-connection'
+import { emptyCloudPage, mergeCloudPage } from '../localdb/cloud-types'
 import { getEditorLocalDataClient } from '../localdb/editor-local-data-client'
 
 export type CloudWorkspacePanelProps = {
@@ -18,7 +19,10 @@ export function CloudWorkspacePanel({ onLoadDocument, onStatus, onChanged }: Clo
     [cloud.configured, cloud.sessionKey, cloud.user])
   const [folderId, setFolderId] = useState<string | null>(null)
   const [folders, setFolders] = useState<CloudFolder[]>([])
-  const [documents, setDocuments] = useState<CloudWorkspaceDocument[]>([])
+  const [documentPage, setDocumentPage] = useState(emptyCloudPage<CloudWorkspaceDocument>)
+  const documents = documentPage.page
+  const [folderPage, setFolderPage] = useState(emptyCloudPage<CloudFolder>)
+  const [historyPage, setHistoryPage] = useState(emptyCloudPage<CloudDocumentRevision>)
   const [selected, setSelected] = useState<CloudWorkspaceDocument | null>(null)
   const [history, setHistory] = useState<CloudDocumentRevision[]>([])
   const [destination, setDestination] = useState('')
@@ -38,11 +42,11 @@ export function CloudWorkspacePanel({ onLoadDocument, onStatus, onChanged }: Clo
   const refresh = useCallback(async () => {
     if (!client) return
     const id = ++request.current
-    const [allFolders, drawings] = await Promise.all([client.folders.listAll(), client.documents.list(folderId)])
+    const [allFolders, drawings] = await Promise.all([client.folders.listAllPage(), client.documents.listPage(folderId)])
     if (id !== request.current || getEditorCloudState().sessionKey !== cloud.sessionKey) return
-    setFolders(allFolders)
-    setDocuments(drawings)
-    setSelected(current => current ? drawings.find(doc => doc.id === current.id) ?? null : null)
+    setFolders(allFolders.page); setFolderPage(allFolders)
+    setDocumentPage(drawings)
+    setSelected(current => current ? drawings.page.find(doc => doc.id === current.id) ?? null : null)
   }, [client, folderId, cloud.sessionKey])
   useEffect(() => {
     let active = true
@@ -54,19 +58,18 @@ export function CloudWorkspacePanel({ onLoadDocument, onStatus, onChanged }: Clo
   useEffect(() => {
     if (!client || !selected) return
     let active = true
-    void client.documents.history(selected.id).then(rows => { if (active && getEditorCloudState().sessionKey === cloud.sessionKey) setHistory(rows) })
+    void client.documents.historyPage(selected.id).then(rows => { if (active && getEditorCloudState().sessionKey === cloud.sessionKey) { setHistory(rows.page); setHistoryPage(rows) } })
       .catch(reason => { if (active && getEditorCloudState().sessionKey === cloud.sessionKey) setError(reason instanceof Error ? reason.message : t('cloudWorkspace.historyFailed', 'Could not load revision history')) })
     return () => { active = false }
   }, [client, selected, t, cloud.sessionKey])
-  const run = async (operation: () => Promise<string | void>) => {
+  const run = async (operation: () => Promise<string | void>, refreshAfter = true) => {
     const current = generation.current
     setBusy(true); setMessage(''); setError('')
     try {
       const result = await operation()
       if (generation.current !== current || getEditorCloudState().sessionKey !== cloud.sessionKey) return
       if (result) { setMessage(result); onStatus?.(result) }
-      await refresh()
-      await onChanged?.()
+      if (refreshAfter) { await refresh(); await onChanged?.() }
     } catch (reason) {
       if (generation.current === current && getEditorCloudState().sessionKey === cloud.sessionKey) setError(reason instanceof Error ? reason.message : t('cloudWorkspace.operationFailed', 'Cloud operation did not complete'))
     } finally { if (generation.current === current && getEditorCloudState().sessionKey === cloud.sessionKey) setBusy(false) }
@@ -138,16 +141,18 @@ export function CloudWorkspacePanel({ onLoadDocument, onStatus, onChanged }: Clo
         <button disabled={busy} onClick={() => void run(async () => { await client.folders.remove(item); return t('cloudWorkspace.deleted', 'Empty folder deleted') })}>{t('cloudWorkspace.deleteEmpty', 'Delete empty folder')}</button>
       </li>)}
     </ul>
+    {!folderPage.isDone && <button disabled={busy} onClick={() => void run(async () => { const next = await client.folders.listAllPage(folderPage.continueCursor); if (getEditorCloudState().sessionKey !== cloud.sessionKey) return; setFolderPage(previous => mergeCloudPage(previous, next)); setFolders(previous => [...new Map([...previous, ...next.page].map(item => [item.id, item])).values()]) }, false)}>{t('cloudWorkspace.moreFolders', 'Load more folders and move destinations')}</button>}
     <ul aria-label={t('cloudWorkspace.drawings', 'Drawings in this folder')}>
       {documents.map(doc => <li key={doc.id}>
         <button disabled={busy} onClick={() => { setSelected(doc); setHistory([]) }}>{doc.name} · {t('cloudWorkspace.revision', 'revision')} {doc.revision}</button>{' '}
         <button disabled={busy || (destination || null) === doc.folderId} onClick={() => void run(async () => { await client.documents.move(doc, destination || null); return t('cloudWorkspace.drawingMoved', 'Drawing moved') })}>{t('cloudWorkspace.moveDrawing', 'Move drawing')}</button>
       </li>)}
     </ul>
+    {!documentPage.isDone && <button disabled={busy} onClick={() => void run(async () => { const next = await client.documents.listPage(folderId, documentPage.continueCursor); if (getEditorCloudState().sessionKey !== cloud.sessionKey) return; setDocumentPage(previous => mergeCloudPage(previous, next)) }, false)}>{t('cloudWorkspace.moreDrawings', 'Load more drawings')}</button>}
     {documents.length === 0 && <p>{t('cloudWorkspace.empty', 'No drawings in this folder.')}</p>}
     {selected && <section aria-label={t('cloudWorkspace.history', 'Revision history')}>
       <h4>{selected.name}: {t('cloudWorkspace.history', 'Revision history')}</h4>
-      <p>{t('cloudWorkspace.historyHint', 'Open a revision as a separate local copy, or restore it as a new cloud revision. Earlier revisions are kept.')}</p>
+      <p>{t('cloudWorkspace.historyHint', 'Open a revision as a separate local copy, or restore it as a new cloud revision. The newest 100 revisions are kept.')}</p>
       {history.length === 0 && <p>{t('cloudWorkspace.noHistory', 'No saved revisions are available yet. The next cloud save will record this drawing’s history.')}</p>}
       <ul>{history.map(revision => <li key={revision.revision}>
         {t('cloudWorkspace.revision', 'Revision')} {revision.revision} · {new Date(revision.savedAt).toLocaleString()}{' '}
@@ -155,6 +160,7 @@ export function CloudWorkspacePanel({ onLoadDocument, onStatus, onChanged }: Clo
         <button disabled={busy} onClick={() => void openCopy(revision)}>{t('cloudWorkspace.openCopy', 'Open local copy')}</button>{' '}
         <button disabled={busy || revision.revision === selected.revision} onClick={() => void run(async () => { const restored = await client.documents.restore(selected, revision.revision); return `${t('cloudWorkspace.restored', 'Restored as new revision')} ${restored.revision}` })}>{t('cloudWorkspace.restore', 'Restore as new revision')}</button>
       </li>)}</ul>
+      {!historyPage.isDone && <button disabled={busy} onClick={() => void run(async () => { const next = await client.documents.historyPage(selected.id, historyPage.continueCursor); if (getEditorCloudState().sessionKey !== cloud.sessionKey) return; setHistoryPage(previous => ({ ...next, page: [...previous.page, ...next.page] })); setHistory(previous => [...previous, ...next.page]) }, false)}>{t('cloudWorkspace.moreHistory', 'Load more revisions')}</button>}
     </section>}
   </section>
 }

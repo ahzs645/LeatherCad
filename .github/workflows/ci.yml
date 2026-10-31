@@ -27,6 +27,7 @@ jobs:
         with:
           repository: ahzs645/atelier
           path: atelier
+          ref: 186feaf7b63e0928c5a27a78f874497e1a8cdfdd
 
       - uses: pnpm/action-setup@v4
         with:
@@ -45,6 +46,9 @@ jobs:
 
       - name: Install app dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify engine pairing
+        run: pnpm check:engine
 
       - name: Lint
         run: pnpm lint

@@ -1,14 +1,16 @@
 import type { Shape, Point } from './cad-types'
 import { getShapePoints } from './cad-geometry'
+import { isNativeCurve, nativeCurveBounds, transformNativeCurve } from './native-curve-ops'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
+export type GradeAnchor = 'start' | 'end' | 'mid' | 'control' | 'control1' | 'control2' | 'center' | 'radius-x' | 'radius-y'
 export type GradeRule = {
   id: string
   shapeId: string
-  anchor: 'start' | 'end' | 'mid' | 'control'
+  anchor: GradeAnchor
   deltaXPerSize: number
   deltaYPerSize: number
 }
@@ -18,9 +20,9 @@ export type SizeSpec = {
   sizeIndex: number
 }
 
-export type GradedPattern = {
+export type GradedPattern<T extends Shape = Shape> = {
   sizeName: string
-  shapes: Shape[]
+  shapes: T[]
 }
 
 // ---------------------------------------------------------------------------
@@ -32,6 +34,8 @@ function shiftPoint(p: Point, dx: number, dy: number): Point {
 }
 
 function shiftShape(shape: Shape, dx: number, dy: number): Shape {
+  if (shape.type === 'ellipse') return { ...shape, center: shiftPoint(shape.center, dx, dy) }
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
   switch (shape.type) {
     case 'line':
       return {
@@ -64,16 +68,32 @@ function shiftShape(shape: Shape, dx: number, dy: number): Shape {
 
 function applyAnchorShift(
   shape: Shape,
-  anchor: 'start' | 'end' | 'mid' | 'control',
+  anchor: GradeAnchor,
   dx: number,
   dy: number,
 ): Shape {
   const clone = { ...shape }
+  if (shape.type === 'ellipse') {
+    if (anchor === 'center') return { ...shape, center: shiftPoint(shape.center, dx, dy) }
+    if (anchor === 'radius-x' || anchor === 'radius-y') {
+      const radiusX = shape.radiusX + (anchor === 'radius-x' ? dx : 0), radiusY = shape.radiusY + (anchor === 'radius-y' ? dy : 0)
+      if (!(radiusX > 0 && radiusY > 0)) throw new Error('Grading would collapse an ellipse radius. Reduce the size increment.')
+      return { ...shape, radiusX, radiusY }
+    }
+    return clone
+  }
   switch (anchor) {
     case 'start':
-      return { ...clone, start: shiftPoint(shape.start, dx, dy) }
+      return { ...shape, start: shiftPoint(shape.start, dx, dy) }
     case 'end':
-      return { ...clone, end: shiftPoint(shape.end, dx, dy) }
+      return { ...shape, end: shiftPoint(shape.end, dx, dy) }
+    case 'control1':
+    case 'control2':
+      return shape.type === 'cubic' ? { ...shape, [anchor]: shiftPoint(shape[anchor], dx, dy) } : clone
+    case 'center':
+    case 'radius-x':
+    case 'radius-y':
+      return clone
     case 'mid':
       if (shape.type === 'arc') {
         return { ...shape, mid: shiftPoint(shape.mid, dx, dy) }
@@ -94,11 +114,11 @@ function applyAnchorShift(
 // gradeShapes
 // ---------------------------------------------------------------------------
 
-export function gradeShapes(
-  baseShapes: Shape[],
+export function gradeShapes<T extends Shape>(
+  baseShapes: T[],
   rules: GradeRule[],
   sizes: SizeSpec[],
-): GradedPattern[] {
+): GradedPattern<T>[] {
   // Index rules by shapeId for fast lookup
   const rulesByShape = new Map<string, GradeRule[]>()
   for (const rule of rules) {
@@ -119,7 +139,8 @@ export function gradeShapes(
         const dy = rule.deltaYPerSize * size.sizeIndex
         current = applyAnchorShift(current, rule.anchor, dx, dy)
       }
-      return current
+      // Anchor grading preserves the shape's discriminant and analytic representation.
+      return current as T
     })
     return { sizeName: size.name, shapes }
   })
@@ -154,6 +175,12 @@ export function buildDefaultGradeRules(shapes: Shape[]): GradeRule[] {
   let ruleIndex = 0
 
   for (const shape of shapes) {
+    if (shape.type === 'ellipse') {
+      rules.push({ id: `grade-rule-${ruleIndex++}`, shapeId: shape.id, anchor: 'center', deltaXPerSize: (shape.center.x - cx) * scaleFactor, deltaYPerSize: (shape.center.y - cy) * scaleFactor },
+        { id: `grade-rule-${ruleIndex++}`, shapeId: shape.id, anchor: 'radius-x', deltaXPerSize: shape.radiusX * scaleFactor, deltaYPerSize: 0 },
+        { id: `grade-rule-${ruleIndex++}`, shapeId: shape.id, anchor: 'radius-y', deltaXPerSize: 0, deltaYPerSize: shape.radiusY * scaleFactor })
+      continue
+    }
     const anchors = getAnchorsForShape(shape)
     for (const anchor of anchors) {
       const pt = getAnchorPointForRule(shape, anchor)
@@ -174,7 +201,7 @@ export function buildDefaultGradeRules(shapes: Shape[]): GradeRule[] {
 
 function getAnchorsForShape(
   shape: Shape,
-): ('start' | 'end' | 'mid' | 'control')[] {
+): GradeAnchor[] {
   switch (shape.type) {
     case 'line':
       return ['start', 'end']
@@ -182,6 +209,10 @@ function getAnchorsForShape(
       return ['start', 'mid', 'end']
     case 'bezier':
       return ['start', 'control', 'end']
+    case 'cubic':
+      return ['start', 'control1', 'control2', 'end']
+    case 'ellipse':
+      return ['center', 'radius-x', 'radius-y']
     case 'text':
       return ['start', 'end']
   }
@@ -189,8 +220,10 @@ function getAnchorsForShape(
 
 function getAnchorPointForRule(
   shape: Shape,
-  anchor: 'start' | 'end' | 'mid' | 'control',
+  anchor: GradeAnchor,
 ): Point {
+  if (shape.type === 'ellipse') return shape.center
+  if ((anchor === 'control1' || anchor === 'control2') && shape.type === 'cubic') return shape[anchor]
   if (anchor === 'start') return shape.start
   if (anchor === 'end') return shape.end
   if (anchor === 'mid' && shape.type === 'arc') return shape.mid
@@ -202,14 +235,14 @@ function getAnchorPointForRule(
 // nestGradedPatterns – simple horizontal stacking
 // ---------------------------------------------------------------------------
 
-export function nestGradedPatterns(
-  patterns: GradedPattern[],
+export function nestGradedPatterns<T extends Shape>(
+  patterns: GradedPattern<T>[],
   spacingMm: number,
-): GradedPattern[] {
+): GradedPattern<T>[] {
   if (patterns.length === 0) return []
 
   let currentX = 0
-  const result: GradedPattern[] = []
+  const result: GradedPattern<T>[] = []
 
   for (const pattern of patterns) {
     // Compute bounding box
@@ -219,6 +252,12 @@ export function nestGradedPatterns(
     let maxY = -Infinity
 
     for (const shape of pattern.shapes) {
+      if (isNativeCurve(shape)) {
+        const bounds = nativeCurveBounds(shape)
+        minX = Math.min(minX, bounds.minX); maxX = Math.max(maxX, bounds.maxX)
+        minY = Math.min(minY, bounds.minY); maxY = Math.max(maxY, bounds.maxY)
+        continue
+      }
       for (const pt of getShapePoints(shape)) {
         if (pt.x < minX) minX = pt.x
         if (pt.x > maxX) maxX = pt.x
@@ -234,7 +273,7 @@ export function nestGradedPatterns(
 
     // Shift so pattern's left edge is at currentX
     const dx = currentX - minX
-    const shapes = pattern.shapes.map((s) => shiftShape(s, dx, 0))
+    const shapes = pattern.shapes.map((s) => shiftShape(s, dx, 0) as T)
 
     result.push({ sizeName: pattern.sizeName, shapes })
 

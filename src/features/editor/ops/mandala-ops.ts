@@ -1,4 +1,5 @@
 import type { Point, Shape, LineShape, ArcShape } from '../cad/cad-types'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 import { uid, round } from '../cad/cad-geometry'
 
 export type MandalaSettings = {
@@ -50,6 +51,10 @@ function mirrorPointAcrossAxis(point: Point, center: Point, axisAngleDeg: number
 
 export function rotateShape(shape: Shape, center: Point, angleDeg: number): Shape {
   const newId = uid()
+  if (isNativeCurve(shape)) {
+    const angle = angleDeg * DEG_TO_RAD, c = Math.cos(angle), s = Math.sin(angle)
+    return { ...transformNativeCurve(shape, [c, s, -s, c, center.x - c * center.x + s * center.y, center.y - s * center.x - c * center.y]), id: newId }
+  }
 
   if (shape.type === 'line') {
     return {
@@ -95,6 +100,10 @@ export function rotateShape(shape: Shape, center: Point, angleDeg: number): Shap
 
 export function mirrorMandalaItem(shape: Shape, center: Point, axisAngleDeg: number): Shape {
   const newId = uid()
+  if (isNativeCurve(shape)) {
+    const angle = 2 * axisAngleDeg * DEG_TO_RAD, c = Math.cos(angle), s = Math.sin(angle)
+    return { ...transformNativeCurve(shape, [c, s, s, -c, center.x - c * center.x - s * center.y, center.y - s * center.x + c * center.y]), id: newId }
+  }
 
   if (shape.type === 'line') {
     return {

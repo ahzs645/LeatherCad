@@ -1,3 +1,4 @@
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 import { uid } from '../cad/cad-geometry'
 import type { Shape } from '../cad/cad-types'
 
@@ -39,6 +40,7 @@ export function tileSelectionAsStamp(
 
 function offsetShape(shape: Shape, dx: number, dy: number): Shape {
   const freshId = uid()
+  if (isNativeCurve(shape)) return { ...transformNativeCurve(shape, [1, 0, 0, 1, dx, dy]), id: freshId }
   if (shape.type === 'line' || shape.type === 'text') {
     return {
       ...shape,

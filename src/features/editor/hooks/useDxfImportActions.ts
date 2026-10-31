@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState, type ChangeEvent, type Dispatch, type SetStateAction } from 'react'
 import type { Layer, LineType, Shape } from '../cad/cad-types'
 import type { DxfImportOptions, DxfImportResult } from '../io/io-dxf-import'
+import type { DocumentTransferReview } from '../components/DocumentTransferReviewModal'
+import { parseDxfFile } from '../io/parse-file-import'
 
 type Setter<T> = Dispatch<SetStateAction<T>>
 export type DxfImportActionsParams = {
@@ -10,15 +12,15 @@ export type DxfImportActionsParams = {
   setSelectedShapeIds: Setter<string[]>
   setStatus: Setter<string>
   /** Change this when replacing the open document without closing the importer. */
-  importSessionKey?: string | readonly Shape[] | null
+  importSessionKey?: string | number | readonly Shape[] | null
   onImported?: (result: DxfImportResult) => void
 }
 type Feedback = { kind: 'success' | 'error'; message: string; warnings: string[] }
-type SessionState = { sessionKey: DxfImportActionsParams['importSessionKey']; pending: boolean; feedback: Feedback | null }
+type SessionState = { sessionKey: DxfImportActionsParams['importSessionKey']; pending: boolean; feedback: Feedback | null; review?: DocumentTransferReview }
 
 export function useDxfImportActions(params: DxfImportActionsParams) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const lifetime = useRef<{ requestId: number; active: boolean }>({ requestId: 0, active: false })
+  const lifetime = useRef({ requestId: 0, active: false, controller: new AbortController() })
   const [session, setSession] = useState<SessionState>({ sessionKey: params.importSessionKey, pending: false, feedback: null })
   const [units, setUnits] = useState<NonNullable<DxfImportOptions['units']>>('auto')
   const matchesSession = session.sessionKey === params.importSessionKey
@@ -31,7 +33,7 @@ export function useDxfImportActions(params: DxfImportActionsParams) {
   useLayoutEffect(() => {
     const current = lifetime.current
     current.active = true
-    return () => { current.active = false; current.requestId++ }
+    return () => { current.active = false; current.requestId++; current.controller.abort() }
   }, [params.importSessionKey])
 
   const handleImportDxf = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +41,8 @@ export function useDxfImportActions(params: DxfImportActionsParams) {
     event.target.value = ''
     if (!file || isImporting) return
     const current = lifetime.current
+    current.controller.abort()
+    current.controller = new AbortController()
     const requestId = ++current.requestId
     const isCurrent = () => current.active && current.requestId === requestId
     const publish = (next: Feedback) => {
@@ -53,22 +57,36 @@ export function useDxfImportActions(params: DxfImportActionsParams) {
     try {
       const raw = await file.text()
       if (!isCurrent()) return
-      const { importDxfDocument } = await import('../io/io-dxf-import')
-      if (!isCurrent()) return
-      result = importDxfDocument(raw, { units })
+      result = await parseDxfFile(raw, file.name, { units }, current.controller.signal)
     } catch (error) {
       publish({ kind: 'error', message: `DXF import failed: ${error instanceof Error ? error.message : 'unknown error'}`, warnings: [] })
       return
     }
     if (!isCurrent()) return
-    // Parse completely before mutating any document state. Appending preserves
-    // the user's current document and every imported source layer/style.
-    params.setLayers((previous) => [...previous, ...result.layers])
-    params.setLineTypes((previous) => [...previous, ...result.lineTypes])
-    params.setShapes((previous) => [...previous, ...result.shapes])
-    params.setSelectedShapeIds(result.shapes.map((shape) => shape.id))
-    publish({ kind: 'success', message: `Imported ${result.summary.shapeCount} DXF shapes on ${result.summary.layerCount} layers`, warnings: result.warnings })
-    params.onImported?.(result)
+    const close = () => { current.requestId++; current.controller.abort(); setSession({ sessionKey: params.importSessionKey, pending: false, feedback: null }) }
+    const review: DocumentTransferReview = {
+      fileName: file.name, title: 'Review DXF import', actionLabel: 'Append selected layers',
+      summary: [{ label: 'Shapes', value: String(result.summary.shapeCount) }, { label: 'Skipped entities', value: String(result.summary.skippedEntityCount) }, { label: 'Source scale', value: `${result.summary.unitScaleMm} mm / source unit` }, { label: 'Curve tolerance', value: '0.05 mm target' }],
+      warnings: result.warnings, shapes: result.shapes,
+      layers: result.layers.map(layer => ({ id: layer.id, name: layer.name, count: result.shapes.filter(shape => shape.layerId === layer.id).length })),
+      onClose: close,
+      onApply: layerIds => {
+        if (!isCurrent()) return
+        const shapes = result.shapes.filter(shape => !layerIds || layerIds.has(shape.layerId))
+        if (!shapes.length) return
+        const usedLayers = new Set(shapes.map(shape => shape.layerId)), usedStyles = new Set(shapes.map(shape => shape.lineTypeId))
+        const imported = { ...result, shapes, layers: result.layers.filter(layer => usedLayers.has(layer.id)), lineTypes: result.lineTypes.filter(type => usedStyles.has(type.id)), summary: { ...result.summary, shapeCount: shapes.length, layerCount: usedLayers.size } }
+        params.setLayers(previous => [...previous, ...imported.layers])
+        params.setLineTypes(previous => [...previous, ...imported.lineTypes])
+        params.setShapes(previous => [...previous, ...shapes])
+        params.setSelectedShapeIds(shapes.map(shape => shape.id))
+        publish({ kind: 'success', message: `Imported ${shapes.length} DXF shapes on ${usedLayers.size} layers`, warnings: result.warnings })
+        params.onImported?.(imported)
+        current.requestId++
+      },
+    }
+    setSession({ sessionKey: params.importSessionKey, pending: false, feedback: null, review })
+    params.setStatus(`Review "${file.name}" before appending DXF geometry`)
   }
-  return { inputRef, units, setUnits, isImporting, feedback, handleImportDxf, openImportDxf: () => inputRef.current?.click() }
+  return { review: matchesSession ? session.review ?? null : null, inputRef, units, setUnits, isImporting, feedback, handleImportDxf, openImportDxf: () => inputRef.current?.click() }
 }

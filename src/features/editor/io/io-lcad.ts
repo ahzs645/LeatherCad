@@ -4,6 +4,9 @@ import { parseImportedJsonDocument } from '../editor-json-import'
 import { numberField, pointValue, primitiveShapes, recordValue, type LcadRecord, type ShapeBase } from './lcad/lcad-geometry'
 import { importLcadStitchParameters } from './lcad/lcad-stitches'
 import { parseCommunityProvenance } from '../ops/community-provenance'
+import { validateGroupHierarchy } from '../ops/shape-access'
+import { resolveLineTypeStrokeWidthMm } from '../cad/line-types'
+import { assertImportGeometryBudget, assertImportLayerBudget, assertImportTextBudget, assertImportTreeBudget } from './import-budget'
 
 export type LcadImportResult = {
   doc: DocFile
@@ -14,6 +17,12 @@ export type LcadImportResult = {
 const stringValue = (value: unknown, fallback: string) => typeof value === 'string' && value.length > 0 ? value : fallback
 const idValue = (value: unknown) => typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 const styleValue = (value: unknown): LineType['style'] => value === 'dashed' || value === 'dotted' || value === 'dash-dot-dot' ? value : value === 'dash-dot' || value === 'center' ? 'dash-dot-dot' : 'solid'
+const widthValue = (record: LcadRecord): number | undefined => {
+  if (record.strokeWidth === undefined) return undefined
+  const width = numberField(record, 'strokeWidth')
+  if (width < 0 || width > 20) throw new Error('Unsupported .lcad stroke width: expected 0–20 mm')
+  return width
+}
 
 export function isLcadDocument(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false
@@ -23,10 +32,13 @@ export function isLcadDocument(value: unknown): boolean {
 
 /** Geometry coordinates are always mm in the reference; unit_for_view is display only. */
 export function importLcadDocument(raw: string): LcadImportResult {
+  assertImportTextBudget(raw)
   const input = recordValue(JSON.parse(raw.replace(/^\uFEFF/, '')), 'document')
+  assertImportTreeBudget(input)
   if (input.sealed !== undefined) throw new Error('Sealed .lcad containers are not supported; the current document was not changed')
   if (input.version !== 2 || !Array.isArray(input.shapes)) throw new Error('Unsupported .lcad document: expected version 2 with a shapes array')
   if (input.shapes.length > 100_000) throw new Error('.lcad document exceeds the supported shape limit')
+  assertImportLayerBudget(Array.isArray(input.layers) ? input.layers.length : 0)
   const extension = input.leathercad === undefined ? undefined : recordValue(input.leathercad, 'LeatherCad extension')
   if (extension && extension.version !== 1) throw new Error('Unsupported LeatherCad .lcad extension version; source attribution cannot be preserved safely')
   const communityProvenance = parseCommunityProvenance(extension?.communityProvenance)
@@ -52,16 +64,21 @@ export function importLcadDocument(raw: string): LcadImportResult {
     const color = stringValue(source.strokeColor, stringValue(palette?.colorLight, '#1a1a1a'))
     const style = styleValue(source.strokeDash ?? palette?.strokeDash)
     const visible = palette?.visible !== false
-    const key = JSON.stringify([source.paletteId ?? '', color, style, role, visible])
+    const width = palette ? widthValue(palette) : undefined
+    const key = JSON.stringify([source.paletteId ?? '', color, style, role, visible, width])
     let id = styles.get(key)
     if (!id) {
       id = uid()
       styles.set(key, id)
-      lineTypes.push({ id, name: stringValue(palette?.name, `Imported ${idValue(source.paletteId) || role}`), role, color, style, visible })
+      lineTypes.push({ id, name: stringValue(palette?.name, `Imported ${idValue(source.paletteId) || role}`), role, color, style, visible, ...(width === undefined ? {} : { strokeWidthMm: width }) })
     }
     return id
   }
   const objects: Shape[] = [], stitchHoles: StitchHole[] = [], backdrops: Backdrop[] = [], dimensionLines: DimensionLine[] = []
+  const appendShapes = (shapes: Shape[]) => {
+    assertImportGeometryBudget(objects.length + shapes.length + stitchHoles.length + dimensionLines.length)
+    objects.push(...shapes)
+  }
   const sketchGroups: SketchGroup[] = []
   const groupIds = new Set<string>()
   for (const value of Array.isArray(input.groups) ? input.groups : []) {
@@ -70,9 +87,9 @@ export function importLcadDocument(raw: string): LcadImportResult {
     groupIds.add(id)
     const member = input.shapes.find(value => value && typeof value === 'object' && (value as LcadRecord).groupId === id) as LcadRecord | undefined
     const layerId = member && layerIds.has(idValue(member.layerId)) ? idValue(member.layerId) : activeLayerId
-    sketchGroups.push({ id, layerId, name: stringValue(group.name, `Group ${sketchGroups.length + 1}`), visible: group.visible !== false, locked: group.locked === true })
-    if (group.parentId) warnings.add('Nested source groups are imported as flat sketch groups')
+    sketchGroups.push({ id, layerId, name: stringValue(group.name, `Group ${sketchGroups.length + 1}`), visible: group.visible !== false, locked: group.locked === true, parentId: idValue(group.parentId) || undefined })
   }
+  validateGroupHierarchy(sketchGroups)
   const ids = new Set<string>()
   const convert = (value: unknown, inherited?: LcadRecord, depth = 0) => {
     if (depth > 16) throw new Error('.lcad path nesting exceeds the supported limit')
@@ -84,9 +101,17 @@ export function importLcadDocument(raw: string): LcadImportResult {
     if (source.layerId && !layerIds.has(idValue(source.layerId))) warnings.add('Shapes on missing layers were assigned to the active layer')
     const lineTypeId = styleFor(source)
     const sourceGroup = typeof source.groupId === 'string' ? sketchGroups.find(group => group.id === source.groupId && group.layerId === layerId) : undefined
-    const base: ShapeBase = { id, layerId, lineTypeId, groupId: sourceGroup?.id, arrowStart: source.arrowStart === true || undefined, arrowEnd: source.arrowEnd === true || undefined }
-    if (source.locked === true && !layers.find(layer => layer.id === layerId)?.locked) warnings.add('Per-shape locks are not supported; layer locks are preserved')
-    if (source.alpha !== undefined && source.alpha !== 1) warnings.add('Shape opacity is not represented by the editor line-type model')
+    if (source.groupId && !sourceGroup) warnings.add('Shapes referencing a missing group or a group on another layer are imported without that group; editor sketch groups are layer-scoped')
+    const palette = paletteRecords.get(idValue(source.paletteId))
+    const paletteWidth = palette ? widthValue(palette) : undefined
+    const sourceWidth = widthValue(source)
+    // Palette controls enforce a minimum width; keep hairline/zero geometry as
+    // an explicit shape override rather than silently widening the drawing.
+    const strokeWidthOverride = sourceWidth ?? (paletteWidth !== undefined && resolveLineTypeStrokeWidthMm({ strokeWidthMm: paletteWidth }) !== paletteWidth ? paletteWidth : undefined)
+    const opacity = source.alpha === undefined && palette?.alpha === undefined ? undefined : numberField(source, 'alpha', palette?.alpha as number | undefined)
+    if (opacity !== undefined && (opacity < 0 || opacity > 1)) throw new Error('Invalid .lcad alpha: expected 0–1')
+    if (source.locked !== undefined && typeof source.locked !== 'boolean') throw new Error('Invalid .lcad shape lock')
+    const base: ShapeBase = { id, layerId, lineTypeId, groupId: sourceGroup?.id, arrowStart: source.arrowStart === true || undefined, arrowEnd: source.arrowEnd === true || undefined, strokeWidthOverride, locked: source.locked, opacity }
     if (source.type === 'path') {
       let hasGeometry = false
       if (Array.isArray(source.contours) && source.contours.length > 0) {
@@ -99,7 +124,8 @@ export function importLcadDocument(raw: string): LcadImportResult {
         for (const polygon of source.polys) {
           if (!Array.isArray(polygon) || polygon.length < 3) throw new Error('Invalid .lcad path polygon')
           const points = polygon.map(pointValue)
-          for (let index = 0; index < points.length; index += 1) objects.push({ ...base, id: `${id}:${objects.length}`, type: 'line', start: points[index], end: points[(index + 1) % points.length] })
+          assertImportGeometryBudget(objects.length + points.length)
+          for (let index = 0; index < points.length; index += 1) appendShapes([{ ...base, id: `${id}:${objects.length}`, type: 'line', start: points[index], end: points[(index + 1) % points.length] }])
           hasGeometry = true
         }
       }
@@ -111,7 +137,7 @@ export function importLcadDocument(raw: string): LcadImportResult {
       const point = { x: numberField(source, 'cx'), y: numberField(source, 'cy') }
       const parameters = importLcadStitchParameters(source)
       const anchorId = `${id}:anchor`
-      objects.push({ ...base, id: anchorId, type: 'line', stitchHoleMarker: true, start: point, end: point })
+      appendShapes([{ ...base, id: anchorId, type: 'line', stitchHoleMarker: true, start: point, end: point }])
       stitchHoles.push({ id, shapeId: anchorId, chainId: idValue(source.runId) || undefined, sequence: Math.max(0, Math.round(numberField(source, 'seq', 0))), point, ...parameters, endHole: source.endHole === true })
       return
     }
@@ -129,11 +155,10 @@ export function importLcadDocument(raw: string): LcadImportResult {
       return
     }
     const converted = primitiveShapes(source, base)
-    if (source.type === 'ellipse') warnings.add('Ellipses are converted to editable line segments with a maximum 0.01 mm chord error')
-    if (source.type === 'bezier') warnings.add('Cubic Béziers are converted to editable quadratic curves within 0.01 mm')
+    if (source.type === 'bezier' && (source.closed === true || (Array.isArray(source.points) && source.points.length > 4))) warnings.add('Multi-segment or closed Bézier chains are imported as separate editable curve segments')
     if (source.type === 'distance') warnings.add('Distance-tool shapes are imported as marked lines')
     if (source.type === 'stitch') warnings.add('Decorative stitch strokes are imported as stitch-role centerlines; repeated dash geometry is not imported')
-    objects.push(...converted)
+    appendShapes(converted)
   }
   for (const shape of input.shapes) convert(shape)
   if (lineTypes.length === 0) styleFor({ type: 'line' })

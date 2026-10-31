@@ -3,6 +3,8 @@ import type { Layer, LineType, LineTypeStyle, Point, Shape } from '../cad/cad-ty
 import { bulgeArc, IDENTITY, isSimilarity, multiplyMatrices, sampleCurve, TAU, transformPoint, type DxfMatrix } from './dxf/dxf-geometry'
 import { dxfNumber, dxfPoints, dxfValue, parseAsciiDxf, type DxfRecord } from './dxf/dxf-parser'
 import { createSplineEvaluator } from './dxf/dxf-spline'
+import { transformNativeCurve } from '../cad/native-curve-ops'
+import { assertImportLayerBudget, assertImportTextBudget } from './import-budget'
 
 export type DxfImportOptions = {
   units?: 'auto' | 'mm' | 'in' | 'cm' | 'm'
@@ -43,9 +45,17 @@ function colorFor(record: DxfRecord, fallback: string): string {
   if (trueColor !== undefined) return `#${(dxfNumber(record, 420) & 0xffffff).toString(16).padStart(6, '0')}`
   return aciColor(Math.abs(dxfNumber(record, 62, 256))) ?? fallback
 }
+function weightFor(record: DxfRecord, layer: DxfRecord | undefined, inherited?: number): number | undefined {
+  const weight = dxfNumber(record, 370, -1)
+  if (weight >= 0) return weight / 100
+  if (weight === -2 && inherited !== undefined) return inherited
+  const layerWeight = layer ? dxfNumber(layer, 370, -3) : -3
+  return layerWeight >= 0 ? layerWeight / 100 : undefined
+}
 
 /** Import planar ASCII DXF geometry, preserving source layers and styles. */
 export function importDxfDocument(raw: string, options: DxfImportOptions = {}): DxfImportResult {
+  assertImportTextBudget(raw)
   const source = parseAsciiDxf(raw)
   const warnings = new Set<string>()
   const shapes: Shape[] = [], layers: Layer[] = [], lineTypes: LineType[] = []
@@ -61,11 +71,12 @@ export function importDxfDocument(raw: string, options: DxfImportOptions = {}): 
   const tolerance = options.curveToleranceMm ?? 0.05
   if (!(tolerance > 0 && Number.isFinite(tolerance))) throw new Error('DXF curve tolerance must be a positive number')
   const world: DxfMatrix = [scale, 0, 0, options.flipY === false ? scale : -scale, 0, 0]
-  const metadata = (record: DxfRecord, inheritedLayer = '0', inheritedColor?: string): Pick<Shape, 'layerId' | 'lineTypeId'> => {
+  const metadata = (record: DxfRecord, inheritedLayer = '0', inheritedColor?: string, inheritedWeight?: number): Pick<Shape, 'layerId' | 'lineTypeId' | 'strokeWidthOverride'> => {
     const rawLayer = dxfValue(record, 8) ?? '0'
     const name = rawLayer === '0' ? inheritedLayer : rawLayer
     let entry = layerMap.get(name)
     if (!entry) {
+      assertImportLayerBudget(layers.length + 1)
       const layerRecord = sourceLayers.get(name)
       const flags = layerRecord ? dxfNumber(layerRecord, 70) : 0
       const layer: Layer = { id: uid(), name, visible: !(flags & 1) && (!layerRecord || dxfNumber(layerRecord, 62, 7) >= 0), locked: Boolean(flags & 4), stackLevel: layers.length }
@@ -79,16 +90,16 @@ export function importDxfDocument(raw: string, options: DxfImportOptions = {}): 
     let styleName = dxfValue(record, 6) ?? 'BYLAYER'
     if (/^BYLAYER$/i.test(styleName)) styleName = entry.record ? dxfValue(entry.record, 6) ?? 'CONTINUOUS' : 'CONTINUOUS'
     const style = lineStyle(styleName)
-    const key = `${name}|${color}|${style}`
+    const weight = weightFor(record, entry.record, inheritedWeight)
+    const key = `${name}|${color}|${style}|${weight ?? 'default'}`
     let lineType = styleMap.get(key)
     if (!lineType) {
       lineType = { id: uid(), name: `${name} (${styleName})`, role: /stitch/i.test(name) ? 'stitch' : /fold/i.test(name) ? 'fold' : 'cut', color, style, visible: true }
-      const weight = dxfNumber(record, 370, entry.record ? dxfNumber(entry.record, 370, -1) : -1)
-      if (weight >= 0) lineType.strokeWidthMm = weight / 100
+      if (weight !== undefined) lineType.strokeWidthMm = weight
       styleMap.set(key, lineType)
       lineTypes.push(lineType)
     }
-    return { layerId: entry.layer.id, lineTypeId: lineType.id }
+    return { layerId: entry.layer.id, lineTypeId: lineType.id, ...(weight !== undefined && weight < 0.1 ? { strokeWidthOverride: weight } : {}) }
   }
   const line = (start: Point, end: Point, meta: Pick<Shape, 'layerId' | 'lineTypeId'>) => {
     if (shapes.length >= 200000) throw new Error('DXF exceeds the 200,000 shape import limit')
@@ -109,11 +120,11 @@ export function importDxfDocument(raw: string, options: DxfImportOptions = {}): 
         shapes.push({ id: uid(), type: 'arc', ...meta, start: evaluate(from), mid: evaluate((from + to) / 2), end: evaluate(to) })
       }
     } else {
-      warnings.add('Circular geometry under non-uniform block scale was approximated with line segments.')
-      polyline(sampleCurve(evaluate, start, start + sweep, tolerance), meta)
+      if (shapes.length >= 200000) throw new Error('DXF exceeds the 200,000 shape import limit')
+      shapes.push(transformNativeCurve({ id: uid(), type: 'ellipse', ...meta, center, radiusX: radius, radiusY: radius, rotationDeg: 0, startAngleDeg: start * 180 / Math.PI, sweepDeg: sweep * 180 / Math.PI }, matrix))
     }
   }
-  const process = (records: DxfRecord[], parent: DxfMatrix, inheritedLayer = '0', blockPath: string[] = [], inheritedColor?: string) => {
+  const process = (records: DxfRecord[], parent: DxfMatrix, inheritedLayer = '0', blockPath: string[] = [], inheritedColor?: string, inheritedWeight?: number) => {
     for (let index = 0; index < records.length; index++) {
       const record = records[index]
       if (record.type === 'SEQEND' || record.type === 'VERTEX' || record.type === 'ATTRIB') continue
@@ -136,10 +147,11 @@ export function importDxfDocument(raw: string, options: DxfImportOptions = {}): 
         const layer = dxfValue(record, 8) || inheritedLayer
         const layerRecord = sourceLayers.get(layer)
         const color = colorFor(record, inheritedColor ?? (layerRecord ? colorFor(layerRecord, '#ffffff') : '#ffffff'))
+        const weight = weightFor(record, layerRecord, inheritedWeight)
         for (let row = 0; row < rows; row++) for (let column = 0; column < columns; column++) {
           const offsetX = column * dxfNumber(record, 44), offsetY = row * dxfNumber(record, 45)
           const insert: DxfMatrix = [cos * sx, sin * sx, -sin * sy, cos * sy, dxfNumber(record, 10) + cos * offsetX - sin * offsetY - cos * sx * block.x + sin * sy * block.y, dxfNumber(record, 20) + sin * offsetX + cos * offsetY - sin * sx * block.x - cos * sy * block.y]
-          process(block.records, multiplyMatrices(matrix, insert), layer === '0' ? inheritedLayer : layer, [...blockPath, blockKey], color)
+          process(block.records, multiplyMatrices(matrix, insert), layer === '0' ? inheritedLayer : layer, [...blockPath, blockKey], color, weight)
         }
         continue
       }
@@ -151,7 +163,7 @@ export function importDxfDocument(raw: string, options: DxfImportOptions = {}): 
         skippedEntityCount++; warnings.add(`${record.type} with varying Z coordinates was skipped.`); continue
       }
       if (zValues.some((value) => Math.abs(value) > 1e-8)) warnings.add('Constant Z elevations were projected onto the XY plane.')
-      const meta = metadata(record, inheritedLayer, inheritedColor)
+      const meta = metadata(record, inheritedLayer, inheritedColor, inheritedWeight)
       if (record.type === 'LINE') {
         line(transformPoint(matrix, { x: dxfNumber(record, 10), y: dxfNumber(record, 20) }), transformPoint(matrix, { x: dxfNumber(record, 11), y: dxfNumber(record, 21) }), meta)
       } else if (record.type === 'ARC' || record.type === 'CIRCLE') {
@@ -178,16 +190,27 @@ export function importDxfDocument(raw: string, options: DxfImportOptions = {}): 
         }
         if (record.pairs.some((pair) => [40, 41, 43].includes(pair.code) && Number(pair.value) !== 0)) warnings.add('Polyline widths were ignored; centreline geometry was imported.')
       } else if (record.type === 'SPLINE') {
+        const controls = dxfPoints(record), degree = dxfNumber(record, 71, 3)
+        const knots = record.pairs.filter(pair => pair.code === 40).map(pair => Number(pair.value))
+        const weights = record.pairs.filter(pair => pair.code === 41).map(pair => Number(pair.value))
         const spline = createSplineEvaluator(record)
-        for (let span = 1; span < spline.spans.length; span++) polyline(sampleCurve((t) => transformPoint(matrix, spline.evaluate(t)), spline.spans[span - 1], spline.spans[span], tolerance), meta)
-        warnings.add(`SPLINE curves were approximated with line segments (target tolerance ${tolerance} mm).`)
+        const exactBezier = (degree === 2 || degree === 3) && controls.length === degree + 1 && knots.length === (degree + 1) * 2 && knots.slice(0, degree + 1).every(knot => knot === knots[0]) && knots.slice(degree + 1).every(knot => knot === knots.at(-1)) && (!weights.length || weights.every(weight => weight === weights[0]))
+        if (exactBezier) {
+          if (shapes.length >= 200000) throw new Error('DXF exceeds the 200,000 shape import limit')
+          const points = controls.map(point => transformPoint(matrix, point))
+          shapes.push(degree === 2 ? { id: uid(), type: 'bezier', ...meta, start: points[0], control: points[1], end: points[2] } : { id: uid(), type: 'cubic', ...meta, start: points[0], control1: points[1], control2: points[2], end: points[3] })
+        } else {
+          for (let span = 1; span < spline.spans.length; span++) polyline(sampleCurve((t) => transformPoint(matrix, spline.evaluate(t)), spline.spans[span - 1], spline.spans[span], tolerance), meta)
+          warnings.add(`SPLINE curves were approximated with line segments (target tolerance ${tolerance} mm).`)
+        }
       } else if (record.type === 'ELLIPSE') {
         const center = { x: dxfNumber(record, 10), y: dxfNumber(record, 20) }, major = { x: dxfNumber(record, 11), y: dxfNumber(record, 21) }
         const ratio = dxfNumber(record, 40), start = dxfNumber(record, 41), end = dxfNumber(record, 42, TAU)
         if (!(ratio > 0) || Math.hypot(major.x, major.y) === 0) throw new Error('Invalid DXF ELLIPSE')
         const sweep = ((end - start) % TAU + TAU) % TAU || TAU
-        polyline(sampleCurve((t) => transformPoint(matrix, { x: center.x + major.x * Math.cos(t) - major.y * ratio * Math.sin(t), y: center.y + major.y * Math.cos(t) + major.x * ratio * Math.sin(t) }), start, start + sweep, tolerance), meta)
-        warnings.add(`ELLIPSE curves were approximated with line segments (target tolerance ${tolerance} mm).`)
+        if (shapes.length >= 200000) throw new Error('DXF exceeds the 200,000 shape import limit')
+        const radius = Math.hypot(major.x, major.y)
+        shapes.push(transformNativeCurve({ id: uid(), type: 'ellipse', ...meta, center, radiusX: radius, radiusY: radius * ratio, rotationDeg: Math.atan2(major.y, major.x) * 180 / Math.PI, startAngleDeg: start * 180 / Math.PI, sweepDeg: sweep * 180 / Math.PI }, matrix))
       }
     }
   }

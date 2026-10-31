@@ -1,5 +1,7 @@
 import type { Point, Shape, LineShape } from '../../cad/cad-types'
 import { distance, uid, round } from '../../cad/cad-geometry'
+import { isNativeCurve, nativeCurvePointAt } from '../../cad/native-curve-ops'
+import { nativeCurveLineIntersections, nativeCurveSubsegment, nearestNativeCurveParameter } from './native-curve-editing'
 import {
   circleThroughThreePoints,
   evalQuadBezier,
@@ -77,6 +79,15 @@ export function extendLineToShape(
   const ly2 = line.end.y
   const ldx = lx2 - lx1
   const ldy = ly2 - ly1
+
+  if (isNativeCurve(target)) {
+    const lengthSq = ldx * ldx + ldy * ldy
+    const intersections = nativeCurveLineIntersections(target, line).map((point) => ({ point, t: ((point.x - lx1) * ldx + (point.y - ly1) * ldy) / lengthSq }))
+      .filter(({ t }) => extend === 'end' ? t >= 1 - 1e-9 : t <= 1e-9)
+      .sort((first, second) => Math.abs(first.t - (extend === 'end' ? 1 : 0)) - Math.abs(second.t - (extend === 'end' ? 1 : 0)))
+    const hit = intersections[0]
+    return hit ? { ...line, [extend]: { ...hit.point } } : null
+  }
 
   if (target.type === 'line') {
     // Extend line to infinite and intersect with target segment
@@ -181,6 +192,11 @@ export function nearestPointOnShape(shape: Shape, point: Point): ShapePointHit |
   }
   if (shape.type === 'line') {
     return nearestPointOnLine(shape, point)
+  }
+  if (isNativeCurve(shape)) {
+    const t = nearestNativeCurveParameter(shape, point)
+    const nearest = nativeCurvePointAt(shape, t)
+    return { shape, point: nearest, distance: distance(point, nearest), t }
   }
 
   let best: ShapePointHit | null = null
@@ -287,6 +303,12 @@ export function trimShapeAtPoint(
     return { ...shape, start: { x: round(cutPoint.x), y: round(cutPoint.y) } }
   }
 
+  if (isNativeCurve(shape)) {
+    const t = nearestNativeCurveParameter(shape, cutPoint)
+    if (t <= 1e-8 || t >= 1 - 1e-8) return { ...shape }
+    return nativeCurveSubsegment(shape, keepSide === 'start' ? 0 : t, keepSide === 'start' ? t : 1)
+  }
+
   // For bezier and arc: find parameter t closest to cutPoint
   const segments = 200
   let bestT = 0
@@ -362,6 +384,7 @@ export function trimShapeAtPoint(
 // ---------------------------------------------------------------------------
 
 function midpointOfShape(shape: Shape): Point {
+  if (isNativeCurve(shape)) return nativeCurvePointAt(shape, 0.5)
   if (shape.type === 'arc') {
     return { x: shape.mid.x, y: shape.mid.y }
   }
@@ -411,14 +434,9 @@ export function buildCenterLinesBetween(
   const lines: LineShape[] = []
   for (let index = 0; index < safeDivisions; index += 1) {
     const t = (index + 1) / (safeDivisions + 1)
-    const start = {
-      x: round(first.start.x * (1 - t) + first.end.x * t),
-      y: round(first.start.y * (1 - t) + first.end.y * t),
-    }
-    const end = {
-      x: round(second.start.x * (1 - t) + second.end.x * t),
-      y: round(second.start.y * (1 - t) + second.end.y * t),
-    }
+    const firstPoint = evaluateShapeAt(first, t), secondPoint = evaluateShapeAt(second, t)
+    const start = { x: round(firstPoint.x), y: round(firstPoint.y) }
+    const end = { x: round(secondPoint.x), y: round(secondPoint.y) }
     lines.push({
       id: uid(),
       type: 'line',
@@ -531,6 +549,17 @@ export function shapesCoincide(a: Shape, b: Shape, tolerance = 0.01): boolean {
       pointsCoincide(a.control, b.control, tolerance) &&
       pointsCoincide(a.end, b.end, tolerance)
     )
+  }
+  if (a.type === 'cubic' && b.type === 'cubic') {
+    return (pointsCoincide(a.start, b.start, tolerance) && pointsCoincide(a.control1, b.control1, tolerance) && pointsCoincide(a.control2, b.control2, tolerance) && pointsCoincide(a.end, b.end, tolerance))
+      || (pointsCoincide(a.start, b.end, tolerance) && pointsCoincide(a.control1, b.control2, tolerance) && pointsCoincide(a.control2, b.control1, tolerance) && pointsCoincide(a.end, b.start, tolerance))
+  }
+  if (a.type === 'ellipse' && b.type === 'ellipse') {
+    const full = Math.abs(a.sweepDeg) >= 360 - 1e-9 && Math.abs(b.sweepDeg) >= 360 - 1e-9
+    const angleDelta = (a.rotationDeg - b.rotationDeg) * Math.PI / 180
+    return pointsCoincide(a.center, b.center, tolerance) && Math.abs(a.radiusX - b.radiusX) <= tolerance && Math.abs(a.radiusY - b.radiusY) <= tolerance
+      && (full ? Math.abs(Math.sin(angleDelta)) <= 1e-9 : Math.abs(Math.cos(angleDelta) - 1) <= 1e-9)
+      && (full || (Math.abs(a.startAngleDeg - b.startAngleDeg) < 1e-9 && Math.abs(a.sweepDeg - b.sweepDeg) < 1e-9))
   }
   return false
 }

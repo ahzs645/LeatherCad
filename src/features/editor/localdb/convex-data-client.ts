@@ -1,3 +1,4 @@
+import { hydrateCloudDocument, serializeCloudDocument } from './cloud-asset-client'
 import type { AppDataClient, StoredEditorDocument } from './app-data-client'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { createConvexTransport, type ConvexConnectionOptions, type ConvexTransport } from './convex-transport'
@@ -29,7 +30,7 @@ export function createConvexDataClient(options?: ConvexDataClientOptions): AppDa
   if (!options && !url) throw new Error('Cloud is not configured')
   const transport = options && 'transport' in options ? options.transport : createConvexTransport(options ?? { url: url! })
   const revisions = new Map<string, number>()
-  const decode = (record: RemoteDocument, rememberRevision = true): StoredEditorDocument => {
+  const decode = async (record: RemoteDocument, rememberRevision = true): Promise<StoredEditorDocument> => {
     if (!record || typeof record.id !== 'string' || typeof record.name !== 'string' || typeof record.docJson !== 'string'
       || !Number.isFinite(record.revision) || !Number.isFinite(record.createdAt) || !Number.isFinite(record.updatedAt)) {
       throw new Error('Cloud drawing metadata is invalid')
@@ -37,7 +38,7 @@ export function createConvexDataClient(options?: ConvexDataClientOptions): AppDa
     if (rememberRevision || !revisions.has(record.id)) revisions.set(record.id, record.revision)
     return {
       id: record.id, name: record.name, createdAt: record.createdAt, updatedAt: record.updatedAt,
-      doc: parseImportedJsonDocument(record.docJson, { preserveShapeIds: true }).doc,
+      doc: parseImportedJsonDocument(await hydrateCloudDocument(record.docJson, transport), { preserveShapeIds: true }).doc,
     }
   }
   const setting = {
@@ -53,21 +54,26 @@ export function createConvexDataClient(options?: ConvexDataClientOptions): AppDa
   }
   const client: AppDataClient = {
     documents: {
-      list: async () => (await readAllCloudPages<RemoteDocument>((cursor) => transport.query('cloudDocuments:list', { cursor }))).map(record => decode(record, false)),
+      list: async () => {
+        const rows = await readAllCloudPages<RemoteDocument>((cursor) => transport.query('cloudDocuments:list', { cursor }))
+        const result: StoredEditorDocument[] = []
+        for (const row of rows) result.push(await decode(row, false))
+        return result
+      },
       get: async (id) => {
         const result = await transport.query<RemoteDocument | null>('cloudDocuments:get', { id })
         return result ? decode(result) : null
       },
       create: async (input) => decode(await transport.mutation<RemoteDocument>('cloudDocuments:create', {
-        id: input.id ?? crypto.randomUUID(), name: input.name, docJson: JSON.stringify(input.doc),
+        id: input.id ?? crypto.randomUUID(), name: input.name, docJson: await serializeCloudDocument(input.doc, transport),
       })),
       save: async (input) => {
         return decode(await transport.mutation<RemoteDocument>('cloudDocuments:save', {
           id: input.id, name: input.name ?? input.doc.documentName ?? 'Untitled project',
-          docJson: JSON.stringify(input.doc), expectedRevision: revisions.get(input.id) ?? null,
+          docJson: await serializeCloudDocument(input.doc, transport), expectedRevision: revisions.get(input.id) ?? null,
         }))
       },
-      delete: async (id) => { await transport.mutation('cloudDocuments:remove', { id }) },
+      delete: async (id) => { await transport.mutation('cloudDocuments:remove', { id, expectedRevision: revisions.get(id) ?? null }) },
       getAutoSaveSnapshot: () => setting.get('autosave'),
       writeAutoSaveSnapshot: async (serializedDoc) => {
         parseImportedJsonDocument(serializedDoc)

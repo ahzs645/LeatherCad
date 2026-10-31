@@ -1,11 +1,8 @@
 import type { DocFile, Point, Shape } from '../../cad/cad-types'
-import type { LcadRecord } from './lcad-geometry'
+import { quadraticToCubicPoints as cubicPoints, type LcadRecord } from './lcad-geometry'
 import { exportLcadStitchParameters } from './lcad-stitches'
 import { parseCommunityProvenance } from '../../ops/community-provenance'
-
-function cubicPoints(start: Point, control: Point, end: Point): Point[] {
-  return [start, { x: start.x + (2 * (control.x - start.x)) / 3, y: start.y + (2 * (control.y - start.y)) / 3 }, { x: end.x + (2 * (control.x - end.x)) / 3, y: end.y + (2 * (control.y - end.y)) / 3 }, end]
-}
+import { nativeCurveToEditable } from '../../cad/native-curve-ops'
 
 function exportArc(shape: Extract<Shape, { type: 'arc' }>): LcadRecord {
   const { start: a, mid: b, end: c } = shape
@@ -24,9 +21,9 @@ export function exportLcadDocument(doc: DocFile): { text: string; warnings: stri
   const warnings: string[] = []
   const communityProvenance = parseCommunityProvenance(doc.communityProvenance)
   const lineTypes = new Map(doc.lineTypes.map(type => [type.id, type]))
-  const style = (shape: { id: string; layerId: string; lineTypeId: string; groupId?: string; arrowStart?: boolean; arrowEnd?: boolean }) => {
+  const style = (shape: { id: string; layerId: string; lineTypeId: string; groupId?: string; arrowStart?: boolean; arrowEnd?: boolean; strokeWidthOverride?: number; locked?: boolean; opacity?: number }) => {
     const type = lineTypes.get(shape.lineTypeId)
-    return { id: shape.id, layerId: shape.layerId, groupId: shape.groupId, locked: false, paletteId: shape.lineTypeId, strokeColor: type?.color ?? '#1a1a1a', strokeWidth: type?.strokeWidthMm ?? 1, strokeDash: type?.style ?? 'solid', fillColor: 'none', alpha: 1, arrowStart: shape.arrowStart, arrowEnd: shape.arrowEnd }
+    return { id: shape.id, layerId: shape.layerId, groupId: shape.groupId, locked: shape.locked ?? false, paletteId: shape.lineTypeId, strokeColor: type?.color ?? '#1a1a1a', strokeWidth: shape.strokeWidthOverride ?? type?.strokeWidthMm ?? 1, strokeDash: type?.style ?? 'solid', fillColor: 'none', alpha: shape.opacity ?? 1, arrowStart: shape.arrowStart, arrowEnd: shape.arrowEnd }
   }
   const shapes: LcadRecord[] = []
   for (const shape of doc.objects) {
@@ -35,6 +32,15 @@ export function exportLcadDocument(doc: DocFile): { text: string; warnings: stri
     if (shape.type === 'line') shapes.push({ ...base, type: 'line', x1: shape.start.x, y1: shape.start.y, x2: shape.end.x, y2: shape.end.y })
     else if (shape.type === 'arc') shapes.push({ ...base, ...exportArc(shape) })
     else if (shape.type === 'bezier') shapes.push({ ...base, type: 'bezier', points: cubicPoints(shape.start, shape.control, shape.end), closed: false })
+    else if (shape.type === 'cubic') shapes.push({ ...base, type: 'bezier', points: [shape.start, shape.control1, shape.control2, shape.end], closed: false })
+    else if (shape.type === 'ellipse') {
+      if (Math.abs(shape.sweepDeg) >= 360 - 1e-8) shapes.push({ ...base, type: 'ellipse', cx: shape.center.x, cy: shape.center.y, rx: shape.radiusX, ry: shape.radiusY, rotation: shape.rotationDeg * Math.PI / 180 })
+      else {
+        const segments = nativeCurveToEditable(shape, 0.01)
+        for (const segment of segments) shapes.push({ ...style(segment), type: 'line', x1: segment.start.x, y1: segment.start.y, x2: segment.end.x, y2: segment.end.y })
+        warnings.push('Partial ellipses are exported as editable line segments within 0.01 mm; use Document JSON to retain analytic parameters')
+      }
+    }
     else {
       shapes.push({ ...base, type: 'text', x: shape.start.x, y: shape.start.y, content: shape.text, fontFamily: shape.fontFamily, fontSize: shape.fontSizeMm, rotation: Math.atan2(shape.end.y - shape.start.y, shape.end.x - shape.start.x), letterSpacing: shape.trackingMm ?? 0, lineSpacing: 1 })
       if (shape.transform !== 'none') warnings.push(`Curved text “${shape.text.slice(0, 30)}” is exported as plain text`)
@@ -53,6 +59,7 @@ export function exportLcadDocument(doc: DocFile): { text: string; warnings: stri
   }
   const unsupported: Array<[string, unknown[] | undefined]> = [['constraints', doc.constraints], ['pattern pieces', doc.patternPieces], ['seam connections', doc.seamConnections], ['assembly connections', doc.assemblyConnections], ['seam allowances', doc.seamAllowances], ['hardware markers', doc.hardwareMarkers], ['tracing overlays', doc.tracingOverlays], ['leather image fills', doc.leatherImageFills]]
   for (const [label, values] of unsupported) if (values?.length) warnings.push(`${label} are not exported in .lcad; use Document JSON for a complete LeatherCad backup`)
-  const payload = { version: 2, name: doc.documentName ?? 'Untitled', unit_for_view: 'mm', gridSpacing: doc.snapSettings?.gridStep ?? 5, snapSpacing: 0.1, gridVisible: true, snapEnabled: doc.snapSettings?.enabled !== false, layers: doc.layers.map(layer => ({ id: layer.id, name: layer.name, visible: layer.visible, locked: layer.locked, independent: layer.independent === true })), activeLayerId: doc.activeLayerId, palettes: doc.lineTypes.map(type => ({ id: type.id, name: type.name, colorDark: type.color, colorLight: type.color, strokeWidth: type.strokeWidthMm ?? 1, strokeDash: type.style, fillColor: 'none', alpha: 1, visible: type.visible })), activePaletteId: doc.activeLineTypeId, shapes, groups: (doc.sketchGroups ?? []).map(group => ({ id: group.id, name: group.name, visible: group.visible, locked: group.locked })), memo: doc.projectMemo ?? '', provenance: [], recording: { baseline: null, steps: [] }, ...(communityProvenance.length ? { leathercad: { version: 1, communityProvenance } } : {}) }
+  if (doc.manufacturing) warnings.push('Manufacturing settings are not exported in .lcad; use Document JSON for a complete backup')
+  const payload = { version: 2, name: doc.documentName ?? 'Untitled', unit_for_view: 'mm', gridSpacing: doc.snapSettings?.gridStep ?? 5, snapSpacing: 0.1, gridVisible: true, snapEnabled: doc.snapSettings?.enabled !== false, layers: doc.layers.map(layer => ({ id: layer.id, name: layer.name, visible: layer.visible, locked: layer.locked, independent: layer.independent === true })), activeLayerId: doc.activeLayerId, palettes: doc.lineTypes.map(type => ({ id: type.id, name: type.name, colorDark: type.color, colorLight: type.color, strokeWidth: type.strokeWidthMm ?? 1, strokeDash: type.style, fillColor: 'none', alpha: 1, visible: type.visible })), activePaletteId: doc.activeLineTypeId, shapes, groups: (doc.sketchGroups ?? []).map(group => ({ id: group.id, name: group.name, visible: group.visible, locked: group.locked, parentId: group.parentId })), memo: doc.projectMemo ?? '', provenance: [], recording: { baseline: null, steps: [] }, ...(communityProvenance.length ? { leathercad: { version: 1, communityProvenance } } : {}) }
   return { text: JSON.stringify(payload, null, 2), warnings }
 }

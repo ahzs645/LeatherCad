@@ -121,7 +121,7 @@ describe('STL manufacturing export', () => {
     expect(() => buildStlExport(document(rectangle(0, 0, 20, 20).slice(0, 3)))).toThrow(/open/)
     expect(() => buildStlExport(document(polygon([{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }, { x: 10, y: 0 }])))).toThrow(/area|cross/)
     const bad = rectangle(0, 0, 20, 20)
-    bad[0].start.x = Number.NaN
+    if (bad[0].type === 'line') bad[0].start.x = Number.NaN
     expect(() => buildStlExport(document(bad))).toThrow()
     expect(() => buildStlExport(document(undefined, [hole('edge', 12.1, 28)]), { roundHoleDiameterMm: 2 })).toThrow(/cross an outline/)
   })

@@ -14,6 +14,8 @@ export type OidcCloudAuthOptions = {
   browser?: OidcBrowser
   /** Captured before startup scrubs protocol parameters from the browser URL. */
   initialCallbackUrl?: string
+  /** The editor supplies this after SDK initialization, immediately before navigation. */
+  beforeRedirect?: () => Promise<void>
 }
 export type OidcCloudAuth = EditorCloudAuth & { initialize(): Promise<void>; dispose(): void }
 
@@ -110,6 +112,9 @@ export function createOidcCloudAuth(options: OidcCloudAuthOptions): OidcCloudAut
       if (disposed) throw new Error('Sign-in provider is no longer available')
       const url = new URL(browser.getUrl())
       const returnTo = safeReturnTo(url.pathname + url.search + url.hash)
+      // Keep storage errors actionable and prevent navigation if the newest
+      // document cannot be preserved. Do not fold them into generic SDK errors.
+      await options.beforeRedirect?.()
       try {
         await manager.clearStaleState()
         await manager.signinRedirect({ state: { returnTo } })

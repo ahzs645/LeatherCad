@@ -1,5 +1,6 @@
 import type { Shape, StitchHole, HardwareMarker, PatternPiece } from '../cad/cad-types'
 import { describeSeamConnection, resolveSeamSpans, seamsInSewOrder } from '../assembly/seam-spans'
+import { buildGroupAccess, MAX_GROUP_DEPTH } from '../ops/shape-access'
 import type {
   DocumentBrowserModelParams,
   DocumentBrowserNode,
@@ -29,6 +30,31 @@ function buildLayerChildren(
     selected: activeLayerId === layer.id,
     dimmed: !layer.visible,
   }))
+}
+
+function buildSketchTree(groups: DocumentBrowserModelParams['sketchGroups'], activeId: string | null): DocumentBrowserNode[] {
+  const access = buildGroupAccess(groups)
+  const byId = new Map(groups.map(group => [group.id, group]))
+  const nodes = new Map<string, DocumentBrowserNode>(groups.map(group => [group.id, {
+    id: `sketch:${group.id}`, kind: 'sketch', label: group.name, meta: group.linkMode ?? 'local',
+    selected: activeId === group.id, dimmed: !access[group.id]?.visible, locked: access[group.id]?.locked,
+    children: [],
+  }]))
+  const roots: DocumentBrowserNode[] = []
+  for (const group of groups) {
+    const node = nodes.get(group.id)!
+    const seen = new Set([group.id])
+    let parent = group.parentId, validParent = Boolean(parent)
+    while (parent) {
+      if (seen.has(parent) || seen.size >= MAX_GROUP_DEPTH || !byId.has(parent)) { validParent = false; break }
+      seen.add(parent)
+      parent = byId.get(parent)?.parentId
+    }
+    const parentNode = group.parentId && validParent ? nodes.get(group.parentId) : undefined
+    if (parentNode) parentNode.children!.push(node)
+    else roots.push(node)
+  }
+  return roots
 }
 
 export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): DocumentBrowserNode[] {
@@ -179,14 +205,7 @@ export function buildDocumentBrowserModel(params: DocumentBrowserModelParams): D
     kind: 'section',
     label: 'Sketches',
     meta: `${sketchGroups.length}`,
-    children: sketchGroups.map((group) => ({
-      id: `sketch:${group.id}`,
-      kind: 'sketch',
-      label: group.name,
-      meta: group.linkMode ?? 'local',
-      selected: activeSketchGroupId === group.id,
-      dimmed: !group.visible,
-    })),
+    children: buildSketchTree(sketchGroups, activeSketchGroupId),
   }
 
   const tracingSection: DocumentBrowserNode = {
@@ -356,6 +375,7 @@ export function buildRibbonModel(params: {
           { id: 'toggle-annotations', label: 'Notes', icon: 'notes' },
         ],
       },
+      { id: 'draft-curves', title: 'Curves', items: [{ id: 'tool-cubic', label: 'Cubic curve', icon: 'cubic' }, { id: 'tool-ellipse', label: 'Ellipse', icon: 'convert' }] },
     ],
     modify: [
       {

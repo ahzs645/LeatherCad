@@ -1,7 +1,12 @@
+import { isNativeCurve, nativeCurveEndpoints as curveEndpoints } from '../cad/native-curve-ops'
+import type { Shape as EndpointShape } from '../cad/cad-types'
+
+const endpoints = (shape: EndpointShape) => isNativeCurve(shape) ? curveEndpoints(shape) : { start: shape.start, end: shape.end }
 import { describe, expect, it } from 'vitest'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import { exportLcadDocument, importLcadDocument, isLcadDocument } from './io-lcad'
 import { importLccDocument } from './io-lcc'
+import { DEFAULT_MANUFACTURING_SETTINGS } from './manufacturing/manufacturing-settings'
 
 const source = (shapes: unknown[], extra = {}) => JSON.stringify({
   version: 2, name: 'Interchange sample', unit_for_view: 'mm', memo: 'Keep this memo',
@@ -11,6 +16,35 @@ const source = (shapes: unknown[], extra = {}) => JSON.stringify({
 })
 
 describe('LCAD native interchange', () => {
+  it('retains individual appearance and nested groups, and reports omitted manufacturing settings', () => {
+    const imported = importLcadDocument(source([{ type: 'line', x1: 0, y1: 0, x2: 10, y2: 0, groupId: 'child', locked: true, alpha: 0.3 }], { groups: [{ id: 'parent', visible: false }, { id: 'child', parentId: 'parent', locked: true }] }))
+    expect(imported.warnings).toEqual([])
+    expect(imported.doc.objects[0]).toMatchObject({ locked: true, opacity: 0.3, groupId: 'child' })
+    expect(imported.doc.sketchGroups?.[1].parentId).toBe('parent')
+    const second = importLcadDocument(exportLcadDocument(imported.doc).text)
+    expect(second.doc.objects[0]).toMatchObject({ locked: true, opacity: 0.3, groupId: 'child' })
+    expect(second.doc.sketchGroups?.[1].parentId).toBe('parent')
+    imported.doc.manufacturing = structuredClone(DEFAULT_MANUFACTURING_SETTINGS)
+    expect(exportLcadDocument(imported.doc).warnings.join(' ')).toContain('Manufacturing settings')
+    expect(() => importLcadDocument(source([], { groups: [{ id: 'a', parentId: 'b' }, { id: 'b', parentId: 'a' }] }))).toThrow('cycle')
+  })
+  it('preserves independent palette defaults and per-shape widths through JSON and LCAD', () => {
+    const imported = importLcadDocument(source([
+      { type: 'line', x1: 0, y1: 0, x2: 10, y2: 0, strokeWidth: 0.25 },
+      { type: 'line', x1: 0, y1: 1, x2: 10, y2: 1 },
+      { type: 'line', x1: 0, y1: 2, x2: 10, y2: 2, strokeWidth: 0 },
+    ], { palettes: [{ id: 'p1', strokeWidth: 0.65 }] })).doc
+    expect(imported.lineTypes[0].strokeWidthMm).toBe(0.65)
+    expect(imported.objects.map(shape => shape.strokeWidthOverride)).toEqual([0.25, undefined, 0])
+    imported.objects[0].strokeWidthOverride = 0.33
+    const output = exportLcadDocument(imported)
+    const payload = JSON.parse(output.text) as { palettes: Array<{ strokeWidth: number }>; shapes: Array<{ strokeWidth: number }> }
+    expect(payload.palettes[0].strokeWidth).toBe(0.65)
+    expect(payload.shapes.map((shape: { strokeWidth: number }) => shape.strokeWidth)).toEqual([0.33, 0.65, 0])
+    const again = importLcadDocument(output.text).doc
+    expect(again.objects.map(shape => shape.strokeWidthOverride)).toEqual([0.33, 0.65, 0])
+    expect(() => importLcadDocument(source([{ type: 'line', x1: 0, y1: 0, x2: 1, y2: 1, strokeWidth: -1 }]))).toThrow('stroke width')
+  })
   it('imports a reference-shaped four-edge rectangle with its actual coordinates and metadata', () => {
     const lines = [
       { type: 'line', x1: -25, y1: -19, x2: -1, y2: -19 },
@@ -35,7 +69,7 @@ describe('LCAD native interchange', () => {
     expect(result.doc.layers[0]).toMatchObject({ name: 'Hidden', visible: false, locked: true })
     expect(result.doc.objects[0].groupId).toBe(result.doc.sketchGroups?.[0].id)
     expect(result.doc.lineTypes[0]).toMatchObject({ name: 'Cutting', color: '#123456', style: 'dotted', visible: false })
-    expect(result.doc.objects[0].end.x).toBe(25.4)
+    expect(endpoints(result.doc.objects[0]).end.x).toBe(25.4)
     expect(result.warnings).toContain('Source inch display units were converted to mm display; geometry remains in its original millimetres')
   })
 
@@ -46,34 +80,25 @@ describe('LCAD native interchange', () => {
       expect(shape.type).toBe('arc')
       for (const point of sampleShapePoints(shape, 12)) expect(Math.hypot(point.x - 10, point.y - 20)).toBeCloseTo(4, 6)
     }
-    expect(result.doc.objects[4].start).toEqual({ x: 5, y: 0 })
-    expect(result.doc.objects[4].end.y).toBeCloseTo(-5, 6)
+    expect(endpoints(result.doc.objects[4]).start).toEqual({ x: 5, y: 0 })
+    expect(endpoints(result.doc.objects[4]).end.y).toBeCloseTo(-5, 6)
   })
 
-  it('converts a rotated ellipse within its documented 0.01mm chord error', () => {
+  it('retains native rotated ellipse parameters without tessellation or warnings', () => {
     const result = importLcadDocument(source([{ type: 'ellipse', cx: 0, cy: 0, rx: 20, ry: 4, rotation: Math.PI / 2 }]))
-    for (const shape of result.doc.objects) {
-      const midpoint = { x: (shape.start.x + shape.end.x) / 2, y: (shape.start.y + shape.end.y) / 2 }
-      const radius = Math.sqrt((midpoint.y / 20) ** 2 + (midpoint.x / 4) ** 2)
-      expect((1 - radius) * 20).toBeLessThanOrEqual(0.01001)
-    }
-    expect(result.warnings.join(' ')).toContain('0.01 mm')
+    expect(result.doc.objects).toHaveLength(1)
+    expect(result.doc.objects[0]).toMatchObject({ type: 'ellipse', center: { x: 0, y: 0 }, radiusX: 20, radiusY: 4, rotationDeg: 90 })
+    expect(result.warnings).toEqual([])
   })
 
-  it('reduces exact quadratic cubics without changing the curve and subdivides general cubics', () => {
-    const exact = importLcadDocument(source([{ type: 'bezier', points: [{ x: 0, y: 0 }, { x: 2, y: 4 }, { x: 6, y: 4 }, { x: 12, y: 0 }] }]))
-    expect(exact.doc.objects).toHaveLength(1)
-    expect(exact.doc.objects[0]).toMatchObject({ type: 'bezier', control: { x: 3, y: 6 } })
-    const general = importLcadDocument(source([{ type: 'bezier', points: [{ x: 0, y: 0 }, { x: 0, y: 30 }, { x: 40, y: -20 }, { x: 30, y: 5 }] }]))
-    expect(general.doc.objects.length).toBeGreaterThan(1)
-    expect(general.doc.objects[0].start).toEqual({ x: 0, y: 0 })
-    expect(general.doc.objects.at(-1)?.end).toEqual({ x: 30, y: 5 })
-    const samples = general.doc.objects.flatMap(shape => sampleShapePoints(shape, 100))
-    for (let index = 0; index <= 100; index += 1) {
-      const t = index / 100, u = 1 - t
-      const point = { x: 3 * u * t * t * 40 + t ** 3 * 30, y: 3 * u * u * t * 30 - 3 * u * t * t * 20 + t ** 3 * 5 }
-      expect(Math.min(...samples.map(sample => Math.hypot(point.x - sample.x, point.y - sample.y)))).toBeLessThan(0.035)
-    }
+  it('retains native cubic control points and segment chains exactly', () => {
+    const points = [{ x: 0, y: 0 }, { x: 0, y: 30 }, { x: 40, y: -20 }, { x: 30, y: 5 }]
+    const result = importLcadDocument(source([{ type: 'bezier', points }]))
+    expect(result.doc.objects).toHaveLength(1)
+    expect(result.doc.objects[0]).toMatchObject({ type: 'cubic', start: points[0], control1: points[1], control2: points[2], end: points[3] })
+    const exported = JSON.parse(exportLcadDocument(result.doc).text) as { shapes: Array<{ points: Array<{ x: number; y: number }> }> }
+    expect(exported.shapes[0].points).toEqual(points)
+    expect(result.warnings).toEqual([])
   })
 
   it('keeps independent stitch-hole positions, blade dimensions, and run order', () => {

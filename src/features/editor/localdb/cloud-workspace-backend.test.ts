@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { defineTestApp } from 'convex-test'
+import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { makeFunctionReference } from 'convex/server'
 import schema from '../../../../convex/schema'
 import * as cloudDocuments from '../../../../convex/cloudDocuments'
+import * as cloudLifecycle from '../../../../convex/cloudLifecycle'
 import * as cloudWorkspace from '../../../../convex/cloudWorkspace'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { createCloudWorkspaceClient } from './cloud-workspace-client'
 import type { ConvexTransport } from './convex-transport'
 
-const app = defineTestApp({ schema }).defineModules({ cloudDocuments, cloudWorkspace })
+const app = defineTestApp({ schema, components: { rateLimiter: rateLimiterTest } }).defineModules({ cloudDocuments, cloudWorkspace, cloudLifecycle })
 function drawing(name = 'Original') {
   return parseImportedJsonDocument(JSON.stringify({ documentName: name, objects: [], layers: [{ id: 'main', name: 'Main', visible: true, locked: false }] })).doc
 }
@@ -109,7 +111,7 @@ describe('private cloud workspace folders and revisions', () => {
     const folder = await workspace.folders.create('Temporary')
     await create()
     await workspace.documents.move((await workspace.documents.list())[0], folder.id)
-    await alice.mutation(app.api.cloudDocuments.remove, { id: 'drawing' })
+    await alice.mutation(app.api.cloudDocuments.remove, { id: 'drawing', expectedRevision: 1 })
     expect(await workspace.documents.list(folder.id)).toEqual([])
     await workspace.folders.remove(folder)
     const history = await workspace.documents.history('drawing')
@@ -129,6 +131,7 @@ describe('private cloud workspace folders and revisions', () => {
     expect(await workspace.documents.history('legacy')).toEqual([])
     const folder = await workspace.folders.create('Archive')
     await workspace.documents.move(legacy, folder.id)
+    while (!(await alice.mutation(app.api.cloudLifecycle.indexLegacyPage, { cursor: null })).isDone) { /* bounded migration */ }
     await alice.mutation(app.api.cloudDocuments.save, { id: 'legacy', name: 'Updated legacy', docJson: JSON.stringify(drawing('Updated legacy')), expectedRevision: 7 })
     expect((await workspace.documents.history('legacy')).map(item => item.revision)).toEqual([8, 7])
     expect((await workspace.documents.list(folder.id))[0].name).toBe('Updated legacy')

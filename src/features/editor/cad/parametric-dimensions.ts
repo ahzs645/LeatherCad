@@ -1,5 +1,6 @@
 import type { Point, Shape } from './cad-types'
 import { distance } from './cad-geometry'
+import { isNativeCurve, nativeCurveEndpoints, nativeCurvePointAt } from './native-curve-ops'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -258,6 +259,11 @@ function getAnchorPoint(
   shape: Shape,
   anchor: 'start' | 'end' | 'mid' | 'control',
 ): Point {
+  if (isNativeCurve(shape)) {
+    if (anchor === 'start' || anchor === 'end') return nativeCurveEndpoints(shape)[anchor]
+    if (anchor === 'control' && shape.type === 'cubic') return shape.control1
+    return nativeCurvePointAt(shape, 0.5)
+  }
   if (anchor === 'start') return shape.start
   if (anchor === 'end') return shape.end
   if (anchor === 'mid') {
@@ -285,6 +291,12 @@ function setAnchorPoint(
   anchor: 'start' | 'end' | 'mid' | 'control',
   point: Point,
 ): Shape {
+  if (shape.type === 'ellipse') throw new Error('Ellipse dimension bindings cannot move virtual anchors. Edit its radii or use a position constraint.')
+  if (shape.type === 'cubic') {
+    if (anchor === 'control') return { ...shape, control1: point }
+    if (anchor === 'mid') throw new Error('Cubic midpoint bindings are unsupported. Choose an endpoint or control anchor.')
+    return { ...shape, [anchor]: point }
+  }
   const clone = { ...shape }
   if (anchor === 'start') {
     return { ...clone, start: point }
@@ -324,7 +336,7 @@ export function applyDimensionBindings(
     if (paramValue === undefined) continue
 
     const shape = shapeMap.get(binding.shapeId)
-    if (!shape) continue
+    if (!shape || shape.locked) continue
 
     const from = getAnchorPoint(shape, binding.anchorFrom)
     const to = getAnchorPoint(shape, binding.anchorTo)

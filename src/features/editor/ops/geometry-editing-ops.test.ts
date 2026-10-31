@@ -62,7 +62,8 @@ describe('resolveTrimPreview', () => {
     expect(resolved?.shape.id).toBe('near')
     expect(resolved?.point).toEqual({ x: 7, y: 10 })
     expect(resolved?.preview.id).toBe('near')
-    expect(resolved?.preview.start).toEqual({ x: 7, y: 10 })
+    if (resolved?.preview.type !== 'line') throw new Error('Expected the trimmed line preview')
+    expect(resolved.preview.start).toEqual({ x: 7, y: 10 })
   })
 
   it('ignores text shapes when resolving trim targets', () => {

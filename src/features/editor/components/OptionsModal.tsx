@@ -1,6 +1,16 @@
 import { LanguageSelector } from './LanguageSelector'
 import { useTranslate } from '../hooks/useTranslate'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useModalDialogFocus } from '../hooks/useModalDialogFocus'
+import { OptionsNavigation, OptionsSection, type OptionsCategory } from './OptionsNavigation'
+import { InterfacePreferencesPanel } from './InterfacePreferencesPanel'
+import { getDefaultEditorPreferences } from '../ops/editor-prefs'
+import { DEFAULT_INTERFACE_PREFERENCES, getInterfacePreferences, updateInterfacePreferences } from '../ops/interface-preferences'
+import { getDefaultStitchAutoPitchSettings } from '../ops/stitch-auto-pitch-settings'
+import { getDefaultBoxStitchHelperSettings } from '../ops/box-stitch-settings'
+import { useOptionalDisplayUnit } from '../state/providers/EditorUIStateProvider'
+import { LengthInput } from './LengthInput'
+import { fromDisplayValue } from '../ops/unit-ops'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import type { LineType } from '../cad/cad-types'
 import type { StitchAutoPitchSettings } from '../editor-types'
@@ -170,6 +180,10 @@ export function OptionsModal({
   onClose,
 }: OptionsModalProps) {
   const t = useTranslate()
+  const [unit, setUnit] = useOptionalDisplayUnit()
+  const [calibrationError, setCalibrationError] = useState('')
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModalDialogFocus({ dialogRef, open, onClose })
   const [calibrationReferenceMm, setCalibrationReferenceMm] = useState<number>(100)
   const [measuredXMm, setMeasuredXMm] = useState<string>('')
   const [measuredYMm, setMeasuredYMm] = useState<string>('')
@@ -191,13 +205,16 @@ export function OptionsModal({
 
   const applyCalibrationFromMeasured = (axis: 'x' | 'y') => {
     if (!Number.isFinite(calibrationReferenceMm) || calibrationReferenceMm <= 0) {
+      setCalibrationError(t('Enter a positive reference length.'))
       return
     }
     const measuredRaw = axis === 'x' ? measuredXMm : measuredYMm
-    const measured = Number.parseFloat(measuredRaw)
+    const measured = fromDisplayValue(Number.parseFloat(measuredRaw), unit)
     if (!Number.isFinite(measured) || measured <= 0) {
+      setCalibrationError(t('Enter a positive measured length.'))
       return
     }
+    setCalibrationError('')
     const percent = (calibrationReferenceMm / measured) * 100
     const clamped = Math.min(150, Math.max(50, percent))
     if (axis === 'x') {
@@ -207,16 +224,44 @@ export function OptionsModal({
     }
   }
 
+  function resetCategory(category: OptionsCategory) {
+    const defaults = getDefaultEditorPreferences()
+    if (category === 'workspace') {
+      onChangeAutoSaveEnabled(false); onChangeAutoHideSidebar(false); onChangePinSideBar(false); onChangeLoadDemoOnStartup(true)
+    } else if (category === 'input') {
+      updateInterfacePreferences({ ...DEFAULT_INTERFACE_PREFERENCES, displayUnit: getInterfacePreferences().displayUnit })
+      onChangeReverseZoomDirection(false); onChangeReverseGridScrollDirection(false); onChangeIncrementalSelection(false)
+      onChangeMentoriWithoutCtrl(false); onChangeContinuousDistanceMarking(false); onChangeReduceOneBlade(false)
+      onChangeHighlightActiveLayer(false); onChangeFillOnChange(false); onChangeDrawEdges(false); onChangeDrawFirstPos(false)
+      onChangeCenterLineDivisions(defaults.centerLineDivisions); onChangeMarkingDistanceMm(defaults.markingDistanceMm)
+      onChangeMandalaCircleTemplateName(defaults.mandalaCircleTemplateName)
+    } else if (category === 'drawing') {
+      setUnit('mm')
+      onChangeNotchAngleDeg(defaults.notchAngleDeg); onChangeNotchDepthMm(defaults.notchDepthMm)
+      onChangeLineToolConstraint(defaults.lineToolConstraint); onChangeRelativeAngleStepDeg(defaults.relativeAngleStepDeg)
+      onChangeArcDrawMode(defaults.arcDrawMode); onChangeArcRadiusMm(defaults.arcRadiusMm); onChangeArcHalfMoonRatio(defaults.arcHalfMoonRatio)
+      onChangeTangentCircleMode(false); onChangeTangentCircleDispStep(defaults.tangentCircleDispStep); onChangeGridBackgroundMode('theme')
+      onChangeDimensionDefaults({ fontSizeMm: 5, precision: 1, arrowOnly: false, singleLine: false, textInside: true, textReverse: false }); onChangeDimensionLineTypeId(null)
+    } else if (category === 'stitch') {
+      onChangeForceFitLastPrick(false); onChangeAutoPitchSettings(getDefaultStitchAutoPitchSettings()); onChangeBoxStitchHelperSettings(getDefaultBoxStitchHelperSettings())
+    } else if (category === 'output') {
+      onChangeExportIncludeText(true); onChangeExportIncludeTemplateMetadata(false)
+      onChangePrintCalibrationXPercent(100); onChangePrintCalibrationYPercent(100)
+    }
+  }
+
   if (!open) {
     return null
   }
 
   return (
     <div className="modal-overlay" onClick={onClose} aria-label={t('Options')}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>{t('Options')}</h3>
+      <div className="modal-content options-modal" role="dialog" aria-modal="true" aria-labelledby="options-dialog-title" ref={dialogRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        <h3 id="options-dialog-title">{t('Options')}</h3>
+        <OptionsNavigation onResetCategory={resetCategory}>
+        <OptionsSection id="input-devices" category="input" searchTerms="wheel zoom pan trackpad sensitivity mouse touch edge pick radius tool order labels"><h4>{t('Input devices and tools')}</h4><InterfacePreferencesPanel /></OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="autosave" category="workspace" scope="Browser preference">
           <h4>{t('Auto-save')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -226,9 +271,9 @@ export function OptionsModal({
             />
             <span>{t('Periodically snapshot the current project to browser storage')}</span>
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="workspace" category="workspace" scope="Pinning: browser preference; auto-hide and startup demo: editor session">
           <h4>{t('Workspace')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -255,9 +300,9 @@ export function OptionsModal({
             />
             <span>{t('Load the demo project at startup')}</span>
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="editing" category="input" scope="Browser preference">
           <h4>{t('Editing')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -337,14 +382,8 @@ export function OptionsModal({
             />
           </label>
           <label className="field-row">
-            <span>{t('Default marking distance (mm)')}</span>
-            <input
-              type="number"
-              min={0.1}
-              step={0.5}
-              value={markingDistanceMm}
-              onChange={(event) => onChangeMarkingDistanceMm(Math.max(0.1, Number(event.target.value) || 10))}
-            />
+            <span>{t('Default marking distance (mm)').replace('(mm)', `(${unit})`)}</span>
+            <LengthInput unit={unit} valueMm={markingDistanceMm} minMm={0.1} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.1) onChangeMarkingDistanceMm(next) }} />
           </label>
           <label className="field-row">
             <span>{t('Mandala circle template name')}</span>
@@ -354,19 +393,13 @@ export function OptionsModal({
               onChange={(event) => onChangeMandalaCircleTemplateName(event.target.value)}
             />
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="notch" category="drawing" scope="Browser preference">
           <h4>{t('Notch (Kama) defaults')}</h4>
           <label className="field-row">
-            <span>{t('Notch depth (mm)')}</span>
-            <input
-              type="number"
-              min={0.1}
-              step={0.1}
-              value={notchDepthMm}
-              onChange={(event) => onChangeNotchDepthMm(Math.max(0.1, Number(event.target.value) || 1))}
-            />
+            <span>{t('Notch depth (mm)').replace('(mm)', `(${unit})`)}</span>
+            <LengthInput unit={unit} valueMm={notchDepthMm} minMm={0.1} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.1) onChangeNotchDepthMm(next) }} />
           </label>
           <label className="field-row">
             <span>{t('Notch angle (°)')}</span>
@@ -379,9 +412,9 @@ export function OptionsModal({
               onChange={(event) => onChangeNotchAngleDeg(Math.max(5, Math.min(170, Number(event.target.value) || 60)))}
             />
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="line" category="drawing" scope="Browser preference">
           <h4>{t('Line tool constraint')}</h4>
           {(['none', 'horizontal', 'vertical', 'relative-angle'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
@@ -415,9 +448,9 @@ export function OptionsModal({
               />
             </label>
           ) : null}
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="arc" category="drawing" scope="Browser preference">
           <h4>{t('Arc tool')}</h4>
           {(['three-point', 'radius', 'half-moon'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
@@ -438,14 +471,8 @@ export function OptionsModal({
           ))}
           {arcDrawMode === 'radius' ? (
             <label className="field-row">
-              <span>{t('Arc radius (mm)')}</span>
-              <input
-                type="number"
-                min={0.5}
-                step={0.5}
-                value={arcRadiusMm}
-                onChange={(event) => onChangeArcRadiusMm(Math.max(0.5, Number(event.target.value) || 20))}
-              />
+              <span>{t('Arc radius (mm)').replace('(mm)', `(${unit})`)}</span>
+              <LengthInput unit={unit} valueMm={arcRadiusMm} minMm={0.5} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.5) onChangeArcRadiusMm(next) }} />
             </label>
           ) : null}
           {arcDrawMode === 'half-moon' ? (
@@ -463,9 +490,9 @@ export function OptionsModal({
               />
             </label>
           ) : null}
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="tangent-circle" category="drawing" scope="Browser preference">
           <h4>{t('Tangent-circle mode')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -490,10 +517,10 @@ export function OptionsModal({
               />
             </label>
           ) : null}
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
-          <h4>{t('Grid background')}</h4>
+        <OptionsSection id="grid" category="drawing" scope="Editor session">
+          <h4>{t('Display and grid')}</h4><label className="field-row"><span>{t('Display units')}</span><select aria-label={t('Display units')} value={unit} onChange={event => { setUnit(event.target.value === 'in' ? 'in' : 'mm'); setMeasuredXMm(''); setMeasuredYMm(''); setCalibrationError('') }}><option value="mm">{t('Millimeters')}</option><option value="in">{t('Inches')}</option></select></label><p>{t('Display units are saved in this browser. Geometry and export dimensions stay in millimetres unless an export format offers its own units.')}</p>
           {(['theme', 'light', 'dark'] as const).map((mode) => (
             <label className="layer-toggle-item" key={mode}>
               <input
@@ -505,9 +532,9 @@ export function OptionsModal({
               <span>{t(mode === 'theme' ? 'Follow app theme' : mode === 'light' ? 'Light' : 'Dark')}</span>
             </label>
           ))}
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="language" category="language" scope="Browser preference">
           <h4>{t('Language')}</h4>
           <LanguageSelector />
           <p className="hint">
@@ -523,9 +550,9 @@ export function OptionsModal({
               {t('Clear custom translations')}
             </button>
           </div>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="zoom" category="input" scope="Browser preference">
           <h4>{t('Zoom & Scroll')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -543,9 +570,9 @@ export function OptionsModal({
             />
             <span>{t('Reverse arrow-key pan direction')}</span>
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="svg" category="output" scope="Browser preference">
           <h4>{t('SVG Export')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -563,9 +590,9 @@ export function OptionsModal({
             />
             <span>{t('Include template metadata')}</span>
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="dimensions" category="drawing" scope="Editor session">
           <h4>{t('Dimension defaults')}</h4>
           <label className="field-row">
             <span>{t('Line palette for new dimensions')}</span>
@@ -615,20 +642,8 @@ export function OptionsModal({
             <span>{t('Reverse text orientation (180°)')}</span>
           </label>
           <label className="layer-toggle-item">
-            <span>{t('Default font size (mm)')}</span>
-            <input
-              type="number"
-              min={1}
-              max={50}
-              step={0.5}
-              value={dimensionDefaults.fontSizeMm}
-              onChange={(e) => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next) && next > 0) {
-                  updateDimensionDefaults('fontSizeMm', next)
-                }
-              }}
-            />
+            <span>{t('Default font size (mm)').replace('(mm)', `(${unit})`)}</span>
+            <LengthInput unit={unit} valueMm={dimensionDefaults.fontSizeMm} minMm={1} maxMm={50} onChangeMm={next => { if (Number.isFinite(next) && next >= 1 && next <= 50) updateDimensionDefaults('fontSizeMm', next) }} />
           </label>
           <label className="layer-toggle-item">
             <span>{t('Default precision (decimals)')}</span>
@@ -657,9 +672,9 @@ export function OptionsModal({
               {t('Open per-dimension inspector…')}
             </button>
           )}
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="stitch-defaults" category="stitch" scope="Editor session">
           <h4>{t('Stitching defaults')}</h4>
           <label className="layer-toggle-item">
             <input
@@ -669,9 +684,9 @@ export function OptionsModal({
             />
             <span>{t('Force last pricking iron tooth to land on path endpoint')}</span>
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="auto-pitch" category="stitch" scope="Browser preference">
           <h4>{t('Auto pitch')}</h4>
           <p className="options-modal-hint">
             {t('Default behaviour for the auto-pitch hole solver (used when you draw a stitch line without an explicit pitch override).')}
@@ -709,36 +724,12 @@ export function OptionsModal({
             />
           </label>
           <label className="layer-toggle-item">
-            <span>{t('Precision (mm)')}</span>
-            <input
-              type="number"
-              min={0.01}
-              max={5}
-              step={0.01}
-              value={autoPitchSettings.precisionMm}
-              onChange={(e) => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next) && next > 0) {
-                  updateAutoPitch('precisionMm', Math.min(5, Math.max(0.01, next)))
-                }
-              }}
-            />
+            <span>{t('Precision (mm)').replace('(mm)', `(${unit})`)}</span>
+            <LengthInput unit={unit} valueMm={autoPitchSettings.precisionMm} minMm={0.01} maxMm={5} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.01 && next <= 5) updateAutoPitch('precisionMm', next) }} />
           </label>
           <label className="layer-toggle-item">
-            <span>{t('Stop gap allowance (mm)')}</span>
-            <input
-              type="number"
-              min={0.1}
-              max={25}
-              step={0.1}
-              value={autoPitchSettings.stopGapMm}
-              onChange={(e) => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next) && next > 0) {
-                  updateAutoPitch('stopGapMm', Math.min(25, Math.max(0.1, next)))
-                }
-              }}
-            />
+            <span>{t('Stop gap allowance (mm)').replace('(mm)', `(${unit})`)}</span>
+            <LengthInput unit={unit} valueMm={autoPitchSettings.stopGapMm} minMm={0.1} maxMm={25} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.1 && next <= 25) updateAutoPitch('stopGapMm', next) }} />
           </label>
           <label className="layer-toggle-item">
             <input
@@ -748,28 +739,16 @@ export function OptionsModal({
             />
             <span>{t('Continue from the selected hole when re-running auto pitch')}</span>
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="box-stitch" category="stitch" scope="Browser preference">
           <h4>{t('Box stitch helper')}</h4>
           <p className="options-modal-hint">
             {t('Defaults used when opening the box stitch helper. Search distance gates how far guide candidates are accepted from a piece edge.')}
           </p>
           <label className="layer-toggle-item">
-            <span>{t('Search distance (mm)')}</span>
-            <input
-              type="number"
-              min={0.1}
-              max={50}
-              step={0.1}
-              value={boxStitchHelperSettings.distanceMm}
-              onChange={(e) => {
-                const next = Number.parseFloat(e.target.value)
-                if (Number.isFinite(next) && next > 0) {
-                  updateBoxStitchHelper('distanceMm', Math.min(50, Math.max(0.1, next)))
-                }
-              }}
-            />
+            <span>{t('Search distance (mm)').replace('(mm)', `(${unit})`)}</span>
+            <LengthInput unit={unit} valueMm={boxStitchHelperSettings.distanceMm} minMm={0.1} maxMm={50} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.1 && next <= 50) updateBoxStitchHelper('distanceMm', next) }} />
           </label>
           <label className="layer-toggle-item">
             <span>{t('Stretch compensation (%)')}</span>
@@ -790,9 +769,9 @@ export function OptionsModal({
               }}
             />
           </label>
-        </section>
+        </OptionsSection>
 
-        <section className="help-section">
+        <OptionsSection id="print" category="output" scope="Editor session">
           <h4>{t('Print calibration')}</h4>
           <p className="options-modal-hint">
             {t('Compensate for printer scale errors. 100 % matches the ruler test square exactly.')}
@@ -831,28 +810,16 @@ export function OptionsModal({
           </label>
 
           <div className="control-block">
-            <h4>{t('Derive from measured length')}</h4>
+            <h4>{t('Derive from measured length')}</h4>{calibrationError && <p role="alert">{calibrationError}</p>}
             <p className="options-modal-hint">
               {t('Print a known reference (default 100 mm), measure it with a ruler, enter the measured X/Y here, then press Apply to update the corresponding calibration percentage.')}
             </p>
             <label className="layer-toggle-item">
-              <span>{t('Reference length (mm)')}</span>
-              <input
-                type="number"
-                min={1}
-                max={500}
-                step={1}
-                value={calibrationReferenceMm}
-                onChange={(e) => {
-                  const next = Number.parseFloat(e.target.value)
-                  if (Number.isFinite(next) && next > 0) {
-                    setCalibrationReferenceMm(next)
-                  }
-                }}
-              />
+              <span>{t('Reference length (mm)').replace('(mm)', `(${unit})`)}</span>
+              <LengthInput unit={unit} valueMm={calibrationReferenceMm} minMm={0.1} onChangeMm={next => { if (Number.isFinite(next) && next >= 0.1) setCalibrationReferenceMm(next) }} />
             </label>
             <label className="layer-toggle-item">
-              <span>{t('Measured X length (mm)')}</span>
+              <span>{t('Measured X length (mm)').replace('(mm)', `(${unit})`)}</span>
               <input
                 type="number"
                 min={0.1}
@@ -865,7 +832,7 @@ export function OptionsModal({
               </button>
             </label>
             <label className="layer-toggle-item">
-              <span>{t('Measured Y length (mm)')}</span>
+              <span>{t('Measured Y length (mm)').replace('(mm)', `(${unit})`)}</span>
               <input
                 type="number"
                 min={0.1}
@@ -878,8 +845,9 @@ export function OptionsModal({
               </button>
             </label>
           </div>
-        </section>
+        </OptionsSection>
 
+        </OptionsNavigation>
         <div className="modal-actions">
           <button onClick={onClose}>{t('Close')}</button>
         </div>

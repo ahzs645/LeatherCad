@@ -1,5 +1,7 @@
 # Remaining LeatherCad work: evidence, priorities and completion criteria
 
+**Historical analysis of `41da8db`:** the subsequent [implementation report](FOLLOWUP_IMPLEMENTATION_2026-10-31.md) records the fixes and current limits. Use [the current priorities](NEXT_PARITY_PRIORITIES.md) for remaining work. The tables below preserve the original findings; they are not a current missing-feature list.
+
 Analysis date: 2026-10-31. Reviewed LeatherCad commit `41da8db1c66bab9fd957c1c1b1658579f64276cb`, the changes in [draft PR #17](https://github.com/ahzs645/LeatherCad/pull/17), and the supplied Coffee Craft CAD web capture, build `2026-10-27`. Six focused agent reviews covered interface/options, interchange, manufacturing, cloud/community, jsmap, and release readiness. This is an analysis and implementation plan; the findings below have not been fixed by this document.
 
 ## Assessment
@@ -49,7 +51,7 @@ Reproduce the synthetic observations from the repository root after installing d
 node docs/verification/remaining-interchange-diagnostics.mjs .
 ```
 
-This diagnostic deliberately asserts the observed defects at `41da8db`; it is not a passing quality gate or the intended compatibility contract. After fixing an issue, replace its observation with a regression test of the desired behavior and update the recorded analysis.
+The checked-in script now asserts the corrected behavior, including exact legacy cubic geometry; its current output is [corrected-interchange-2026-10-31.json](verification/corrected-interchange-2026-10-31.json). The earlier [baseline results](verification/remaining-interchange-2026-10-31.json) retain the reproduced defects at `41da8db`. Desired-behavior regression tests now cover those cases.
 
 ## Interface and options
 

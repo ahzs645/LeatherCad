@@ -174,11 +174,13 @@ export function ExportOptionsModal({
             <select className="action-select" value={dxfVersion} onChange={(event) => onDxfVersionChange(event.target.value as DxfVersion)}>
               <option value="r12">{t('R12 (AC1009)')}</option>
               <option value="r14">{t('R14 (AC1014)')}</option>
+              <option value="r2004">{t('R2004 (RGB colors and lineweights)')}</option>
             </select>
           </label>
+          {dxfVersion !== 'r2004' && <p role="status">{t('R12/R14 use indexed colors and omit lineweights. Choose R2004 to retain RGB colors and lineweights.')}</p>}
           <label className="layer-toggle-item">
             <input type="checkbox" checked={dxfFlipY} onChange={(event) => onDxfFlipYChange(event.target.checked)} />
-            <span>{t('Flip Y axis on DXF export')}</span>
+            <span>{t('Use CAD Y-up coordinates (recommended)')}</span>
           </label>
         </div>
 

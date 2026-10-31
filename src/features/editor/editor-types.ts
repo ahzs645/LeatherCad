@@ -34,7 +34,7 @@ export type MobileOptionsTab = 'view' | 'pieces' | 'file'
 export type ResolvedThemeMode = 'dark' | 'light'
 export type ThemeMode = ResolvedThemeMode | 'system'
 export type LegendMode = 'layer' | 'stack'
-export type DxfVersion = 'r12' | 'r14'
+export type DxfVersion = 'r12' | 'r14' | 'r2004'
 export type StitchHoleExportRenderMode = 'native' | 'dots' | 'single-lines'
 export type AutoPitchMode = 'fixed' | 'variable' | 'set-num'
 export type StitchAutoPitchSettings = {
@@ -147,6 +147,7 @@ export type EditorSnapshot = {
   backdrops: Backdrop[]
   projectMemo: string
   communityProvenance?: CommunityPatternProvenance[]
+  manufacturing?: import('./cad/cad-types').DocFile['manufacturing']
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
   threePreviewSettings: ThreePreviewSettings

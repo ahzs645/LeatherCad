@@ -36,6 +36,7 @@ type UseEditorDocumentCommandsParams = {
   backdrops: DocFile['backdrops']
   projectMemo: string
   communityProvenance?: DocFile['communityProvenance']
+  manufacturing?: DocFile['manufacturing']
   stitchAlwaysShapeIds: string[]
   stitchThreadColor: string
   threePreviewSettings: DocFile['threePreviewSettings']
@@ -95,6 +96,7 @@ export function useEditorDocumentCommands({
   backdrops,
   projectMemo,
   communityProvenance,
+  manufacturing,
   stitchAlwaysShapeIds,
   stitchThreadColor,
   threePreviewSettings,
@@ -154,6 +156,7 @@ export function useEditorDocumentCommands({
       backdrops,
       projectMemo,
       communityProvenance,
+      manufacturing,
       stitchAlwaysShapeIds: stitchAlwaysShapeIds.filter((shapeId) => shapes.some((shape) => shape.id === shapeId)),
       stitchThreadColor,
       piecePlacements3d: (piecePlacements3d ?? []).filter((placement) => (patternPieces ?? []).some((piece) => piece.id === placement.pieceId)),
@@ -200,6 +203,7 @@ export function useEditorDocumentCommands({
       printAreas,
       projectMemo,
       communityProvenance,
+      manufacturing,
       seamAllowances,
       seamConnections,
       shapes,
@@ -338,7 +342,7 @@ export function useEditorDocumentCommands({
     setExportForceSolidStrokes(false)
     setExportStitchHoleRenderMode('native')
     setExportStitchDotRadiusMm(0.6)
-    setDxfFlipY(false)
+    setDxfFlipY(true)
     setDxfVersion('r12')
   }
 

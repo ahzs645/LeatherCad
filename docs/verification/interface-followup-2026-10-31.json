@@ -1,0 +1,136 @@
+{
+  "wheelStored": "pan",
+  "persistedWheel": "pan",
+  "ribbonHidden": true,
+  "canvas": {
+    "x": 58,
+    "y": 40,
+    "width": 1498,
+    "height": 915
+  },
+  "presetAfterReload": "canvas",
+  "unitAfterReload": "Tool MoveNo selection100%inLayer Layer 1Type 1 - Cyan SolidReadyPrecision",
+  "phoneActions": [
+    {
+      "text": "Open",
+      "width": 70.6875,
+      "height": 44
+    },
+    {
+      "text": "Save",
+      "width": 68.53125,
+      "height": 44
+    },
+    {
+      "text": "Export",
+      "width": 76.46875,
+      "height": 44
+    },
+    {
+      "text": "File tools",
+      "width": 90.921875,
+      "height": 44
+    }
+  ],
+  "errors": [],
+  "schemaVersion": 1,
+  "reviewedAt": "2026-10-31",
+  "scope": "Focused interface verification of the uncommitted continuation; final integrated repository verification is separate. Screenshots use our synthetic drawing and the bundled wallet sample.",
+  "unitComponentChecks": {
+    "focusedFiles": 9,
+    "checks": 47,
+    "status": "passed"
+  },
+  "browserChecks": {
+    "file": "e2e/interface-options.spec.ts",
+    "checks": 3,
+    "status": "passed",
+    "server": "isolated production snapshot in scratch"
+  },
+  "screenshots": [
+    "interface-options-2026-10-31.png",
+    "interface-canvas-first-2026-10-31.png",
+    "interface-phone-actions-2026-10-31.png",
+    "interface-native-inspector-2026-10-31.png",
+    "interface-options-phone-2026-10-31.png"
+  ],
+  "knownLimits": [
+    "Auto wheel device detection is heuristic; Pan/Zoom overrides are available.",
+    "Other specialist dialogs and translation coverage remain partial.",
+    "Live cloud/provider verification is separate."
+  ],
+  "optionsPolishValidation": {
+    "desktop": {
+      "x": 400,
+      "y": 78.234375,
+      "width": 800,
+      "height": 843.515625
+    },
+    "numericDesktop": [
+      {
+        "width": 176,
+        "height": 36
+      },
+      {
+        "width": 176,
+        "height": 36
+      },
+      {
+        "width": 176,
+        "height": 36
+      },
+      {
+        "width": 176,
+        "height": 36
+      },
+      {
+        "width": 176,
+        "height": 36
+      }
+    ],
+    "phone": {
+      "x": 8,
+      "y": 42.203125,
+      "width": 374,
+      "height": 759.59375
+    },
+    "numericPhone": [
+      {
+        "width": 112,
+        "height": 44
+      },
+      {
+        "width": 112,
+        "height": 44
+      },
+      {
+        "width": 112,
+        "height": 44
+      },
+      {
+        "width": 265.1875,
+        "height": 44
+      },
+      {
+        "width": 265.421875,
+        "height": 44
+      }
+    ],
+    "overflow": {
+      "width": 0,
+      "height": true
+    },
+    "searchResetDisabled": true,
+    "resetWorksAfterClearingSearch": true,
+    "singularStatus": "1 settings section shown.",
+    "errors": [],
+    "componentTests": {
+      "checks": 6,
+      "status": "passed"
+    },
+    "settingsBrowserRegression": {
+      "checks": 1,
+      "status": "passed"
+    }
+  }
+}

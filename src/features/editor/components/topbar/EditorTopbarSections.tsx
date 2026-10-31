@@ -20,10 +20,20 @@ export function MobileQuickActions({
   onOpenPrecisionModal,
   onOpenProjectMemoModal,
   onOpenTemplateRepositoryModal,
+  onOpenLoadJson,
+  onSaveJson,
+  onOpenExportModal,
+  onOpenFileTools,
 }: EditorTopbarProps) {
   const t = useTranslate()
   return (
     <div className="group mobile-quick-actions">
+      <div className="mobile-direct-file-actions" role="group" aria-label={t('Common file actions')}>
+        <button type="button" onClick={onOpenLoadJson}>{t('Open')}</button>
+        <button type="button" onClick={onSaveJson}>{t('Save')}</button>
+        <button type="button" onClick={onOpenExportModal}>{t('Export')}</button>
+        {onOpenFileTools && <button type="button" onClick={onOpenFileTools}>{t('File tools')}</button>}
+      </div>
       <button type="button" onClick={onOpenPrecisionModal}>
         {t('Precision')}
       </button>

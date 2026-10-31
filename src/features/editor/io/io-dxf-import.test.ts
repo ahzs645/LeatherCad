@@ -1,6 +1,12 @@
+import { isNativeCurve, nativeCurveEndpoints as curveEndpoints } from '../cad/native-curve-ops'
+import type { Shape as EndpointShape } from '../cad/cad-types'
+
+const endpoints = (shape: EndpointShape) => isNativeCurve(shape) ? curveEndpoints(shape) : { start: shape.start, end: shape.end }
 import { describe, expect, it } from 'vitest'
 import { importDxfDocument } from './io-dxf-import'
 import { buildDxfFromShapes } from './io-dxf'
+import { sampleShapePoints } from '../cad/cad-geometry'
+import { nativeCurveEndpoints } from '../cad/native-curve-ops'
 import type { ArcShape, LineShape } from '../cad/cad-types'
 
 type Pair = [number, string | number]
@@ -16,10 +22,17 @@ function expectPoint(point: { x: number; y: number }, x: number, y: number) {
 }
 
 describe('importDxfDocument', () => {
+  it('keeps different lineweights separate and resolves layer/block inheritance', () => {
+    const blocks = [...entity('BLOCK', [[2, 'edge']]), ...line([[370, -2]]), ...entity('ENDBLK')]
+    const raw = document([...line([[8, 'Cut'], [370, 25]]), ...line([[8, 'Cut'], [370, 80]]), ...line([[8, 'Cut'], [370, -1]]), ...entity('INSERT', [[2, 'edge'], [8, 'Cut'], [370, 50]])], { blocks, tables: entity('LAYER', [[2, 'Cut'], [370, 35]]) })
+    const result = importDxfDocument(raw)
+    expect(result.shapes.map(shape => result.lineTypes.find(type => type.id === shape.lineTypeId)?.strokeWidthMm)).toEqual([0.25, 0.8, 0.35, 0.5])
+    expect(result.warnings).toEqual([])
+  })
   it('converts inches and Y-up coordinates while preserving source layers, visibility and style', () => {
     const raw = document(line([[8, 'stitch holes']]), { units: 1, tables: entity('LAYER', [[2, 'stitch holes'], [62, -3], [70, 4], [6, 'DASHED'], [370, 25]]) })
     const result = importDxfDocument(raw)
-    expectPoint(result.shapes[0].end, 254, -127)
+    expectPoint(endpoints(result.shapes[0]).end, 254, -127)
     expect(result.layers[0]).toMatchObject({ name: 'stitch holes', visible: false, locked: true })
     expect(result.lineTypes[0]).toMatchObject({ role: 'stitch', style: 'dashed', color: '#00ff00', strokeWidthMm: 0.25 })
     expect(result.shapes[0].layerId).toBe(result.layers[0].id)
@@ -31,7 +44,7 @@ describe('importDxfDocument', () => {
     const raw = document(line([[420, 0x12abcd]]), { units: 0 })
     expect(importDxfDocument(raw).warnings[0]).toContain('unspecified')
     const result = importDxfDocument(raw, { units: 'cm', flipY: false })
-    expectPoint(result.shapes[0].end, 100, 50)
+    expectPoint(endpoints(result.shapes[0]).end, 100, 50)
     expect(result.lineTypes[0].color).toBe('#12abcd')
     expect(result.warnings).toEqual([])
   })
@@ -73,35 +86,39 @@ describe('importDxfDocument', () => {
     const result = importDxfDocument(raw, { flipY: false })
     expect(result.layers[0].name).toBe('Outer')
     expect(result.lineTypes[0].color).toBe('#ff0000')
-    expectPoint(result.shapes[0].start, 10, 24)
-    expectPoint(result.shapes[0].end, 10, 26)
+    expectPoint(endpoints(result.shapes[0]).start, 10, 24)
+    expectPoint(endpoints(result.shapes[0]).end, 10, 26)
   })
 
-  it('approximates nonuniformly scaled circles as ellipses rather than incorrect circular arcs', () => {
+  it('retains exact native ellipses under nonuniform block scaling', () => {
     const blocks = [...entity('BLOCK', [[2, 'round']]), ...entity('CIRCLE', [[40, 5]]), ...entity('ENDBLK')]
     const result = importDxfDocument(document(entity('INSERT', [[2, 'round'], [41, 2], [42, 1]]), { blocks }), { flipY: false })
-    expect(result.shapes.every((shape) => shape.type === 'line')).toBe(true)
-    const points = result.shapes.flatMap((shape) => [shape.start, shape.end])
+    expect(result.shapes.every((shape) => shape.type === 'ellipse')).toBe(true)
+    const points = result.shapes.flatMap(shape => sampleShapePoints(shape, 40))
     expect(Math.max(...points.map((point) => point.x))).toBeCloseTo(10)
     expect(Math.max(...points.map((point) => point.y))).toBeCloseTo(5)
-    expect(result.warnings.join(' ')).toContain('non-uniform')
+    expect(result.warnings).toEqual([])
   })
 
   it('samples rational splines using their knots and weights, not their control polygon', () => {
     const raw = document(entity('SPLINE', [[71, 2], [40, 0], [40, 0], [40, 0], [40, 1], [40, 1], [40, 1], [10, 1], [20, 0], [41, 1], [10, 1], [20, 1], [41, Math.SQRT1_2], [10, 0], [20, 1], [41, 1]]))
     const result = importDxfDocument(raw, { flipY: false, curveToleranceMm: 0.001 })
     expect(result.shapes.length).toBeGreaterThan(8)
-    for (const shape of result.shapes) expect(Math.hypot(shape.start.x, shape.start.y)).toBeCloseTo(1, 6)
-    expectPoint(result.shapes[0].start, 1, 0)
-    expectPoint(result.shapes[result.shapes.length - 1].end, 0, 1)
+    for (const shape of result.shapes) expect(Math.hypot(endpoints(shape).start.x, endpoints(shape).start.y)).toBeCloseTo(1, 6)
+    expectPoint(endpoints(result.shapes[0]).start, 1, 0)
+    expectPoint(endpoints(result.shapes[result.shapes.length - 1]).end, 0, 1)
     expect(result.warnings.join(' ')).toContain('SPLINE')
   })
 
-  it('imports elliptical arcs with transformed axes and explicit approximation warnings', () => {
+  it('imports exact native elliptical arcs with transformed axes', () => {
     const result = importDxfDocument(document(entity('ELLIPSE', [[10, 10], [20, 20], [11, 0], [21, 8], [40, 0.5], [41, 0], [42, Math.PI / 2]])), { flipY: false })
-    expectPoint(result.shapes[0].start, 10, 28)
-    expectPoint(result.shapes[result.shapes.length - 1].end, 6, 20)
-    expect(result.warnings.join(' ')).toContain('ELLIPSE')
+    const shape = result.shapes[0]
+    expect(shape.type).toBe('ellipse')
+    if (shape.type !== 'ellipse') throw new Error('Expected native ellipse')
+    const endpoints = nativeCurveEndpoints(shape)
+    expectPoint(endpoints.start, 10, 28)
+    expectPoint(endpoints.end, 6, 20)
+    expect(result.warnings).toEqual([])
   })
 
   it('warns about unsupported, recursive, and non-planar geometry while retaining supported entities', () => {
@@ -138,7 +155,7 @@ describe('importDxfDocument', () => {
   it('round-trips our DXF export coordinates and physical units', () => {
     const original: LineShape = { id: 'a', type: 'line', layerId: 'Cut', lineTypeId: 'cut', start: { x: 25.4, y: 50.8 }, end: { x: 76.2, y: 101.6 } }
     const result = importDxfDocument(buildDxfFromShapes([original], { flipY: true, unit: 'in' }).content)
-    expectPoint(result.shapes[0].start, original.start.x, original.start.y)
-    expectPoint(result.shapes[0].end, original.end.x, original.end.y)
+    expectPoint(endpoints(result.shapes[0]).start, original.start.x, original.start.y)
+    expectPoint(endpoints(result.shapes[0]).end, original.end.x, original.end.y)
   })
 })

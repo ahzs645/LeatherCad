@@ -9,7 +9,7 @@
   "packageManager": "pnpm@10.18.1",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/verify-engine-pair.mjs && tsc -b && vite build && node scripts/verify-engine-pair.mjs --write",
     "agent": "pnpm run build && node scripts/leathercad-agent-server.mjs",
     "agent:serve": "node scripts/leathercad-agent-server.mjs",
     "typecheck": "tsc -b && tsc --noEmit -p convex/tsconfig.json",
@@ -24,7 +24,10 @@
     "test:ai-builder-benchmarks": "vitest run src/features/editor/ai-builder/ai-builder-benchmark.test.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:ai-builder-functional": "vitest run src/features/editor/ai-builder/ai-builder-functional.test.ts"
+    "test:ai-builder-functional": "vitest run src/features/editor/ai-builder/ai-builder-functional.test.ts",
+    "check:engine": "node scripts/verify-engine-pair.mjs",
+    "test:release": "playwright test --config playwright.release.config.ts",
+    "audit:localization": "node scripts/audit-localization.mjs --out docs/verification/localization-coverage.json --check-core"
   },
   "dependencies": {
     "@atelier/core": "link:../atelier/packages/core",
@@ -34,6 +37,7 @@
     "@atelier/render": "link:../atelier/packages/render",
     "@atelier/sim": "link:../atelier/packages/sim",
     "@atelier/viewport": "link:../atelier/packages/viewport",
+    "@convex-dev/rate-limiter": "^0.4.3",
     "clipper-lib": "^6.4.2",
     "convex": "^1.49.0",
     "convex-helpers": "^0.1.133",

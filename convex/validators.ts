@@ -9,11 +9,11 @@ export const remoteDocument = v.object({
 })
 export const patternSummary = v.object({
   id: v.string(), title: v.string(), description: v.string(), author: v.string(),
-  license, attribution: v.string(), visibility, version: v.number(), publishedAt: v.number(),
+  license, attribution: v.string(), visibility, version: v.number(), publishedAt: v.number(), visibilityRevision: v.number(), retired: v.boolean(),
 })
 export const patternDetail = v.object({
   id: v.string(), title: v.string(), description: v.string(), author: v.string(),
-  license, attribution: v.string(), visibility, version: v.number(), publishedAt: v.number(), docJson: v.string(),
+  license, attribution: v.string(), visibility, version: v.number(), publishedAt: v.number(), visibilityRevision: v.number(), retired: v.boolean(), docJson: v.string(),
 })
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -23,16 +23,26 @@ function isPoint(value: unknown): boolean {
     && typeof value.y === 'number' && Number.isFinite(value.y)
 }
 function isStoredShape(value: unknown): value is Record<string, unknown> & { id: string; layerId: string } {
-  if (!isRecord(value) || typeof value.id !== 'string' || !value.id || typeof value.layerId !== 'string'
-    || typeof value.lineTypeId !== 'string' || !isPoint(value.start) || !isPoint(value.end)) return false
+  if (!isRecord(value) || typeof value.id !== 'string' || !value.id || typeof value.layerId !== 'string' || typeof value.lineTypeId !== 'string') return false
+  if (value.locked !== undefined && typeof value.locked !== 'boolean') return false
+  if (value.opacity !== undefined && (typeof value.opacity !== 'number' || !Number.isFinite(value.opacity) || value.opacity < 0 || value.opacity > 1)) return false
+  if (value.strokeWidthOverride !== undefined && (typeof value.strokeWidthOverride !== 'number' || !Number.isFinite(value.strokeWidthOverride) || value.strokeWidthOverride < 0)) return false
+  if (value.type === 'ellipse') {
+    return isPoint(value.center) && ['radiusX', 'radiusY'].every(key => typeof value[key] === 'number' && Number.isFinite(value[key]) && value[key] > 0)
+      && ['rotationDeg', 'startAngleDeg', 'sweepDeg'].every(key => typeof value[key] === 'number' && Number.isFinite(value[key]))
+      && typeof value.sweepDeg === 'number' && value.sweepDeg !== 0 && Math.abs(value.sweepDeg) <= 360
+  }
+  if (!isPoint(value.start) || !isPoint(value.end)) return false
   if (value.type === 'line') return true
   if (value.type === 'arc') return isPoint(value.mid)
   if (value.type === 'bezier') return isPoint(value.control)
+  if (value.type === 'cubic') return isPoint(value.control1) && isPoint(value.control2)
   if (value.type !== 'text') return false
   return typeof value.text === 'string' && typeof value.fontFamily === 'string'
     && ['none', 'arch', 'ring'].includes(String(value.transform))
     && ['fontSizeMm', 'radiusMm', 'sweepDeg'].every(key => typeof value[key] === 'number' && Number.isFinite(value[key]))
 }
+
 export function validateDocumentJson(value: string): void {
   // Bound individual rows and paginated response payloads below Convex limits.
   if (new TextEncoder().encode(value).length > 512 * 1024) throw new ConvexError('This drawing is too large for cloud sync (512 KiB). Save it locally instead.')

@@ -1,4 +1,5 @@
 import { ConvexError } from 'convex/values'
+import { limitResource } from './resourcePolicy'
 import { customCtx, customMutation, customQuery } from 'convex-helpers/server/customFunctions'
 import { mutation, query, type QueryCtx } from './_generated/server'
 
@@ -8,4 +9,8 @@ async function requireIdentity(ctx: QueryCtx) {
   return { owner: identity.tokenIdentifier, author: (identity.name ?? identity.nickname ?? 'Community member').slice(0, 200) }
 }
 export const ownerQuery = customQuery(query, customCtx(requireIdentity))
-export const ownerMutation = customMutation(mutation, customCtx(requireIdentity))
+export const ownerMutation = customMutation(mutation, customCtx(async (ctx) => {
+  const identity = await requireIdentity(ctx)
+  await limitResource(ctx, identity.owner, 'cloudWrites')
+  return identity
+}))

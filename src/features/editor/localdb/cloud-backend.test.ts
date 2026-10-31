@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defineTestApp } from 'convex-test'
+import rateLimiterTest from '@convex-dev/rate-limiter/test'
 import { makeFunctionReference } from 'convex/server'
 import schema from '../../../../convex/schema'
 import * as cloudDocuments from '../../../../convex/cloudDocuments'
@@ -12,7 +13,7 @@ import { createCommunityDataClient } from './community-data-client'
 import type { ConvexTransport } from './convex-transport'
 import { makeAttributedPatternCopy } from './cloud-sync'
 
-const app = defineTestApp({ schema }).defineModules({ cloudDocuments, cloudSettings, community })
+const app = defineTestApp({ schema, components: { rateLimiter: rateLimiterTest } }).defineModules({ cloudDocuments, cloudSettings, community })
 function makeDoc(name = 'Wallet') {
   return parseImportedJsonDocument(JSON.stringify({ documentName: name, objects: [], layers: [{ id: 'main', name: 'Main', visible: true, locked: false }] })).doc
 }

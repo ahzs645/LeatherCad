@@ -70,7 +70,9 @@ type UseEditorStateActionsParams = {
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
   setBackdrops: Dispatch<SetStateAction<Backdrop[]>>
   setActiveBackdropId: Dispatch<SetStateAction<string | null>>
+  advanceDocumentSession?: () => void
   setCommunityProvenance?: Dispatch<SetStateAction<CommunityPatternProvenance[]>>
+  setManufacturing?: Dispatch<SetStateAction<EditorSnapshot['manufacturing']>>
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
@@ -127,7 +129,9 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    advanceDocumentSession,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -177,6 +181,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setActiveBackdropId(null)
     setProjectMemo(snapshot.projectMemo)
     setCommunityProvenance?.(snapshot.communityProvenance ?? [])
+    setManufacturing?.(snapshot.manufacturing)
     setStitchAlwaysShapeIds(snapshot.stitchAlwaysShapeIds)
     setStitchThreadColor(snapshot.stitchThreadColor)
     setThreePreviewSettings(snapshot.threePreviewSettings)
@@ -222,6 +227,7 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setActiveBackdropId,
     setProjectMemo,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -320,7 +326,9 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setBackdrops([])
     setActiveBackdropId(null)
     setProjectMemo('')
+    advanceDocumentSession?.()
     setCommunityProvenance?.([])
+    setManufacturing?.(undefined)
     setStitchAlwaysShapeIds([])
     setStitchThreadColor('#fb923c')
     setThreePreviewSettings(DEFAULT_THREE_PREVIEW_SETTINGS)
@@ -369,7 +377,9 @@ export function useEditorStateActions(params: UseEditorStateActionsParams) {
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    advanceDocumentSession,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,

@@ -63,7 +63,10 @@ import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from './editor-
 import { normalizeStitchHoleSequences, parseStitchHole } from './ops/stitch-hole-ops'
 import { sanitizeSketchGroupLinks } from './ops/sketch-link-ops'
 import { migrateLegacySeamAllowances } from './ops/pattern-piece-ops'
+import { validateGroupHierarchy } from './ops/shape-access'
+import { parseManufacturingSettings } from './io/manufacturing/manufacturing-settings'
 import { parseCommunityProvenance } from './ops/community-provenance'
+import { assertImportGeometryBudget, assertImportLayerBudget, assertImportTextBudget, assertImportTreeBudget } from './io/import-budget'
 
 type ImportedJsonCandidate = {
   documentName?: unknown
@@ -101,6 +104,7 @@ type ImportedJsonCandidate = {
   showCanvasRuler?: unknown
   showDimensions?: unknown
   dimensionLines?: unknown[]
+  manufacturing?: unknown
   printAreas?: unknown[]
   layers?: unknown[]
   activeLayerId?: unknown
@@ -120,11 +124,15 @@ export type ImportedJsonResult = {
 }
 
 export function parseImportedJsonDocument(raw: string, options: { preserveShapeIds?: boolean } = {}): ImportedJsonResult {
+  assertImportTextBudget(raw)
   const parsed = JSON.parse(raw) as ImportedJsonCandidate
+  assertImportTreeBudget(parsed)
 
   if (!Array.isArray(parsed.objects)) {
     throw new Error('Missing objects array')
   }
+  assertImportGeometryBudget(parsed.objects.length + (parsed.stitchHoles?.length ?? 0) + (parsed.dimensionLines?.length ?? 0) + (parsed.foldLines?.length ?? 0))
+  assertImportLayerBudget(parsed.layers?.length ?? 0)
 
   const parsedLayers =
     Array.isArray(parsed.layers)
@@ -153,11 +161,18 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
   const nextSketchGroups = sanitizeSketchGroupLinks(
     Array.isArray(parsed.sketchGroups)
       ? parsed.sketchGroups
-          .map(parseSketchGroup)
+          .map(candidate => {
+            const group = parseSketchGroup(candidate)
+            if (!group || !candidate || typeof candidate !== 'object') return group
+            const parentId = (candidate as { parentId?: unknown }).parentId
+            if (parentId !== undefined && typeof parentId !== 'string') throw new Error('Invalid parent sketch group ID')
+            return { ...group, parentId: parentId || undefined }
+          })
           .filter((group): group is SketchGroup => group !== null && nextLayerIdSet.has(group.layerId))
       : [],
   )
 
+  validateGroupHierarchy(nextSketchGroups)
   const nextSketchGroupIdSet = new Set(nextSketchGroups.map((group) => group.id))
   const nextSketchGroupById = Object.fromEntries(nextSketchGroups.map((group) => [group.id, group]))
   const nextActiveSketchGroupId =
@@ -227,9 +242,17 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
 
     const stitchHoleMarker =
       (candidate as { stitchHoleMarker?: unknown }).stitchHoleMarker === true ? true : undefined
+    const appearance = { locked: candidate.locked, opacity: candidate.opacity }
+    if (appearance.locked !== undefined && typeof appearance.locked !== 'boolean') throw new Error('Invalid shape lock')
+    if (appearance.opacity !== undefined && (!Number.isFinite(appearance.opacity) || appearance.opacity < 0 || appearance.opacity > 1)) throw new Error('Invalid shape opacity: expected 0–1')
+    const strokeWidthOverride = candidate.strokeWidthOverride
+    if (strokeWidthOverride !== undefined && (!Number.isFinite(strokeWidthOverride) || strokeWidthOverride < 0 || strokeWidthOverride > 20)) {
+      throw new Error('Invalid shape stroke width: expected 0–20 mm')
+    }
 
     if (candidate.type === 'line') {
       nextShapes.push({
+        ...appearance,
         id: nextShapeId,
         type: 'line',
         layerId,
@@ -239,11 +262,13 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
         arrowEnd,
         boxStitchSource,
         stitchHoleMarker,
+        strokeWidthOverride,
         start: candidate.start,
         end: candidate.end,
       })
     } else if (candidate.type === 'arc') {
       nextShapes.push({
+        ...appearance,
         id: nextShapeId,
         type: 'arc',
         layerId,
@@ -254,10 +279,16 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
         boxStitchSource,
         start: candidate.start,
         mid: candidate.mid,
+        strokeWidthOverride,
         end: candidate.end,
       })
+    } else if (candidate.type === 'cubic') {
+      nextShapes.push({ ...appearance, id: nextShapeId, type: 'cubic', layerId, lineTypeId, groupId, arrowStart, arrowEnd, strokeWidthOverride, start: candidate.start, control1: candidate.control1, control2: candidate.control2, end: candidate.end })
+    } else if (candidate.type === 'ellipse') {
+      nextShapes.push({ ...appearance, id: nextShapeId, type: 'ellipse', layerId, lineTypeId, groupId, arrowStart, arrowEnd, strokeWidthOverride, center: candidate.center, radiusX: candidate.radiusX, radiusY: candidate.radiusY, rotationDeg: candidate.rotationDeg, startAngleDeg: candidate.startAngleDeg, sweepDeg: candidate.sweepDeg })
     } else if (candidate.type === 'bezier') {
       nextShapes.push({
+        ...appearance,
         id: nextShapeId,
         type: 'bezier',
         layerId,
@@ -268,10 +299,12 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
         boxStitchSource,
         start: candidate.start,
         control: candidate.control,
+        strokeWidthOverride,
         end: candidate.end,
       })
     } else {
       nextShapes.push({
+        ...appearance,
         id: nextShapeId,
         type: 'text',
         layerId,
@@ -285,6 +318,8 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
         transform: candidate.transform,
         radiusMm: candidate.radiusMm,
         sweepDeg: candidate.sweepDeg,
+        strokeWidthOverride,
+        trackingMm: candidate.trackingMm,
       })
     }
   }
@@ -522,6 +557,7 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
     doc: {
       version: 1,
       units: 'mm',
+      manufacturing: parsed.manufacturing === undefined ? undefined : parseManufacturingSettings(parsed.manufacturing),
       documentName,
       layers: nextLayers,
       activeLayerId: nextActiveLayerId,

@@ -1,5 +1,7 @@
 # Coffee Craft CAD follow-up implementation
 
+This is the historical implementation checkpoint at `41da8db`. The later [follow-up report](FOLLOWUP_IMPLEMENTATION_2026-10-31.md) supersedes its current-capability and remaining-work statements while retaining these original verification results.
+
 This implements the remediation work from the [comparison audit](COFFEE_CAD_COMPARISON_2026-10-31.md). Six agents worked on interchange, DXF, STL, localization, cloud/community, and jsmap, followed by independent reviews and integration checks. This report records the implementation-time checks. The LeatherCad source and portable verification summary are included in this branch; the separate jsmap source remains in its own checkout. No cloud deployment was performed.
 
 ## File interchange and manufacturing

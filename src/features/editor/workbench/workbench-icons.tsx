@@ -310,6 +310,8 @@ function renderIcon(name: WorkbenchIconName) {
           <path {...STROKE_PROPS} d="M13 7l3-2.5M13 7l3 2.5" />
         </>
       )
+    case 'cubic':
+      return <><path {...STROKE_PROPS} d="M3 18C5 1 19 23 21 6" /><path {...STROKE_PROPS} d="M3 18L5 3M21 6L19 21" strokeDasharray="2 2" /><circle cx="5" cy="3" r="1.5" fill="currentColor" /><circle cx="19" cy="21" r="1.5" fill="currentColor" /></>
     case 'bezier-cp':
       return (
         <>

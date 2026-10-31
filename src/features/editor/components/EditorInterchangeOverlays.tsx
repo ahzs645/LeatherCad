@@ -5,6 +5,8 @@ import type { useInterchangePanels } from '../hooks/useInterchangePanels'
 import { useTranslate } from '../hooks/useTranslate'
 import { useModalDialogFocus } from '../hooks/useModalDialogFocus'
 import { ErrorBoundary } from './ErrorBoundary'
+import type { ManufacturingSettings } from '../io/manufacturing/manufacturing-settings'
+import { LibraryBackupPanel } from './LibraryBackupPanel'
 import './EditorInterchangeOverlays.css'
 
 const DxfImportButton = lazy(() => import('./DxfImportButton').then((mod) => ({ default: mod.DxfImportButton })))
@@ -13,12 +15,14 @@ const CloudCommunityDialog = lazy(() => import('./CloudCommunityDialog').then((m
 
 export type EditorInterchangeOverlaysProps = {
   panels: ReturnType<typeof useInterchangePanels>
+  documentSessionKey?: number
   buildCurrentDocFile: () => DocFile
   onSaveLcad: () => void
   onLoadDocument: (doc: DocFile) => void
   onStatus: (message: string) => void
   selectedShapeIds: string[]
   dxfImportProps: DxfImportActionsParams
+  onManufacturingSettingsChange?: (settings: ManufacturingSettings) => void
 }
 
 function ToolLoadingDialog({ onClose }: { onClose: () => void }) {
@@ -51,7 +55,7 @@ function ToolFailureDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-function FileToolsDialog({ panels, onSaveLcad, children }: Pick<EditorInterchangeOverlaysProps, 'panels' | 'onSaveLcad'> & { children: ReactNode }) {
+function FileToolsDialog({ panels, onSaveLcad, onStatus, children }: Pick<EditorInterchangeOverlaysProps, 'panels' | 'onSaveLcad' | 'onStatus'> & { children: ReactNode }) {
   const t = useTranslate()
   const dialogRef = useRef<HTMLDivElement>(null)
   useModalDialogFocus({ dialogRef, open: true, onClose: panels.close })
@@ -67,6 +71,7 @@ function FileToolsDialog({ panels, onSaveLcad, children }: Pick<EditorInterchang
           <p>{t('interchange.dxfHint', 'Add CAD geometry to the current drawing. Choose file units or override them before importing.')}</p>
           <Suspense fallback={<span role="status">{t('common.loading', 'Loading…')}</span>}>{children}</Suspense>
         </section>
+        <LibraryBackupPanel onStatus={onStatus} />
         <section className="control-block">
           <h3>{t('interchange.exportsTitle', 'Export and share')}</h3>
           <div className="line-type-modal-actions">
@@ -81,24 +86,30 @@ function FileToolsDialog({ panels, onSaveLcad, children }: Pick<EditorInterchang
 }
 
 export function EditorInterchangeOverlays(props: EditorInterchangeOverlaysProps) {
-  const { panels } = props
+  const { panels, documentSessionKey, buildCurrentDocFile } = props
   const t = useTranslate()
   const selectedShapeIds = useMemo(() => new Set(props.selectedShapeIds), [props.selectedShapeIds])
+  // The builder returns a new object. Keep a snapshot until drawing state or
+  // session changes, so unrelated status updates cannot restart a mesh worker.
+  const documentSnapshot = useMemo(() => ({
+    sessionKey: documentSessionKey,
+    doc: panels.panel ? buildCurrentDocFile() : null,
+  }), [documentSessionKey, buildCurrentDocFile, panels.panel])
 
-  if (!panels.panel) return null
-  const doc = props.buildCurrentDocFile()
+  const doc = documentSnapshot.doc
+  if (!panels.panel || !doc) return null
   return (
     <ErrorBoundary key={panels.panel} fallback={
       <ToolFailureDialog onClose={panels.close} />
     }>
       <Suspense fallback={<ToolLoadingDialog onClose={panels.close} />}>
         {panels.panel === 'files' ? (
-          <FileToolsDialog panels={panels} onSaveLcad={props.onSaveLcad}>
+          <FileToolsDialog panels={panels} onSaveLcad={props.onSaveLcad} onStatus={props.onStatus}>
             <DxfImportButton {...props.dxfImportProps} />
           </FileToolsDialog>
         ) : null}
         {panels.panel === 'stl' ? (
-          <StlExportModal open onClose={panels.close} doc={doc} selectedShapeIds={selectedShapeIds} onExported={() => props.onStatus(t('interchange.stlExported', 'Exported STL'))} />
+          <StlExportModal key={documentSnapshot.sessionKey ?? 0} open onClose={panels.close} doc={doc} selectedShapeIds={selectedShapeIds} onManufacturingSettingsChange={props.onManufacturingSettingsChange} onExported={() => props.onStatus(t('interchange.stlExported', 'Exported STL'))} />
         ) : null}
         {panels.panel === 'cloud' ? (
           <CloudCommunityDialog open onClose={panels.close} currentDoc={doc} onLoadDocument={props.onLoadDocument} onStatus={props.onStatus} />

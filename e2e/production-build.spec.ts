@@ -10,6 +10,7 @@
  */
 
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 
 /** A one-page PDF around a content stream, byte offsets and xref included. */
 function buildPdf(contentStream: string): Buffer {
@@ -80,10 +81,45 @@ test('a pattern PDF imports in the built bundle', async ({ page }) => {
   // the vector reader, the analysis, and the document swap.
   await chooser.setFiles({ name: 'panel.pdf', mimeType: 'application/pdf', buffer: panelSheet() })
 
+  const review = page.getByRole('dialog', { name: 'Review pattern PDF' })
+  await expect(review).toBeVisible({ timeout: 30_000 })
+  await expect(review.getByRole('img', { name: 'Detected pattern pieces and stitch marks' })).toBeVisible()
+  await review.getByLabel('I reviewed this page and its inferred geometry').check()
+  await review.getByRole('button', { name: 'Import reviewed page' }).click()
+
   // The document swaps to the imported sheet, and the panel comes through as a
   // piece with its stitching read off it.
   await expect(page.getByTestId('browser-node-piece:piece-a')).toBeVisible({ timeout: 30_000 })
   // 284pt square, so the millimetres prove the page box was read, not guessed.
   await expect(page.getByTestId('browser-node-piece:piece-a')).toContainText('100.2 × 100.2 mm')
   expect(errors).toEqual([])
+})
+
+test('the built bundle opens lazy file tools and preserves editing when cloud is unavailable', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(String(error)))
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Output' }).click()
+  await page.getByRole('button', { name: 'File Tools', exact: true }).click()
+  const files = page.getByRole('dialog', { name: 'File tools', exact: true })
+  await expect(files.getByRole('heading', { name: 'Local library backup' })).toBeVisible()
+  const download = page.waitForEvent('download')
+  await files.getByRole('button', { name: 'Download library backup' }).click()
+  expect((await download).suggestedFilename()).toMatch(/^leathercad-library-.*\.json$/)
+  await files.getByRole('button', { name: 'Done', exact: true }).click()
+  await page.getByRole('button', { name: 'Cloud', exact: true }).click()
+  const cloud = page.getByRole('dialog', { name: 'Cloud & Community' })
+  await expect(cloud).toBeVisible()
+  await cloud.getByRole('button', { name: 'Done', exact: true }).click()
+  await expect(page.getByRole('tablist', { name: 'Workbench ribbon tabs' })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('the built bundle contains the validated engine pairing', async ({ request }) => {
+  const response = await request.get('release-pair.json')
+  expect(response.ok()).toBe(true)
+  const pair = await response.json() as { engineRevision: string; appRevision: string }
+  const pinned = JSON.parse(readFileSync(new URL('../engine-pair.json', import.meta.url), 'utf8')) as { revision: string }
+  expect(pair.engineRevision).toBe(pinned.revision)
+  expect(pair.appRevision).toMatch(/^[a-f0-9]{40}$/)
 })

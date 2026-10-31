@@ -1,3 +1,5 @@
+import { unescapeDxfText } from './dxf-text'
+
 export type DxfPair = { code: number; value: string }
 export type DxfRecord = { type: string; pairs: DxfPair[] }
 export type DxfBlock = { name: string; x: number; y: number; records: DxfRecord[] }
@@ -55,7 +57,7 @@ export function parseAsciiDxf(raw: string): ParsedDxf {
     if (!/^\d+$/.test(codeText) || !Number.isInteger(code) || code > 1071) {
       throw new Error(`Malformed DXF group code at line ${index + 1}`)
     }
-    if (code !== 999) pairs.push({ code, value: lines[index + 1].trim() })
+    if (code !== 999) pairs.push({ code, value: unescapeDxfText(lines[index + 1].trim()) })
   }
   const result: ParsedDxf = { entities: [], blocks: new Map(), layers: [], unitCode: 0 }
   let section = '', hasEntities = false

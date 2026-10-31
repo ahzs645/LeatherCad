@@ -3,36 +3,16 @@ import type { LineShape, Point, Shape } from '../cad/cad-types'
 import { computeBoundsFromShapes, translateShape } from './pattern-ops'
 import {
   getSelectionCenter,
+  mapShapePoints,
   rotatePointAround,
   scalePointFrom,
 } from './shape-selection-ops'
+import { isNativeCurve, nativeCurveBounds } from '../cad/native-curve-ops'
 
 export type AlignEdge = 'left' | 'right' | 'top' | 'bottom' | 'middleH' | 'middleV'
 
-function mapShapePoints(shape: Shape, mapPoint: (point: Point) => Point): Shape {
-  if (shape.type === 'line') {
-    return { ...shape, start: mapPoint(shape.start), end: mapPoint(shape.end) }
-  }
-  if (shape.type === 'arc') {
-    return {
-      ...shape,
-      start: mapPoint(shape.start),
-      mid: mapPoint(shape.mid),
-      end: mapPoint(shape.end),
-    }
-  }
-  if (shape.type === 'bezier') {
-    return {
-      ...shape,
-      start: mapPoint(shape.start),
-      control: mapPoint(shape.control),
-      end: mapPoint(shape.end),
-    }
-  }
-  return { ...shape, start: mapPoint(shape.start), end: mapPoint(shape.end) }
-}
-
 function shapeBounds(shape: Shape) {
+  if (isNativeCurve(shape)) return nativeCurveBounds(shape)
   const samples = sampleShapePoints(shape, 24)
   let minX = Number.POSITIVE_INFINITY
   let minY = Number.POSITIVE_INFINITY
@@ -174,6 +154,8 @@ export function mirrorSelectionAcrossAxis(
  * For arc: swap start/end (mid is unchanged — still lies on the curve).
  */
 export function reverseShapePath(shape: Shape): Shape {
+  if (shape.type === 'cubic') return { ...shape, start: shape.end, control1: shape.control2, control2: shape.control1, end: shape.start }
+  if (shape.type === 'ellipse') return { ...shape, startAngleDeg: shape.startAngleDeg + shape.sweepDeg, sweepDeg: -shape.sweepDeg }
   if (shape.type === 'line' || shape.type === 'text') {
     return { ...shape, start: shape.end, end: shape.start }
   }

@@ -41,6 +41,15 @@ function arc(
 }
 
 describe('extractBoxStitchGuideLines', () => {
+  it('projects native cubic edges and can mark analytic curves without converting them', () => {
+    const top: Shape = { id: 'top', type: 'cubic', layerId: 'layer-1', lineTypeId: 'cut', start: { x: 0, y: 5 }, control1: { x: 30, y: -5 }, control2: { x: 70, y: -5 }, end: { x: 100, y: 5 } }
+    const bottom: Shape = { ...top, id: 'bottom', start: { x: 0, y: 35 }, control1: { x: 30, y: 45 }, control2: { x: 70, y: 45 }, end: { x: 100, y: 35 } }
+    const result = extractBoxStitchGuideLines([top, bottom], 6, 'layer-1', 'stitch')
+    expect(result.guideGroups.some((group) => group.guideLines.length > 1)).toBe(true)
+    const marked = markSelectedShapesAsBoxStitchSource([top], new Set(['top']))
+    expect(marked.updatedCount).toBe(1)
+    expect(marked.nextShapes[0]).toMatchObject({ ...top, boxStitchSource: { extracted: true } })
+  })
   it('pairs opposite candidate edges and projects guides inside the selection bounds', () => {
     const boundaryShapes = [
       line('top', { x: 10, y: 0 }, { x: 90, y: 0 }),

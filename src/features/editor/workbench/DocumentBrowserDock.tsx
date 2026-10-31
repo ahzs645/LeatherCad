@@ -1,5 +1,5 @@
 import { useTranslate, type Translator } from '../hooks/useTranslate'
-import { useState, type MouseEvent } from 'react'
+import { useState, type KeyboardEvent, type MouseEvent } from 'react'
 import type { DocumentBrowserNode } from './workbench-types'
 
 type DocumentBrowserDockProps = {
@@ -21,7 +21,22 @@ function renderNode(
   depth = 0,
 ) {
   const isSection = node.kind === 'section'
-  const isBranch = node.kind === 'layer-group'
+  const isSketchBranch = node.kind === 'sketch' && Boolean(node.children?.length)
+  const isBranch = node.kind === 'layer-group' || isSketchBranch
+  const handleBranchKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    const open = branchOpenState[node.id] ?? true
+    const branch = event.currentTarget.closest('.workbench-tree-branch')
+    if (event.key === 'ArrowRight') {
+      if (isBranch && !open) onToggleBranch(node.id)
+      else if (isBranch) branch?.querySelector<HTMLButtonElement>('.workbench-tree-children [data-testid^="browser-node-"]')?.focus()
+    } else if (isBranch && open) onToggleBranch(node.id)
+    else {
+      const outer = event.currentTarget.closest('.workbench-tree-node, .workbench-tree-branch')?.parentElement?.closest('.workbench-tree-branch')
+      outer?.querySelector<HTMLButtonElement>('.workbench-tree-branch-summary')?.focus()
+    }
+  }
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     props.onActivateNode(node, event.metaKey || event.ctrlKey)
   }
@@ -58,18 +73,24 @@ function renderNode(
         key={node.id}
         className={`workbench-tree-branch depth-${depth}${node.selected ? ' selected' : ''}${node.dimmed ? ' dimmed' : ''}${isOpen ? ' open' : ' collapsed'}`}
         data-node-kind={node.kind}
+        style={depth > 3 ? { marginInlineStart: 8 } : undefined}
       >
-        <div className="workbench-tree-branch-header">
+        <div className={`workbench-tree-branch-header${isSketchBranch ? ' workbench-sketch-branch-header' : ''}`}>
+          {isSketchBranch && <button type="button" className="workbench-tree-disclosure" aria-label={`${t(isOpen ? 'Collapse group' : 'Expand group')}: ${node.label}`} aria-expanded={isOpen} aria-controls={`browser-children-${encodeURIComponent(node.id)}`} onClick={() => onToggleBranch(node.id)} onKeyDown={handleBranchKey}>▸</button>}
           <button
             type="button"
             className="workbench-tree-branch-summary"
             data-testid={`browser-node-${node.id}`}
-            onClick={() => onToggleBranch(node.id)}
+            onClick={isSketchBranch ? handleClick : () => onToggleBranch(node.id)}
+            onKeyDown={handleBranchKey}
+            aria-expanded={isSketchBranch ? undefined : isOpen}
+            aria-controls={isSketchBranch ? undefined : `browser-children-${encodeURIComponent(node.id)}`}
           >
-            <span className="workbench-tree-branch-chevron" aria-hidden="true">
+            {!isSketchBranch && <span className="workbench-tree-branch-chevron" aria-hidden="true">
               ▸
-            </span>
+            </span>}
             <span className="workbench-tree-branch-label">{node.label}</span>
+            {node.locked && <span role="img" aria-label={t('Locked group')}>🔒</span>}
             {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
           </button>
           {showLayerGroupActions && (
@@ -87,7 +108,7 @@ function renderNode(
             </span>
           )}
         </div>
-        <div className="workbench-tree-children">
+        <div className="workbench-tree-children" id={`browser-children-${encodeURIComponent(node.id)}`} hidden={!isOpen}>
           {(node.children ?? []).map((child) => renderNode(child, props, branchOpenState, onToggleBranch, t, depth + 1))}
         </div>
       </div>
@@ -99,9 +120,11 @@ function renderNode(
       key={node.id}
       className={`workbench-tree-node depth-${depth}${node.selected ? ' selected' : ''}${node.dimmed ? ' dimmed' : ''}`}
       data-node-kind={node.kind}
+      style={depth > 3 ? { marginInlineStart: 8 } : undefined}
     >
-      <button type="button" className="workbench-tree-node-button" data-testid={`browser-node-${node.id}`} onClick={handleClick}>
+      <button type="button" className="workbench-tree-node-button" data-testid={`browser-node-${node.id}`} onClick={handleClick} onKeyDown={node.kind === 'sketch' ? handleBranchKey : undefined}>
         <span>{isSection ? t(node.label) : node.label}</span>
+        {node.locked && <span role="img" aria-label={t('Locked group')}>🔒</span>}
         {node.meta && <span className="workbench-tree-meta">{node.meta}</span>}
       </button>
       {showLayerActions && (

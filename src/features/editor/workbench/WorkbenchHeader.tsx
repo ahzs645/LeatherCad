@@ -5,6 +5,8 @@ import type { ThemeMode } from '../editor-types'
 import type { QuickAction, WorkspaceMode, WorkbenchRibbonTab } from './workbench-types'
 import { WorkbenchIcon } from './workbench-icons'
 import { resolveQuickActionIcon } from './workbench-icon-resolvers'
+import { selectWorkspacePreset, useWorkspacePreset, WORKSPACE_PRESETS, type WorkspacePresetId } from './workspace-presets'
+import './WorkspacePreferences.css'
 
 type WorkbenchHeaderProps = {
   docLabel: string
@@ -84,6 +86,7 @@ export function WorkbenchHeader({
   onSetThemeMode,
 }: WorkbenchHeaderProps) {
   const t = useTranslate()
+  const preset = useWorkspacePreset()
   const [showThemeMenu, setShowThemeMenu] = useState(false)
   const themeMenuRef = useRef<HTMLDivElement>(null)
   const themeButtonRef = useRef<HTMLButtonElement>(null)
@@ -129,7 +132,10 @@ export function WorkbenchHeader({
             data-testid={`ribbon-tab-${tab.id}`}
             aria-selected={activeRibbonTab === tab.id}
             className={activeRibbonTab === tab.id ? 'active' : ''}
-            onClick={() => onSetRibbonTab(tab.id)}
+            onClick={() => {
+              if (preset !== 'custom' && WORKSPACE_PRESETS[preset].ribbon !== tab.id) selectWorkspacePreset('custom')
+              onSetRibbonTab(tab.id)
+            }}
           >
             {t(tab.label)}
           </button>
@@ -137,6 +143,7 @@ export function WorkbenchHeader({
       </div>
 
       <div className="workbench-header-trailing">
+
         <div className="workbench-header-actions">
           {quickActions.map((action) => (
             <button
@@ -158,6 +165,12 @@ export function WorkbenchHeader({
             same job from the other end, which left no single place to read the
             current state from. */}
         <LanguageSelector compact />
+        <label className="workbench-preset-selector"><span className="sr-only">{t('Workspace preset')}</span><select aria-label={t('Workspace preset')} value={preset} onChange={event => {
+          const next = event.target.value as WorkspacePresetId
+          if (next !== 'custom' && !Object.hasOwn(WORKSPACE_PRESETS, next)) return
+          selectWorkspacePreset(next)
+          if (next !== 'custom') { onSetWorkspaceMode(WORKSPACE_PRESETS[next].mode); onSetRibbonTab(WORKSPACE_PRESETS[next].ribbon) }
+        }}><option value="custom">{t('Custom workspace')}</option>{Object.entries(WORKSPACE_PRESETS).map(([id, option]) => <option key={id} value={id}>{t(option.label)}</option>)}</select></label>
 
         <div className="workbench-mode-toggle" role="group" aria-label={t('Workspace mode')}>
           {WORKSPACE_MODES.map((option) => (
@@ -168,7 +181,10 @@ export function WorkbenchHeader({
               data-testid={`workspace-mode-${option.mode}`}
               aria-pressed={workspaceMode === option.mode}
               title={t(option.title)}
-              onClick={() => onSetWorkspaceMode(option.mode)}
+              onClick={() => {
+                if (preset !== 'custom' && WORKSPACE_PRESETS[preset].mode !== option.mode) selectWorkspacePreset('custom')
+                onSetWorkspaceMode(option.mode)
+              }}
             >
               {t(option.label)}
             </button>

@@ -157,4 +157,17 @@ describe('OIDC cloud auth adapter', () => {
     const provider = create(); sdk.signinRedirect.mockRejectedValue(new Error('PRIVATE_DISCOVERY_DETAIL'))
     await expect(provider.signIn()).rejects.toThrow('Could not start sign-in. Please try again.')
   })
+
+  it('awaits draft preservation after initialization and never redirects on storage failure', async () => {
+    const preserve = vi.fn().mockRejectedValue(new Error('Download a backup: local storage failed'))
+    const provider = createOidcCloudAuth({ authority: 'https://issuer.test', clientId: 'editor-client', basePath: '/editor/', browser: browser(), beforeRedirect: preserve })
+    providers.push(provider)
+    await expect(provider.signIn()).rejects.toThrow('Download a backup')
+    expect(sdk.getUser).toHaveBeenCalledOnce()
+    expect(preserve).toHaveBeenCalledOnce()
+    expect(sdk.signinRedirect).not.toHaveBeenCalled()
+    preserve.mockResolvedValue(undefined)
+    await provider.signIn()
+    expect(sdk.signinRedirect).toHaveBeenCalledOnce()
+  })
 })

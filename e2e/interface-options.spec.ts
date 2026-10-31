@@ -1,0 +1,68 @@
+import { expect, test } from '@playwright/test'
+
+test('settings categories search across sections and preserve independent browser preferences', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('svg.canvas .shape-line').first()).toBeAttached()
+  await page.getByTestId('ribbon-tab-output').click()
+  await page.getByTestId('ribbon-command-options').click()
+  const dialog = page.getByRole('dialog', { name: 'Options', exact: true })
+  await dialog.getByRole('button', { name: 'Input', exact: true }).click()
+  await dialog.getByLabel('Wheel behavior', { exact: true }).selectOption('pan')
+  await dialog.getByLabel('Search settings', { exact: true }).fill('calibration')
+  await expect(dialog.getByText('Print calibration', { exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Reset this category', exact: true })).toBeDisabled()
+  await expect(dialog.getByRole('status')).toHaveText('1 settings section shown.')
+  await dialog.getByLabel('Search settings', { exact: true }).fill('no-such-setting-abc')
+  await expect(dialog.getByRole('status')).toHaveText('No matching settings. Try another search.')
+  await dialog.getByRole('button', { name: 'Drawing', exact: true }).click()
+  await dialog.getByLabel('Display units', { exact: true }).selectOption('in')
+  await dialog.getByRole('radio', { name: 'Radius (click start + end, fixed radius)', exact: true }).check()
+  await dialog.getByLabel('Arc radius (in)', { exact: true }).fill('1')
+  expect(await page.evaluate(() => {
+    const prefs = JSON.parse(localStorage.getItem('leathercad-editor-prefs-v1')!) as { arcRadiusMm: number }
+    return prefs.arcRadiusMm
+  })).toBeCloseTo(25.4)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await page.reload()
+  await expect(page.locator('.workbench-statusbar')).toContainText('in')
+  await page.getByTestId('ribbon-tab-output').click()
+  await page.getByTestId('ribbon-command-options').click()
+  await dialog.getByRole('button', { name: 'Input', exact: true }).click()
+  await expect(dialog.getByLabel('Wheel behavior', { exact: true })).toHaveValue('pan')
+})
+
+test('canvas-first preset preserves the document, expands its viewport and survives reload', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.goto('/')
+  const shapes = page.locator('svg.canvas .shape-line')
+  await expect(shapes.first()).toBeAttached()
+  const count = await shapes.count()
+  await page.getByLabel('Workspace preset', { exact: true }).selectOption('canvas')
+  await expect(page.locator('.workbench-ribbon')).toHaveCount(0)
+  await expect(page.locator('.workbench-browser-dock')).toHaveCount(0)
+  await expect(shapes).toHaveCount(count)
+  const canvas = await page.locator('.workbench-main > .workbench-surface.in-main').boundingBox()
+  expect(canvas!.width).toBeGreaterThan(1200)
+  await page.reload()
+  await expect(page.getByLabel('Workspace preset', { exact: true })).toHaveValue('canvas')
+  await page.getByLabel('Workspace preset', { exact: true }).selectOption('drafting')
+  await expect(page.locator('.workbench-ribbon')).toBeVisible()
+})
+
+test('phone common file actions have direct buttons and usable touch targets', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await expect(page.locator('svg.canvas .shape-line').first()).toBeAttached()
+  await page.getByRole('button', { name: 'Options', exact: true }).click()
+  const group = page.getByRole('group', { name: 'Common file actions' })
+  for (const name of ['Open', 'Save', 'Export', 'File tools']) {
+    const button = group.getByRole('button', { name, exact: true })
+    await expect(button).toBeVisible()
+    const bounds = await button.boundingBox()
+    expect(bounds!.height).toBeGreaterThanOrEqual(44)
+    expect(bounds!.width).toBeGreaterThanOrEqual(44)
+  }
+  await group.getByRole('button', { name: 'File tools', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'File tools', exact: true })).toBeVisible()
+})

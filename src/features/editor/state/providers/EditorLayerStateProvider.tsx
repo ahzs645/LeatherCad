@@ -71,6 +71,11 @@ export function useEditorLayerActions() {
   return useRequiredContext(useContext(EditorLayerActionsContext), 'EditorLayerActionsContext')
 }
 
+/** The document provider also works in isolation in import/recovery harnesses. */
+export function useOptionalEditorLayers() {
+  return useContext(EditorLayerStateContext)?.layers
+}
+
 export function useEditorLayerStateApi(): EditorLayerStateApi {
   const state = useRequiredContext(useContext(EditorLayerStateContext), 'EditorLayerStateContext')
   const actions = useRequiredContext(useContext(EditorLayerActionsContext), 'EditorLayerActionsContext')

@@ -1,9 +1,25 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { importSvgAsShapes } from './io-svg'
+import { MAX_IMPORT_FILE_BYTES, MAX_IMPORT_GEOMETRY } from './import-budget'
+import * as budget from './import-budget'
 
 const importOptions = { layerId: 'layer-1', lineTypeId: 'lt-1' }
 
 describe('importSvgAsShapes', () => {
+  it('rejects an oversized file before invoking the DOM parser', () => {
+    expect(() => importSvgAsShapes(' '.repeat(MAX_IMPORT_FILE_BYTES + 1), importOptions)).toThrow('50 MB')
+  })
+  it('rejects a polyline before expanding more than the geometry budget', () => {
+    const points = '0,0 '.repeat(MAX_IMPORT_GEOMETRY + 2)
+    expect(() => importSvgAsShapes(`<svg xmlns="http://www.w3.org/2000/svg"><polyline points="${points}" /></svg>`, importOptions)).toThrow('200,000')
+  })
+  it('rejects cumulative expansion across different elements instead of skipping an over-budget path', () => {
+    // Exercise the real importer/catch boundary without allocating 200,000 DOM nodes.
+    const guard = vi.spyOn(budget, 'assertImportGeometryBudget').mockImplementation((count) => { if (count > 5) throw new Error('expanded geometry budget') })
+    try {
+      expect(() => importSvgAsShapes('<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10"/><path d="M20 20 L30 30 L40 20"/></svg>', importOptions)).toThrow('expanded geometry budget')
+    } finally { guard.mockRestore() }
+  })
   it('imports SVG text as editable text shapes', () => {
     const result = importSvgAsShapes(
       '<svg xmlns="http://www.w3.org/2000/svg"><text x="10" y="20" font-size="5" font-family="Arial">Hello</text></svg>',

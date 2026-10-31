@@ -103,7 +103,7 @@ describe('buildCanvasRenderModel', () => {
     })
 
     expect(model.layers.previewShapes).toHaveLength(1)
-    expect(model.layers.previewShapes[0].shape.start).toEqual({ x: 5, y: 7 })
+    expect(model.layers.previewShapes[0].shape).toMatchObject({ start: { x: 5, y: 7 } })
     expect(model.layers.previewShapes[0].paint.className).toContain('shape-live-preview')
     expect(model.shapeLayers.preview).toBe(model.layers.previewShapes)
     expect(model.shapeLayers.all.map((entry) => entry.role)).toEqual(['editable', 'preview'])
@@ -178,13 +178,13 @@ describe('buildCanvasRenderModel', () => {
 
     expect(model.layers.previewShapes).toHaveLength(1)
     expect(model.layers.editableShapes[0].paint.previewSource).toBe(true)
-    expect(model.layers.previewShapes[0].shape.start.x).toBe(3)
+    expect(model.layers.previewShapes[0].shape).toMatchObject({ start: { x: 3 } })
   })
 
   it('resolves paint metadata for editable entities', () => {
     const selectedShapeIdSet = new Set(['selected'])
     const model = buildCanvasRenderModel({
-      visibleShapes: [line('selected', 'layer', 0), line('dimmed', 'other-layer', 20)],
+      visibleShapes: [{ ...line('selected', 'layer', 0), opacity: 0.4, strokeWidthOverride: 0.25 }, line('dimmed', 'other-layer', 20)],
       linkedShapes: [],
       ...baseParams,
       selectedShapeIdSet,
@@ -202,6 +202,8 @@ describe('buildCanvasRenderModel', () => {
     })
 
     expect(model.layers.editableShapes[0].paint.selected).toBe(true)
+    expect(model.layers.editableShapes[0].paint.opacity).toBe(0.4)
+    expect(model.layers.editableShapes[0].paint.strokeWidthMm).toBe(0.25)
     expect(model.layers.editableShapes[0].paint.className).toContain('shape-selected')
     expect(model.layers.editableShapes[1].paint.opacity).toBeLessThan(1)
   })

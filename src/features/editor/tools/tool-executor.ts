@@ -7,6 +7,7 @@ import type { ToolRuntime } from './tool-types'
 import { parseNumber, parseVector } from './tool-command-utils'
 import { pickToolPoint } from './tool-helpers'
 import { toolRegistry } from './tool-registry'
+import { isNativeCurve, nativeCurveEndpoints } from '../cad/native-curve-ops'
 
 export function executeToolPointerDown(tool: Tool, point: Point, runtime: ToolRuntime) {
   if (tool === 'pan') {
@@ -25,7 +26,7 @@ export function executeToolCommand(tool: Tool, command: string, runtime: ToolRun
   const commandName = parts[0]
 
   if (normalized === 'help') {
-    return 'Commands: l, pl, rect, c, arc, bezier, offset [mm], trim [start|end], extend [start|end], mirror [h|v|angle], finish, x,y, @x,y, r<deg.'
+    return 'Commands: l, pl, rect, c, ellipse, arc, bezier, cubic, offset [mm], trim [start|end], extend [start|end], mirror [h|v|angle], finish, x,y, @x,y, r<deg.'
   }
 
   const toolAlias: Partial<Record<string, Tool>> = {
@@ -33,6 +34,7 @@ export function executeToolCommand(tool: Tool, command: string, runtime: ToolRun
     arc: 'arc',
     b: 'bezier',
     bezier: 'bezier',
+    cubic: 'cubic',
     c: 'circle',
     circle: 'circle',
     e: 'ellipse',
@@ -180,7 +182,8 @@ function executeGlobalCadCommand(commandName: string, args: string[], runtime: T
     }
     const cutPoint = runtime.cursorPoint ?? runtime.toolSession.getReferencePoint()
     const explicitKeep = args[0] === 'start' || args[0] === 'end' ? args[0] : null
-    const keepSide = explicitKeep ?? (distance(cutPoint, target.start) < distance(cutPoint, target.end) ? 'end' : 'start')
+    const endpoints = isNativeCurve(target) ? nativeCurveEndpoints(target) : target
+    const keepSide = explicitKeep ?? (distance(cutPoint, endpoints.start) < distance(cutPoint, endpoints.end) ? 'end' : 'start')
     const trimmed = trimShapeAtPoint(target, cutPoint, keepSide)
     runtime.setShapes((previous) => previous.map((shape) => (shape.id === target.id ? trimmed : shape)))
     runtime.setSelectedShapeIds([target.id])

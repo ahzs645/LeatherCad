@@ -6,6 +6,8 @@ import { PieceInspectorModal, type PieceInspectorModalProps } from './PieceInspe
 import type { NestingModalProps } from './NestingModal'
 import type { ProjectMemoModalProps } from './ProjectMemoModal'
 import { EditorInterchangeOverlays, type EditorInterchangeOverlaysProps } from './EditorInterchangeOverlays'
+import { DraftRecoveryDialog } from './DraftRecoveryDialog'
+import type { DraftRecoveryDialogProps } from '../hooks/useDraftRecovery'
 
 const ProjectMemoModal = lazy(() =>
   import('./ProjectMemoModal').then((mod) => ({ default: mod.ProjectMemoModal })),
@@ -23,6 +25,7 @@ export type EditorOverlayHostProps = {
   fontInputRef: RefObject<HTMLInputElement | null>
   onFontInputChange: ChangeEventHandler<HTMLInputElement>
   interchangeProps?: EditorInterchangeOverlaysProps
+  recoveryProps?: DraftRecoveryDialogProps
 }
 
 export function EditorOverlayHost({
@@ -34,6 +37,7 @@ export function EditorOverlayHost({
   fontInputRef,
   onFontInputChange,
   interchangeProps,
+  recoveryProps,
 }: EditorOverlayHostProps) {
   return (
     <>
@@ -49,6 +53,7 @@ export function EditorOverlayHost({
       </Suspense>
       <EditorHiddenInputs {...hiddenInputsProps} />
       {interchangeProps ? <div className="editor-interchange-overlays"><EditorInterchangeOverlays {...interchangeProps} /></div> : null}
+      {recoveryProps ? <DraftRecoveryDialog {...recoveryProps} /> : null}
       <input
         ref={fontInputRef}
         type="file"

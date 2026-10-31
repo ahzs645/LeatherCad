@@ -27,7 +27,7 @@ describe('cloud account boundaries', () => {
       if (offline) throw new Error('Offline')
       if (typeof init.body !== 'string') throw new Error('Expected a JSON request body')
       const request = JSON.parse(init.body) as { path: string }
-      const page = request.path === 'cloudDocuments:list'
+      const page = request.path === 'cloudLifecycle:list'
         ? [{ id: 'private-1', name: 'Alice private drawing', docJson: JSON.stringify(document()), createdAt: 1, updatedAt: 1, revision: 1 }]
         : []
       return new Response(JSON.stringify({ status: 'success', value: { page, continueCursor: '', isDone: true } }))

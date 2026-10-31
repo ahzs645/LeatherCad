@@ -80,7 +80,9 @@ type UseLoadedDocumentActionsParams = {
   setTracingOverlays: Dispatch<SetStateAction<TracingOverlay[]>>
   setBackdrops: Dispatch<SetStateAction<import('../cad/cad-types').Backdrop[]>>
   setActiveBackdropId: Dispatch<SetStateAction<string | null>>
+  advanceDocumentSession?: () => void
   setCommunityProvenance?: Dispatch<SetStateAction<NonNullable<DocFile['communityProvenance']>>>
+  setManufacturing?: Dispatch<SetStateAction<DocFile['manufacturing']>>
   setProjectMemo: Dispatch<SetStateAction<string>>
   setStitchAlwaysShapeIds: Dispatch<SetStateAction<string[]>>
   setStitchThreadColor: Dispatch<SetStateAction<string>>
@@ -153,7 +155,9 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    advanceDocumentSession,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
@@ -180,6 +184,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
   const applyLoadedDocument = useCallback((doc: DocFile, statusMessage: string) => {
     const normalizedDocumentName =
       typeof doc.documentName === 'string' && doc.documentName.trim().length > 0 ? doc.documentName.trim() : null
+    advanceDocumentSession?.()
     setActiveLocalDocumentId(null)
     const normalizedLayers = doc.layers.length > 0 ? doc.layers : [createDefaultLayer(uid())]
     const normalizedActiveLayerId = normalizedLayers.some((layer) => layer.id === doc.activeLayerId)
@@ -349,6 +354,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setActiveBackdropId(null)
     setProjectMemo(normalizedProjectMemo)
     setCommunityProvenance?.(normalizedCommunityProvenance)
+    setManufacturing?.(doc.manufacturing)
     setStitchAlwaysShapeIds(normalizedStitchAlwaysShapeIds)
     setStitchThreadColor(normalizedStitchThreadColor)
     setThreePreviewSettings(normalizedThreePreviewSettings)
@@ -405,7 +411,9 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setBackdrops,
     setActiveBackdropId,
     setProjectMemo,
+    advanceDocumentSession,
     setCommunityProvenance,
+    setManufacturing,
     setStitchAlwaysShapeIds,
     setStitchThreadColor,
     setThreePreviewSettings,
