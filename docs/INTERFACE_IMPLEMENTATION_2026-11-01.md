@@ -135,7 +135,7 @@ What still differs:
 | Unit suite | 194 files / 1,384 tests. New tests cover the grid ladder and labels, tool keys and icons, expressions, armed commands, selection geometry, the context menu, pinch math and snapshot redo. |
 | TypeScript, ESLint, architecture check | Pass |
 | Browser (Playwright, system Chromium) | **68 / 68.** The full suite (desktop, production build, tablet, phone) passed 62/62 existing and unchanged tests. After fixing their own timing and coordinate issues, the new [`reference-interface.spec.ts`](../e2e/reference-interface.spec.ts) (rulers, keys, typed sizes, Escape cascade, geometry, menu, redo, status toggles, tour) and the phone tests in [`mobile-smoke.spec.ts`](../e2e/mobile-smoke.spec.ts) (tool list, taps, folded legend, pinch) passed 16/16 on a re-run of both files. |
-| Example drawing pass | Unit suite 197 files / 1,400 tests (new: stitch-chain regrouping, palette slots and light colours, text size and line spacing, grid visibility, gzip reading, render colours, font fallback). TypeScript, ESLint, architecture and localization checks pass. Browser suite: see below. |
+| Example drawing pass | Unit suite 197 files / 1,400 tests (new: stitch-chain regrouping, palette slots and light colours, text size and line spacing, grid visibility, gzip reading, render colours, font fallback). TypeScript, ESLint, architecture and localization checks pass. Browser suite (desktop, production build, tablet, phone): **70 / 70**, unchanged tests. |
 | Touch | Synthetic DevTools pinch: 155% → 620% (the reference went 100% → 400%, the same 4×). Two/three-finger double taps undo and redo. Real iPad and iPhone hardware still needs the [device walkthrough](PHYSICAL_DEVICE_ACCEPTANCE.md). |
 
 ## Behaviour changes to note
