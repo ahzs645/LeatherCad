@@ -1,4 +1,4 @@
-import type { PointerEventHandler, ReactNode } from 'react'
+import { useState, type PointerEventHandler, type ReactNode } from 'react'
 import type {
   DocumentBrowserNode,
   QuickAction,
@@ -131,6 +131,8 @@ export function EditorWorkbench({
   onTogglePrecision,
 }: EditorWorkbenchProps) {
   const canvasFirst = useWorkspacePreset() === 'canvas'
+  // On tablets the document browser is a sheet over the canvas, closed until asked for.
+  const [browserSheetOpen, setBrowserSheetOpen] = useState(false)
   const showThreeInMain = workspaceMode === '3d'
   const showThreeInPeek = showPeek && secondaryPreviewMode === '3d-peek'
   const showTwoDInPeek = showPeek && secondaryPreviewMode === '2d-peek'
@@ -165,7 +167,7 @@ export function EditorWorkbench({
 
       <main
         ref={shellRef}
-        className={`workbench-main ${showPeek ? 'with-peek' : 'without-peek'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}`}
+        className={`workbench-main ${showPeek ? 'with-peek' : 'without-peek'} ${inspectorOpen ? 'inspector-open' : 'inspector-closed'}${browserSheetOpen ? ' browser-sheet-open' : ''}`}
         data-testid="workbench-main"
         style={{
           gridTemplateColumns,
@@ -180,6 +182,16 @@ export function EditorWorkbench({
           onToggleTracingVisibility={onToggleTracingVisibility}
           onToggleTracingLock={onToggleTracingLock}
         />
+
+        <button
+          type="button"
+          className="workbench-browser-toggle"
+          data-testid="workbench-browser-toggle"
+          aria-expanded={browserSheetOpen}
+          onClick={() => setBrowserSheetOpen((open) => !open)}
+        >
+          {browserSheetOpen ? '×' : '☰'} <span>Document</span>
+        </button>
 
         <div
           className="workbench-splitter browser-splitter"

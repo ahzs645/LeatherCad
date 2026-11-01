@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
-import { MOBILE_MEDIA_QUERY } from '../editor-constants'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
+
+const LEGEND_OPEN_KEY = 'leathercad.legend-open'
 import type { Layer, LineType } from '../cad/cad-types'
 import type { LegendMode, SketchWorkspaceMode } from '../editor-types'
 
@@ -48,8 +50,13 @@ export function LayerLegendPanel({
   stitchStrokeColor,
   foldStrokeColor,
 }: LayerLegendPanelProps) {
-  // On phones the legend starts folded so it does not cover the drawing.
-  const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' && Boolean(window.matchMedia?.(MOBILE_MEDIA_QUERY).matches))
+  // The legend starts folded (it would otherwise cover part of the drawing)
+  // and remembers when the user opens it.
+  const [collapsed, setCollapsedState] = useState(() => safeLocalStorageGet(LEGEND_OPEN_KEY) !== '1')
+  const setCollapsed = (next: boolean) => {
+    setCollapsedState(next)
+    safeLocalStorageSet(LEGEND_OPEN_KEY, next ? '0' : '1')
+  }
   if (!show) {
     return null
   }

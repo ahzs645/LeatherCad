@@ -11,6 +11,7 @@ import { useEditorToolActions, useEditorToolSelector } from '../state/providers/
 import { useEditorUIActions, useEditorUISelector } from '../state/providers/EditorUIStateProvider'
 import type { ContextMenuItem } from './CanvasContextMenu'
 import { buildArmedCommand, type Armed } from '../ops/tool-option-commands'
+import { TOOL_ACTION_ICONS } from './tool-action-icons'
 
 type ToolOptionsBarProps = {
   displayUnit: DisplayUnit
@@ -306,10 +307,29 @@ export function ToolOptionsBar({ displayUnit, selectedShapeIdSet, onRunCommand, 
     body = <>
       <span className="tool-option-note">{t('{count} selected').replace('{count}', String(selectionCount))}</span>
       <Group>
-        <button type="button" onClick={requestSelectionGeometryFocus}>{t('Size & position')}</button>
-        {actions.map((action) => (
-          <button key={action.id} type="button" disabled={action.disabled} onClick={action.onSelect}>{t(action.label)}</button>
-        ))}
+        <button type="button" className="tool-option-icon-label" onClick={requestSelectionGeometryFocus} title={`${t('Size & position')} (Enter)`}>
+          {TOOL_ACTION_ICONS['size-position']}<span>{t('Size & position')}</span>
+        </button>
+      </Group>
+      <Group>
+        {actions.map((action) => {
+          const icon = TOOL_ACTION_ICONS[action.id]
+          const label = t(action.label)
+          const title = action.shortcut ? `${label} (${action.shortcut})` : label
+          return (
+            <button
+              key={action.id}
+              type="button"
+              className={`${icon ? 'tool-option-icon' : ''}${action.id === 'delete' ? ' tool-option-danger' : ''}`}
+              disabled={action.disabled}
+              onClick={action.onSelect}
+              title={title}
+              aria-label={label}
+            >
+              {icon ?? label}
+            </button>
+          )
+        })}
       </Group>
     </>
   }

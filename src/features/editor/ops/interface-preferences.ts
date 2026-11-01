@@ -23,15 +23,19 @@ export type InterfacePreferences = {
   tourCompleted: boolean
   /** Side of the canvas that holds the touch modifier pad, or hidden. */
   modifierPad: 'left' | 'right' | 'off'
-  /** Drafting surface background; dark matches the reference editor. */
-  canvasBackground: 'theme' | 'light' | 'dark'
+  /**
+   * Drafting surface: follows the app theme by default (dark theme gives the
+   * reference editor's dark surface); light or dark force it. Stored under a new
+   * name because the earlier field was written automatically, not chosen.
+   */
+  canvasSurface: 'theme' | 'light' | 'dark'
 }
 const defaultOrder = DESKTOP_TOOL_ICON_ITEMS.map(item => item.value)
 export const DEFAULT_INTERFACE_PREFERENCES: InterfacePreferences = {
   wheelMode: 'auto', trackpadSensitivity: 1, toolOrder: defaultOrder,
   toolLabels: false, displayUnit: 'mm', edgePickRadiusPx: 12, touchPickRadiusPx: 24,
   edgeRulers: true, invertYAxis: false, toolHints: true, tourCompleted: false, modifierPad: 'left',
-  canvasBackground: 'dark',
+  canvasSurface: 'theme',
 }
 const listeners = new Set<() => void>()
 let snapshot: InterfacePreferences | undefined
@@ -54,7 +58,7 @@ export function normalizeInterfacePreferences(value: unknown): InterfacePreferen
     toolHints: input.toolHints !== false,
     tourCompleted: input.tourCompleted === true,
     modifierPad: input.modifierPad === 'right' || input.modifierPad === 'off' ? input.modifierPad : 'left',
-    canvasBackground: input.canvasBackground === 'theme' || input.canvasBackground === 'light' ? input.canvasBackground : 'dark',
+    canvasSurface: input.canvasSurface === 'light' || input.canvasSurface === 'dark' ? input.canvasSurface : 'theme',
   }
 }
 export function getInterfacePreferences() {

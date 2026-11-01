@@ -298,13 +298,13 @@ const EditorUIStateContext = createContext<EditorUIState | null>(null)
 const EditorUIActionsContext = createContext<EditorUIStateActions | null>(null)
 
 export function EditorUIStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState, initial => ({ ...initial, displayUnit: getInterfacePreferences().displayUnit, gridBackgroundMode: getInterfacePreferences().canvasBackground }))
+  const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState, initial => ({ ...initial, displayUnit: getInterfacePreferences().displayUnit, gridBackgroundMode: getInterfacePreferences().canvasSurface }))
   const actions = useMemo(() => createEditorUIStateActions(dispatch), [dispatch])
   useEffect(() => { updateInterfacePreferences({ displayUnit: state.displayUnit }) }, [state.displayUnit])
-  useEffect(() => { updateInterfacePreferences({ canvasBackground: state.gridBackgroundMode }) }, [state.gridBackgroundMode])
+  useEffect(() => { updateInterfacePreferences({ canvasSurface: state.gridBackgroundMode }) }, [state.gridBackgroundMode])
   useEffect(() => subscribeInterfacePreferences(() => {
     dispatch({ type: 'displayUnit', value: getInterfacePreferences().displayUnit })
-    dispatch({ type: 'gridBackgroundMode', value: getInterfacePreferences().canvasBackground })
+    dispatch({ type: 'gridBackgroundMode', value: getInterfacePreferences().canvasSurface })
   }), [])
 
   useEffect(() => {

@@ -4,5 +4,9 @@
 // Compact workbench desktop shell.
 @use './partials/workbench';
 
+// Reference palette tokens and the drafting chrome built on them.
+@use './partials/theme-reference';
+@use './partials/cad-chrome';
+
 // Shared mobile and breakpoint rules.
 @use './partials/responsive';

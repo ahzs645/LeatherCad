@@ -574,14 +574,22 @@ export function EditorCanvasPane({
       <CanvasTouchPad selectionCount={selectedShapeIdSet.size} />
 
       <div className="canvas-view-controls" role="group" aria-label="2D view controls">
-        <button onClick={onZoomOut} aria-label="Zoom out">
-          -
+        <button type="button" onClick={onZoomOut} aria-label="Zoom out" title="Zoom out">
+          −
         </button>
-        <button onClick={onZoomIn} aria-label="Zoom in">
+        <button
+          type="button"
+          className="canvas-zoom-readout"
+          onClick={onResetView}
+          aria-label={`Zoom ${Math.round(viewport.scale * 100)}%, reset to 100%`}
+          title="Reset to 100%"
+        >
+          {Math.round(viewport.scale * 100)}%
+        </button>
+        <button type="button" onClick={onZoomIn} aria-label="Zoom in" title="Zoom in">
           +
         </button>
-        <button onClick={onFitView}>Fit</button>
-        <button onClick={onResetView}>Reset</button>
+        <button type="button" onClick={onFitView} title="Fit the drawing in view">Fit</button>
       </div>
 
       <LayerLegendPanel

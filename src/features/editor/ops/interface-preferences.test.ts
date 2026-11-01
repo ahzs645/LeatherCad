@@ -62,3 +62,12 @@ describe('interface preferences and navigation', () => {
     expect(navigateWithWheel(viewport, { ...event, deltaMode: 2, deltaY: 1 }, { wheelMode: 'pan', trackpadSensitivity: 1 }, anchor).y).toBe(-580)
   })
 })
+
+describe('drafting surface preference', () => {
+  it('follows the app theme by default and ignores the old auto-saved background', () => {
+    expect(normalizeInterfacePreferences(null).canvasSurface).toBe('theme')
+    expect(normalizeInterfacePreferences({ canvasBackground: 'dark' }).canvasSurface).toBe('theme')
+    expect(normalizeInterfacePreferences({ canvasSurface: 'dark' }).canvasSurface).toBe('dark')
+    expect(normalizeInterfacePreferences({ canvasSurface: 'bogus' }).canvasSurface).toBe('theme')
+  })
+})

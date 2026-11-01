@@ -9,7 +9,7 @@ async function boot(page: Page) {
   await page.getByTestId('tool-options-bar').waitFor()
   await page.locator('svg.canvas').waitFor()
   // The startup document loads after the shell; wait until it is counted.
-  await expect(page.locator('.workbench-inspector-dock')).toContainText(/\d+ shapes across/)
+  await expect(page.locator('.workbench-inspector-dock')).toContainText(/[1-9]\d* shapes across/)
 }
 
 /** Screen pixels per millimetre (the status bar shows scale × 100 as a percentage). */
@@ -44,7 +44,12 @@ async function drawRectangle(page: Page, width: string, height: string) {
 test('the drafting surface has edge rulers and a tool hint', async ({ page }) => {
   await boot(page)
   await expect(page.getByTestId('canvas-edge-rulers')).toBeVisible()
+  // The drafting surface follows the app theme: light here, dark with a dark system theme.
+  await expect(page.locator('.canvas-pane')).toHaveClass(/canvas-surface-light/)
+  await page.emulateMedia({ colorScheme: 'dark' })
   await expect(page.locator('.canvas-pane')).toHaveClass(/canvas-surface-dark/)
+  await expect(page.locator('.app-shell')).toHaveClass(/theme-dark/)
+  await page.emulateMedia({ colorScheme: 'light' })
   await expect(page.getByTestId('canvas-tool-hint')).toContainText('Move')
   const corner = page.locator('.canvas-edge-ruler-corner')
   await expect(corner).toHaveAttribute('aria-pressed', 'false')

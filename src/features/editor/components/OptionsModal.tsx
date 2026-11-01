@@ -240,7 +240,7 @@ export function OptionsModal({
       onChangeNotchAngleDeg(defaults.notchAngleDeg); onChangeNotchDepthMm(defaults.notchDepthMm)
       onChangeLineToolConstraint(defaults.lineToolConstraint); onChangeRelativeAngleStepDeg(defaults.relativeAngleStepDeg)
       onChangeArcDrawMode(defaults.arcDrawMode); onChangeArcRadiusMm(defaults.arcRadiusMm); onChangeArcHalfMoonRatio(defaults.arcHalfMoonRatio)
-      onChangeTangentCircleMode(false); onChangeTangentCircleDispStep(defaults.tangentCircleDispStep); onChangeGridBackgroundMode('dark')
+      onChangeTangentCircleMode(false); onChangeTangentCircleDispStep(defaults.tangentCircleDispStep); onChangeGridBackgroundMode('theme')
       onChangeDimensionDefaults({ fontSizeMm: 5, precision: 1, arrowOnly: false, singleLine: false, textInside: true, textReverse: false }); onChangeDimensionLineTypeId(null)
     } else if (category === 'stitch') {
       onChangeForceFitLastPrick(false); onChangeAutoPitchSettings(getDefaultStitchAutoPitchSettings()); onChangeBoxStitchHelperSettings(getDefaultBoxStitchHelperSettings())

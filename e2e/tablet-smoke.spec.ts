@@ -15,7 +15,9 @@ test('tablet can reach pattern pieces and seams', async ({ page }) => {
   await page.goto('/')
 
   // The document tree is what carries pieces and seams; on the phone shell it
-  // does not exist at all.
+  // does not exist at all. On a tablet it is a sheet over the canvas, opened
+  // from the Document tab so the canvas is not covered by default.
+  await page.getByTestId('workbench-browser-toggle').click()
   await expect(page.getByText('Pieces', { exact: false }).first()).toBeVisible()
   await expect(page.getByText('Seams', { exact: false }).first()).toBeVisible()
 })

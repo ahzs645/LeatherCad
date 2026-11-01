@@ -7,7 +7,7 @@ Implemented 2026-11-01, following the findings in the [interface comparison](INT
 | Change | Details | Where |
 | --- | --- | --- |
 | Reference grid | A 1-2-5 tick ladder chosen so one tick is at least 10 px. Minor lines are dashed, with a heavier line every 5 ticks (4 in inches), a stronger line every 10 (8 in inches), and axes. Distance labels inside the drawing area were removed; the rulers carry them. | [`reference-grid.ts`](../src/features/editor/ops/reference-grid.ts), [`useCanvasGrid.ts`](../src/features/editor/hooks/useCanvasGrid.ts) |
-| Dark surface by default | `#1a1a1a` surface with the reference grid colours. Light and follow-theme remain in Options › Display and grid. The choice is now remembered. | [`interface-preferences.ts`](../src/features/editor/ops/interface-preferences.ts) |
+| Reference surface colours | `#1a1a1a` dark surface or `#ffffff` light surface with the reference grid colours. It follows the app theme by default (see the theme pass below). The choice is remembered. | [`interface-preferences.ts`](../src/features/editor/ops/interface-preferences.ts) |
 | Edge rulers | 22 px top/left rulers that follow zoom and pan. Labels sit on major ticks, with millimetres or inch fractions down to 1/64". An orange cursor marker shows the pointer, and a cyan band shows the selection's extent. The corner button toggles a relative origin at the selection's corner. **S** (the Ruler command) shows or hides them. They are hidden at phone widths. | [`CanvasEdgeRulers.tsx`](../src/features/editor/components/canvas/CanvasEdgeRulers.tsx) |
 | Tool hint bubble | Tool name, shortcut and next step, e.g. "Rectangle R · Click the first corner". With a selection it suggests Enter for size and position. | [`CanvasToolHint.tsx`](../src/features/editor/components/canvas/CanvasToolHint.tsx) |
 | Dark canvas chrome | Legend, view controls, command strip and right-click menu match the dark surface. | `_workspace-canvas-surfaces.scss` |
@@ -33,6 +33,24 @@ Rulers show raw world coordinates (Y grows downward), matching the inspector and
 
 New Options entries under *Input devices and tools › Drawing surface*: edge rulers, invert Y, tool hint, touch-pad side, and **Show the screen tour**. The Help shortcut list was rewritten for the new keymap.
 
+## Theme and layout pass
+
+A second pass aligned the whole workbench with the reference's colours and fixed layout collisions found in a screenshot audit (light and dark, at 1440×900, 1024×768 and 390×844).
+
+| Change | Details | Where |
+| --- | --- | --- |
+| Reference palette in both themes | **Dark:** warm graphite (`#1a1a1e` / `#26262c`, borders `#3a3a45`) with the reference amber (`#c8922a` / `#e8b44a`). **Light:** warm paper (`#efebe3` / `#fbfaf6`) with a deeper amber (`#a8690b`) that keeps white text readable. Shell tokens are re-pointed rather than each rule rewritten. Active buttons use readable text on amber, and native checkboxes, sliders and selects follow the theme. | [`_theme-reference.scss`](../src/app/styles/partials/_theme-reference.scss) |
+| One token set for drafting chrome | The tool bar, right-click menu, tour, command line, inspector fields and status toggles use `--cad-*` tokens, and nothing is hard-coded. Controls floating on the canvas (hint, zoom, legend, touch pad) use `--cad-overlay-*`, which follows the canvas surface because it can be set separately from the app theme. | [`_cad-chrome.scss`](../src/app/styles/partials/_cad-chrome.scss) |
+| Canvas follows the app theme | The default is now *Follow app theme*: a dark theme gives the reference's dark surface and a light theme a white sheet. Light or Dark in Options › Display and grid still force it. The preference moved to a new key because the earlier value was saved automatically, not chosen. | [`interface-preferences.ts`](../src/features/editor/ops/interface-preferences.ts) |
+| Command line in the layout | The command line sits below the canvas instead of covering its bottom edge. Previously it hid the zoom controls. | `_cad-chrome.scss` |
+| Zoom controls show the zoom | − / **146%** / + / Fit. The percentage resets to 100%. | [`EditorCanvasPane.tsx`](../src/features/editor/components/EditorCanvasPane.tsx) |
+| Legend folded by default | The legend starts as a small **Legend** chip on every screen size and remembers when it is opened. Expanded, it covered up to half of a 1280×720 canvas (an existing editor test's clicks landed on it). The chip sizes to its label, so on phones it no longer covers the zoom controls. | [`LayerLegendPanel.tsx`](../src/features/editor/components/LayerLegendPanel.tsx), `_cad-chrome.scss` |
+| Compact selection actions | The tool bar's selection actions are icon buttons with tooltips, shortcut hints and accessible names, so they fit without scrolling. | [`tool-action-icons.tsx`](../src/features/editor/components/tool-action-icons.tsx) |
+| Tablet (768–1100 px) | The canvas takes the width, and the tool rail is kept (it was hidden, leaving no tool access without a keyboard). The document browser is a sheet opened from a **Document** tab. The header hides the subtitle, document caption and workspace-preset menu so tabs and actions no longer overlap. | `_cad-chrome.scss`, [`EditorWorkbench.tsx`](../src/features/editor/workbench/EditorWorkbench.tsx) |
+| Options readability | Body text inside Options is 12 px muted copy instead of oversized paragraphs. | `_cad-chrome.scss` |
+
+The tablet smoke test now opens the Document tab before checking that pieces and seams are reachable. The reference-interface spec checks that the canvas follows the system theme in both directions.
+
 ## Defects found and fixed along the way
 
 | Defect | Effect | Fix |
@@ -56,5 +74,5 @@ New Options entries under *Input devices and tools › Drawing surface*: edge ru
 
 - **V**, **T** and the arrow keys changed meaning (see I1). Help, tooltips and the tour show the new keys.
 - Touch taps with drawing tools apply on lift rather than on touch-down.
-- The canvas defaults to the dark surface. Users who chose a background before keep it only from now on, because the setting was not persisted previously.
+- The canvas follows the app theme by default. Choose Light or Dark in Options to force it.
 - The old in-canvas axis ruler overlay is still available: turn off *Edge rulers* and the Ruler command (S) shows it as before.

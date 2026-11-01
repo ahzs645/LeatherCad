@@ -36,6 +36,6 @@ export function InterfacePreferencesPanel() {
       const label = t(DESKTOP_TOOL_ICON_ITEMS.find(item => item.value === id)?.label ?? id)
       return <li key={id}><span>{label}</span><button type="button" aria-label={`${t('Move up')}: ${label}`} disabled={index === 0} onClick={() => moveTool(index, -1)}>↑</button><button type="button" aria-label={`${t('Move down')}: ${label}`} disabled={index === prefs.toolOrder.length - 1} onClick={() => moveTool(index, 1)}>↓</button></li>
     })}</ol>
-    <button type="button" onClick={() => updateInterfacePreferences({ ...DEFAULT_INTERFACE_PREFERENCES, displayUnit: prefs.displayUnit, canvasBackground: prefs.canvasBackground, tourCompleted: prefs.tourCompleted })}>{t('Reset input and tool preferences')}</button>
+    <button type="button" onClick={() => updateInterfacePreferences({ ...DEFAULT_INTERFACE_PREFERENCES, displayUnit: prefs.displayUnit, canvasSurface: prefs.canvasSurface, tourCompleted: prefs.tourCompleted })}>{t('Reset input and tool preferences')}</button>
   </>
 }

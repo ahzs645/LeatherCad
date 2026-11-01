@@ -1,0 +1,224 @@
+/*
+ * Reference palette (Leathercraft CAD web): warm graphite with an amber accent
+ * in dark mode, warm paper with a deeper amber in light mode. Loaded after the
+ * shell partials so it re-points their tokens instead of rewriting each rule.
+ *
+ * --cad-* tokens describe drafting chrome (tool bar, menus, tour, inspector
+ * fields). --cad-overlay-* tokens describe controls that float over the canvas;
+ * they follow the canvas surface (see .canvas-surface-light/-dark) because the
+ * surface can be set independently of the app theme.
+ */
+
+.app-shell,
+.app-shell-workbench {
+  --app-text: #d8d4cc;
+  --bg-main: #1a1a1e;
+  --surface-top-overlay: #26262c;
+  --surface-top: #26262c;
+  --surface-panel: #222228;
+  --surface-status: #1e1e24;
+  --surface-input: #1a1a1e;
+  --surface-button: #2c2c33;
+  --surface-legend: rgba(30, 30, 36, 0.94);
+  --surface-modal: #24242a;
+  --border-color: #3a3a45;
+  --border-soft: #2e2e37;
+  --hover-border: #c8922a;
+  --accent-bg: #c8922a;
+  --accent-border: #e8b44a;
+  --accent-text: #1a1a1e;
+  --text-muted: #a8a49c;
+  --text-muted-strong: #f0ece4;
+  --text-subtle: #c9c5bd;
+  --text-meta: #c8a96a;
+  --overlay-bg: rgba(10, 10, 12, 0.66);
+  --swatch-border: rgba(255, 255, 255, 0.6);
+  --ruler-label-fill: #bbbbbb;
+  --ruler-label-halo: #1a1a1a;
+  --shape-preview-color: #e8b44a;
+  --tool-icon-filter: brightness(0) saturate(100%) invert(92%) sepia(6%) saturate(240%) hue-rotate(2deg);
+  --tool-icon-active-filter: brightness(0) saturate(100%);
+
+  --cad-chrome-bg: #26262c;
+  --cad-chrome-raised: #2c2c33;
+  --cad-chrome-border: #3a3a45;
+  --cad-chrome-text: #d8d4cc;
+  --cad-chrome-strong: #f0ece4;
+  --cad-chrome-muted: #8f8b84;
+  --cad-field-bg: #1a1a1e;
+  --cad-field-border: #50505e;
+  --cad-button-bg: #35353e;
+  --cad-button-hover: #3f3f49;
+  --cad-accent: #c8922a;
+  --cad-accent-strong: #e8b44a;
+  --cad-accent-soft: #4a3f28;
+  --cad-accent-text: #1a1a1e;
+  --cad-ok: #22c08a;
+  --cad-warn: #e0a030;
+  --cad-danger: #e05252;
+  --cad-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --cad-focus: #e8b44a;
+
+  color-scheme: dark;
+  accent-color: #c8922a;
+}
+
+.app-shell.theme-light,
+.app-shell-workbench.theme-light {
+  --app-text: #2b2620;
+  --bg-main: #efebe3;
+  --surface-top-overlay: #fbfaf6;
+  --surface-top: #fbfaf6;
+  --surface-panel: #f6f3ed;
+  --surface-status: #eeeae2;
+  --surface-input: #ffffff;
+  --surface-button: #ffffff;
+  --surface-legend: rgba(255, 253, 249, 0.96);
+  --surface-modal: #fffdf9;
+  --border-color: #d3ccbf;
+  --border-soft: #e4dfd4;
+  --hover-border: #a8690b;
+  --accent-bg: #a8690b;
+  --accent-border: #c98a22;
+  --accent-text: #ffffff;
+  --text-muted: #6b6457;
+  --text-muted-strong: #1f1b16;
+  --text-subtle: #4a443a;
+  --text-meta: #8a5a10;
+  --overlay-bg: rgba(43, 38, 32, 0.28);
+  --swatch-border: rgba(43, 38, 32, 0.35);
+  --ruler-label-fill: #4b5563;
+  --ruler-label-halo: #ffffff;
+  --shape-preview-color: #a8690b;
+  --tool-icon-filter: brightness(0) saturate(100%) invert(14%) sepia(12%) saturate(700%) hue-rotate(350deg);
+  --tool-icon-active-filter: brightness(0) saturate(100%) invert(100%);
+
+  --cad-chrome-bg: #fbfaf6;
+  --cad-chrome-raised: #ffffff;
+  --cad-chrome-border: #d3ccbf;
+  --cad-chrome-text: #2b2620;
+  --cad-chrome-strong: #1f1b16;
+  --cad-chrome-muted: #7a7366;
+  --cad-field-bg: #ffffff;
+  --cad-field-border: #cbc3b4;
+  --cad-button-bg: #f3efe7;
+  --cad-button-hover: #ebe5d9;
+  --cad-accent: #a8690b;
+  --cad-accent-strong: #8a560a;
+  --cad-accent-soft: #f5e6c8;
+  --cad-accent-text: #ffffff;
+  --cad-ok: #138a5e;
+  --cad-warn: #b45309;
+  --cad-danger: #c0392b;
+  --cad-shadow: 0 8px 24px rgba(43, 38, 32, 0.16);
+  --cad-focus: #a8690b;
+
+  color-scheme: light;
+  accent-color: #a8690b;
+}
+
+/* Overlays on the canvas follow the surface, which may differ from the app theme. */
+.canvas-surface-dark {
+  --cad-overlay-bg: rgba(30, 30, 36, 0.94);
+  --cad-overlay-border: #3a3a45;
+  --cad-overlay-text: #d8d4cc;
+  --cad-overlay-strong: #f0ece4;
+  --cad-overlay-muted: #8f8b84;
+  --cad-overlay-button: #2c2c33;
+  --cad-overlay-button-border: #50505e;
+  --cad-overlay-accent: #c8922a;
+  --cad-overlay-accent-strong: #e8b44a;
+  --cad-overlay-accent-soft: #4a3f28;
+  --cad-overlay-accent-text: #1a1a1e;
+  --cad-overlay-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+  --ruler-label-fill: #bbbbbb;
+  --ruler-label-halo: #1a1a1a;
+}
+
+.canvas-surface-light {
+  --cad-overlay-bg: rgba(255, 253, 249, 0.96);
+  --cad-overlay-border: #d3ccbf;
+  --cad-overlay-text: #2b2620;
+  --cad-overlay-strong: #1f1b16;
+  --cad-overlay-muted: #7a7366;
+  --cad-overlay-button: #ffffff;
+  --cad-overlay-button-border: #cbc3b4;
+  --cad-overlay-accent: #a8690b;
+  --cad-overlay-accent-strong: #8a560a;
+  --cad-overlay-accent-soft: #f5e6c8;
+  --cad-overlay-accent-text: #ffffff;
+  --cad-overlay-shadow: 0 3px 12px rgba(43, 38, 32, 0.16);
+  --ruler-label-fill: #4b5563;
+  --ruler-label-halo: #ffffff;
+}
+
+/* Text on amber must stay readable in both themes. */
+.app-shell button.active,
+.app-shell .workbench-mode-toggle button.active,
+.app-shell .workbench-theme-trigger.active,
+.app-shell .workbench-theme-option.active,
+.app-shell .theme-mode-toggle .theme-mode-button.active {
+  color: var(--accent-text);
+}
+
+/* Flat panels: drop the blue tints the shell gradients carried. */
+.app-shell-workbench .workbench-header,
+.app-shell-workbench .workbench-ribbon,
+.app-shell-workbench.theme-light .workbench-ribbon {
+  background: var(--surface-top);
+}
+
+.app-shell-workbench .workbench-ribbon-groups,
+.app-shell-workbench.theme-light .workbench-ribbon-groups {
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell-workbench .workbench-header-divider {
+  background: var(--border-color);
+}
+
+.app-shell .tool-icon-button::after {
+  color: var(--cad-chrome-strong);
+  background: var(--cad-chrome-bg);
+  border-color: var(--cad-chrome-border);
+  box-shadow: var(--cad-shadow);
+}
+
+.app-shell :focus-visible {
+  outline-color: var(--cad-focus);
+}
+
+/* Underline-style tabs keep normal text; only filled buttons take accent text. */
+.app-shell .workbench-ribbon-tabs button.active,
+.app-shell .workbench-header-tabs button.active {
+  color: var(--text-muted-strong);
+  background: transparent;
+}
+
+/* Selected rows in the document browser use the accent wash, not blue. */
+.app-shell .workbench-tree-branch.selected .workbench-tree-branch-summary,
+.app-shell .workbench-tree-node.selected .workbench-tree-node-button {
+  background: var(--cad-accent-soft);
+  border-color: var(--accent-border);
+  color: var(--text-muted-strong);
+}
+
+/* Native selects and inputs pick up the theme instead of browser defaults. */
+.app-shell select,
+.app-shell input[type='text'],
+.app-shell input[type='number'],
+.app-shell input[type='search'],
+.app-shell textarea {
+  color: var(--app-text);
+  background-color: var(--surface-input);
+  border-color: var(--border-color);
+}
+
+.app-shell .workbench-preset-selector select {
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 12px;
+}
