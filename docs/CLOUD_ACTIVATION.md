@@ -1,5 +1,7 @@
 # Activate and verify an existing cloud deployment
 
+**Current direction: local-first, no Convex.** Cloud activation is deferred and is not required for CAD editing, local saving, backup, import/export or manufacturing. This guide records the inactive Convex implementation for maintainers; its setup steps are outside the current delivery plan. See [the local workflow](LOCAL_FIRST_WORKFLOW.md).
+
 The code is ready for an existing Convex/OIDC setup. This workspace currently has no deployment selector, API/site URL, deploy authorization, OIDC issuer/client, local environment files or existing CLI session. The connected Convex tools provide setup guidance; they do not expose a configured deployment for this task. Nothing has been deployed or registered automatically.
 
 The missing public inputs are:

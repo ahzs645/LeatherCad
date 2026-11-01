@@ -1,5 +1,7 @@
 # Cloud library and community patterns
 
+**Current direction: local-first, no Convex.** The implementation described below is inactive optional source. Hosted sharing and account setup are deferred. The [local workflow](LOCAL_FIRST_WORKFLOW.md) covers current saving, backup and file-sharing options.
+
 LeatherCad keeps Dexie as its local primary store. Cloud operations are explicit copies: opening a remote drawing creates a separate local project, bulk upload skips conflicting IDs, and public gallery downloads include author, license, pattern ID and version in the copied document’s memo. No remote write happens simply by opening the editor or the cloud dialog.
 
 The repository now includes a real Convex data client and backend. The backend has not been deployed or connected to a live account provider in this workspace. An optional built-in OIDC Code + PKCE adapter is available; see [built-in sign-in](./OIDC_CLOUD_AUTH.md). In an unconfigured installation, the dialog reports that cloud sharing is unavailable. It does not accept pasted credentials or report a simulated connection as successful.

@@ -1,5 +1,7 @@
 # Cloud deployment and operations
 
+**Current direction: local-first, no Convex.** This provider-specific runbook is reference for inactive optional code. Deployment, OIDC registration and live cloud acceptance are deferred, rather than prerequisites for the editor. See [the local workflow](LOCAL_FIRST_WORKFLOW.md).
+
 Cloud code is implemented and tested locally. No deployment, identity-provider registration, live user account or external write has been configured or verified in this workspace. Local editing remains the primary workflow.
 
 Use the [activation commands](CLOUD_ACTIVATION.md) and [.env.cloud.example](../.env.cloud.example) to inspect configuration, generate types against an explicit existing target and run read-only or opt-in two-account smoke checks.

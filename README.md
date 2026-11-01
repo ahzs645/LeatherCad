@@ -2,6 +2,10 @@
 
 A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeScript, and Vite.
 
+LeatherCad is local-first. Drafting, the local library, recovery, file import/export,
+printing and manufacturing run without a cloud account or backend. The current plan
+uses no Convex deployment; see [the local workflow](docs/LOCAL_FIRST_WORKFLOW.md).
+
 ## Features
 
 - 2D pattern editor with analytic cubic/ellipse geometry, text, nested sketch groups and shape protection/opacity
@@ -16,7 +20,7 @@ A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeS
 - Stitch hole rendering and cut line tools
 - Nesting layout optimization
 - Persistent selection of 20 interface locales, workflow-specific translations and English fallback
-- Optional Convex cloud library, folders/revision history, licensed pattern sharing, and community discussions/likes
+- Inactive optional cloud/community implementation; hosted sharing is deferred in the current local-first plan
 - Draft recovery, acknowledged autosave, sign-in draft preservation and versioned library backup/restore
 - Searchable settings, configurable wheel/trackpad/tool rail, workspace presets and direct phone file actions
 
@@ -33,8 +37,8 @@ The current interface/options and feature backlog is in
 The [follow-up implementation report](docs/FOLLOWUP_IMPLEMENTATION_2026-10-31.md)
 records the subsequent fixes, interface improvements, manufacturing controls and
 verification. The earlier [analysis](docs/REMAINING_PARITY_ANALYSIS_2026-10-31.md)
-preserves the baseline findings that drove this work. Live cloud activation still
-requires the [deployment setup](docs/CLOUD_DEPLOYMENT_RUNBOOK.md).
+preserves the baseline findings that drove this work. Cloud activation is deferred;
+the [provider-specific runbook](docs/CLOUD_DEPLOYMENT_RUNBOOK.md) is maintainer reference.
 
 The [remaining-limits follow-up](docs/REMAINING_LIMITS_IMPLEMENTATION_2026-11-01.md)
 records verified sealed import, print scale/calibration fixes, native constraint

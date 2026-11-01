@@ -1,5 +1,7 @@
 # Further work on the documented remaining limits
 
+**Current product direction:** [local-first, no Convex](LOCAL_FIRST_WORKFLOW.md). The cloud investigation below records earlier optional work; activation is deferred and does not block the current CAD workflow.
+
 This pass continues the source at `a703237` from the [earlier follow-up report](FOLLOWUP_IMPLEMENTATION_2026-10-31.md). The comparison's raw HAR and account data remain outside both repositories. The table separates implemented software from acceptance that requires a configured service, specialist review or physical equipment.
 
 | Area | Result | Acceptance still needed |
@@ -10,7 +12,7 @@ This pass continues the source at `a703237` from the [earlier follow-up report](
 | Native constraints | Analytic curve directions, lengths, tangency and dimension bindings with measured residuals and lock checks. | Product integration of the optional constraint/dimension engine; it currently has no production callers. |
 | Manufacturing | Solid geometry operations extend supported finishing combinations; explicit geometric/resource guards remain. | Intended slicer inspection and physical clearance measurements. |
 | Localization | Expanded recovery, native geometry/protection and specialist controls; Japanese print/manufacturing workflows are wired and inventoried. | Remaining workflow translations and native-language technical review. |
-| Cloud | Configuration checks, guarded code generation and explicit live-smoke tooling. | Actual Convex/OIDC configuration, deployment authorization, two test accounts and browser redirects. |
+| Cloud | Inactive provider-specific source and readiness tooling. | Deferred by product direction; no Convex setup is required for the current local-first workflow. |
 | jsmap | Published in [draft PR #6](https://github.com/ahzs645/jsmap/pull/6), commit `d7b953fe4c98db6d22d2a4d5ca1d54d055fdb613`; clean install, 17 suites, lint and build passed, with [CI green](https://github.com/ahzs645/jsmap/actions/runs/41254938916). | Preserved-runtime replay is not recovered standalone source; uncaptured modules remain missing. |
 
 ## Paper and device acceptance
@@ -39,9 +41,9 @@ The final static inventory contains 1,002 used keys. Japanese has 914 dictionary
 
 These counts do not measure language quality or complete product coverage. The downloaded physical measurement checklist remains English. Deeper community/moderation/diagnostic copy, specialist guidance in the 18 smaller dictionaries, unwired/dynamic copy and native expert review remain documented in [LOCALIZATION.md](LOCALIZATION.md).
 
-## Cloud activation
+## Optional cloud implementation (deferred)
 
-The managed environment reports no configured secrets or outbound identities, and no selected Convex/OIDC project is present. The [activation guide](CLOUD_ACTIVATION.md) and [redacted readiness result](verification/cloud-runtime-readiness.json) list exact missing configuration. No backend was deployed, account registered or interactive login started. Local protocol tests verify the tooling; they are not live-provider acceptance.
+The earlier investigation found no configured secrets, outbound identities or selected Convex/OIDC project. The [activation guide](CLOUD_ACTIVATION.md) and [redacted readiness result](verification/cloud-runtime-readiness.json) record that optional configuration state. The subsequent direction is to use no Convex, so those setup items are deferred. No backend was deployed, account registered or interactive login started. Local protocol tests verify the existing tooling; they are not live-provider acceptance.
 
 Read-only checks run only against configured origins. The mutation smoke additionally requires two distinct test identities, an explicit flag and pinned origin; it creates and cleans uniquely marked test resources and reports incomplete cleanup. Retired publication metadata remains by product design. Real callback registration, token expiry, browser CORS, account isolation and unsaved-draft redirects require the selected service and real browser flow.
 
@@ -65,4 +67,4 @@ Browser runs used fresh dependency caches and zero retries. Local Node was 24.19
 
 The integration run also verifies that unread-store notices remain below import modals while preserving recovery protections, and that a missing lazy modelling module produces an actionable error without masking geometry errors. Production-origin/base-path tests exercise actual file/calibration workers and WASM assets.
 
-Physical printer/device measurements, live cloud acceptance and native-language specialist review remain unperformed. The optional native constraint engine still needs its own persistent product UI; unsupported sealed payloads and geometric/resource limits remain explicit in the linked guides.
+Physical printer/device measurements and native-language specialist review remain unperformed. Hosted cloud acceptance is deferred under the local-first direction. The optional native constraint engine still needs its own persistent product UI; unsupported sealed payloads and geometric/resource limits remain explicit in the linked guides.

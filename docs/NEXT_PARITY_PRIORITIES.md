@@ -2,6 +2,8 @@
 
 The remaining limits from the previous implementation have been worked through in the [November follow-up report](REMAINING_LIMITS_IMPLEMENTATION_2026-11-01.md). Read that report and the linked format/manufacturing guides for tested support. The older comparison and unchecked desktop lists are historical evidence, not a current missing-feature inventory.
 
+The current product direction is [local-first](LOCAL_FIRST_WORKFLOW.md), with no Convex deployment selected. Hosted sync, accounts and community activation are deferred; cloud configuration is not a release prerequisite for the CAD editor. A future hosted service would need a separate backend choice.
+
 ## Implemented software
 
 - Acknowledged autosave, startup recovery/download/discard, unread-store handling, sign-in draft preservation and transactional database backup/restore UI.
@@ -11,7 +13,7 @@ The remaining limits from the previous implementation have been worked through i
 - Correct physical print scale, calibrated portrait/landscape tiling, constant physical overlap, guarded populated print popups and a reproducible calibration kit.
 - Saved manufacturing settings/fonts, jigs, drilling/finger holes, per-face depth/through cuts, engraving and expanded finishing support with geometric checks.
 - Analytic native constraint/dimension engine combinations, complete shape updates, locks and measured final residuals. This engine still needs product UI integration.
-- Cloud ownership/revision/quota/asset/community workflows, plus safe configuration preflight, guarded code generation and live smoke tooling.
+- Inactive optional cloud ownership/revision/quota/asset/community workflows and provider-specific readiness tooling, outside the current local-first acceptance scope.
 - Expanded specialist translations, placeholder/workflow audits, Linux WebKit checks, pinned engine pairing and independent PDF/DXF/mesh validation.
 - The separate jsmap changes are pushed in [PR #6](https://github.com/ahzs645/jsmap/pull/6), with all 17 suites and CI passing. Captured runtime replay remains distinct from recovered standalone source.
 
@@ -19,7 +21,6 @@ The remaining limits from the previous implementation have been worked through i
 
 | Priority | Work | Completion criterion |
 | --- | --- | --- |
-| P0 for service activation | Supply an existing Convex deployment and registered OIDC client. | Follow [activation](CLOUD_ACTIVATION.md) and the [runbook](CLOUD_DEPLOYMENT_RUNBOOK.md): real codegen/deployment, production callback/expiry/failure checks, two test accounts and anonymous isolation, and unsaved-draft redirects. No live target or credentials are configured here. |
 | P1 for physical production | Measure paper output and printed tool fit. | Use the [paper/device kit](PHYSICAL_DEVICE_ACCEPTANCE.md) and STL calibration workflow. Record printer/driver/paper, 100mm axes, pitch, asymmetric tiling, intended slicer and measured clearance. Digital geometry checks are not physical measurements. |
 | P1 for supported devices | Exercise real Safari/iOS storage, Files, touch and WebGL. | Follow the device walkthrough on actual hardware, including recovery, file review, downloads, 2D/3D routes and background/foreground behavior. Linux WebKit and Chromium phone descriptors cover different test surfaces. |
 | P2 | Finish localization by workflow and obtain technical language review. | Use [the inventory](verification/localization-coverage.json) and [coverage guide](LOCALIZATION.md). Recovery/native controls and Japanese specialist dialogs have expanded; deeper cloud/moderation, other specialist workflows and the 18 smaller dictionaries still need work. |
