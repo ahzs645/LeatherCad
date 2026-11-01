@@ -17,6 +17,8 @@ The current product direction is [local-first](LOCAL_FIRST_WORKFLOW.md), with no
 - Expanded specialist translations, placeholder/workflow audits, Linux WebKit checks, pinned engine pairing and independent PDF/DXF/mesh validation.
 - The separate jsmap changes are pushed in [PR #6](https://github.com/ahzs645/jsmap/pull/6), with all 17 suites and CI passing. Captured runtime replay remains distinct from recovered standalone source.
 
+The [interface comparison](INTERFACE_COMPARISON_2026-11-01.md) maps the reference's drafting interaction model (tool shortcuts, tool-options bar, numeric selection palette, touch gestures, context menus) against LeatherCad and orders the resulting interface work.
+
 ## Next acceptance and product work
 
 | Priority | Work | Completion criterion |
