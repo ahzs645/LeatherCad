@@ -69,17 +69,24 @@ const TABS: Array<{ id: HelpModalTab; label: string }> = [
 ]
 
 const SHORTCUTS = [
-  'Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z redo',
+  'Tools: A select, L line, Shift+L polyline, R rectangle, E circle, Shift+E ellipse, V arc, B Bézier, Shift+B cubic, T text, P stitch, F fold, Shift+F freehand, H hardware, W seam, Shift+W seam+, U notch, C cut, # dimension',
+  'Escape: cancel the shape in progress → back to Select → clear the selection → return to the previous tool',
+  'Enter (with a selection): edit position and size in the inspector',
+  'Arrows nudge the selection 1 mm (Shift 0.1 mm); with nothing selected they pan',
+  'Cmd/Ctrl+arrows nudge 1 mm, +Shift 0.1 mm, +Alt 0.01 mm',
+  'Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y redo',
   'Cmd/Ctrl+C / X / V clipboard, Cmd/Ctrl+D duplicate',
-  'Cmd/Ctrl+A select all',
-  'Escape clears draft and selection',
+  'Cmd/Ctrl+A select all, Cmd/Ctrl+, options',
   'Delete / Backspace removes selected shapes',
-  'T toggles tracing overlays',
+  'S edge rulers, G grid, N mm/inch, Shift+T tracing overlays',
+  '[ ] rotate 1°, { } rotate 5°',
   'Z extends/trims selected linework',
   'F5 toggles dimension annotations',
   'F6 toggles the stitching simulator',
   '+ / - adjusts simulator thread thickness',
   '= cycles even/odd stitch visibility',
+  'Touch: pinch zoom, two-finger pan, two-finger double tap undo, three-finger double tap redo',
+  'Number fields accept arithmetic and units: 100/3, 20+5, 5/32in, 1 1/4"',
   'Mobile: 2D / 3D / Split buttons switch workspace focus',
 ]
 

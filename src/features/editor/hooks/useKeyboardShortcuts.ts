@@ -1,5 +1,9 @@
-import { useEffect } from 'react'
-import { useEditorToolActions } from '../state/providers/EditorToolStateProvider'
+import { useEffect, useRef } from 'react'
+import type { Tool } from '../cad/cad-types'
+import { toolForKey } from '../ops/tool-shortcuts'
+import { requestSelectionGeometryFocus } from '../ops/selection-geometry-focus'
+import { CANVAS_HISTORY_EVENT } from './canvas-interactions/useCanvasTouchGestures'
+import { useEditorToolActions, useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 
 type UseKeyboardShortcutsParams = {
@@ -26,6 +30,12 @@ type UseKeyboardShortcutsParams = {
   handleToggleStitchSimulator: () => void
   handleAdjustThreadThickness: (delta: number) => void
   handleToggleStitchParity: () => void
+  /** Activate a drawing tool from its single-key shortcut. */
+  handleSelectTool?: (tool: Tool) => void
+  handleToggleDisplayUnit?: () => void
+  handleOpenOptions?: () => void
+  /** True while shapes are selected: arrows nudge instead of panning. */
+  hasSelection?: boolean
 }
 
 export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
@@ -53,9 +63,15 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
     handleToggleStitchSimulator,
     handleAdjustThreadThickness,
     handleToggleStitchParity,
+    handleSelectTool,
+    handleToggleDisplayUnit,
+    handleOpenOptions,
+    hasSelection = false,
   } = params
   const { clearDraft } = useEditorToolActions()
   const { setStatus } = useEditorUIActions()
+  const { tool, draftPointCount } = useEditorToolSelector((state) => ({ tool: state.tool, draftPointCount: state.draftPoints.length }))
+  const previousToolRef = useRef<Tool | null>(null)
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -64,9 +80,26 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
       const isTypingContext = Boolean(targetEl?.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'))
       if (isTypingContext) return
       if (event.key === 'Escape') {
-        clearDraft()
-        handleDeselectAll()
-        setStatus('Draft and selection cleared')
+        // Cascade: cancel the shape in progress → back to Select → clear the
+        // selection → return to the tool used before (reference behaviour).
+        if (draftPointCount > 0) {
+          clearDraft()
+          setStatus('Shape in progress cancelled')
+        } else if (tool !== 'pan' && handleSelectTool) {
+          previousToolRef.current = tool
+          handleSelectTool('pan')
+        } else if (hasSelection) {
+          handleDeselectAll()
+          setStatus('Selection cleared')
+        } else if (previousToolRef.current && handleSelectTool) {
+          const previous = previousToolRef.current
+          previousToolRef.current = null
+          handleSelectTool(previous)
+        } else {
+          clearDraft()
+          handleDeselectAll()
+          setStatus('Draft and selection cleared')
+        }
         return
       }
 
@@ -127,14 +160,15 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
             handleToggleGrid()
             return
           }
-          if ((event.key === 't' || event.key === 'T') && !event.shiftKey) {
+          // T is the Text tool (as in the reference); Shift+T toggles tracings.
+          if ((event.key === 't' || event.key === 'T') && event.shiftKey) {
             event.preventDefault()
             handleToggleTracingsVisibility()
             return
           }
-          if ((event.key === 'v' || event.key === 'V') && !event.shiftKey) {
+          if ((event.key === 'n' || event.key === 'N') && !event.shiftKey && handleToggleDisplayUnit) {
             event.preventDefault()
-            handleBackToSelectMode()
+            handleToggleDisplayUnit()
             return
           }
           if ((event.key === 'z' || event.key === 'Z') && !event.shiftKey) {
@@ -142,8 +176,28 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
             handleExtendOrTrimLines()
             return
           }
-          // Plain arrow keys pan the canvas viewport (source-app v1.4.0).
-          // Reversal sign matches the `reverseGridScrollDirection` option.
+          if (event.key === 'Enter' && hasSelection && tool === 'pan' && !targetEl?.closest('button, a, [role="button"], [role="menuitem"], [role="tab"]')) {
+            event.preventDefault()
+            requestSelectionGeometryFocus()
+            return
+          }
+          const shortcutTool = toolForKey(event.key, event.shiftKey)
+          if (shortcutTool) {
+            event.preventDefault()
+            if (handleSelectTool) handleSelectTool(shortcutTool)
+            else if (shortcutTool === 'pan') handleBackToSelectMode()
+            return
+          }
+          // Arrow keys nudge a selection (Shift = 0.1 mm), otherwise pan the
+          // view. Pan reversal follows the `reverseGridScrollDirection` option.
+          if (hasSelection && event.key.startsWith('Arrow')) {
+            event.preventDefault()
+            const step = event.shiftKey ? 0.1 : 1
+            const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0
+            const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0
+            if (dx !== 0 || dy !== 0) handleNudgeSelection(dx, dy)
+            return
+          }
           const panSign = reverseGridScrollDirection ? -1 : 1
           const panStepPx = 40 * panSign
           if (event.key === 'ArrowLeft') {
@@ -188,6 +242,12 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
             return
           }
         }
+        return
+      }
+
+      if ((event.key === ',' || event.code === 'Comma') && handleOpenOptions) {
+        event.preventDefault()
+        handleOpenOptions()
         return
       }
 
@@ -256,11 +316,31 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams) {
       }
     }
 
+    // Touch gestures (two/three-finger double tap) arrive as history events.
+    const onHistory = (event: Event) => {
+      const action = (event as CustomEvent<'undo' | 'redo' | 'delete'>).detail
+      if (action === 'delete') {
+        handleDeleteSelection()
+        return
+      }
+      if (action === 'undo') handleUndo()
+      else if (action === 'redo') handleRedo()
+    }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener(CANVAS_HISTORY_EVENT, onHistory)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener(CANVAS_HISTORY_EVENT, onHistory)
+    }
   }, [
     clearDraft,
     setStatus,
+    tool,
+    draftPointCount,
+    hasSelection,
+    handleSelectTool,
+    handleToggleDisplayUnit,
+    handleOpenOptions,
     handleDeleteSelection,
     handleUndo,
     handleRedo,

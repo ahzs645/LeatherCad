@@ -54,10 +54,12 @@ export function buildEditorScreenCanvasPaneParams({
     legendMode,
     setLegendMode,
     leatherSimEnabled,
+    customRotationPivot,
   } = uiState
   const { selectedStitchHoleId, selectedHardwareMarkerId } = selectionState
   const { showPrintAreas } = panelState
-  const { layers } = layerState
+  const { layers, activeLayerId } = layerState
+  const { setShapes } = documentState
   const { tool, showStitchSequenceLabels } = toolState
   const { viewport } = viewportState
   const { svgRef } = screenRefs
@@ -102,6 +104,8 @@ export function buildEditorScreenCanvasPaneParams({
     selectionActions,
     geometryActions,
     creationController,
+    transformActions,
+    layerActions,
   } = actions
   const {
     handleDuplicateSelection,
@@ -145,6 +149,32 @@ export function buildEditorScreenCanvasPaneParams({
     handleMakeBezierCpSymmetric,
     handleClearSelectedStitchHoleEnd,
     handleMarkSelectedStitchHoleAsEnd,
+    contextMenuHandlers: {
+      handleCopySelection: selectionActions.handleCopySelection,
+      handleCutSelection: selectionActions.handleCutSelection,
+      handlePasteClipboard: () => { void selectionActions.handlePasteClipboard() },
+      handleSelectAllShapes: selectionActions.handleSelectAllShapes,
+      handleMoveSelectionForward: selectionActions.handleMoveSelectionForward,
+      handleMoveSelectionBackward: selectionActions.handleMoveSelectionBackward,
+      handleGroupSelection: selectionActions.handleGroupSelection,
+      handleUngroupSelection: selectionActions.handleUngroupSelection,
+      handleRotateSelection: selectionActions.handleRotateSelection,
+      handleFlipSelection: transformActions.handleFlipSelection,
+      handleSetAsRotationCenter: transformActions.handleSetAsRotationCenter,
+      handleClearRotationCenter: transformActions.handleClearRotationCenter,
+      handleMakeSelectedLineHorizontal: transformActions.handleMakeSelectedLineHorizontal,
+      handleMakeSelectedLineVertical: transformActions.handleMakeSelectedLineVertical,
+      handleConvertArcToBezier: geometryActions.handleConvertArcToBezier,
+      handleSetSelectionLocked: (locked: boolean) => {
+        setShapes((previous) => previous.map((shape) => (selectedShapeIdSet.has(shape.id) ? { ...shape, locked } : shape)))
+      },
+      handleMoveSelectedShapesToLayerBelow: layerActions.handleMoveSelectedShapesToLayerBelow,
+      handleDuplicateSelectedShapesOnBelowLayer: layerActions.handleDuplicateSelectedShapesOnBelowLayer,
+      handleMoveSelectedShapesToActiveLayer: layerActions.handleMoveSelectedShapesToActiveLayer,
+      handleActivateLayerOfSelectedShape: layerActions.handleActivateLayerOfSelectedShape,
+      handleFitView,
+    },
+    contextMenuState: { hasCustomRotationPivot: customRotationPivot !== null, activeLayerId, layerCount: layers.length },
     viewport,
     displayUnit,
     gridSpacing,

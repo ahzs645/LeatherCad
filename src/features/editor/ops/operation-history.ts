@@ -102,6 +102,8 @@ export type SnapshotOp = {
   type: 'snapshot'
   label: string
   beforeSnapshot: EditorSnapshot
+  /** Filled in when the operation is undone, so redo can restore it. */
+  afterSnapshot?: EditorSnapshot
 }
 
 export type EditorOperation =
@@ -330,8 +332,8 @@ export function applyOperationForward(
       return { ...snapshot, shapes: [...snapshot.shapes, ...op.addedShapes] }
 
     case 'snapshot':
-      // Forward re-apply not meaningful for snapshot ops
-      return snapshot
+      // Redo restores the state captured when this edit was undone.
+      return op.afterSnapshot ? deepClone(op.afterSnapshot) : snapshot
   }
 }
 
@@ -435,12 +437,14 @@ export function undoOperation(
 
   const op = history.past[history.past.length - 1]
   const newSnapshot = applyOperationReverse(currentSnapshot, op)
+  // A snapshot edit only knows its "before" state; remember "after" for redo.
+  const futureOp: EditorOperation = op.type === 'snapshot' ? { ...op, afterSnapshot: deepClone(currentSnapshot) } : op
 
   return {
     history: {
       ...history,
       past: history.past.slice(0, -1),
-      future: [op, ...history.future],
+      future: [futureOp, ...history.future],
     },
     snapshot: newSnapshot,
   }

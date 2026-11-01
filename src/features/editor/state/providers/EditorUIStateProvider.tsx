@@ -298,11 +298,13 @@ const EditorUIStateContext = createContext<EditorUIState | null>(null)
 const EditorUIActionsContext = createContext<EditorUIStateActions | null>(null)
 
 export function EditorUIStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState, initial => ({ ...initial, displayUnit: getInterfacePreferences().displayUnit }))
+  const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState, initial => ({ ...initial, displayUnit: getInterfacePreferences().displayUnit, gridBackgroundMode: getInterfacePreferences().canvasBackground }))
   const actions = useMemo(() => createEditorUIStateActions(dispatch), [dispatch])
   useEffect(() => { updateInterfacePreferences({ displayUnit: state.displayUnit }) }, [state.displayUnit])
+  useEffect(() => { updateInterfacePreferences({ canvasBackground: state.gridBackgroundMode }) }, [state.gridBackgroundMode])
   useEffect(() => subscribeInterfacePreferences(() => {
     dispatch({ type: 'displayUnit', value: getInterfacePreferences().displayUnit })
+    dispatch({ type: 'gridBackgroundMode', value: getInterfacePreferences().canvasBackground })
   }), [])
 
   useEffect(() => {
@@ -363,4 +365,11 @@ export function useEditorUIStateApi(): EditorUIStateApi {
     }),
     [state, actions],
   )
+}
+
+/** UI state and actions when rendered inside the editor providers, otherwise null (standalone UI and tests). */
+export function useOptionalEditorUIApi() {
+  const state = useContext(EditorUIStateContext)
+  const actions = useContext(EditorUIActionsContext)
+  return state && actions ? { state, actions } : null
 }

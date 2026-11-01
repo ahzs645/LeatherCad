@@ -7,11 +7,12 @@ export function useStartupDemoGuard(buildDoc: () => unknown) {
   useLayoutEffect(() => { latest.current = buildDoc })
   useEffect(() => {
     const mark = () => { interacted.current = true }
-    document.addEventListener('pointerdown', mark, true)
-    document.addEventListener('keydown', mark, true)
+    // Form changes count too: choosing a tool from the phone's list (or any
+    // assistive input) may arrive as a change event without a pointer event.
+    const events = ['pointerdown', 'keydown', 'change', 'input'] as const
+    for (const type of events) document.addEventListener(type, mark, true)
     return () => {
-      document.removeEventListener('pointerdown', mark, true)
-      document.removeEventListener('keydown', mark, true)
+      for (const type of events) document.removeEventListener(type, mark, true)
     }
   }, [])
   return useCallback(() => {

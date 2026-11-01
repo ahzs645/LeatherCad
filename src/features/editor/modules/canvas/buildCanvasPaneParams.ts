@@ -3,7 +3,7 @@ import type { Backdrop, Shape, StitchHole, Tool, TracingOverlay } from '../../ca
 import { pushBackdropUndo } from '../../ops/backdrop-ops'
 import type { StitchSimulatorResult } from '../../ops/stitch-simulator-ops'
 import type { UseEditorCanvasPanePropsParams } from '../../view-models/useEditorCanvasPaneProps'
-import { buildCanvasContextMenuItems } from './buildCanvasContextMenuItems'
+import { buildCanvasContextMenuItems, type CanvasContextMenuHandlers } from './buildCanvasContextMenuItems'
 
 type BuildCanvasPaneParamsInput = Omit<
   UseEditorCanvasPanePropsParams,
@@ -37,6 +37,9 @@ type BuildCanvasPaneParamsInput = Omit<
   handleMakeBezierCpSymmetric: () => void
   handleClearSelectedStitchHoleEnd: () => void
   handleMarkSelectedStitchHoleAsEnd: () => void
+  /** Extra selection-aware menu actions (clipboard, transform, order, layers). */
+  contextMenuHandlers?: Partial<CanvasContextMenuHandlers>
+  contextMenuState?: { hasCustomRotationPivot: boolean; activeLayerId: string | null; layerCount: number }
 }
 
 export function buildCanvasPaneParams({
@@ -61,6 +64,8 @@ export function buildCanvasPaneParams({
   handleMakeBezierCpSymmetric,
   handleClearSelectedStitchHoleEnd,
   handleMarkSelectedStitchHoleAsEnd,
+  contextMenuHandlers,
+  contextMenuState,
   ...canvasParams
 }: BuildCanvasPaneParamsInput): UseEditorCanvasPanePropsParams {
   return {
@@ -69,6 +74,8 @@ export function buildCanvasPaneParams({
     hideCanvasPane: false,
     buildCanvasContextMenuItems: () =>
       buildCanvasContextMenuItems({
+        ...contextMenuHandlers,
+        ...contextMenuState,
         shapes,
         selectedShapeIdSet,
         selectedStitchHole,

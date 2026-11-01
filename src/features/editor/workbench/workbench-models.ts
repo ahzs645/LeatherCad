@@ -298,8 +298,8 @@ export function buildInspectorContext(params: {
   if (selectedShapes.length === 1) {
     return {
       kind: 'shape',
-      title: `${selectedShapes[0].type} shape`,
-      description: selectedShapes[0].id,
+      title: `${selectedShapes[0].type.charAt(0).toUpperCase()}${selectedShapes[0].type.slice(1)} shape`,
+      description: `ID ${selectedShapes[0].id.slice(0, 8)}`,
       shape: selectedShapes[0],
     }
   }

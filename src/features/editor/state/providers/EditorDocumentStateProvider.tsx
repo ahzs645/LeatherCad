@@ -202,3 +202,10 @@ export function useEditorDocumentStateApi(): EditorDocumentStateApi {
     [state, actions],
   )
 }
+
+/** Document state and actions inside the editor providers, otherwise null (standalone UI and tests). */
+export function useOptionalEditorDocumentApi() {
+  const state = useContext(EditorDocumentStateContext)
+  const actions = useContext(EditorDocumentActionsContext)
+  return state && actions ? { state, actions } : null
+}

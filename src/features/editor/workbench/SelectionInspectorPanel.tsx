@@ -4,6 +4,7 @@ import { hasExtractedBoxStitchSource, isBoxStitchSourceEligibleShape } from '../
 import { ShapeAppearanceControls } from './ShapeAppearanceControls'
 import { NativeCurveInspectorControls } from './NativeCurveInspectorControls'
 import { isNativeCurve } from '../cad/native-curve-ops'
+import { SelectionGeometryControls } from './SelectionGeometryControls'
 
 export type SelectionInspectorPanelProps = {
   context: InspectorContext
@@ -96,6 +97,7 @@ export function SelectionInspectorPanel({
       : selectedEditableShape
         ? [selectedEditableShape]
         : []
+  const textCount = selectedShapeEntries.filter((shape) => shape.type === 'text').length
   const boxStitchSourceEligibleCount = selectedShapeEntries.filter((shape) => isBoxStitchSourceEligibleShape(shape)).length
   const extractedBoxStitchSourceCount = selectedShapeEntries.filter((shape) => hasExtractedBoxStitchSource(shape)).length
 
@@ -109,34 +111,53 @@ export function SelectionInspectorPanel({
         )}
       </div>
 
-      {selectedShapeCount > 0 || canOpenPieceTab ? <div className="control-block">
+      {selectedShapeCount > 0 && <SelectionGeometryControls />}
+
+      {selectedShapeCount > 0 || canOpenPieceTab ? <div className="control-block context-actions">
         <h3>Context Actions</h3>
+        {selectedShapeCount > 0 && <>
+          <h4>Arrange</h4>
+          <div className="workbench-action-grid">
+            {selectedShapeCount >= 2 && <>
+              <button onClick={onAlignX}>Align X</button>
+              <button onClick={onAlignY}>Align Y</button>
+              <button onClick={onAlignBoth}>Align XY</button>
+            </>}
+            <button onClick={onAlignToGrid}>Grid</button>
+          </div>
+          <h4>Edit</h4>
+          <div className="workbench-action-grid">
+            <button onClick={onCreateOffset}>Offset</button>
+            {onConvertSelectionToPaintedPart && (
+              <button onClick={onConvertSelectionToPaintedPart} title="Mark closed shapes as painted/filled template parts">Paint Closed Parts</button>
+            )}
+            {lineCount >= 2 && <>
+              <button onClick={onBevelCorner}>Bevel</button>
+              <button onClick={onRoundCorner}>Round</button>
+            </>}
+            {textCount > 0 && <button onClick={onApplyTextDefaults}>Text Defaults</button>}
+          </div>
+          <h4>Constraints</h4>
+          <div className="workbench-action-grid">
+            <button onClick={onAddEdgeConstraint}>Edge Constraint</button>
+            {selectedShapeCount >= 2 && <button onClick={onAddAlignConstraints}>Align Constraint</button>}
+            <button onClick={onApplyConstraints}>Apply Constraints</button>
+          </div>
+          <h4>Stitching</h4>
+          <div className="workbench-action-grid">
+            <button onClick={onCreateBoxStitch}>Box Stitch Helper</button>
+            {boxStitchSourceEligibleCount > 0 && <button onClick={onExtractBoxStitchSource}>Extract Box Source</button>}
+            {extractedBoxStitchSourceCount > 0 && <button onClick={onClearBoxStitchSource}>Clear Box Source</button>}
+          </div>
+        </>}
+        <h4>Pattern piece</h4>
         <div className="workbench-action-grid">
-          <button onClick={onAlignX} disabled={selectedShapeCount < 2}>Align X</button>
-          <button onClick={onAlignY} disabled={selectedShapeCount < 2}>Align Y</button>
-          <button onClick={onAlignBoth} disabled={selectedShapeCount < 2}>Align XY</button>
-          <button onClick={onAlignToGrid} disabled={selectedShapeCount === 0}>Grid</button>
-          <button onClick={onCreateOffset} disabled={selectedShapeCount === 0}>Offset</button>
-          <button
-            onClick={onConvertSelectionToPaintedPart}
-            disabled={selectedShapeCount === 0 || !onConvertSelectionToPaintedPart}
-            title="Mark closed shapes as painted/filled template parts"
-          >
-            Paint Closed Parts
-          </button>
-          <button onClick={onCreateBoxStitch} disabled={selectedShapeCount === 0}>Box Stitch Helper</button>
-          <button onClick={onBevelCorner} disabled={lineCount < 2}>Bevel</button>
-          <button onClick={onRoundCorner} disabled={lineCount < 2}>Round</button>
-          <button onClick={onAddEdgeConstraint} disabled={selectedShapeCount === 0}>Edge Constraint</button>
-          <button onClick={onAddAlignConstraints} disabled={selectedShapeCount < 2}>Align Constraint</button>
-          <button onClick={onApplyConstraints} disabled={selectedShapeCount === 0}>Apply Constraints</button>
-          <button onClick={onCreatePatternPiece} disabled={selectedShapeCount === 0}>Create Piece</button>
-          <button onClick={onOpenPieceTab} disabled={!canOpenPieceTab}>Piece Tab</button>
-          <button onClick={onApplySeamAllowance} disabled={selectedShapeCount === 0}>Apply Seam</button>
-          <button onClick={onClearSeamAllowance} disabled={selectedShapeCount === 0}>Clear Seam</button>
-          <button onClick={onApplyTextDefaults} disabled={selectedShapeCount === 0}>Text Defaults</button>
-          <button onClick={onExtractBoxStitchSource} disabled={boxStitchSourceEligibleCount === 0}>Extract Box Source</button>
-          <button onClick={onClearBoxStitchSource} disabled={extractedBoxStitchSourceCount === 0}>Clear Box Source</button>
+          {selectedShapeCount > 0 && <button onClick={onCreatePatternPiece}>Create Piece</button>}
+          {canOpenPieceTab && <button onClick={onOpenPieceTab}>Piece Tab</button>}
+          {selectedShapeCount > 0 && <>
+            <button onClick={onApplySeamAllowance}>Apply Seam</button>
+            <button onClick={onClearSeamAllowance}>Clear Seam</button>
+          </>}
         </div>
       </div> : null}
 

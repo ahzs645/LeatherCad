@@ -17,6 +17,14 @@ vi.mock('./EditorPreviewPane', () => ({
   EditorPreviewPane: () => createElement('div', { 'data-preview-pane': true }, 'preview'),
 }))
 
+vi.mock('./ToolOptionsBar', () => ({
+  ToolOptionsBar: () => createElement('div', { 'data-tool-options': true }, 'tool-options'),
+}))
+
+vi.mock('./ScreenTour', () => ({
+  ScreenTour: () => null,
+}))
+
 vi.mock('./PrecisionCommandPanel', () => ({
   PrecisionCommandPanel: () => createElement('div', { 'data-precision-panel': true }, 'precision'),
 }))

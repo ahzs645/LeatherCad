@@ -170,3 +170,46 @@ test('the phone tool list offers both seam tools', async ({ page }) => {
   expect(options).toContain('Tool: Seam')
   expect(options).toContain('Tool: Seam (Multi-Edge)')
 })
+
+test('the phone tool list switches tools and taps draw', async ({ page }) => {
+  await page.goto('/')
+  const toolSelect = page.locator('select.tool-select-mobile')
+  await toolSelect.waitFor()
+  // The layout effect used to reset the tool to Move on every render, so a
+  // phone user could never keep a drawing tool selected.
+  await toolSelect.selectOption('rectangle')
+  await expect(toolSelect).toHaveValue('rectangle')
+  await expect(page.getByTestId('canvas-tool-hint')).toContainText('Rectangle')
+
+  // The legend starts folded on phones so it does not cover the drawing.
+  await expect(page.getByRole('button', { name: 'Legend', exact: true })).toBeVisible()
+
+  const box = await page.locator('svg.canvas').boundingBox()
+  if (!box) throw new Error('canvas not laid out')
+  await page.touchscreen.tap(box.x + box.width * 0.3, box.y + box.height * 0.3)
+  await expect(page.getByTestId('canvas-tool-hint')).toContainText('opposite corner')
+  await page.touchscreen.tap(box.x + box.width * 0.6, box.y + box.height * 0.45)
+  await expect(page.getByTestId('canvas-tool-hint')).toContainText('first corner')
+})
+
+test('two fingers pinch-zoom the 2D canvas', async ({ page, context }) => {
+  await page.goto('/')
+  await page.locator('select.tool-select-mobile').waitFor()
+  const box = await page.locator('svg.canvas').boundingBox()
+  if (!box) throw new Error('canvas not laid out')
+  const transform = () => page.locator('svg.canvas > g').first().getAttribute('transform')
+  const before = await transform()
+  const cdp = await context.newCDPSession(page)
+  const cx = box.x + box.width / 2
+  const cy = box.y + box.height / 2
+  const points = (spread: number) => [{ x: cx - spread, y: cy, id: 1 }, { x: cx + spread, y: cy, id: 2 }]
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points(30) })
+  for (let spread = 30; spread <= 120; spread += 15) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points(spread) })
+    await page.waitForTimeout(20)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await expect.poll(transform).not.toBe(before)
+  const scaleOf = (value: string | null) => Number(/scale\(([\d.]+)\)/.exec(value ?? '')?.[1])
+  expect(scaleOf(await transform())).toBeGreaterThan(scaleOf(before) * 2)
+})

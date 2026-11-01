@@ -3,6 +3,8 @@ import { EditorCanvasPane } from './EditorCanvasPane'
 import { ErrorBoundary } from './ErrorBoundary'
 import { PieceInspectorContent, type PieceInspectorContentProps } from './PieceInspectorContent'
 import { PrecisionCommandPanel } from './PrecisionCommandPanel'
+import { ToolOptionsBar } from './ToolOptionsBar'
+import { ScreenTour } from './ScreenTour'
 import { EditorWorkbench, type EditorWorkbenchProps } from '../workbench/EditorWorkbench'
 import type { DocumentInspectorPanelProps } from '../workbench/DocumentInspectorPanel'
 import type { SelectionInspectorPanelProps } from '../workbench/SelectionInspectorPanel'
@@ -55,7 +57,15 @@ export function EditorDesktopShell({
       }
       twoDPane={
         <ErrorBoundary>
-          <EditorCanvasPane {...canvasPaneProps} />
+          <div className="canvas-pane-frame">
+            <ToolOptionsBar
+              displayUnit={canvasPaneProps.displayUnit}
+              selectedShapeIdSet={canvasPaneProps.selectedShapeIdSet}
+              onRunCommand={precisionPanelProps.onRunCommand}
+              buildSelectionActions={canvasPaneProps.buildCanvasContextMenuItems}
+            />
+            <EditorCanvasPane {...canvasPaneProps} />
+          </div>
         </ErrorBoundary>
       }
       threeDPane={threeDPane}
@@ -82,14 +92,17 @@ export function EditorDesktopShell({
   )
 
   if (!shouldLoadThreeWorkbench) {
-    return renderWorkbench(routePrompt, routePrompt)
+    return <>{renderWorkbench(routePrompt, routePrompt)}<ScreenTour /></>
   }
 
   return (
-    <Suspense fallback={renderWorkbench(loadingState, loadingState)}>
-      <WorkbenchThreeWorkspace {...workbenchThreeWorkspaceProps}>
-        {({ threeDPane, previewContent }) => renderWorkbench(threeDPane, previewContent)}
-      </WorkbenchThreeWorkspace>
-    </Suspense>
+    <>
+      <Suspense fallback={renderWorkbench(loadingState, loadingState)}>
+        <WorkbenchThreeWorkspace {...workbenchThreeWorkspaceProps}>
+          {({ threeDPane, previewContent }) => renderWorkbench(threeDPane, previewContent)}
+        </WorkbenchThreeWorkspace>
+      </Suspense>
+      <ScreenTour />
+    </>
   )
 }

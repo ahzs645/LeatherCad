@@ -25,6 +25,7 @@ import { useEditorToolActions, useEditorToolSelector } from '../state/providers/
 import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
 import type { CanvasInteractionPreview, PanState } from './canvas-interactions/canvas-interaction-types'
 import { useCanvasPanAndZoom } from './canvas-interactions/useCanvasPanAndZoom'
+import { useCanvasTouchGestures } from './canvas-interactions/useCanvasTouchGestures'
 import { useCanvasSelectionInteractions } from './canvas-interactions/useCanvasSelectionInteractions'
 import { useCanvasShapeDragInteractions } from './canvas-interactions/useCanvasShapeDragInteractions'
 import { useCanvasToolExecution } from './canvas-interactions/useCanvasToolExecution'
@@ -253,6 +254,21 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     onWheelAdjustThickness,
   })
 
+  // A touch tap with a drawing tool is applied when the finger lifts, so a
+  // second finger can still turn the touch into a pinch without placing a point.
+  const pendingTouchRef = useRef<{ pointerId: number; point: Point } | null>(null)
+  const { gestureActiveRef } = useCanvasTouchGestures({
+    svgRef,
+    viewport,
+    setViewport,
+    onGestureStart: () => {
+      panRef.current = null
+      selectionBoxRef.current = null
+      pendingTouchRef.current = null
+      setSelectionBoxPreview(null)
+    },
+  })
+
   const { handleStitchHolePointerDown, handleHardwarePointerDown } = useCanvasSelectionInteractions({
     tool,
     stitchHoles,
@@ -478,6 +494,9 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
   }
 
   const handlePointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (event.pointerType === 'touch' && gestureActiveRef.current) {
+      return
+    }
     if (event.pointerType !== 'touch' && event.button !== 0 && !(event.button === 1 || event.button === 2)) {
       return
     }
@@ -544,10 +563,17 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
     setSnapIndicator(snap.reason ? { point: snap.point, reason: snap.reason } : null)
     updateSnapGuides(snap)
     updateAngleGuides(snap.point)
+    if (event.pointerType === 'touch' && tool !== 'freehand') {
+      pendingTouchRef.current = { pointerId: event.pointerId, point: snap.point }
+      return
+    }
     handleToolPointerDown(snap.point)
   }
 
   const handlePointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (event.pointerType === 'touch' && gestureActiveRef.current) {
+      return
+    }
     if (handlePanPointerMove(event.clientX, event.clientY, event.pointerId, event.pointerType)) {
       return
     }
@@ -583,10 +609,21 @@ export function useCanvasInteractions(params: UseCanvasInteractionsParams) {
       updateSnapGuides(snap)
       updateAngleGuides(snap.point)
       updateCadCommandPreview(snap.point)
+      // Sliding a finger before lifting moves the pending tap point.
+      if (pendingTouchRef.current?.pointerId === event.pointerId) {
+        pendingTouchRef.current = { pointerId: event.pointerId, point: snap.point }
+      }
     }
   }
 
   const handlePointerUp = (event: ReactPointerEvent<SVGSVGElement>) => {
+    const pendingTouch = pendingTouchRef.current
+    if (pendingTouch && pendingTouch.pointerId === event.pointerId) {
+      pendingTouchRef.current = null
+      if (!gestureActiveRef.current && event.type !== 'pointercancel') {
+        handleToolPointerDown(pendingTouch.point)
+      }
+    }
     const selectionBox = selectionBoxRef.current
     if (selectionBox && !(event.pointerType === 'touch' && event.pointerId !== selectionBox.pointerId)) {
       selectionBoxRef.current = null

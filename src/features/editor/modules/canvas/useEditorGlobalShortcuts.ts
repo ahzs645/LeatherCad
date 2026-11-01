@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { Point, Shape, Tool, Viewport } from '../../cad/cad-types'
 import { transformNativeCurve } from '../../cad/native-curve-ops'
 import { useEditorGlobalBindings } from '../../hooks/useEditorGlobalBindings'
+import { useEditorUIActions, useEditorUISelector } from '../../state/providers/EditorUIStateProvider'
 
 type UseEditorGlobalShortcutsParams = {
   handleDeleteSelection: () => void
@@ -60,7 +61,17 @@ export function useEditorGlobalShortcuts({
   setShowStitchSimulatorModal,
   setStitchSimulatorSettings,
 }: UseEditorGlobalShortcutsParams) {
+  const { setDisplayUnit, setShowOptionsModal } = useEditorUIActions()
+  const displayUnit = useEditorUISelector((state) => state.displayUnit)
   useEditorGlobalBindings({
+    handleSelectTool: setActiveTool,
+    handleToggleDisplayUnit: () => {
+      const next = displayUnit === 'mm' ? 'in' : 'mm'
+      setDisplayUnit(next)
+      setStatus(`Display unit: ${next === 'mm' ? 'millimetres' : 'inches'}`)
+    },
+    handleOpenOptions: () => setShowOptionsModal(true),
+    hasSelection: selectedShapeIdSet.size > 0,
     handleDeleteSelection,
     handleUndo,
     handleRedo,

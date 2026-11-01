@@ -13,11 +13,25 @@ export type InterfacePreferences = {
   displayUnit: DisplayUnit
   edgePickRadiusPx: number
   touchPickRadiusPx: number
+  /** Top/left edge rulers around the drafting surface. */
+  edgeRulers: boolean
+  /** Display-only: rulers and coordinate fields count Y upward. Shape data is unchanged. */
+  invertYAxis: boolean
+  /** Hint bubble with the active tool and its next step. */
+  toolHints: boolean
+  /** The first-run screen tour has been finished or dismissed. */
+  tourCompleted: boolean
+  /** Side of the canvas that holds the touch modifier pad, or hidden. */
+  modifierPad: 'left' | 'right' | 'off'
+  /** Drafting surface background; dark matches the reference editor. */
+  canvasBackground: 'theme' | 'light' | 'dark'
 }
 const defaultOrder = DESKTOP_TOOL_ICON_ITEMS.map(item => item.value)
 export const DEFAULT_INTERFACE_PREFERENCES: InterfacePreferences = {
   wheelMode: 'auto', trackpadSensitivity: 1, toolOrder: defaultOrder,
   toolLabels: false, displayUnit: 'mm', edgePickRadiusPx: 12, touchPickRadiusPx: 24,
+  edgeRulers: true, invertYAxis: false, toolHints: true, tourCompleted: false, modifierPad: 'left',
+  canvasBackground: 'dark',
 }
 const listeners = new Set<() => void>()
 let snapshot: InterfacePreferences | undefined
@@ -35,6 +49,12 @@ export function normalizeInterfacePreferences(value: unknown): InterfacePreferen
     displayUnit: input.displayUnit === 'in' ? 'in' : 'mm',
     edgePickRadiusPx: bounded(input.edgePickRadiusPx, 12, 1, 40),
     touchPickRadiusPx: bounded(input.touchPickRadiusPx, 24, 1, 40),
+    edgeRulers: input.edgeRulers !== false,
+    invertYAxis: input.invertYAxis === true,
+    toolHints: input.toolHints !== false,
+    tourCompleted: input.tourCompleted === true,
+    modifierPad: input.modifierPad === 'right' || input.modifierPad === 'off' ? input.modifierPad : 'left',
+    canvasBackground: input.canvasBackground === 'theme' || input.canvasBackground === 'light' ? input.canvasBackground : 'dark',
   }
 }
 export function getInterfacePreferences() {

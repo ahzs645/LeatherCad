@@ -1,5 +1,6 @@
 import type { Point } from '../cad/cad-types'
 import type { CommandParseResult } from './tool-types'
+import { evaluateNumericExpression } from '../ops/numeric-expression'
 
 const VECTOR_PATTERN = /^(@)?(.+)(,|<)(.+)$/
 
@@ -8,8 +9,9 @@ export function parseNumber(text: string) {
     return Number.NaN
   }
 
-  const parsed = Number(text.trim())
-  return Number.isFinite(parsed) ? parsed : Number.NaN
+  // Command values are millimetres; arithmetic and unit suffixes are accepted (`100/3`, `1in`).
+  const parsed = evaluateNumericExpression(text, 'mm')
+  return parsed !== null && Number.isFinite(parsed) ? parsed : Number.NaN
 }
 
 export function parseVector(referencePoint: Point, command: string): CommandParseResult {

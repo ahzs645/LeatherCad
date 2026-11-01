@@ -110,13 +110,13 @@ export const DESKTOP_TOOL_ICON_ITEMS: Array<{ value: Tool; label: string; iconSr
   { value: 'bezier', label: 'Bezier', iconSrc: `${base}icons/leathercad/bezier.svg` },
   { value: 'cubic', label: 'Cubic curve', iconSrc: `${base}icons/leathercad/cubic.svg` },
   { value: 'fold', label: 'Fold', iconSrc: `${base}icons/leathercad/fold.svg` },
-  { value: 'stitch-hole', label: 'Stitch', iconSrc: `${base}icons/jsketcher/dot.png` },
+  { value: 'stitch-hole', label: 'Stitch', iconSrc: `${base}icons/leathercad/stitch.svg` },
   { value: 'hardware', label: 'Hardware', iconSrc: `${base}icons/leathercad/hardware.svg` },
-  { value: 'seam', label: 'Seam', iconSrc: `${base}icons/jsketcher/p2p.png` },
-  { value: 'seam-multi', label: 'Seam+', iconSrc: `${base}icons/jsketcher/p2p.png` },
-  { value: 'piece-notch', label: 'Notch', iconSrc: `${base}icons/jsketcher/dot.png` },
+  { value: 'seam', label: 'Seam', iconSrc: `${base}icons/leathercad/seam.svg` },
+  { value: 'seam-multi', label: 'Seam+', iconSrc: `${base}icons/leathercad/seam-multi.svg` },
+  { value: 'piece-notch', label: 'Notch', iconSrc: `${base}icons/leathercad/notch.svg` },
   { value: 'text', label: 'Text', iconSrc: `${base}icons/leathercad/text.svg` },
-  { value: 'freehand', label: 'Freehand', iconSrc: `${base}icons/leathercad/bezier.svg` },
+  { value: 'freehand', label: 'Freehand', iconSrc: `${base}icons/leathercad/freehand.svg` },
   { value: 'cut-line', label: 'Cut', iconSrc: `${base}icons/leathercad/cut.svg` },
 ]
 

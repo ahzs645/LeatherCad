@@ -1,4 +1,4 @@
-import { useMemo, useState, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
+import { useEffect, useMemo, useState, type PointerEvent, type PointerEventHandler, type ReactElement, type RefObject } from 'react'
 import { CanvasContextMenu, type ContextMenuItem } from './CanvasContextMenu'
 import type {
   DimensionLine,
@@ -33,6 +33,12 @@ import { CanvasLeatherImageFillLayer } from './canvas/CanvasLeatherImageFillLaye
 import { CanvasShapeLayer } from './canvas/CanvasShapeLayer'
 import { CanvasStitchLayer } from './canvas/CanvasStitchLayer'
 import { CanvasViewportChrome } from './canvas/CanvasViewportChrome'
+import { CanvasEdgeRulers } from './canvas/CanvasEdgeRulers'
+import { CanvasToolHint } from './canvas/CanvasToolHint'
+import { CanvasTouchPad } from './canvas/CanvasTouchPad'
+import { getToolHint } from '../tools/tool-executor'
+import { useInterfacePreferences } from '../ops/interface-preferences'
+import { CANVAS_VIEW_EVENT } from '../ops/editor-events'
 import {
   boundsIntersect,
   lineBounds,
@@ -221,12 +227,42 @@ export function EditorCanvasPane({
   drawFirstPos = false,
 }: EditorCanvasPaneProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null)
-  const { angleGuideLines, commandPreviewShapes, markedSnapPoints, snapIndicator } = useEditorToolSelector((state) => ({
+  const { angleGuideLines, commandPreviewShapes, markedSnapPoints, snapIndicator, activeTool, cursorPoint, draftPoints } = useEditorToolSelector((state) => ({
     angleGuideLines: state.angleGuideLines,
     commandPreviewShapes: state.commandPreviewShapes,
     markedSnapPoints: state.markedSnapPoints,
     snapIndicator: state.snapIndicator,
+    activeTool: state.tool,
+    cursorPoint: state.cursorPoint,
+    draftPoints: state.draftPoints,
   }))
+  const interfacePreferences = useInterfacePreferences()
+  const surfaceMode = gridBackgroundMode ?? 'dark'
+  // With edge rulers enabled, the Ruler toggle (S) shows/hides them instead of the in-canvas axis ruler.
+  const showEdgeRulers = interfacePreferences.edgeRulers && showCanvasRuler
+  const showAxisRuler = showCanvasRuler && !interfacePreferences.edgeRulers
+  const selectionBounds = useMemo<Bounds | null>(() => {
+    if (selectedShapeIdSet.size === 0) return null
+    let bounds: Bounds | null = null
+    for (const shape of visibleShapes) {
+      if (!selectedShapeIdSet.has(shape.id)) continue
+      const next = shapeBounds(shape)
+      bounds = bounds
+        ? { minX: Math.min(bounds.minX, next.minX), minY: Math.min(bounds.minY, next.minY), maxX: Math.max(bounds.maxX, next.maxX), maxY: Math.max(bounds.maxY, next.maxY) }
+        : next
+    }
+    return bounds
+  }, [selectedShapeIdSet, visibleShapes])
+  const toolHint = getToolHint(activeTool, draftPoints)
+  useEffect(() => {
+    const onView = (event: Event) => {
+      const action = (event as CustomEvent<'reset' | 'fit'>).detail
+      if (action === 'reset') onResetView()
+      else if (action === 'fit') onFitView()
+    }
+    window.addEventListener(CANVAS_VIEW_EVENT, onView)
+    return () => window.removeEventListener(CANVAS_VIEW_EVENT, onView)
+  }, [onFitView, onResetView])
   const { canvasRef: gridCanvasRef } = useCanvasGrid({ viewport, gridSpacing, displayUnit, showGrid, gridBackgroundMode })
   const shapeStrokeOpacity = sketchWorkspaceMode === 'assembly' ? 0.85 : 1
   const detailPadding = Math.max(32, 96 / Math.max(viewport.scale, 0.1))
@@ -359,7 +395,10 @@ export function EditorCanvasPane({
   const engineV2 = isEngineV2Enabled()
 
   return (
-    <section className={`canvas-pane ${hideCanvasPane ? 'panel-hidden' : ''}`} style={{ position: 'relative' }}>
+    <section
+      className={`canvas-pane canvas-surface-${surfaceMode} ${showEdgeRulers ? 'has-edge-rulers' : ''} ${hideCanvasPane ? 'panel-hidden' : ''}`}
+      style={{ position: 'relative' }}
+    >
       <canvas ref={gridCanvasRef} className="canvas-grid-layer" aria-hidden="true" />
       {engineV2 && (
         <CanvasEngineV2
@@ -389,7 +428,7 @@ export function EditorCanvasPane({
       >
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
           <CanvasViewportChrome
-            showCanvasRuler={showCanvasRuler}
+            showCanvasRuler={showAxisRuler}
             displayUnit={displayUnit}
             tracingOverlays={tracingOverlays}
             onTracingOverlayOffset={onTracingOverlayOffset}
@@ -518,6 +557,21 @@ export function EditorCanvasPane({
           />
         </g>
       </svg>
+
+      {showEdgeRulers && (
+        <CanvasEdgeRulers
+          viewport={viewport}
+          displayUnit={displayUnit}
+          mode={surfaceMode}
+          cursorPoint={cursorPoint}
+          selectionBounds={selectionBounds}
+          invertYAxis={interfacePreferences.invertYAxis}
+        />
+      )}
+      {interfacePreferences.toolHints && (
+        <CanvasToolHint tool={activeTool} hint={toolHint} selectionCount={selectedShapeIdSet.size} />
+      )}
+      <CanvasTouchPad selectionCount={selectedShapeIdSet.size} />
 
       <div className="canvas-view-controls" role="group" aria-label="2D view controls">
         <button onClick={onZoomOut} aria-label="Zoom out">

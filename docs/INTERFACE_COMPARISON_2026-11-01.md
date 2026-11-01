@@ -2,6 +2,8 @@
 
 Reviewed 2026-11-01. This pass compares the **interface and interaction model** of both apps. Interchange, manufacturing and cloud parity are covered in the [baseline comparison](COFFEE_CAD_COMPARISON_2026-10-31.md) and later reports. It also completes the "focused behavior mapping" that [the remaining-parity analysis](REMAINING_PARITY_ANALYSIS_2026-10-31.md#reference-controls-needing-a-focused-behavior-mapping) left open.
 
+> **Status:** the findings below (I1–I9) and the reference-style drafting surface are implemented. See the [implementation report](INTERFACE_IMPLEMENTATION_2026-11-01.md). The tables here record the state at `b619687`.
+
 ## Evidence and method
 
 | Input | Identity |

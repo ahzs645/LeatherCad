@@ -23,6 +23,7 @@ uses no Convex deployment; see [the local workflow](docs/LOCAL_FIRST_WORKFLOW.md
 - Inactive optional cloud/community implementation; hosted sharing is deferred in the current local-first plan
 - Draft recovery, acknowledged autosave, sign-in draft preservation and versioned library backup/restore
 - Searchable settings, configurable wheel/trackpad/tool rail, workspace presets and direct phone file actions
+- Reference-style drafting surface: dark grid, edge rulers, tool hint, single-key tools, per-tool options bar, numeric selection geometry, selection-aware menu, arithmetic in number fields and touch pinch/undo gestures ([details](docs/INTERFACE_IMPLEMENTATION_2026-11-01.md))
 
 The **Output** ribbon includes **DXF In**, **Save LCAD**, **STL / Jig**, and
 **Cloud**. On phones these workflows are under **Options → File → File tools → Apply**.

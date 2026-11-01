@@ -239,3 +239,17 @@ describe('getUndoLabels / getRedoLabels', () => {
     expect(getRedoLabels(h)).toEqual([])
   })
 })
+
+describe('snapshot edit redo', () => {
+  it('redoes a generic snapshot edit after it is undone', () => {
+    const before = makeSnapshot([{ id: 'a' }])
+    const after = makeSnapshot([{ id: 'a' }, { id: 'b' }])
+    const history = pushOperation(createOperationHistory(), { type: 'snapshot', label: 'Edit', beforeSnapshot: before })
+    const undone = undoOperation(history, after)
+    expect(undone.snapshot?.shapes.map((shape) => shape.id)).toEqual(['a'])
+    const redone = redoOperation(undone.history, undone.snapshot!)
+    expect(redone.snapshot?.shapes.map((shape) => shape.id)).toEqual(['a', 'b'])
+    const undoneAgain = undoOperation(redone.history, redone.snapshot!)
+    expect(undoneAgain.snapshot?.shapes.map((shape) => shape.id)).toEqual(['a'])
+  })
+})

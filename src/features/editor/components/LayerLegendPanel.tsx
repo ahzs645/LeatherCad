@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { lineTypeStrokeDasharray } from '../cad/line-types'
+import { MOBILE_MEDIA_QUERY } from '../editor-constants'
 import type { Layer, LineType } from '../cad/cad-types'
 import type { LegendMode, SketchWorkspaceMode } from '../editor-types'
 
@@ -46,8 +48,19 @@ export function LayerLegendPanel({
   stitchStrokeColor,
   foldStrokeColor,
 }: LayerLegendPanelProps) {
+  // On phones the legend starts folded so it does not cover the drawing.
+  const [collapsed, setCollapsed] = useState(() => typeof window !== 'undefined' && Boolean(window.matchMedia?.(MOBILE_MEDIA_QUERY).matches))
   if (!show) {
     return null
+  }
+  if (collapsed) {
+    return (
+      <div className="legend-stack legend-collapsed">
+        <button type="button" className="legend-expand" aria-expanded={false} onClick={() => setCollapsed(false)}>
+          Legend
+        </button>
+      </div>
+    )
   }
 
   const isSketchWorkspace = sketchWorkspaceMode === 'sketch'
@@ -65,6 +78,9 @@ export function LayerLegendPanel({
         <div className="layer-legend-header">
           <span>{isSketchWorkspace ? 'Line Type Legend' : legendMode === 'layer' ? 'Layer Legend' : 'Stack Legend'}</span>
           <span>{isSketchWorkspace ? 'Sketch View' : legendMode === 'layer' ? 'Front -> Back' : 'Height'}</span>
+          <button type="button" className="legend-collapse" aria-label="Hide legend" aria-expanded title="Hide legend" onClick={() => setCollapsed(true)}>
+            ×
+          </button>
         </div>
 
         {!isSketchWorkspace && (
