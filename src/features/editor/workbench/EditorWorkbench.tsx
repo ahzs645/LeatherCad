@@ -17,6 +17,7 @@ import { WorkbenchStatusbar } from './WorkbenchStatusbar'
 import { WorkbenchToolRail } from './WorkbenchToolRail'
 import type { Tool } from '../cad/cad-types'
 import type { ThemeMode } from '../editor-types'
+import { useWorkspacePreset } from './workspace-presets'
 
 export type EditorWorkbenchProps = {
   docLabel: string
@@ -67,6 +68,7 @@ export type EditorWorkbenchProps = {
   onToggleInspector: () => void
   toolLabel: string
   selectionText: string
+  statusText?: string
   zoomPercent: number
   displayUnit: 'mm' | 'in'
   activeLayerName: string
@@ -121,12 +123,14 @@ export function EditorWorkbench({
   onToggleInspector,
   toolLabel,
   selectionText,
+  statusText,
   zoomPercent,
   displayUnit,
   activeLayerName,
   activeLineTypeName,
   onTogglePrecision,
 }: EditorWorkbenchProps) {
+  const canvasFirst = useWorkspacePreset() === 'canvas'
   const showThreeInMain = workspaceMode === '3d'
   const showThreeInPeek = showPeek && secondaryPreviewMode === '3d-peek'
   const showTwoDInPeek = showPeek && secondaryPreviewMode === '2d-peek'
@@ -136,12 +140,12 @@ export function EditorWorkbench({
   const inspectorColumns = inspectorOpen
     ? `${splitterWidth}px ${inspectorWidth}px`
     : `${inspectorRestoreWidth}px`
-  const gridTemplateColumns = showPeek
+  const gridTemplateColumns = canvasFirst ? `0px 0px ${toolRailWidth}px minmax(0, 1fr) ${inspectorColumns}` : showPeek
     ? `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${splitterWidth}px ${peekWidth}px ${inspectorColumns}`
     : `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${inspectorColumns}`
 
   return (
-    <div className="workbench-shell">
+    <div className={`workbench-shell${canvasFirst ? ' workbench-canvas-first' : ''}`}>
       <WorkbenchHeader
         docLabel={docLabel}
         quickActions={quickActions}
@@ -154,10 +158,10 @@ export function EditorWorkbench({
         onSetThemeMode={onSetThemeMode}
       />
 
-      <WorkbenchRibbon
+      {!canvasFirst && <WorkbenchRibbon
         groups={ribbonGroups}
         onInvokeCommand={onInvokeRibbonCommand}
-      />
+      />}
 
       <main
         ref={shellRef}
@@ -167,7 +171,7 @@ export function EditorWorkbench({
           gridTemplateColumns,
         }}
       >
-        <DocumentBrowserDock
+        {!canvasFirst && <><DocumentBrowserDock
           nodes={browserNodes}
           onActivateNode={onActivateNode}
           onToggleLayerVisibility={onToggleLayerVisibility}
@@ -184,6 +188,7 @@ export function EditorWorkbench({
           aria-orientation="vertical"
           onPointerDown={onStartBrowserResize}
         />
+        </>}
 
         <WorkbenchToolRail tool={tool} onSetActiveTool={onSetActiveTool} />
 
@@ -257,6 +262,7 @@ export function EditorWorkbench({
       <WorkbenchStatusbar
         toolLabel={toolLabel}
         selectionText={selectionText}
+        statusText={statusText}
         zoomPercent={zoomPercent}
         displayUnit={displayUnit}
         activeLayerName={activeLayerName}

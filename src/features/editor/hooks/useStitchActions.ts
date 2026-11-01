@@ -1,9 +1,11 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { useLayoutEffect, useMemo, useRef, type Dispatch, type SetStateAction } from 'react'
+import { requestEvenStitchCount } from '../components/request-even-stitch-count'
 import { clamp } from '../cad/cad-geometry'
 import type {
   Layer,
   LineType,
   Shape,
+  SketchGroup,
   StitchHole,
   StitchHoleRenderShape,
 } from '../cad/cad-types'
@@ -22,6 +24,9 @@ import {
 } from '../ops/stitch-hole-ops'
 import { useEditorToolSelector } from '../state/providers/EditorToolStateProvider'
 import { useEditorUIActions } from '../state/providers/EditorUIStateProvider'
+import { buildGroupAccess, isShapeLocked } from '../ops/shape-access'
+
+const EMPTY_GROUPS: SketchGroup[] = []
 
 type UseStitchActionsParams = {
   selectedShapeIdSet: Set<string>
@@ -35,6 +40,7 @@ type UseStitchActionsParams = {
   shapesById: Record<string, Shape>
   layers: Layer[]
   stitchHoleCountsByShape: Record<string, number>
+  sketchGroups?: SketchGroup[]
 }
 
 export function useStitchActions(params: UseStitchActionsParams) {
@@ -50,6 +56,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
     shapesById,
     layers,
     stitchHoleCountsByShape,
+    sketchGroups = EMPTY_GROUPS,
   } = params
   const {
     stitchPitchMm,
@@ -65,10 +72,29 @@ export function useStitchActions(params: UseStitchActionsParams) {
     stitchHoleDefaults: state.stitchHoleDefaults,
   }))
   const { setStatus } = useEditorUIActions()
+  const latestTarget = useRef({ shapes, selectedShapeIdSet, layers, sketchGroups })
+  useLayoutEffect(() => { latestTarget.current = { shapes, selectedShapeIdSet, layers, sketchGroups } }, [shapes, selectedShapeIdSet, layers, sketchGroups])
+  const editableShapeIds = useMemo(() => {
+    const access = buildGroupAccess(sketchGroups)
+    const lockedLayers = new Set(layers.filter(layer => layer.locked).map(layer => layer.id))
+    const ids = new Set(shapes.filter(shape => !lockedLayers.has(shape.layerId) && !isShapeLocked(shape, access)).map(shape => shape.id))
+    // A shared chain is ordered as one unit. Editing another member must not
+    // renumber holes belonging to a protected path.
+    const protectedChains = new Set(stitchHoles.filter(hole => !ids.has(hole.shapeId) && hole.chainId).map(hole => hole.chainId))
+    for (const hole of stitchHoles) if (hole.chainId && protectedChains.has(hole.chainId)) ids.delete(hole.shapeId)
+    return ids
+  }, [layers, shapes, sketchGroups, stitchHoles])
+  const editableSelectedIds = useMemo(() => new Set([...selectedShapeIdSet].filter(id => editableShapeIds.has(id))), [editableShapeIds, selectedShapeIdSet])
+
+  const normalizeEditableHoles = (holes: StitchHole[]) => {
+    const protectedHoles = holes.filter(hole => !editableShapeIds.has(hole.shapeId))
+    const editableHoles = holes.filter(hole => editableShapeIds.has(hole.shapeId))
+    return [...protectedHoles, ...normalizeStitchHoleSequences(editableHoles)]
+  }
 
   const getSelectedStitchShapes = () =>
     shapes.filter((shape) => {
-      if (!selectedShapeIdSet.has(shape.id)) {
+      if (!editableSelectedIds.has(shape.id)) {
         return false
       }
       const lineTypeRole = lineTypesById[shape.lineTypeId]?.role ?? 'cut'
@@ -169,7 +195,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
         nextHoles.push(...continuation.retained, ...generated)
       }
 
-      return normalizeStitchHoleSequences(nextHoles)
+      return normalizeEditableHoles(nextHoles)
     })
 
     setSelectedStitchHoleId(firstGeneratedId)
@@ -195,8 +221,10 @@ export function useStitchActions(params: UseStitchActionsParams) {
       return
     }
 
-    setStitchHoles((previous) => normalizeStitchHoleSequences(deleteStitchHolesForShapes(previous, selectedShapeIdSet)))
-    setStatus(`Deleted ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'} on selected shapes`)
+    const count = stitchHoles.filter(hole => editableSelectedIds.has(hole.shapeId)).length
+    if (!count) { setStatus('Selected stitch holes are protected by a shape, group, layer or linked chain'); return }
+    setStitchHoles((previous) => normalizeEditableHoles(deleteStitchHolesForShapes(previous, editableSelectedIds)))
+    setStatus(`Deleted ${count} stitch hole${count === 1 ? '' : 's'} on editable selected shapes`)
   }
 
   const handleChangeStitchHoleShapeOnSelectedShapes = (renderShape: StitchHoleRenderShape) => {
@@ -209,11 +237,13 @@ export function useStitchActions(params: UseStitchActionsParams) {
       return
     }
 
+    const count = stitchHoles.filter(hole => editableSelectedIds.has(hole.shapeId)).length
+    if (!count) { setStatus('Selected stitch holes are protected by a shape, group, layer or linked chain'); return }
     setStitchHoles((previous) =>
-      changeStitchHoleShapesOnShapes(previous, selectedShapeIdSet, renderShape),
+      changeStitchHoleShapesOnShapes(previous, editableSelectedIds, renderShape),
     )
     setStatus(
-      `Changed ${selectedStitchHoleCount} stitch hole${selectedStitchHoleCount === 1 ? '' : 's'} to ${renderShape}`,
+      `Changed ${count} stitch hole${count === 1 ? '' : 's'} to ${renderShape}`,
     )
   }
 
@@ -222,9 +252,11 @@ export function useStitchActions(params: UseStitchActionsParams) {
       setStatus('No stitch holes to clear')
       return
     }
-    setStitchHoles([])
+    const count = stitchHoles.filter(hole => editableShapeIds.has(hole.shapeId)).length
+    if (!count) { setStatus('All stitch holes are protected by a shape, group, layer or linked chain'); return }
+    setStitchHoles(previous => previous.filter(hole => !editableShapeIds.has(hole.shapeId)))
     setSelectedStitchHoleId(null)
-    setStatus('Cleared all stitch holes')
+    setStatus(`Cleared ${count} editable stitch holes; protected holes were preserved`)
   }
 
   const handleAutoPlaceFixedPitchStitchHoles = () => {
@@ -236,7 +268,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
     const selectedStitchShapes = getSelectedStitchShapes()
 
     if (selectedStitchShapes.length === 0) {
-      setStatus('Selected shapes are not stitch-role paths')
+      setStatus('Selected paths are not editable stitch-role paths')
       return
     }
 
@@ -258,7 +290,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
 
     const selectedStitchShapes = getSelectedStitchShapes()
     if (selectedStitchShapes.length === 0) {
-      setStatus('Selected shapes are not stitch-role paths')
+      setStatus('Selected paths are not editable stitch-role paths')
       return
     }
 
@@ -273,20 +305,15 @@ export function useStitchActions(params: UseStitchActionsParams) {
     )
   }
 
-  const handleAutoPlacePreferredPitchStitchHoles = () => {
+  const handleAutoPlacePreferredPitchStitchHoles = async () => {
     if (stitchAutoPitchSettings.defaultMode === 'variable') {
       handleAutoPlaceVariablePitchStitchHoles()
       return
     }
     if (stitchAutoPitchSettings.defaultMode === 'set-num') {
-      const input = window.prompt('Number of evenly-spaced holes (≥ 2)?', '8')
-      if (input === null) {
+      const count = await requestEvenStitchCount()
+      if (count === null) {
         setStatus('Even auto-placement cancelled')
-        return
-      }
-      const count = Number.parseInt(input.trim(), 10)
-      if (!Number.isFinite(count) || count < 2) {
-        setStatus('Hole count must be an integer ≥ 2')
         return
       }
       handleAutoPlaceEvenlySpacedStitchHoles(count)
@@ -296,17 +323,25 @@ export function useStitchActions(params: UseStitchActionsParams) {
   }
 
   const handleAutoPlaceEvenlySpacedStitchHoles = (count: number) => {
+    if (latestTarget.current.shapes !== shapes || latestTarget.current.selectedShapeIdSet !== selectedShapeIdSet || latestTarget.current.layers !== layers || latestTarget.current.sketchGroups !== sketchGroups) {
+      setStatus('Even placement cancelled because the drawing or selection changed')
+      return
+    }
     if (selectedShapeIdSet.size === 0) {
       setStatus('Select one or more stitch paths first')
       return
     }
     const selectedStitchShapes = getSelectedStitchShapes()
     if (selectedStitchShapes.length === 0) {
-      setStatus('Selected shapes are not stitch-role paths')
+      setStatus('Selected paths are not editable stitch-role paths')
       return
     }
-    if (!Number.isInteger(count) || count < 2) {
-      setStatus('Hole count must be an integer ≥ 2')
+    if (!Number.isInteger(count) || count < 2 || count > 10000) {
+      setStatus('Hole count must be an integer from 2 to 10000')
+      return
+    }
+    if (count * selectedStitchShapes.length > 100000) {
+      setStatus('Reduce the hole count or selection: one operation can place at most 100000 holes')
       return
     }
     const { generatedCount } = applyAutoPlacement(selectedStitchShapes, (shape, sequenceStart, options) =>
@@ -323,7 +358,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
       return
     }
 
-    const selectedShapes = shapes.filter((shape) => selectedShapeIdSet.has(shape.id))
+    const selectedShapes = shapes.filter((shape) => editableSelectedIds.has(shape.id))
     if (selectedShapes.length === 0) {
       setStatus('No selected shapes to re-sequence')
       return
@@ -339,7 +374,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
 
       const preserved: StitchHole[] = []
       for (const hole of previous) {
-        if (!selectedShapeIdSet.has(hole.shapeId)) {
+        if (!editableSelectedIds.has(hole.shapeId)) {
           preserved.push(hole)
         }
       }
@@ -352,7 +387,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
         }
         resequenced.push(...resequenceStitchHolesOnShape(holes, shape, reverse))
       }
-      return normalizeStitchHoleSequences([...preserved, ...resequenced])
+      return normalizeEditableHoles([...preserved, ...resequenced])
     })
 
     setStatus(reverse ? 'Reversed stitch-hole order on selected paths' : 'Re-sequenced stitch holes on selected paths')
@@ -399,6 +434,10 @@ export function useStitchActions(params: UseStitchActionsParams) {
       setStatus('Target layer is locked. Unlock it before editing stitch order.')
       return
     }
+    if (!editableShapeIds.has(targetShape.id)) {
+      setStatus('Target stitch path is protected by a shape, group or linked chain')
+      return
+    }
 
     const lineTypeRole = lineTypesById[targetShape.lineTypeId]?.role ?? 'cut'
     if (lineTypeRole !== 'stitch') {
@@ -410,7 +449,7 @@ export function useStitchActions(params: UseStitchActionsParams) {
       const onShape = previous.filter((stitchHole) => stitchHole.shapeId === targetShape.id)
       const retained = previous.filter((stitchHole) => stitchHole.shapeId !== targetShape.id)
       const fixedOrder = fixStitchHoleOrderFromHole(onShape, targetShape, selectedStitchHole.id, reverse)
-      return normalizeStitchHoleSequences([...retained, ...fixedOrder])
+      return normalizeEditableHoles([...retained, ...fixedOrder])
     })
 
     setStatus(reverse ? 'Fixed stitch order in reverse from selected hole' : 'Fixed stitch order from selected hole')

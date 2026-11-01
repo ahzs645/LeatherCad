@@ -1,20 +1,24 @@
-import { useCallback } from 'react'
-import { useEditorUISelector } from '../state/providers/EditorUIStateProvider'
-import { translate, type TranslationMap } from '../ops/translation-ops'
+import { useCallback, useSyncExternalStore } from 'react'
+import { getTranslationMapSnapshot, subscribeTranslationMap, translateUiText, type TranslationMap } from '../ops/translation-ops'
+import { getEditorLocale, subscribeEditorLocale } from '../ops/locale-store'
 
 /**
- * Hook that returns a memoized `t(key, fallback)` function bound to the current
- * `translationMap`. When no translation is loaded, every call returns the
- * fallback (or key) unchanged — keeping the English UI working out of the box.
- * Source-app v0.9.13 added i18n via per-language TSV files; the web rebuild
- * uses the same lookup model.
+ * Imported translations override the bundled language. Missing entries keep
+ * their English fallback. This hook also works in reusable UI outside the full
+ * editor providers; language is a browser preference, never document content.
  */
 export function useTranslate() {
-  const translationMap = useEditorUISelector((state) => state.translationMap)
+  const locale = useEditorLocale()
+  const translationMap = useSyncExternalStore(subscribeTranslationMap, getTranslationMapSnapshot, getTranslationMapSnapshot)
   return useCallback(
-    (key: string, fallback: string = key) => translate(translationMap, key, fallback),
-    [translationMap],
+    (key: string, fallback: string = key) =>
+      translateUiText(locale, translationMap, key, fallback),
+    [locale, translationMap],
   )
+}
+
+export function useEditorLocale() {
+  return useSyncExternalStore(subscribeEditorLocale, getEditorLocale, () => 'en' as const)
 }
 
 export type Translator = (key: string, fallback?: string) => string

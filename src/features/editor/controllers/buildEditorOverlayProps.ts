@@ -9,7 +9,7 @@ import type { PieceInspectorModalProps } from '../components/PieceInspectorModal
 import type { ProjectMemoModalProps } from '../components/ProjectMemoModal'
 import { saveAutoSaveEnabled } from '../ops/autosave'
 import { saveBoxStitchHelperSettings, type BoxStitchHelperSettings } from '../ops/box-stitch-settings'
-import { saveEditorPreferences, getDefaultEditorPreferences } from '../ops/editor-prefs'
+import { saveEditorPreferences } from '../ops/editor-prefs'
 import {
   addFontToList,
   duplicateFontInList,
@@ -342,7 +342,6 @@ export function buildEditorOverlayProps({
   setMandalaCircleTemplateName,
   setExportIncludeText,
   setExportIncludeTemplateMetadata,
-  leatherSimTextureRotationDeg,
   lineToolConstraint,
   setLineToolConstraint,
   gridBackgroundMode,
@@ -468,7 +467,7 @@ export function buildEditorOverlayProps({
         circleTemplateName: mandalaCircleTemplateName,
         onChangeCircleTemplateName: (value: string) => {
           setMandalaCircleTemplateName(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), mandalaCircleTemplateName: value })
+          saveEditorPreferences({ mandalaCircleTemplateName: value })
         },
       },
       wizardModalProps: {
@@ -704,94 +703,34 @@ export function buildEditorOverlayProps({
         },
         onChangeReverseZoomDirection: (value: boolean) => {
           setReverseZoomDirection(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection: value,
-            reverseGridScrollDirection,
-            incrementalSelection,
-            mentoriWithoutCtrl,
-            exportIncludeText,
-            exportIncludeTemplateMetadata,
-            leatherSimTextureRotationDeg,
-          })
+          saveEditorPreferences({ reverseZoomDirection: value })
         },
         onChangeReverseGridScrollDirection: (value: boolean) => {
           setReverseGridScrollDirection(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection,
-            reverseGridScrollDirection: value,
-            incrementalSelection,
-            mentoriWithoutCtrl,
-            exportIncludeText,
-            exportIncludeTemplateMetadata,
-            leatherSimTextureRotationDeg,
-          })
+          saveEditorPreferences({ reverseGridScrollDirection: value })
         },
         onChangeIncrementalSelection: (value: boolean) => {
           setIncrementalSelection(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection,
-            incrementalSelection: value,
-            mentoriWithoutCtrl,
-            exportIncludeText,
-            exportIncludeTemplateMetadata,
-            leatherSimTextureRotationDeg,
-          })
+          saveEditorPreferences({ incrementalSelection: value })
         },
         onChangeMentoriWithoutCtrl: (value: boolean) => {
           setMentoriWithoutCtrl(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection,
-            incrementalSelection,
-            mentoriWithoutCtrl: value,
-            exportIncludeText,
-            exportIncludeTemplateMetadata,
-            leatherSimTextureRotationDeg,
-          })
+          saveEditorPreferences({ mentoriWithoutCtrl: value })
         },
         onChangeExportIncludeText: (value: boolean) => {
           setExportIncludeText(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection,
-            incrementalSelection,
-            mentoriWithoutCtrl,
-            exportIncludeText: value,
-            exportIncludeTemplateMetadata,
-            leatherSimTextureRotationDeg,
-          })
+          saveEditorPreferences({ exportIncludeText: value })
         },
         onChangeExportIncludeTemplateMetadata: (value: boolean) => {
           setExportIncludeTemplateMetadata(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection,
-            incrementalSelection,
-            mentoriWithoutCtrl,
-            exportIncludeText,
-            exportIncludeTemplateMetadata: value,
-            leatherSimTextureRotationDeg,
-            lineToolConstraint,
-          })
+          saveEditorPreferences({ exportIncludeTemplateMetadata: value })
         },
         lineToolConstraint,
         gridBackgroundMode,
         onChangeGridBackgroundMode: (value: OptionsModalProps['gridBackgroundMode']) => setGridBackgroundMode(value),
         onChangeLineToolConstraint: (value: OptionsModalProps['lineToolConstraint']) => {
           setLineToolConstraint(value)
-          saveEditorPreferences({
-            ...getDefaultEditorPreferences(),
-            reverseZoomDirection,
-            incrementalSelection,
-            mentoriWithoutCtrl,
-            exportIncludeText,
-            exportIncludeTemplateMetadata,
-            leatherSimTextureRotationDeg,
-            lineToolConstraint: value,
-          })
+          saveEditorPreferences({ lineToolConstraint: value })
         },
         dimensionDefaults,
         onChangeDimensionDefaults: setDimensionDefaults,
@@ -817,7 +756,7 @@ export function buildEditorOverlayProps({
         onChangeAutoHideSidebar: setAutoHideSidebar,
         onChangePinSideBar: (value: boolean) => {
           setPinSideBar(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), pinSideBar: value })
+          saveEditorPreferences({ pinSideBar: value })
         },
         onChangeLoadDemoOnStartup: setLoadDemoOnStartup,
         continuousDistanceMarking,
@@ -833,53 +772,53 @@ export function buildEditorOverlayProps({
         tangentCircleDispStep,
         onChangeContinuousDistanceMarking: (value: boolean) => {
           setContinuousDistanceMarking(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), continuousDistanceMarking: value })
+          saveEditorPreferences({ continuousDistanceMarking: value })
         },
         onChangeReduceOneBlade: (value: boolean) => {
           setReduceOneBlade(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), reduceOneBlade: value })
+          saveEditorPreferences({ reduceOneBlade: value })
         },
         onChangeHighlightActiveLayer: (value: boolean) => {
           setHighlightActiveLayer(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), highlightActiveLayer: value })
+          saveEditorPreferences({ highlightActiveLayer: value })
         },
         onChangeNotchAngleDeg: (value: number) => {
           setNotchAngleDeg(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), notchAngleDeg: value })
+          saveEditorPreferences({ notchAngleDeg: value })
         },
         onChangeNotchDepthMm: (value: number) => {
           setNotchDepthMm(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), notchDepthMm: value })
+          saveEditorPreferences({ notchDepthMm: value })
         },
         onChangeRelativeAngleStepDeg: (value: number) => {
           setRelativeAngleStepDeg(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), relativeAngleStepDeg: value })
+          saveEditorPreferences({ relativeAngleStepDeg: value })
         },
         onChangeArcDrawMode: (value: 'three-point' | 'radius' | 'half-moon') => {
           setArcDrawMode(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), arcDrawMode: value })
+          saveEditorPreferences({ arcDrawMode: value })
         },
         onChangeArcRadiusMm: (value: number) => {
           setArcRadiusMm(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), arcRadiusMm: value })
+          saveEditorPreferences({ arcRadiusMm: value })
         },
         onChangeArcHalfMoonRatio: (value: number) => {
           setArcHalfMoonRatio(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), arcHalfMoonRatio: value })
+          saveEditorPreferences({ arcHalfMoonRatio: value })
         },
         onChangeTangentCircleMode: (value: boolean) => {
           setTangentCircleMode(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), tangentCircleMode: value })
+          saveEditorPreferences({ tangentCircleMode: value })
         },
         onChangeTangentCircleDispStep: (value: number) => {
           setTangentCircleDispStep(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), tangentCircleDispStep: value })
+          saveEditorPreferences({ tangentCircleDispStep: value })
         },
         dimensionLineTypeId,
         lineTypes: optionsLineTypes,
         onChangeDimensionLineTypeId: (value: string | null) => {
           setDimensionLineTypeId(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), dimensionLineTypeId: value })
+          saveEditorPreferences({ dimensionLineTypeId: value })
         },
         fillOnChange,
         drawEdges,
@@ -889,27 +828,27 @@ export function buildEditorOverlayProps({
         mandalaCircleTemplateName,
         onChangeFillOnChange: (value: boolean) => {
           setFillOnChange(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), fillOnChange: value })
+          saveEditorPreferences({ fillOnChange: value })
         },
         onChangeDrawEdges: (value: boolean) => {
           setDrawEdges(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), drawEdges: value })
+          saveEditorPreferences({ drawEdges: value })
         },
         onChangeDrawFirstPos: (value: boolean) => {
           setDrawFirstPos(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), drawFirstPos: value })
+          saveEditorPreferences({ drawFirstPos: value })
         },
         onChangeCenterLineDivisions: (value: number) => {
           setCenterLineDivisions(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), centerLineDivisions: value })
+          saveEditorPreferences({ centerLineDivisions: value })
         },
         onChangeMarkingDistanceMm: (value: number) => {
           setMarkingDistanceMm(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), markingDistanceMm: value })
+          saveEditorPreferences({ markingDistanceMm: value })
         },
         onChangeMandalaCircleTemplateName: (value: string) => {
           setMandalaCircleTemplateName(value)
-          saveEditorPreferences({ ...getDefaultEditorPreferences(), mandalaCircleTemplateName: value })
+          saveEditorPreferences({ mandalaCircleTemplateName: value })
         },
         translationEntryCount: Object.keys(translationMap ?? {}).length,
         onImportTranslationFile: () => translationInputRef.current?.click(),

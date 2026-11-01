@@ -50,7 +50,7 @@ export default defineConfig({
       // `vite build` rather than `pnpm build`: the typecheck already ran as its
       // own CI step, and repeating it here only slows the suite down.
       command:
-        `pnpm exec vite build && ` +
+        `pnpm exec vite build && node scripts/verify-engine-pair.mjs --write && ` +
         `pnpm exec vite preview --host 127.0.0.1 --port ${new URL(previewURL).port} --strictPort`,
       url: previewURL,
       reuseExistingServer: false,
@@ -68,6 +68,10 @@ export default defineConfig({
         /mobile-smoke\.spec\.ts$/,
         /tablet-smoke\.spec\.ts$/,
         /production-build\.spec\.ts$/,
+        /manufacturing\.spec\.ts$/,
+        /native-curves\.spec\.ts$/,
+        /browser-compatibility\.spec\.ts$/,
+        /calibration\.spec\.ts$/,
       ],
     },
     {
@@ -77,7 +81,7 @@ export default defineConfig({
         baseURL: previewURL,
         ...chromiumLaunchOverride,
       },
-      testMatch: /production-build\.spec\.ts$/,
+      testMatch: /(?:production-build|manufacturing|calibration|native-curves|interchange)\.spec\.ts$/,
     },
     {
       // Crosses the 1100px mobile breakpoint defined in the editor layout.

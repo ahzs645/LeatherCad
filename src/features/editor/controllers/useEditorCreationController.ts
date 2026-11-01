@@ -14,6 +14,7 @@ import type { LetterStampParams } from '../ops/letter-stamp-ops'
 import type { BoxStitchHelperSettings } from '../ops/box-stitch-settings'
 import type { Shape, StitchHole, TextTransformMode } from '../cad/cad-types'
 import { uid } from '../cad/cad-geometry'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 import { getSelectionCenter } from '../ops/shape-selection-ops'
 import {
   clearTerminalStitchHole,
@@ -27,6 +28,7 @@ function rotateShapeWithSameId(shape: Shape, center: { x: number; y: number }, a
   const rad = (angleDeg * Math.PI) / 180
   const cos = Math.cos(rad)
   const sin = Math.sin(rad)
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [cos, sin, -sin, cos, center.x - cos * center.x + sin * center.y, center.y - sin * center.x - cos * center.y])
   const rotate = (point: { x: number; y: number }) => {
     const dx = point.x - center.x
     const dy = point.y - center.y

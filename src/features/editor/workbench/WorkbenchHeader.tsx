@@ -1,8 +1,12 @@
+import { LanguageSelector } from '../components/LanguageSelector'
+import { useTranslate } from '../hooks/useTranslate'
 import { useEffect, useRef, useState } from 'react'
 import type { ThemeMode } from '../editor-types'
 import type { QuickAction, WorkspaceMode, WorkbenchRibbonTab } from './workbench-types'
 import { WorkbenchIcon } from './workbench-icons'
 import { resolveQuickActionIcon } from './workbench-icon-resolvers'
+import { selectWorkspacePreset, useWorkspacePreset, WORKSPACE_PRESETS, type WorkspacePresetId } from './workspace-presets'
+import './WorkspacePreferences.css'
 
 type WorkbenchHeaderProps = {
   docLabel: string
@@ -81,6 +85,8 @@ export function WorkbenchHeader({
   onSetWorkspaceMode,
   onSetThemeMode,
 }: WorkbenchHeaderProps) {
+  const t = useTranslate()
+  const preset = useWorkspacePreset()
   const [showThemeMenu, setShowThemeMenu] = useState(false)
   const themeMenuRef = useRef<HTMLDivElement>(null)
   const themeButtonRef = useRef<HTMLButtonElement>(null)
@@ -108,16 +114,16 @@ export function WorkbenchHeader({
         <div className="workbench-brand">
           <div className="workbench-brand-copy">
             <strong>LeatherCad</strong>
-            <span>Compact Workbench</span>
+            <span>{t('Compact Workbench')}</span>
           </div>
         </div>
         <div className="workbench-doc-label" title={docLabel}>
-          <span className="workbench-doc-caption">Document</span>
+          <span className="workbench-doc-caption">{t('Document')}</span>
           <strong>{docLabel}</strong>
         </div>
       </div>
 
-      <div className="workbench-ribbon-tabs workbench-header-tabs" role="tablist" aria-label="Workbench ribbon tabs">
+      <div className="workbench-ribbon-tabs workbench-header-tabs" role="tablist" aria-label={t('Workbench ribbon tabs')}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -126,14 +132,18 @@ export function WorkbenchHeader({
             data-testid={`ribbon-tab-${tab.id}`}
             aria-selected={activeRibbonTab === tab.id}
             className={activeRibbonTab === tab.id ? 'active' : ''}
-            onClick={() => onSetRibbonTab(tab.id)}
+            onClick={() => {
+              if (preset !== 'custom' && WORKSPACE_PRESETS[preset].ribbon !== tab.id) selectWorkspacePreset('custom')
+              onSetRibbonTab(tab.id)
+            }}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
       </div>
 
       <div className="workbench-header-trailing">
+
         <div className="workbench-header-actions">
           {quickActions.map((action) => (
             <button
@@ -141,8 +151,8 @@ export function WorkbenchHeader({
               type="button"
               className="workbench-quick-action"
               disabled={action.disabled}
-              aria-label={action.label}
-              title={action.label}
+              aria-label={t(action.label)}
+              title={t(action.label)}
               onClick={() => onInvokeQuickAction(action.id)}
             >
               <WorkbenchIcon name={resolveQuickActionIcon(action)} />
@@ -154,7 +164,15 @@ export function WorkbenchHeader({
             toggle *and* a separate Open 3D Workspace / Peek 2D button doing the
             same job from the other end, which left no single place to read the
             current state from. */}
-        <div className="workbench-mode-toggle" role="group" aria-label="Workspace mode">
+        <LanguageSelector compact />
+        <label className="workbench-preset-selector"><span className="sr-only">{t('Workspace preset')}</span><select aria-label={t('Workspace preset')} value={preset} onChange={event => {
+          const next = event.target.value as WorkspacePresetId
+          if (next !== 'custom' && !Object.hasOwn(WORKSPACE_PRESETS, next)) return
+          selectWorkspacePreset(next)
+          if (next !== 'custom') { onSetWorkspaceMode(WORKSPACE_PRESETS[next].mode); onSetRibbonTab(WORKSPACE_PRESETS[next].ribbon) }
+        }}><option value="custom">{t('Custom workspace')}</option>{Object.entries(WORKSPACE_PRESETS).map(([id, option]) => <option key={id} value={id}>{t(option.label)}</option>)}</select></label>
+
+        <div className="workbench-mode-toggle" role="group" aria-label={t('Workspace mode')}>
           {WORKSPACE_MODES.map((option) => (
             <button
               key={option.mode}
@@ -162,10 +180,13 @@ export function WorkbenchHeader({
               className={workspaceMode === option.mode ? 'active' : ''}
               data-testid={`workspace-mode-${option.mode}`}
               aria-pressed={workspaceMode === option.mode}
-              title={option.title}
-              onClick={() => onSetWorkspaceMode(option.mode)}
+              title={t(option.title)}
+              onClick={() => {
+                if (preset !== 'custom' && WORKSPACE_PRESETS[preset].mode !== option.mode) selectWorkspacePreset('custom')
+                onSetWorkspaceMode(option.mode)
+              }}
             >
-              {option.label}
+              {t(option.label)}
             </button>
           ))}
         </div>
@@ -175,24 +196,24 @@ export function WorkbenchHeader({
             ref={themeButtonRef}
             type="button"
             className={`workbench-theme-trigger${showThemeMenu ? ' active' : ''}`}
-            aria-label={currentThemeLabel}
+            aria-label={t(currentThemeLabel)}
             aria-haspopup="menu"
             aria-expanded={showThemeMenu}
-            title={currentThemeLabel}
+            title={t(currentThemeLabel)}
             onClick={() => setShowThemeMenu((previous) => !previous)}
           >
             <ThemeModeIcon mode={themeMode} />
           </button>
           {showThemeMenu && (
-            <div ref={themeMenuRef} className="workbench-theme-dropdown" role="menu" aria-label="Theme mode">
+            <div ref={themeMenuRef} className="workbench-theme-dropdown" role="menu" aria-label={t('Theme mode')}>
               {THEME_OPTIONS.map(({ mode, label }) => (
                 <button
                   key={mode}
                   type="button"
                   role="menuitemradio"
                   aria-checked={themeMode === mode}
-                  aria-label={label}
-                  title={label}
+                  aria-label={t(label)}
+                  title={t(label)}
                   className={`workbench-theme-option${themeMode === mode ? ' active' : ''}`}
                   onClick={() => {
                     onSetThemeMode(mode)

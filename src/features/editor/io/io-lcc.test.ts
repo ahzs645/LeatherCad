@@ -1,3 +1,7 @@
+import { isNativeCurve, nativeCurveEndpoints as curveEndpoints, nativeCurvePointAt } from '../cad/native-curve-ops'
+import type { Shape as EndpointShape } from '../cad/cad-types'
+
+const endpoints = (shape: EndpointShape) => isNativeCurve(shape) ? curveEndpoints(shape) : { start: shape.start, end: shape.end }
 import { describe, it, expect } from 'vitest'
 import { importLccDocument, exportLccDocument } from './io-lcc'
 import type { DocFile } from '../cad/cad-types'
@@ -119,6 +123,41 @@ function baseShape(id: string, type: string) {
 }
 
 describe('importLccDocument', () => {
+  it('preserves native legacy cubic controls without averaging or approximation', () => {
+    const result = importLccDocument(JSON.stringify({ meta: { file_type: 'LeathercraftCAD' }, layers: [{ id: 0 }], shapes: [{ ...baseShape('curve', 'LINE'), sp: [0, 0], ep: [100, 0], bz1: [0, 100], bz2: [100, 100] }] }))
+    expect(result.doc.objects).toHaveLength(1)
+    const curve = result.doc.objects[0]
+    expect(curve.type).toBe('cubic')
+    if (curve.type !== 'cubic') throw new Error('Expected native cubic')
+    expect(nativeCurvePointAt(curve, 0.5)).toEqual({ x: 50, y: 75 })
+    expect(result.warnings).toEqual([])
+  })
+
+  it('honors relative cubic paths, implicit line pairs and closure without inventing unsupported paths', () => {
+    const source = (path: string) => JSON.stringify({ meta: { file_type: 'LeathercraftCAD' }, layers: [{ id: 0 }], shapes: [{ ...baseShape('path', 'OTHER'), path }] })
+    const result = importLccDocument(source('m10,20 5,0 c0,10 10,10 10,0 z'))
+    expect(result.doc.objects).toHaveLength(3)
+    expect(result.doc.objects[1]).toMatchObject({ type: 'cubic', start: { x: 15, y: 20 }, control1: { x: 15, y: 30 }, control2: { x: 25, y: 30 }, end: { x: 25, y: 20 } })
+    expect(endpoints(result.doc.objects[2]).end).toEqual({ x: 10, y: 20 })
+    expect(() => importLccDocument(source('M0,0 Q10,10 20,0'))).toThrow('Unsupported legacy path command')
+  })
+
+  it('degree-elevates exported quadratics exactly and retains eccentric ellipse parameters', () => {
+    const doc = importLccDocument(MINIMAL_LCC).doc
+    doc.objects = [{ id: 'q', type: 'bezier', layerId: doc.activeLayerId, lineTypeId: doc.activeLineTypeId, start: { x: 0, y: 0 }, control: { x: 50, y: 100 }, end: { x: 100, y: 0 } }]
+    const roundtrip = importLccDocument(exportLccDocument(doc)).doc.objects
+    expect(roundtrip).toHaveLength(1)
+    const cubic = roundtrip[0]
+    if (cubic.type !== 'cubic') throw new Error('Expected degree-elevated cubic')
+    expect(cubic.control1.x).toBeCloseTo(100 / 3, 12)
+    expect(cubic.control1.y).toBeCloseTo(200 / 3, 12)
+    expect(cubic.control2.x).toBeCloseTo(200 / 3, 12)
+    expect(cubic.control2.y).toBeCloseTo(200 / 3, 12)
+    const ellipse = importLccDocument(JSON.stringify({ meta: { file_type: 'LeathercraftCAD' }, layers: [{ id: 0 }], shapes: [{ ...baseShape('ellipse', 'ELLIPSE'), ct: [0, 0], w: '200', h: '10', rt: '30' }] }))
+    expect(ellipse.doc.objects).toHaveLength(1)
+    expect(ellipse.doc.objects[0]).toMatchObject({ type: 'ellipse', radiusX: 100, radiusY: 5, rotationDeg: 30 })
+    expect(ellipse.warnings).toEqual([])
+  })
   it('parses a minimal LCC document', () => {
     const result = importLccDocument(MINIMAL_LCC)
     expect(result.doc.version).toBe(1)
@@ -136,12 +175,12 @@ describe('importLccDocument', () => {
     const shape = result.doc.objects[0]
     expect(shape.type).toBe('line')
     if (shape.type === 'line') {
-      expect(shape.start).toEqual({ x: 0, y: 0 })
-      expect(shape.end).toEqual({ x: 10, y: 20 })
+      expect(endpoints(shape).start).toEqual({ x: 0, y: 0 })
+      expect(endpoints(shape).end).toEqual({ x: 10, y: 20 })
     }
   })
 
-  it('skips malformed OTHER paths without creating partial geometry', () => {
+  it('rejects malformed OTHER paths before a drawing can be applied', () => {
     const lcc = JSON.stringify({
       meta: { file_type: 'LeathercraftCAD', version: '2.8.3' },
       layers: [{ id: 0, chk: '-1', nam: 'Cut', indp: '0' }],
@@ -155,10 +194,7 @@ describe('importLccDocument', () => {
       printareas: [],
     })
 
-    const result = importLccDocument(lcc)
-
-    expect(result.summary.shapeCount).toBe(0)
-    expect(result.warnings).toEqual(['OTHER shape "bad-path" has no parseable path, skipped'])
+    expect(() => importLccDocument(lcc)).toThrow('Invalid legacy path coordinates')
   })
 
   it('does not create zero-length line segments from repeated LCC path points', () => {
@@ -181,8 +217,8 @@ describe('importLccDocument', () => {
     const shape = result.doc.objects[0]
     expect(shape.type).toBe('line')
     if (shape.type !== 'line') return
-    expect(shape.start).toEqual({ x: 0, y: 0 })
-    expect(shape.end).toEqual({ x: 10, y: 0 })
+    expect(endpoints(shape).start).toEqual({ x: 0, y: 0 })
+    expect(endpoints(shape).end).toEqual({ x: 10, y: 0 })
   })
 
   it('strips UTF-8 BOM', () => {
@@ -241,7 +277,7 @@ describe('importLccDocument', () => {
     })
 
     const result = importLccDocument(lcc)
-    // Ellipse becomes 4 arc quadrants
+    // Circular ellipses remain exact circular quadrants.
     expect(result.summary.shapeCount).toBe(4)
     expect(result.summary.ellipseCount).toBe(1)
     expect(result.doc.objects.every((s) => s.type === 'arc')).toBe(true)
@@ -564,13 +600,13 @@ describe('importLccDocument', () => {
 
     const result = importLccDocument(lcc)
     expect(result.summary.shapeCount).toBe(1)
-    const shape = result.doc.objects[0]
-    expect(shape.type).toBe('bezier')
-    if (shape.type === 'bezier') {
-      expect(shape.start).toEqual({ x: 0, y: 0 })
-      expect(shape.end).toEqual({ x: 20, y: 0 })
-      expect(shape.control).toEqual({ x: 10, y: 10 })
-    }
+    expect(result.doc.objects.every(shape => shape.type === 'cubic')).toBe(true)
+    expect(endpoints(result.doc.objects[0]).start).toEqual({ x: 0, y: 0 })
+    expect(endpoints(result.doc.objects.at(-1)!).end).toEqual({ x: 20, y: 0 })
+    const curve = result.doc.objects[0]
+    if (curve.type !== 'cubic') throw new Error('Expected native cubic')
+    expect(nativeCurvePointAt(curve, 0.5)).toEqual({ x: 10, y: 7.5 })
+    expect(result.warnings).toEqual([])
   })
 
   it('extracts arrow markers from arst/ared fields', () => {
@@ -1040,8 +1076,8 @@ describe('exportLccDocument', () => {
     const shape = reimported.doc.objects[0]
     expect(shape.type).toBe('line')
     if (shape.type === 'line') {
-      expect(shape.start).toEqual({ x: 0, y: 0 })
-      expect(shape.end).toEqual({ x: 10, y: 20 })
+      expect(endpoints(shape).start).toEqual({ x: 0, y: 0 })
+      expect(endpoints(shape).end).toEqual({ x: 10, y: 20 })
     }
   })
 
@@ -1145,7 +1181,7 @@ describe('exportLccDocument', () => {
 
     expect(result.warnings).toEqual([])
     expect(result.doc.objects.some((shape) => shape.type === 'arc')).toBe(true)
-    expect(result.doc.objects.some((shape) => shape.type === 'bezier')).toBe(true)
+    expect(result.doc.objects.some((shape) => shape.type === 'cubic')).toBe(true)
     expect(result.summary.shapeCount).toBeGreaterThanOrEqual(5)
   })
 

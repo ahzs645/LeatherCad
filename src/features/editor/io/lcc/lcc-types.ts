@@ -7,6 +7,9 @@ import type {
 export type LccMeta = {
   file_type?: string
   version?: string
+  memo?: string
+  unit_for_view?: string
+  licenses?: unknown[]
 }
 
 export type LccLayer = {
@@ -53,6 +56,19 @@ export type LccShape = {
   ared: string
   layer: string
   plidx: string
+  orig?: unknown
+  dk?: string
+  dp1?: [number, number]
+  dp2?: [number, number]
+  doff?: string
+  dprec?: string
+  dunit?: string
+  dsl?: string
+  dti?: string
+  dao?: string
+  dtr?: string
+  dlbl?: string
+  dtid?: string
   pr?: { bt?: string; p?: string }
   StcIn?: [number, number]
   StcOut?: [number, number]
@@ -64,10 +80,18 @@ export type LccBackdrop = {
   src?: string
   x?: number
   y?: number
-  w?: number
-  h?: number
+  w?: number | string
+  h?: number | string
   opc?: string
   lock?: string
+  fullpath?: string
+  image?: { mime?: string; base64?: string; pxw?: number | string; pxh?: number | string }
+  topleft?: [number, number]
+  rotc?: [number, number]
+  angle?: string
+  dpi?: string
+  alpha?: string
+  visible?: boolean
 }
 
 export type LccPrintArea = {
@@ -82,6 +106,7 @@ export type LccFile = {
   shapes?: LccShape[]
   backdrops?: LccBackdrop[]
   printareas?: LccPrintArea[]
+  groups?: Array<{ id: number; parent: number }>
 }
 
 export type RawDimensionSegment = {

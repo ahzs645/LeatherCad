@@ -1,4 +1,6 @@
 import { distance, round, sampleShapePoints } from '../cad/cad-geometry'
+import { isNativeCurve, nativeCurveBounds, nativeCurveEndpoints, nativeCurvePointAt, transformNativeCurve } from '../cad/native-curve-ops'
+import { buildGroupAccess, isShapeLocked } from './shape-access'
 import type {
   ConstraintAnchor,
   FoldLine,
@@ -8,6 +10,7 @@ import type {
   Point,
   Shape,
   SnapSettings,
+  SketchGroup,
 } from '../cad/cad-types'
 
 type Bounds = {
@@ -102,6 +105,13 @@ export type SnapResult = {
 const SNAP_PIXEL_THRESHOLD = 14
 
 export function getShapeAnchorPoint(shape: Shape, anchor: ConstraintAnchor): Point {
+  if (isNativeCurve(shape)) {
+    if (anchor === 'start' || anchor === 'end') return nativeCurveEndpoints(shape)[anchor]
+    if (anchor === 'mid') return nativeCurvePointAt(shape, 0.5)
+    if (shape.type === 'ellipse') return { ...shape.center }
+    const bounds = nativeCurveBounds(shape)
+    return { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 }
+  }
   if (anchor === 'start') {
     return { ...shape.start }
   }
@@ -149,6 +159,7 @@ export function getShapeAnchorPoint(shape: Shape, anchor: ConstraintAnchor): Poi
 }
 
 export function translateShape(shape: Shape, dx: number, dy: number): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
   if (shape.type === 'line') {
     return {
       ...shape,
@@ -193,6 +204,12 @@ export function computeBoundsFromShapes(shapes: Shape[]): Bounds | null {
   let maxY = Number.NEGATIVE_INFINITY
 
   for (const shape of shapes) {
+    if (isNativeCurve(shape)) {
+      const bounds = nativeCurveBounds(shape)
+      minX = Math.min(minX, bounds.minX); minY = Math.min(minY, bounds.minY)
+      maxX = Math.max(maxX, bounds.maxX); maxY = Math.max(maxY, bounds.maxY)
+      continue
+    }
     const sampled = sampleShapePoints(shape, 24)
     for (const point of sampled) {
       minX = Math.min(minX, point.x)
@@ -284,6 +301,7 @@ export function applyParametricConstraints(
   shapes: Shape[],
   layers: Layer[],
   constraints: ParametricConstraint[],
+  sketchGroups: SketchGroup[] = [],
 ): Shape[] {
   if (shapes.length === 0 || constraints.length === 0 || layers.length === 0) {
     return shapes
@@ -291,11 +309,15 @@ export function applyParametricConstraints(
 
   let nextShapes = [...shapes]
   const validLayerIds = new Set(layers.map((layer) => layer.id))
+  const lockedLayers = new Set(layers.filter(layer => layer.locked).map(layer => layer.id))
+  const groupAccess = buildGroupAccess(sketchGroups)
 
   for (const constraint of constraints) {
     if (!constraint.enabled) {
       continue
     }
+    const target = nextShapes.find(shape => shape.id === constraint.shapeId)
+    if (!target || lockedLayers.has(target.layerId) || isShapeLocked(target, groupAccess)) continue
 
     const indexById = new Map(nextShapes.map((shape, index) => [shape.id, index]))
 
@@ -359,6 +381,10 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
       if (p.x > maxX) maxX = p.x
       if (p.y > maxY) maxY = p.y
     }
+    if (isNativeCurve(shape)) {
+      const bounds = nativeCurveBounds(shape)
+      return Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * safeScale < minScreenSizePx
+    }
     considerPoint(shape.start)
     considerPoint(shape.end)
     if (shape.type === 'arc') considerPoint(shape.mid)
@@ -378,15 +404,27 @@ export function snapPointToContext(point: Point, settings: SnapSettings, context
   if (settings.endpoints) {
     for (const shape of context.shapes) {
       if (shapeIsTooSmall(shape)) continue
-      registerCandidate(shape.start, 'endpoint')
-      registerCandidate(shape.end, 'endpoint')
+      const { start, end } = isNativeCurve(shape) ? nativeCurveEndpoints(shape) : shape
+      registerCandidate(start, 'endpoint')
+      registerCandidate(end, 'endpoint')
     }
   }
 
   if (!suppressDenseCandidates && (settings.midpoints || settings.quarterPoints)) {
     for (const shape of context.shapes) {
       if (shapeIsTooSmall(shape)) continue
-      if (shape.type === 'line') {
+      if (isNativeCurve(shape)) {
+        if (settings.midpoints) {
+          registerCandidate(nativeCurvePointAt(shape, 0.5), 'midpoint')
+          if (shape.type === 'cubic') {
+            registerCandidate(shape.control1, 'control'); registerCandidate(shape.control2, 'control')
+          } else registerCandidate(shape.center, 'center')
+        }
+        if (settings.quarterPoints) {
+          registerCandidate(nativeCurvePointAt(shape, 0.25), 'quarter')
+          registerCandidate(nativeCurvePointAt(shape, 0.75), 'quarter')
+        }
+      } else if (shape.type === 'line') {
         const mid = {
           x: (shape.start.x + shape.end.x) / 2,
           y: (shape.start.y + shape.end.y) / 2,

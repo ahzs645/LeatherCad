@@ -4,8 +4,9 @@ import {
   buildDefaultGradeRules,
   nestGradedPatterns,
 } from './pattern-grading'
-import type { GradeRule, SizeSpec, GradedPattern } from './pattern-grading'
-import type { Shape, LineShape, ArcShape, BezierShape } from './cad-types'
+import type { GradeRule, SizeSpec } from './pattern-grading'
+import type { LineShape, ArcShape, BezierShape, CubicShape, EllipseShape } from './cad-types'
+import { nativeCurveBounds } from './native-curve-ops'
 
 // ---------------------------------------------------------------------------
 // Helper factories
@@ -81,7 +82,7 @@ describe('gradeShapes', () => {
   ]
 
   it('returns one GradedPattern per size', () => {
-    const shapes: Shape[] = [makeLine('s1', 0, 0, 100, 0)]
+    const shapes = [makeLine('s1', 0, 0, 100, 0)]
     const rules: GradeRule[] = []
     const result = gradeShapes(shapes, rules, sizes)
     expect(result).toHaveLength(4)
@@ -89,7 +90,7 @@ describe('gradeShapes', () => {
   })
 
   it('base size (index 0) has no shift', () => {
-    const shapes: Shape[] = [makeLine('s1', 0, 0, 100, 0)]
+    const shapes = [makeLine('s1', 0, 0, 100, 0)]
     const rules: GradeRule[] = [
       { id: 'r1', shapeId: 's1', anchor: 'end', deltaXPerSize: 5, deltaYPerSize: 0 },
     ]
@@ -100,7 +101,7 @@ describe('gradeShapes', () => {
   })
 
   it('applies positive shift for sizes above base', () => {
-    const shapes: Shape[] = [makeLine('s1', 0, 0, 100, 0)]
+    const shapes = [makeLine('s1', 0, 0, 100, 0)]
     const rules: GradeRule[] = [
       { id: 'r1', shapeId: 's1', anchor: 'end', deltaXPerSize: 5, deltaYPerSize: 2 },
     ]
@@ -115,7 +116,7 @@ describe('gradeShapes', () => {
   })
 
   it('applies negative shift for sizes below base', () => {
-    const shapes: Shape[] = [makeLine('s1', 0, 0, 100, 0)]
+    const shapes = [makeLine('s1', 0, 0, 100, 0)]
     const rules: GradeRule[] = [
       { id: 'r1', shapeId: 's1', anchor: 'end', deltaXPerSize: 5, deltaYPerSize: 0 },
     ]
@@ -125,7 +126,7 @@ describe('gradeShapes', () => {
   })
 
   it('applies multiple rules to the same shape', () => {
-    const shapes: Shape[] = [makeLine('s1', 0, 0, 100, 50)]
+    const shapes = [makeLine('s1', 0, 0, 100, 50)]
     const rules: GradeRule[] = [
       { id: 'r1', shapeId: 's1', anchor: 'start', deltaXPerSize: -2, deltaYPerSize: -1 },
       { id: 'r2', shapeId: 's1', anchor: 'end', deltaXPerSize: 3, deltaYPerSize: 2 },
@@ -139,7 +140,7 @@ describe('gradeShapes', () => {
   })
 
   it('handles multiple shapes with independent rules', () => {
-    const shapes: Shape[] = [
+    const shapes = [
       makeLine('s1', 0, 0, 100, 0),
       makeLine('s2', 0, 50, 80, 50),
     ]
@@ -154,29 +155,29 @@ describe('gradeShapes', () => {
   })
 
   it('grades arc mid point', () => {
-    const shapes: Shape[] = [makeArc('a1', 0, 0, 50, 30, 100, 0)]
+    const shapes = [makeArc('a1', 0, 0, 50, 30, 100, 0)]
     const rules: GradeRule[] = [
       { id: 'r1', shapeId: 'a1', anchor: 'mid', deltaXPerSize: 0, deltaYPerSize: 2 },
     ]
     const result = gradeShapes(shapes, rules, sizes)
     const large = result.find((p) => p.sizeName === 'L')!
-    const arc = large.shapes[0] as ArcShape
+    const arc = large.shapes[0]
     expect(arc.mid.y).toBe(32)
   })
 
   it('grades bezier control point', () => {
-    const shapes: Shape[] = [makeBezier('b1', 0, 0, 50, 50, 100, 0)]
+    const shapes = [makeBezier('b1', 0, 0, 50, 50, 100, 0)]
     const rules: GradeRule[] = [
       { id: 'r1', shapeId: 'b1', anchor: 'control', deltaXPerSize: 0, deltaYPerSize: 3 },
     ]
     const result = gradeShapes(shapes, rules, sizes)
     const xl = result.find((p) => p.sizeName === 'XL')!
-    const bezier = xl.shapes[0] as BezierShape
+    const bezier = xl.shapes[0]
     expect(bezier.control.y).toBe(56) // 50 + 3*2
   })
 
   it('shapes without rules remain unchanged', () => {
-    const shapes: Shape[] = [
+    const shapes = [
       makeLine('s1', 10, 20, 30, 40),
       makeLine('s2', 50, 60, 70, 80),
     ]
@@ -201,7 +202,7 @@ describe('buildDefaultGradeRules', () => {
   })
 
   it('generates rules for each anchor of each shape', () => {
-    const shapes: Shape[] = [makeLine('s1', 0, 0, 100, 0)]
+    const shapes = [makeLine('s1', 0, 0, 100, 0)]
     const rules = buildDefaultGradeRules(shapes)
     // line has start and end -> 2 rules
     expect(rules).toHaveLength(2)
@@ -210,14 +211,14 @@ describe('buildDefaultGradeRules', () => {
   })
 
   it('generates 3 rules for arc (start, mid, end)', () => {
-    const shapes: Shape[] = [makeArc('a1', 0, 0, 50, 30, 100, 0)]
+    const shapes = [makeArc('a1', 0, 0, 50, 30, 100, 0)]
     const rules = buildDefaultGradeRules(shapes)
     expect(rules).toHaveLength(3)
     expect(rules.map((r) => r.anchor)).toEqual(['start', 'mid', 'end'])
   })
 
   it('generates 3 rules for bezier (start, control, end)', () => {
-    const shapes: Shape[] = [makeBezier('b1', 0, 0, 50, 50, 100, 0)]
+    const shapes = [makeBezier('b1', 0, 0, 50, 50, 100, 0)]
     const rules = buildDefaultGradeRules(shapes)
     expect(rules).toHaveLength(3)
     expect(rules.map((r) => r.anchor)).toEqual(['start', 'control', 'end'])
@@ -225,7 +226,7 @@ describe('buildDefaultGradeRules', () => {
 
   it('produces delta values that scale points away from centroid', () => {
     // Symmetric rectangle-like shape: centroid at (50, 25)
-    const shapes: Shape[] = [
+    const shapes = [
       makeLine('s1', 0, 0, 100, 0),
       makeLine('s2', 100, 0, 100, 50),
       makeLine('s3', 100, 50, 0, 50),
@@ -247,7 +248,7 @@ describe('buildDefaultGradeRules', () => {
   })
 
   it('resulting graded shapes are uniformly larger for positive size index', () => {
-    const shapes: Shape[] = [
+    const shapes = [
       makeLine('s1', 0, 0, 200, 0),
       makeLine('s2', 200, 0, 200, 100),
     ]
@@ -277,7 +278,7 @@ describe('nestGradedPatterns', () => {
   })
 
   it('positions first pattern starting at x=0', () => {
-    const patterns: GradedPattern[] = [
+    const patterns = [
       {
         sizeName: 'M',
         shapes: [makeLine('s1', 20, 0, 120, 50)],
@@ -290,7 +291,7 @@ describe('nestGradedPatterns', () => {
   })
 
   it('stacks patterns horizontally with spacing', () => {
-    const patterns: GradedPattern[] = [
+    const patterns = [
       {
         sizeName: 'S',
         shapes: [makeLine('s1', 0, 0, 100, 0)],
@@ -321,7 +322,7 @@ describe('nestGradedPatterns', () => {
   })
 
   it('does not shift y coordinates', () => {
-    const patterns: GradedPattern[] = [
+    const patterns = [
       {
         sizeName: 'S',
         shapes: [makeLine('s1', 0, 30, 100, 70)],
@@ -339,7 +340,7 @@ describe('nestGradedPatterns', () => {
   })
 
   it('handles patterns with negative coordinates', () => {
-    const patterns: GradedPattern[] = [
+    const patterns = [
       {
         sizeName: 'S',
         shapes: [makeLine('s1', -50, 0, 50, 0)],
@@ -362,7 +363,7 @@ describe('nestGradedPatterns', () => {
   })
 
   it('handles multi-shape patterns', () => {
-    const patterns: GradedPattern[] = [
+    const patterns = [
       {
         sizeName: 'M',
         shapes: [
@@ -380,12 +381,33 @@ describe('nestGradedPatterns', () => {
   })
 
   it('preserves sizeName in output', () => {
-    const patterns: GradedPattern[] = [
+    const patterns = [
       { sizeName: 'XS', shapes: [makeLine('s1', 0, 0, 50, 0)] },
       { sizeName: 'S', shapes: [makeLine('s1', 0, 0, 60, 0)] },
       { sizeName: 'M', shapes: [makeLine('s1', 0, 0, 70, 0)] },
     ]
     const result = nestGradedPatterns(patterns, 5)
     expect(result.map((p) => p.sizeName)).toEqual(['XS', 'S', 'M'])
+  })
+})
+
+describe('native curve grading', () => {
+  it('scales both cubic controls and retains its analytic representation', () => {
+    const cubic: CubicShape = { id: 'c', type: 'cubic', layerId: 'layer-1', lineTypeId: 'lt-1', start: { x: 0, y: 0 }, control1: { x: 20, y: -30 }, control2: { x: 80, y: -30 }, end: { x: 100, y: 0 } }
+    const rules = buildDefaultGradeRules([cubic])
+    expect(rules.map((rule) => rule.anchor)).toEqual(['start', 'control1', 'control2', 'end'])
+    const graded = gradeShapes([cubic], rules, [{ name: 'L', sizeIndex: 1 }])[0].shapes[0]
+    expect(graded.type).toBe('cubic')
+    expect(graded.end.x - graded.start.x).toBeCloseTo(101)
+    expect(graded.control2.x - graded.control1.x).toBeCloseTo(60.6)
+  })
+  it('grades ellipse radii and center without changing angle parameters or swapping its axes', () => {
+    const ellipse: EllipseShape = { id: 'e', type: 'ellipse', layerId: 'layer-1', lineTypeId: 'lt-1', center: { x: 20, y: 30 }, radiusX: 10, radiusY: 40, rotationDeg: 37, startAngleDeg: 20, sweepDeg: -240 }
+    const graded = gradeShapes([ellipse], buildDefaultGradeRules([ellipse]), [{ name: 'L', sizeIndex: 1 }])[0].shapes[0]
+    expect(graded.radiusX).toBeCloseTo(10.1); expect(graded.radiusY).toBeCloseTo(40.4)
+    expect(graded.rotationDeg).toBe(37); expect(graded.startAngleDeg).toBe(20); expect(graded.sweepDeg).toBe(-240)
+    const nested = nestGradedPatterns([{ sizeName: 'L', shapes: [graded] }], 5)[0].shapes[0]
+    expect(nativeCurveBounds(nested).minX).toBeCloseTo(0)
+    expect(nested.radiusX).toBe(graded.radiusX); expect(nested.radiusY).toBe(graded.radiusY)
   })
 })

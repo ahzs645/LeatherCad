@@ -98,6 +98,8 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await openSeedDocument(page, token, buildSeedDocument())
 
   const ribbonTabs = page.getByRole('tablist', { name: 'Workbench ribbon tabs' })
+  const stitchTab = page.getByTestId('ribbon-tab-stitch')
+  const simulatorCommand = page.getByTestId('ribbon-command-stitch-simulator')
   await expect(ribbonTabs).toBeVisible()
   const pointerSelectShape = async (index: number, additive = false) => {
     await canvasShapeLines.nth(index).dispatchEvent('pointerdown', {
@@ -118,9 +120,10 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await pointerSelectShape(1, true)
   await pointerSelectShape(2, true)
   await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-selected')).toHaveCount(3)
-  await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
-  await expect(page.getByRole('button', { name: 'Fixed', exact: true })).toBeEnabled()
-  await page.getByRole('button', { name: 'Fixed', exact: true }).click()
+  await stitchTab.click()
+  await expect(stitchTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByTestId('ribbon-command-place-fixed-stitch')).toBeEnabled()
+  await page.getByTestId('ribbon-command-place-fixed-stitch').click()
   const stitchHoleDots = page.locator('svg.canvas .stitch-hole-dot')
   await expect.poll(async () => stitchHoleDots.count()).toBeGreaterThan(0)
   const initialHoleCount = await stitchHoleDots.count()
@@ -143,9 +146,15 @@ test('terminal stitch editing and extracted curve box stitch flow work in the de
   await page.getByRole('button', { name: 'End Stitch Here' }).click()
   await expect(page.locator('svg.canvas .stitch-hole-terminal-marker')).toHaveCount(1)
 
-  await ribbonTabs.getByRole('tab', { name: 'Stitch' }).click()
-  await expect(page.getByRole('button', { name: 'Simulate' })).toBeVisible()
-  await page.getByRole('button', { name: 'Simulate' }).click()
+  // The terminal marker is the completed document update. Observe the tab
+  // selection separately so a failure identifies whether the ribbon changed
+  // state or its simulator command failed to render. The command ID also
+  // remains stable when interface labels are translated.
+  await stitchTab.click()
+  await expect(stitchTab).toHaveAttribute('aria-selected', 'true')
+  await expect(simulatorCommand).toBeVisible()
+  await expect(simulatorCommand).toBeEnabled()
+  await simulatorCommand.click()
   await expect(page.getByText('Show direction arrows')).toBeVisible()
   await expect(page.getByText('Use the stitch-hole inspector to set or clear the terminal stitch hole.')).toBeVisible()
   await page.getByRole('button', { name: 'Cancel' }).click()

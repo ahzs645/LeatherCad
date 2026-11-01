@@ -1,67 +1,18 @@
 import { uid } from '../../cad/cad-geometry'
-import type { ArcShape, Point } from '../../cad/cad-types'
+import type { Point, Shape } from '../../cad/cad-types'
+import { circularArcs } from '../lcad/lcad-geometry'
 
-export function ellipseToArcShapes(
-  center: Point,
-  w: number,
-  h: number,
-  layerId: string,
-  lineTypeId: string,
-): ArcShape[] {
-  const rx = w / 2
-  const ry = h / 2
-  const cx = center.x
-  const cy = center.y
-  const right: Point = { x: cx + rx, y: cy }
-  const top: Point = { x: cx, y: cy - ry }
-  const left: Point = { x: cx - rx, y: cy }
-  const bottom: Point = { x: cx, y: cy + ry }
-  const cos45 = Math.SQRT1_2
-  const midRT: Point = { x: cx + rx * cos45, y: cy - ry * cos45 }
-  const midTL: Point = { x: cx - rx * cos45, y: cy - ry * cos45 }
-  const midLB: Point = { x: cx - rx * cos45, y: cy + ry * cos45 }
-  const midBR: Point = { x: cx + rx * cos45, y: cy + ry * cos45 }
-
-  return [
-    { id: uid(), type: 'arc', layerId, lineTypeId, start: right, mid: midRT, end: top },
-    { id: uid(), type: 'arc', layerId, lineTypeId, start: top, mid: midTL, end: left },
-    { id: uid(), type: 'arc', layerId, lineTypeId, start: left, mid: midLB, end: bottom },
-    { id: uid(), type: 'arc', layerId, lineTypeId, start: bottom, mid: midBR, end: right },
-  ]
+export function ellipseToArcShapes(center: Point, w: number, h: number, layerId: string, lineTypeId: string, rotationDeg = 0): Shape[] {
+  return ellipseArcToShapes(center, w, h, 0, -360, layerId, lineTypeId, rotationDeg)
 }
 
-export function ellipseArcToShapes(
-  center: Point,
-  w: number,
-  h: number,
-  startAngleDeg: number,
-  sweepAngleDeg: number,
-  layerId: string,
-  lineTypeId: string,
-): ArcShape[] {
-  const rx = w / 2
-  const ry = h / 2
-  const cx = center.x
-  const cy = center.y
-  const toRad = Math.PI / 180
-
-  const startRad = startAngleDeg * toRad
-  const endRad = (startAngleDeg + sweepAngleDeg) * toRad
-  const midRad = (startRad + endRad) / 2
-  const pointAt = (rad: number): Point => ({
-    x: cx + rx * Math.cos(rad),
-    y: cy + ry * Math.sin(rad),
-  })
-
-  return [
-    {
-      id: uid(),
-      type: 'arc',
-      layerId,
-      lineTypeId,
-      start: pointAt(startRad),
-      mid: pointAt(midRad),
-      end: pointAt(endRad),
-    },
-  ]
+/** Legacy ellipse parameters map directly to the analytic editor model. */
+export function ellipseArcToShapes(center: Point, w: number, h: number, startAngleDeg: number, sweepAngleDeg: number, layerId: string, lineTypeId: string, rotationDeg = 0): Shape[] {
+  const rx = w / 2, ry = h / 2
+  if (![center.x, center.y, rx, ry, startAngleDeg, sweepAngleDeg, rotationDeg].every(Number.isFinite) || rx <= 0 || ry <= 0 || Math.abs(sweepAngleDeg) > 360) throw new Error('Invalid legacy ellipse dimensions or sweep')
+  const start = startAngleDeg * Math.PI / 180, sweep = sweepAngleDeg * Math.PI / 180
+  const base = { id: uid(), layerId, lineTypeId }
+  const rotation = rotationDeg * Math.PI / 180
+  if (Math.abs(rx - ry) <= 1e-10) return circularArcs(center.x, center.y, rx, start + rotation, sweep, base)
+  return [{ ...base, type: 'ellipse', center, radiusX: rx, radiusY: ry, rotationDeg, startAngleDeg, sweepDeg: sweepAngleDeg }]
 }

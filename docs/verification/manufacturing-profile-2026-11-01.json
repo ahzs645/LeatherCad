@@ -1,0 +1,167 @@
+{
+  "status": "passed",
+  "recordedAtUtc": "2026-11-01T00:35:09.704Z",
+  "reproduce": "node scripts/verify-manufacturing-profile.mjs --out docs/verification/manufacturing-profile-2026-11-01.json",
+  "runtime": {
+    "node": "v24.19.0",
+    "platform": "linux",
+    "architecture": "x64",
+    "manifold": "3.5.4"
+  },
+  "execution": "Node/Vite SSR with actual Manifold WASM for combined solids; no dist build, browser or font fixture",
+  "measuredModulesSha256": {
+    "scripts/verify-manufacturing-profile.mjs": "254dab0931ec40ed000375a1c30fad5f00e2d3fa0ac4a3b0a5972c20d9138b37",
+    "src/features/editor/io/io-stl.ts": "6766b1c6c891e354220e2c6d04387933c5d5182afa01455732a8aa0f3f04ddcc",
+    "src/features/editor/io/stl-mesh.ts": "cb822725b946c6105aeef6bea51ba4ec8632ef87ded95308643cb56d711bbc70",
+    "src/features/editor/io/stl-polygons.ts": "056e08e40afc156eebc0d77ceab03716dceeea08295f3b9a9c89129752c16f5f",
+    "src/features/editor/io/manufacturing/manufacturing-curves.ts": "ba136d33c01a30888ea39611631f9677a72666105e7144d18d4eb1adf4e2d74b",
+    "src/features/editor/io/manufacturing/manufacturing-finishing.ts": "633fb0e7359befdebecfe9a0afd17d959ac2aa56d60d456aaa7f1166a363f5c0",
+    "src/features/editor/io/manufacturing/manufacturing-level-mesh.ts": "76eb2ab14f745ffc36484c97d0a149d8fb3792691a8599f5ebc659f3e03c8f4a",
+    "src/features/editor/io/manufacturing/manufacturing-outlines.ts": "ff07f30ae03127ff98aff289493bbcea36e93a3aefb12806b3d8b83c69e4a6fa",
+    "src/features/editor/io/manufacturing/manufacturing-regions.ts": "2c28931ae027255e940624ea53199523bb6743ba23e0c312ac764ffbd41f8b5a",
+    "src/features/editor/io/manufacturing/manufacturing-settings.ts": "937bc1bd80286a200a90ffd7713de32c98ddbd3e3fa91be5867d3d8d7a9842bb",
+    "src/features/editor/io/manufacturing/manufacturing-solid-finishing.ts": "dd0ffa8ee07be281fd4d43cfd13626ebcb09484bd3aa32db39879b19eee9c073",
+    "src/features/editor/io/manufacturing/manufacturing-solid-kernel.ts": "ae86243b32cdeed3c0044c38818b4d603b5edc5ce4a90716aa4fbb5c7cf9394c",
+    "src/features/editor/io/manufacturing/manufacturing-surface-refinement.ts": "11f658c1ccfe59933134753bca7c2222950d073c7e046bfdd0524e99ed80f6b9"
+  },
+  "scope": {
+    "profile": "One top-finished 40x20mm prism, 5x10mm cutout at (2,5), height/radius .5mm, fillet divisions6",
+    "probeSampling": "438 evaluations including repeated locations; distinct count separately reported. Barycentric triangle heights compared with independent analytic line/circle normal distances.",
+    "normalError": "Chamfer |z-d|/sqrt(2); fillet |hypot(radius-d,z)-radius|. Vertical error is reported separately and is not the fillet normal-distance acceptance gate.",
+    "steppedCutout": "Union of 30x20 rectangles at (0,0) and (10,0), nested 5x10 cutout at (2,5), left/middle/right heights2/4/6mm",
+    "independentAsciiChecks": "Standalone reader checks paired/oppositely directed edges, degenerate faces, connected components, signed component volumes and extents; no production mesh-validator call.",
+    "limitations": "Finite synthetic numerical acceptance, not a proof over all models or a general self-intersection validator. Browser WASM loading, slicer behavior and physical printer fit are separate gates."
+  },
+  "profiles": [
+    {
+      "finish": "chamfer",
+      "requestedToleranceMm": 0.01,
+      "probeCount": 438,
+      "uniqueProbeCount": 310,
+      "coveredProbeCount": 438,
+      "missingProbeCount": 0,
+      "maxSampledNormalErrorMm": 0.0038050606683937894,
+      "worstProbe": {
+        "x": 2,
+        "y": 15.49,
+        "distanceToBoundaryMm": 0.4900000000000002,
+        "actualZMm": 0.49538116840289514,
+        "expectedZMm": 0.4900000000000002,
+        "normalErrorMm": 0.0038050606683937894,
+        "verticalErrorMm": 0.005381168402894931
+      },
+      "inputUnchanged": true,
+      "meshTriangleCount": 2222,
+      "meshSignedVolumeMm3": 356.28756513636404,
+      "analyticVolume": {
+        "expectedMm3": 356.2857669727671,
+        "acceptanceDifferenceMm3": 0.25,
+        "absoluteDifferenceMm3": 0.001798163596959057
+      }
+    },
+    {
+      "finish": "fillet",
+      "requestedToleranceMm": 0.01,
+      "probeCount": 438,
+      "uniqueProbeCount": 310,
+      "coveredProbeCount": 438,
+      "missingProbeCount": 0,
+      "maxSampledNormalErrorMm": 0.006786060714452868,
+      "worstProbe": {
+        "x": 2,
+        "y": 4.995,
+        "distanceToBoundaryMm": 0.004999999999999005,
+        "actualZMm": 0.10866053255194424,
+        "expectedZMm": 0.07053367989832239,
+        "normalErrorMm": 0.006786060714452868,
+        "verticalErrorMm": 0.038126852653621854
+      },
+      "inputUnchanged": true,
+      "meshTriangleCount": 2802,
+      "meshSignedVolumeMm3": 366.8843933406547
+    }
+  ],
+  "steppedCutout": [
+    {
+      "edgeFinish": "none",
+      "requestedExportToleranceMm": 0.02,
+      "internalCutterToleranceMm": null,
+      "edgeSizeMm": 0.5,
+      "inputUnchanged": true,
+      "generatedVolumeMm3": 3100,
+      "warnings": [],
+      "exported": {
+        "triangleCount": 72,
+        "vertexCount": 36,
+        "openOrMisorientedEdges": 0,
+        "degenerateTriangles": 0,
+        "componentCount": 1,
+        "componentVolumesMm3": [
+          3100
+        ],
+        "positiveComponentVolumes": true,
+        "signedVolumeMm3": 3100,
+        "dimensionsMm": [
+          40,
+          20,
+          6
+        ],
+        "asciiSha256": "13bb1b95aba909decbe298e5275a4742ac4ff79d92da0a7c2cfd3b2c158194ca"
+      }
+    },
+    {
+      "edgeFinish": "chamfer",
+      "requestedExportToleranceMm": 0.02,
+      "internalCutterToleranceMm": 0.01,
+      "edgeSizeMm": 0.5,
+      "inputUnchanged": true,
+      "generatedVolumeMm3": 3057.7417975904195,
+      "warnings": [],
+      "exported": {
+        "triangleCount": 3576,
+        "vertexCount": 1788,
+        "openOrMisorientedEdges": 0,
+        "degenerateTriangles": 0,
+        "componentCount": 1,
+        "componentVolumesMm3": [
+          3057.7417975015082
+        ],
+        "positiveComponentVolumes": true,
+        "signedVolumeMm3": 3057.7417975015082,
+        "dimensionsMm": [
+          40,
+          20,
+          6
+        ],
+        "asciiSha256": "aff2a541b70ce7b8ff984bf12322135843f357b6feb89328bc6f0771ff8d809f"
+      }
+    },
+    {
+      "edgeFinish": "fillet",
+      "requestedExportToleranceMm": 0.02,
+      "internalCutterToleranceMm": 0.01,
+      "edgeSizeMm": 0.5,
+      "inputUnchanged": true,
+      "generatedVolumeMm3": 3081.64696511793,
+      "warnings": [],
+      "exported": {
+        "triangleCount": 4950,
+        "vertexCount": 2475,
+        "openOrMisorientedEdges": 0,
+        "degenerateTriangles": 0,
+        "componentCount": 1,
+        "componentVolumesMm3": [
+          3081.646965458789
+        ],
+        "positiveComponentVolumes": true,
+        "signedVolumeMm3": 3081.646965458789,
+        "dimensionsMm": [
+          40,
+          20,
+          6
+        ],
+        "asciiSha256": "448bdc79e2c0f73069de70c3c2ed3e0590dc59ab05afee7c2b32f5e09881cd1f"
+      }
+    }
+  ]
+}

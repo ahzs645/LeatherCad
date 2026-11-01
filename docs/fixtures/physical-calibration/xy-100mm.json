@@ -1,0 +1,314 @@
+{
+  "version": 1,
+  "units": "mm",
+  "documentName": "xy-100mm",
+  "objects": [
+    {
+      "id": "x100",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 100,
+        "y": 0
+      }
+    },
+    {
+      "id": "y100",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 0,
+        "y": 100
+      }
+    },
+    {
+      "id": "square-right",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 100,
+        "y": 0
+      },
+      "end": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "square-bottom",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 0,
+        "y": 100
+      },
+      "end": {
+        "x": 100,
+        "y": 100
+      }
+    },
+    {
+      "id": "100 mm X / 100 mm Y",
+      "type": "text",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 10,
+        "y": 20
+      },
+      "end": {
+        "x": 110,
+        "y": 20
+      },
+      "text": "100 mm X / 100 mm Y",
+      "fontSizeMm": 4,
+      "fontFamily": "sans-serif",
+      "transform": "none",
+      "radiusMm": 100,
+      "sweepDeg": 0
+    },
+    {
+      "id": "Pitch: 4 mm (40 mm over 10 intervals)",
+      "type": "text",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 10,
+        "y": 40
+      },
+      "end": {
+        "x": 110,
+        "y": 40
+      },
+      "text": "Pitch: 4 mm (40 mm over 10 intervals)",
+      "fontSizeMm": 4,
+      "fontFamily": "sans-serif",
+      "transform": "none",
+      "radiusMm": 100,
+      "sweepDeg": 0
+    },
+    {
+      "id": "pitch-0",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 10,
+        "y": 50
+      },
+      "end": {
+        "x": 10,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-1",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 14,
+        "y": 50
+      },
+      "end": {
+        "x": 14,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-2",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 18,
+        "y": 50
+      },
+      "end": {
+        "x": 18,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-3",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 22,
+        "y": 50
+      },
+      "end": {
+        "x": 22,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-4",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 26,
+        "y": 50
+      },
+      "end": {
+        "x": 26,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-5",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 30,
+        "y": 50
+      },
+      "end": {
+        "x": 30,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-6",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 34,
+        "y": 50
+      },
+      "end": {
+        "x": 34,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-7",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 38,
+        "y": 50
+      },
+      "end": {
+        "x": 38,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-8",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 42,
+        "y": 50
+      },
+      "end": {
+        "x": 42,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-9",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 46,
+        "y": 50
+      },
+      "end": {
+        "x": 46,
+        "y": 55
+      }
+    },
+    {
+      "id": "pitch-10",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 50,
+        "y": 50
+      },
+      "end": {
+        "x": 50,
+        "y": 55
+      }
+    },
+    {
+      "id": "asymmetry",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 70,
+        "y": 70
+      },
+      "end": {
+        "x": 90,
+        "y": 90
+      }
+    },
+    {
+      "id": "Keep this corner at bottom right",
+      "type": "text",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 10,
+        "y": 80
+      },
+      "end": {
+        "x": 110,
+        "y": 80
+      },
+      "text": "Keep this corner at bottom right",
+      "fontSizeMm": 4,
+      "fontFamily": "sans-serif",
+      "transform": "none",
+      "radiusMm": 100,
+      "sweepDeg": 0
+    }
+  ],
+  "layers": [
+    {
+      "id": "main",
+      "name": "Calibration",
+      "visible": true,
+      "locked": false
+    }
+  ],
+  "activeLayerId": "main",
+  "lineTypes": [
+    {
+      "id": "cut",
+      "name": "Calibration",
+      "role": "cut",
+      "style": "solid",
+      "color": "#111827",
+      "visible": true,
+      "strokeWidthMm": 0.25
+    }
+  ],
+  "activeLineTypeId": "cut",
+  "stitchHoles": [],
+  "foldLines": []
+}

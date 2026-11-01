@@ -5,6 +5,7 @@ import type {
   WorkbenchInspectorTab,
 } from './workbench-types'
 import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
+import { getWorkspacePreset, selectWorkspacePreset, subscribeWorkspacePreset, useWorkspacePreset, WORKSPACE_PRESETS } from './workspace-presets'
 
 const STORAGE_KEY = 'leathercad.workbench.layout.v1'
 const MIN_BROWSER_WIDTH = 220
@@ -40,6 +41,8 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function readStoredLayout(): DockLayoutState {
+  const preset = getWorkspacePreset()
+  if (preset !== 'custom') return { ...WORKSPACE_PRESETS[preset].layout }
   if (typeof window === 'undefined') {
     return DEFAULT_LAYOUT
   }
@@ -154,12 +157,17 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
   const [shellWidth, setShellWidth] = useState(0)
   const [dockLayout, setDockLayout] = useState<DockLayoutState>(() => readStoredLayout())
   const [isResizing, setIsResizing] = useState(false)
+  const preset = useWorkspacePreset()
+  useEffect(() => subscribeWorkspacePreset(() => {
+    const next = getWorkspacePreset()
+    if (next !== 'custom') setDockLayout({ ...WORKSPACE_PRESETS[next].layout })
+  }), [])
 
   // A peek is a luxury and folds away on a narrow shell; an even split is the
   // point of the mode, so it survives down to a much lower width.
   const peekBreakpoint = evenSplit ? SPLIT_PEEK_BREAKPOINT : AUTO_HIDE_PEEK_BREAKPOINT
   const effectiveSecondaryPreviewMode: SecondaryPreviewMode =
-    secondaryPreviewMode !== 'hidden' && shellWidth >= peekBreakpoint
+    preset !== 'canvas' && secondaryPreviewMode !== 'hidden' && shellWidth >= peekBreakpoint
       ? secondaryPreviewMode
       : 'hidden'
   const showPeek = enabled && effectiveSecondaryPreviewMode !== 'hidden'
@@ -185,6 +193,7 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
   }, [enabled, shellNode])
 
   const layoutForAutoHide: DockLayoutState = useMemo(() => {
+    if (preset === 'canvas') return { ...dockLayout, inspectorOpen: false }
     if (pinSideBar && !dockLayout.inspectorOpen) {
       return { ...dockLayout, inspectorOpen: true }
     }
@@ -192,7 +201,7 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
       return { ...dockLayout, inspectorOpen: false }
     }
     return dockLayout
-  }, [autoHideSidebar, pinSideBar, dockLayout])
+  }, [autoHideSidebar, pinSideBar, dockLayout, preset])
 
   const effectiveLayout = useMemo(() => {
     // An even split the user has not sized yet starts at half the space the two
@@ -247,6 +256,7 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
       }
 
       event.preventDefault()
+      selectWorkspacePreset('custom')
       setIsResizing(true)
       event.currentTarget.setPointerCapture(event.pointerId)
 
@@ -314,6 +324,7 @@ export function useWorkbenchShellState(params: UseWorkbenchShellStateParams) {
   }, [])
 
   const toggleInspector = useCallback(() => {
+    selectWorkspacePreset('custom')
     setDockLayout((previous) => ({
       ...previous,
       inspectorOpen: !previous.inspectorOpen,

@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import type { Point } from '../../cad/cad-types'
+import { isNativeCurve, nativeCurveEndpoints } from '../../cad/native-curve-ops'
 import { buildPatternDoc } from './pattern-doc-builder'
 import { analyzePatternPaths } from './pattern-pdf-analysis'
 import { detectOutlines } from '../outline-detection'
@@ -61,7 +62,7 @@ describe('buildPatternDoc', () => {
 
     const { doc } = buildPatternDoc(analysis)
     const xs = doc.objects.flatMap((shape) =>
-      shape.type === 'text' ? [] : [shape.start.x, shape.end.x],
+      shape.type === 'text' ? [] : Object.values(isNativeCurve(shape) ? nativeCurveEndpoints(shape) : { start: shape.start, end: shape.end }).map((point) => point.x),
     )
 
     expect(Math.min(...xs)).toBeCloseTo(-50, 6)
@@ -73,7 +74,7 @@ describe('buildPatternDoc', () => {
 
     const { doc } = buildPatternDoc(analysis, { centreOnOrigin: false })
     const xs = doc.objects.flatMap((shape) =>
-      shape.type === 'text' ? [] : [shape.start.x, shape.end.x],
+      shape.type === 'text' ? [] : Object.values(isNativeCurve(shape) ? nativeCurveEndpoints(shape) : { start: shape.start, end: shape.end }).map((point) => point.x),
     )
 
     expect(Math.min(...xs)).toBeCloseTo(500, 6)

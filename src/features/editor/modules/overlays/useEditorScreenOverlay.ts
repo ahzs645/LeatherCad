@@ -255,6 +255,7 @@ export function useEditorScreenOverlay({
   const { handleExportSvg, handleExportPdf, handleExportDxf, handleExportLaserSvg } = exportActions
   const {
     handleSaveJson,
+    handleSaveLcad,
     handleSaveLocalProject,
     handleLoadLocalProject,
     handleDeleteLocalProject,
@@ -429,6 +430,8 @@ export function useEditorScreenOverlay({
       handleClearLayerColorOverride,
       handleResetLayerColors,
       handleSaveJson,
+      handleSaveLcad,
+      handleOpenStlExport: actions.interchangePanels.openStl,
       activeLocalDocumentId: documentState.activeLocalDocumentId,
       handleSaveLocalProject,
       handleLoadLocalProject,

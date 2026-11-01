@@ -1,0 +1,104 @@
+{
+  "syntheticOnly": true,
+  "description": "Corrected interchange regression behavior: palette/shape widths and mixed DXF weights survive; legacy cubic control points and analytic geometry are retained exactly.",
+  "lcadStrokeWidth": {
+    "input": {
+      "version": 2,
+      "layers": [
+        {
+          "id": "l1",
+          "name": "Synthetic layer"
+        }
+      ],
+      "palettes": [
+        {
+          "id": "p1",
+          "strokeWidth": 0.65
+        }
+      ],
+      "shapes": [
+        {
+          "id": "s1",
+          "type": "line",
+          "layerId": "l1",
+          "paletteId": "p1",
+          "strokeWidth": 0.25,
+          "x1": 0,
+          "y1": 0,
+          "x2": 10,
+          "y2": 0
+        }
+      ]
+    },
+    "imported": {
+      "lineTypeWidthMm": 0.65,
+      "shapeWidthOverride": 0.25,
+      "warnings": []
+    },
+    "editorShapeWidthOverrideBeforeExport": 0.33,
+    "exportedShapeWidth": 0.33,
+    "exportWarnings": []
+  },
+  "dxfLineweightCollision": {
+    "inputAscii": "0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n0\nLINE\n8\nSyntheticLayer\n370\n25\n10\n0\n20\n0\n11\n5\n21\n0\n0\nLINE\n8\nSyntheticLayer\n370\n80\n10\n10\n20\n0\n11\n15\n21\n0\n0\nENDSEC\n0\nEOF",
+    "sourceWidthsMm": [
+      0.25,
+      0.8
+    ],
+    "importedWidthsMm": [
+      0.25,
+      0.8
+    ],
+    "importedLineTypeCount": 2,
+    "warnings": []
+  },
+  "legacyLccCubicApproximation": {
+    "input": {
+      "meta": {
+        "file_type": "LeathercraftCAD"
+      },
+      "layers": [
+        {
+          "id": 0,
+          "chk": "-1",
+          "nam": "Synthetic cut layer"
+        }
+      ],
+      "shapes": [
+        {
+          "id": "1",
+          "type": "LINE",
+          "layer": "0",
+          "color": "Aqua",
+          "dash": "Solid",
+          "sp": [
+            0,
+            0
+          ],
+          "ep": [
+            100,
+            0
+          ],
+          "bz1": [
+            0,
+            100
+          ],
+          "bz2": [
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    "sourceMidpoint": {
+      "x": 50,
+      "y": 75
+    },
+    "importedMidpoint": {
+      "x": 50,
+      "y": 75
+    },
+    "errorMm": 0,
+    "warnings": []
+  }
+}

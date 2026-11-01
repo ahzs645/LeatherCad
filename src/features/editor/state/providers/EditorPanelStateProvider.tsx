@@ -18,7 +18,7 @@ const initialEditorPanelState: EditorPanelState = {
   exportForceSolidStrokes: false,
   exportStitchHoleRenderMode: 'native',
   exportStitchDotRadiusMm: 0.6,
-  dxfFlipY: false,
+  dxfFlipY: true,
   dxfVersion: 'r12',
   showTracingModal: false,
   showPatternToolsModal: false,

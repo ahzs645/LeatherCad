@@ -203,6 +203,7 @@ export type EditorTopbarProps = {
   onSetMobileFileAction: (action: MobileFileAction) => void
   onRunMobileFileAction: () => void
   onSaveJson: () => void
+  onOpenFileTools?: () => void
   onOpenLoadJson: () => void
   onOpenImportSvg: () => void
   onExportSvg: () => void

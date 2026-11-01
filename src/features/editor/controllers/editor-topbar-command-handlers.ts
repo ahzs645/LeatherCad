@@ -22,6 +22,7 @@ import type {
 } from '../cad/cad-types'
 import { findConnectedShapeIds } from '../ops/shape-selection-ops'
 import { tileSelectionAsStamp } from '../ops/stamp-simulator-ops'
+import { requestEvenStitchCount } from '../components/request-even-stitch-count'
 
 export type CreateEditorTopbarCommandHandlersParams = {
   tracingInputRef: RefObject<HTMLInputElement | null>
@@ -345,13 +346,12 @@ export function createEditorTopbarCommandHandlers({
       }
       handleNotchSelectedShape(depth, width)
     },
-    handleAutoPlaceEvenlySpacedStitchHolesPrompt: (handleAutoPlaceEvenlySpacedStitchHoles: (count: number) => void) => {
-      const raw = window.prompt('How many holes to place evenly on the selected path?', '10')
-      if (raw === null) {
+    handleAutoPlaceEvenlySpacedStitchHolesPrompt: async (handleAutoPlaceEvenlySpacedStitchHoles: (count: number) => void) => {
+      const count = await requestEvenStitchCount()
+      if (count === null) {
         setStatus('Even placement cancelled')
         return
       }
-      const count = Number(raw)
       if (!Number.isInteger(count) || count < 2) {
         setStatus('Hole count must be an integer ≥ 2')
         return

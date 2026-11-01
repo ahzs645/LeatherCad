@@ -1,6 +1,18 @@
 import { safeLocalStorageGet, safeLocalStorageSet } from './safe-storage'
+import { getBuiltinTranslation, type EditorLocale } from './locale-dictionaries'
 
 const TRANSLATION_STORAGE_KEY = 'leathercad-translation-map-v1'
+const translationListeners = new Set<() => void>()
+let cachedTranslationRaw: string | null | undefined
+let cachedTranslationMap: TranslationMap = {}
+let listeningForTranslationStorage = false
+
+function handleTranslationStorage(event: StorageEvent) {
+  if (event.key === TRANSLATION_STORAGE_KEY || event.key === null) {
+    cachedTranslationRaw = undefined
+    for (const listener of translationListeners) listener()
+  }
+}
 
 export type TranslationMap = Record<string, string>
 
@@ -65,11 +77,45 @@ export function loadTranslationMap(): TranslationMap {
   }
 }
 
+/** Stable snapshots let UI consumers observe imported overrides without owning
+ * document state or requiring the editor provider in reusable UI components. */
+export function getTranslationMapSnapshot(): TranslationMap {
+  const raw = typeof window === 'undefined' ? null : safeLocalStorageGet(TRANSLATION_STORAGE_KEY)
+  if (raw !== cachedTranslationRaw) {
+    cachedTranslationRaw = raw
+    cachedTranslationMap = loadTranslationMap()
+  }
+  return cachedTranslationMap
+}
+
+export function subscribeTranslationMap(listener: () => void) {
+  translationListeners.add(listener)
+  if (!listeningForTranslationStorage && typeof window !== 'undefined') {
+    window.addEventListener('storage', handleTranslationStorage)
+    listeningForTranslationStorage = true
+  }
+  return () => {
+    translationListeners.delete(listener)
+    if (translationListeners.size === 0 && listeningForTranslationStorage) {
+      window.removeEventListener('storage', handleTranslationStorage)
+      listeningForTranslationStorage = false
+    }
+  }
+}
+
 export function saveTranslationMap(map: TranslationMap) {
   if (typeof window === 'undefined') return
   safeLocalStorageSet(TRANSLATION_STORAGE_KEY, JSON.stringify(map))
+  cachedTranslationRaw = undefined
+  for (const listener of translationListeners) listener()
 }
 
 export function translate(map: TranslationMap, key: string, fallback: string = key): string {
-  return map[key] ?? fallback
+  return Object.hasOwn(map, key) ? map[key] : fallback
+}
+
+export function translateUiText(locale: EditorLocale, map: TranslationMap, key: string, fallback: string = key): string {
+  if (Object.hasOwn(map, key)) return map[key]
+  if (Object.hasOwn(map, fallback)) return map[fallback]
+  return getBuiltinTranslation(locale, key) ?? getBuiltinTranslation(locale, fallback) ?? fallback
 }

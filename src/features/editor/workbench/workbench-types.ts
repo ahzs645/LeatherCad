@@ -28,6 +28,7 @@ export type WorkbenchInspectorTab = 'inspect' | 'piece' | 'preview3d' | 'documen
 export type WorkbenchIconName =
   | 'ai'
   | 'bezier-cp'
+  | 'cubic'
   | 'box-stitch'
   | 'clear'
   | 'convert'
@@ -119,6 +120,7 @@ export type DocumentBrowserNode = {
   meta?: string
   selected?: boolean
   dimmed?: boolean
+  locked?: boolean
   children?: DocumentBrowserNode[]
 }
 

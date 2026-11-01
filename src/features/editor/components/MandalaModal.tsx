@@ -1,4 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useModalDialogFocus } from '../hooks/useModalDialogFocus'
+import { useTranslate } from '../hooks/useTranslate'
+import { useOptionalDisplayUnit } from '../state/providers/EditorUIStateProvider'
+import { LengthInput } from './LengthInput'
 import type { MandalaSettings, GoldenSpiralParams } from '../ops/mandala-ops'
 
 type MandalaTab = 'radial' | 'spiral' | 'golden' | 'silver' | 'mirror'
@@ -40,6 +44,10 @@ export function MandalaModal({
   circleTemplateName = 'Mandala Section',
   onChangeCircleTemplateName,
 }: MandalaModalProps) {
+  const t = useTranslate()
+  const [unit] = useOptionalDisplayUnit()
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useModalDialogFocus({ dialogRef, open, onClose })
   const [activeTab, setActiveTab] = useState<MandalaTab>('radial')
   const [mirrorAxisAngleDeg, setMirrorAxisAngleDeg] = useState(0)
 
@@ -66,11 +74,18 @@ export function MandalaModal({
   const [goldenCenterY, setGoldenCenterY] = useState(0)
   const [goldenSize, setGoldenSize] = useState(200)
 
+  const validRadial = Number.isInteger(segmentCount) && segmentCount >= 2 && segmentCount <= 360 && Number.isFinite(radialCenterX) && Number.isFinite(radialCenterY) && Number.isFinite(radius) && radius > 0 && Number.isFinite(rotationDeg) && Number.isFinite(relativeDiameterPercent) && relativeDiameterPercent > 0
+  const validSpiral = Number.isFinite(spiralCenterX) && Number.isFinite(spiralCenterY) && Number.isFinite(startRadius) && startRadius > 0 && Number.isInteger(turns) && turns >= 1 && turns <= 30
+  const validGuides = Number.isFinite(goldenCenterX) && Number.isFinite(goldenCenterY) && Number.isFinite(goldenSize) && goldenSize > 0
+  const validMirror = Number.isFinite(mirrorAxisAngleDeg)
+  const validCurrent = activeTab === 'radial' ? validRadial : activeTab === 'spiral' ? validSpiral : activeTab === 'mirror' ? validMirror : validGuides
+
   if (!open) {
     return null
   }
 
   function handleGenerateRadial() {
+    if (!validRadial) return
     onGenerateRadial({
       segmentCount,
       center: { x: radialCenterX, y: radialCenterY },
@@ -96,6 +111,7 @@ export function MandalaModal({
   }
 
   function handleGenerateSpiral() {
+    if (!validSpiral) return
     onGenerateSpiral({
       center: { x: spiralCenterX, y: spiralCenterY },
       startRadius,
@@ -106,23 +122,27 @@ export function MandalaModal({
   }
 
   function handleGenerateGolden() {
+    if (!validGuides) return
     onGenerateGoldenGuides({ x: goldenCenterX, y: goldenCenterY }, goldenSize)
   }
 
   function handleGenerateSilver() {
+    if (!validGuides) return
     onGenerateWhiteSilverGuides({ x: goldenCenterX, y: goldenCenterY }, goldenSize)
   }
 
   function handleApplyMirror() {
-    if (onMirrorSelectionAcrossAxis) {
+    if (onMirrorSelectionAcrossAxis && validMirror) {
       onMirrorSelectionAcrossAxis(mirrorAxisAngleDeg)
     }
   }
 
   return (
     <div className="modal-overlay" onClick={onClose} aria-label="Mandala and Golden Ratio Tools">
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Mandala / Golden Ratio</h3>
+      <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="mandala-title" tabIndex={-1} ref={dialogRef} onClick={(e) => e.stopPropagation()}>
+        <h3 id="mandala-title">{t('Mandala / Golden Ratio')}</h3>
+        <p>{t('Lengths use the selected display unit; geometry is stored in millimetres.')} ({unit})</p>
+        {!validCurrent && <p role="alert">{t('Enter finite coordinates and positive lengths. Radial divisions must be 2–360; spiral turns must be 1–30.')}</p>}
 
         <div className="button-row">
           <button
@@ -155,13 +175,13 @@ export function MandalaModal({
           >
             Mirror Item
           </button>
-          {onOpenHelp && <button onClick={onOpenHelp}>Help</button>}
+          {onOpenHelp && <button onClick={onOpenHelp}>{t('Help')}</button>}
         </div>
 
         {activeTab === 'radial' && (
           <>
             <label className="field-row">
-              <span>Segments</span>
+              <span>{t('Segments')}</span>
               <input
                 type="range"
                 min={4}
@@ -174,38 +194,22 @@ export function MandalaModal({
             </label>
 
             <label className="field-row">
-              <span>Center X</span>
-              <input
-                type="number"
-                step={1}
-                value={radialCenterX}
-                onChange={(e) => setRadialCenterX(Number(e.target.value))}
-              />
+              <span>{t('Center X')}</span>
+              <LengthInput unit={unit} valueMm={radialCenterX} onChangeMm={setRadialCenterX} />
             </label>
 
             <label className="field-row">
-              <span>Center Y</span>
-              <input
-                type="number"
-                step={1}
-                value={radialCenterY}
-                onChange={(e) => setRadialCenterY(Number(e.target.value))}
-              />
+              <span>{t('Center Y')}</span>
+              <LengthInput unit={unit} valueMm={radialCenterY} onChangeMm={setRadialCenterY} />
             </label>
 
             <label className="field-row">
-              <span>Radius (mm)</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={radius}
-                onChange={(e) => setRadius(Number(e.target.value))}
-              />
+              <span>{t('Radius')} ({unit})</span>
+              <LengthInput unit={unit} valueMm={radius} onChangeMm={setRadius} minMm={1} />
             </label>
 
             <label className="field-row">
-              <span>Rotation (°)</span>
+              <span>{t('Rotation (°)')}</span>
               <input
                 type="number"
                 step={1}
@@ -215,7 +219,7 @@ export function MandalaModal({
             </label>
 
             <label className="field-row">
-              <span>Relative diameter (%)</span>
+              <span>{t('Relative diameter (%)')}</span>
               <input
                 type="number"
                 min={1}
@@ -232,7 +236,7 @@ export function MandalaModal({
                 checked={mirrorSegments}
                 onChange={(e) => setMirrorSegments(e.target.checked)}
               />
-              <span>Mirror alternating segments</span>
+              <span>{t('Mirror alternating segments')}</span>
             </label>
 
             <label className="layer-toggle-item">
@@ -241,11 +245,11 @@ export function MandalaModal({
                 checked={includeCircleTemplate}
                 onChange={(e) => setIncludeCircleTemplate(e.target.checked)}
               />
-              <span>Circle template</span>
+              <span>{t('Circle template')}</span>
             </label>
             {includeCircleTemplate ? (
               <label className="field-row">
-                <span>Template name</span>
+                <span>{t('Template name')}</span>
                 <input
                   type="text"
                   value={circleTemplateName}
@@ -260,7 +264,7 @@ export function MandalaModal({
                 checked={includeDivisionLines}
                 onChange={(e) => setIncludeDivisionLines(e.target.checked)}
               />
-              <span>Division lines</span>
+              <span>{t('Division lines')}</span>
             </label>
 
             <label className="layer-toggle-item">
@@ -269,7 +273,7 @@ export function MandalaModal({
                 checked={noIntersectionCalc}
                 onChange={(e) => setNoIntersectionCalc(e.target.checked)}
               />
-              <span>No intersection calculation</span>
+              <span>{t('No intersection calculation')}</span>
             </label>
 
             <div className="button-row">
@@ -285,8 +289,8 @@ export function MandalaModal({
             </div>
 
             <div className="modal-actions">
-              <button onClick={onClose}>Cancel</button>
-              <button onClick={handleGenerateRadial}>Generate</button>
+              <button onClick={onClose}>{t('Cancel')}</button>
+              <button disabled={!validRadial} onClick={handleGenerateRadial}>{t('Generate')}</button>
             </div>
           </>
         )}
@@ -294,38 +298,22 @@ export function MandalaModal({
         {activeTab === 'spiral' && (
           <>
             <label className="field-row">
-              <span>Center X</span>
-              <input
-                type="number"
-                step={1}
-                value={spiralCenterX}
-                onChange={(e) => setSpiralCenterX(Number(e.target.value))}
-              />
+              <span>{t('Center X')}</span>
+              <LengthInput unit={unit} valueMm={spiralCenterX} onChangeMm={setSpiralCenterX} />
             </label>
 
             <label className="field-row">
-              <span>Center Y</span>
-              <input
-                type="number"
-                step={1}
-                value={spiralCenterY}
-                onChange={(e) => setSpiralCenterY(Number(e.target.value))}
-              />
+              <span>{t('Center Y')}</span>
+              <LengthInput unit={unit} valueMm={spiralCenterY} onChangeMm={setSpiralCenterY} />
             </label>
 
             <label className="field-row">
-              <span>Start Radius (mm)</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
-                value={startRadius}
-                onChange={(e) => setStartRadius(Number(e.target.value))}
-              />
+              <span>{t('Start Radius')} ({unit})</span>
+              <LengthInput unit={unit} valueMm={startRadius} onChangeMm={setStartRadius} minMm={1} />
             </label>
 
             <label className="field-row">
-              <span>Turns</span>
+              <span>{t('Turns')}</span>
               <input
                 type="number"
                 min={1}
@@ -337,8 +325,8 @@ export function MandalaModal({
             </label>
 
             <div className="modal-actions">
-              <button onClick={onClose}>Cancel</button>
-              <button onClick={handleGenerateSpiral}>Generate</button>
+              <button onClick={onClose}>{t('Cancel')}</button>
+              <button disabled={!validSpiral} onClick={handleGenerateSpiral}>{t('Generate')}</button>
             </div>
           </>
         )}
@@ -346,39 +334,23 @@ export function MandalaModal({
         {activeTab === 'golden' && (
           <>
             <label className="field-row">
-              <span>Center X</span>
-              <input
-                type="number"
-                step={1}
-                value={goldenCenterX}
-                onChange={(e) => setGoldenCenterX(Number(e.target.value))}
-              />
+              <span>{t('Center X')}</span>
+              <LengthInput unit={unit} valueMm={goldenCenterX} onChangeMm={setGoldenCenterX} />
             </label>
 
             <label className="field-row">
-              <span>Center Y</span>
-              <input
-                type="number"
-                step={1}
-                value={goldenCenterY}
-                onChange={(e) => setGoldenCenterY(Number(e.target.value))}
-              />
+              <span>{t('Center Y')}</span>
+              <LengthInput unit={unit} valueMm={goldenCenterY} onChangeMm={setGoldenCenterY} />
             </label>
 
             <label className="field-row">
-              <span>Size (mm)</span>
-              <input
-                type="number"
-                min={10}
-                step={10}
-                value={goldenSize}
-                onChange={(e) => setGoldenSize(Number(e.target.value))}
-              />
+              <span>{t('Size')} ({unit})</span>
+              <LengthInput unit={unit} valueMm={goldenSize} onChangeMm={setGoldenSize} minMm={10} />
             </label>
 
             <div className="modal-actions">
-              <button onClick={onClose}>Cancel</button>
-              <button onClick={handleGenerateGolden}>Generate</button>
+              <button onClick={onClose}>{t('Cancel')}</button>
+              <button disabled={!validGuides} onClick={handleGenerateGolden}>{t('Generate')}</button>
             </div>
           </>
         )}
@@ -395,7 +367,7 @@ export function MandalaModal({
               {selectedShapeCount} selected shape{selectedShapeCount === 1 ? '' : 's'}
             </p>
             <label className="field-row">
-              <span>Axis angle (°)</span>
+              <span>{t('Axis angle (°)')}</span>
               <input
                 type="number"
                 step={1}
@@ -410,10 +382,10 @@ export function MandalaModal({
               <button onClick={() => setMirrorAxisAngleDeg(135)}>135°</button>
             </div>
             <div className="modal-actions">
-              <button onClick={onClose}>Cancel</button>
+              <button onClick={onClose}>{t('Cancel')}</button>
               <button
                 onClick={handleApplyMirror}
-                disabled={selectedShapeCount === 0 || !onMirrorSelectionAcrossAxis}
+                disabled={!validMirror || selectedShapeCount === 0 || !onMirrorSelectionAcrossAxis}
               >
                 Mirror
               </button>
@@ -428,36 +400,20 @@ export function MandalaModal({
               golden-ratio tab.
             </p>
             <label className="field-row">
-              <span>Center X</span>
-              <input
-                type="number"
-                step={1}
-                value={goldenCenterX}
-                onChange={(e) => setGoldenCenterX(Number(e.target.value))}
-              />
+              <span>{t('Center X')}</span>
+              <LengthInput unit={unit} valueMm={goldenCenterX} onChangeMm={setGoldenCenterX} />
             </label>
             <label className="field-row">
-              <span>Center Y</span>
-              <input
-                type="number"
-                step={1}
-                value={goldenCenterY}
-                onChange={(e) => setGoldenCenterY(Number(e.target.value))}
-              />
+              <span>{t('Center Y')}</span>
+              <LengthInput unit={unit} valueMm={goldenCenterY} onChangeMm={setGoldenCenterY} />
             </label>
             <label className="field-row">
-              <span>Size (mm)</span>
-              <input
-                type="number"
-                min={10}
-                step={10}
-                value={goldenSize}
-                onChange={(e) => setGoldenSize(Number(e.target.value))}
-              />
+              <span>{t('Size')} ({unit})</span>
+              <LengthInput unit={unit} valueMm={goldenSize} onChangeMm={setGoldenSize} minMm={10} />
             </label>
             <div className="modal-actions">
-              <button onClick={onClose}>Cancel</button>
-              <button onClick={handleGenerateSilver}>Generate</button>
+              <button onClick={onClose}>{t('Cancel')}</button>
+              <button disabled={!validGuides} onClick={handleGenerateSilver}>{t('Generate')}</button>
             </div>
           </>
         )}

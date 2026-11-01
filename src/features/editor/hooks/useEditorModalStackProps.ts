@@ -33,6 +33,8 @@ export type UseEditorModalStackPropsParams = {
   handleClearLayerColorOverride: (layerId: string) => void
   handleResetLayerColors: () => void
   handleSaveJson: () => void
+  handleSaveLcad: () => void
+  handleOpenStlExport: () => void
   activeLocalDocumentId: string | null
   handleSaveLocalProject: () => Promise<void>
   handleLoadLocalProject: (documentId: string) => Promise<void>
@@ -159,6 +161,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
     handleClearLayerColorOverride,
     handleResetLayerColors,
     handleSaveJson,
+    handleSaveLcad,
+    handleOpenStlExport,
     activeLocalDocumentId,
     handleSaveLocalProject,
     handleLoadLocalProject,
@@ -552,6 +556,8 @@ export function useEditorModalStackProps(params: UseEditorModalStackPropsParams)
       onOpenExportOptions: () => setShowExportOptionsModal(true),
       onOpenPrintPreview: () => setShowPrintPreviewModal(true),
       onSaveJson: handleSaveJson,
+      onSaveLcad: handleSaveLcad,
+      onOpenStlExport: handleOpenStlExport,
       onExportGarmentJson: handleExportGarmentJson,
       onSaveLcc: handleSaveLcc,
       onExportSvg: handleExportSvg,

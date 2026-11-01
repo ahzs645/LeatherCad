@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { Point, Shape, Tool, Viewport } from '../../cad/cad-types'
+import { transformNativeCurve } from '../../cad/native-curve-ops'
 import { useEditorGlobalBindings } from '../../hooks/useEditorGlobalBindings'
 
 type UseEditorGlobalShortcutsParams = {
@@ -140,10 +141,12 @@ export function useEditorGlobalShortcuts({
       setShapes((previous) =>
         previous.map((shape) => {
           if (!selectedShapeIdSet.has(shape.id)) return shape
+          if (shape.type === 'cubic') return transformNativeCurve(shape, [1, 0, 0, 1, dxMm, dyMm])
           const offset = (point: Point) => ({
             x: point.x + dxMm,
             y: point.y + dyMm,
           })
+          if (shape.type === 'ellipse') return { ...shape, center: offset(shape.center) }
           if (shape.type === 'line' || shape.type === 'text') {
             return { ...shape, start: offset(shape.start), end: offset(shape.end) }
           }

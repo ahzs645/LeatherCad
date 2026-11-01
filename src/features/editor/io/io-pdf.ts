@@ -1,3 +1,5 @@
+import { isNativeCurve, nativeCurveBounds, nativeCurveToEditable } from '../cad/native-curve-ops'
+import type { CubicShape } from '../cad/cad-types'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type { LineTypeStyle, Shape, StitchHole } from '../cad/cad-types'
 import { createStitchHolePrimitive, type StitchHoleRenderMode } from '../ops/stitch-hole-render'
@@ -19,6 +21,8 @@ type PdfExportOptions = {
 }
 
 type StrokeSegment = {
+  opacity?: number
+  cubic?: CubicShape
   points: Array<{ x: number; y: number }>
   colorHex: string
   style: LineTypeStyle
@@ -112,7 +116,8 @@ function buildSegments(
   const shapesById = Object.fromEntries(shapes.map((shape) => [shape.id, shape] as const))
 
   for (const shape of shapes) {
-    const sampled = sampleShapePoints(shape, shape.type === 'line' ? 1 : 72)
+    const bounds = isNativeCurve(shape) ? nativeCurveBounds(shape) : null
+    const sampled = shape.type === 'cubic' && bounds ? [{ x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.maxY }] : shape.type === 'ellipse' ? nativeCurveToEditable(shape, 0.01).flatMap(line => [line.start, line.end]) : sampleShapePoints(shape, shape.type === 'line' ? 1 : 72)
     if (sampled.length < 2) {
       continue
     }
@@ -120,6 +125,8 @@ function buildSegments(
     const style = options.forceSolidLineStyle ? 'solid' : options.lineTypeStyles[shape.lineTypeId] ?? 'solid'
     segments.push({
       points: sampled,
+      cubic: shape.type === 'cubic' ? shape : undefined,
+      opacity: shape.opacity ?? 1,
       colorHex: normalizeHex(options.lineTypeColors[shape.lineTypeId]),
       style,
       lineWidthPt: resolveShapeLineWidthPt(shape, options.lineTypeStrokeWidthsMm, options.lineWidthPt),
@@ -140,6 +147,7 @@ function buildSegments(
       segments.push({
         points: buildFilledPath(approximateCirclePoints(primitive.center, primitive.radiusMm)),
         colorHex,
+        opacity: parentShape.opacity ?? 1,
         style: 'solid',
         lineWidthPt: options.lineWidthPt,
         fill: true,
@@ -150,6 +158,7 @@ function buildSegments(
       segments.push({
         points: [primitive.start, primitive.end],
         colorHex,
+        opacity: parentShape.opacity ?? 1,
         style: 'solid',
         lineWidthPt: clampMin(primitive.strokeWidthMm * MM_TO_PT, 0.1),
       })
@@ -158,6 +167,7 @@ function buildSegments(
     segments.push({
       points: buildFilledPath(primitive.points),
       colorHex,
+      opacity: parentShape.opacity ?? 1,
       style: 'solid',
       lineWidthPt: clampMin((stitchHole.widthMm ?? 0.9) * MM_TO_PT, 0.1),
     })
@@ -188,11 +198,12 @@ function buildBounds(segments: StrokeSegment[]) {
   return { minX, minY, maxX, maxY }
 }
 
-function makePdf(stream: string, pageWidthPt: number, pageHeightPt: number) {
+function makePdf(stream: string, pageWidthPt: number, pageHeightPt: number, opacities: number[] = []) {
+  const resources = opacities.length ? `/ExtGState << ${opacities.map((opacity, index) => `/Opacity${index} << /Type /ExtGState /CA ${toFixedPdf(opacity)} /ca ${toFixedPdf(opacity)} >>`).join(' ')} >>` : ''
   const objects = [
     '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
     '2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n',
-    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${toFixedPdf(pageWidthPt)} ${toFixedPdf(pageHeightPt)}] /Contents 4 0 R /Resources << >> >>\nendobj\n`,
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${toFixedPdf(pageWidthPt)} ${toFixedPdf(pageHeightPt)}] /Contents 4 0 R /Resources << ${resources} >> >>\nendobj\n`,
     `4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}endstream\nendobj\n`,
   ]
 
@@ -258,12 +269,17 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
     `${toFixedPdf(lineWidthPt)} w`,
   ]
 
+  const opacityOf = (segment: StrokeSegment) => Math.min(1, Math.max(0, segment.opacity ?? 1))
+  const opacities = [...new Set(segments.map(opacityOf))]
+  let activeOpacity = -1
   let activeColor = ''
   let activeFillColor = ''
   let activeDash = ''
   let activeLineWidth = `${toFixedPdf(lineWidthPt)} w`
 
   for (const segment of segments) {
+    const opacity = opacities.indexOf(opacityOf(segment))
+    if (opacity !== activeOpacity) { commands.push(`/Opacity${opacity} gs`); activeOpacity = opacity }
     const lineWidth = `${toFixedPdf(segment.lineWidthPt)} w`
     if (lineWidth !== activeLineWidth) {
       commands.push(lineWidth)
@@ -290,6 +306,11 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
       }
     }
 
+    if (segment.cubic) {
+      const [start, c1, c2, end] = [segment.cubic.start, segment.cubic.control1, segment.cubic.control2, segment.cubic.end].map(toPdfPoint)
+      commands.push(`${toFixedPdf(start.x)} ${toFixedPdf(start.y)} m`, `${toFixedPdf(c1.x)} ${toFixedPdf(c1.y)} ${toFixedPdf(c2.x)} ${toFixedPdf(c2.y)} ${toFixedPdf(end.x)} ${toFixedPdf(end.y)} c`, 'S')
+      continue
+    }
     const first = toPdfPoint(segment.points[0])
     commands.push(`${toFixedPdf(first.x)} ${toFixedPdf(first.y)} m`)
     for (let index = 1; index < segment.points.length; index += 1) {
@@ -300,5 +321,5 @@ export function buildPdfFromShapes(shapes: Shape[], options: PdfExportOptions = 
   }
 
   const stream = `${commands.join('\n')}\n`
-  return makePdf(stream, pageWidthPt, pageHeightPt)
+  return makePdf(stream, pageWidthPt, pageHeightPt, opacities)
 }

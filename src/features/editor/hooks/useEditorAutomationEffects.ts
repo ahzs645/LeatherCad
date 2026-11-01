@@ -1,5 +1,6 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from 'react'
 import type { LineType, Shape } from '../cad/cad-types'
+import { isNativeCurve, nativeCurveEndpoints } from '../cad/native-curve-ops'
 import type { AutoConstraintSettings, ConstraintSuggestion } from '../ops/auto-constraint-ops'
 
 type UseEditorAutomationEffectsParams = {
@@ -26,8 +27,10 @@ export function useEditorAutomationEffects({
   useEffect(() => {
     if (!fillOnChange || !setShapes || !lineTypesById) return
     const tolerance = 1e-3
-    const isClosed = (shape: Shape) =>
-      Math.hypot(shape.start.x - shape.end.x, shape.start.y - shape.end.y) < tolerance
+    const isClosed = (shape: Shape) => {
+      const { start, end } = isNativeCurve(shape) ? nativeCurveEndpoints(shape) : shape
+      return Math.hypot(start.x - end.x, start.y - end.y) < tolerance
+    }
     const candidates = shapes.filter(
       (shape) =>
         shape.type !== 'text' &&

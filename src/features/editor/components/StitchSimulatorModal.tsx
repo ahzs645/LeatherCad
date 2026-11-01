@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import { useState } from 'react'
 import type { StitchType, StitchSimulatorSettings } from '../ops/stitch-simulator-ops'
 
@@ -29,6 +30,7 @@ export function StitchSimulatorModal({
   selectedHoleLabel,
   terminalHoleLabel,
 }: StitchSimulatorModalProps) {
+  const t = useTranslate()
   const [draftSettings, setDraftSettings] = useState<StitchSimulatorSettings>(settings)
 
   if (!open) {
@@ -40,24 +42,24 @@ export function StitchSimulatorModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose} aria-label="Stitch Simulator">
+    <div className="modal-overlay" onClick={onClose} aria-label={t('Stitch Simulator')}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Stitch Simulator</h3>
+        <h3>{t('Stitch Simulator')}</h3>
 
         <p>
-          Stitch holes: <strong>{stitchHoleCount}</strong>
+          {t('Stitch holes:')} <strong>{stitchHoleCount}</strong>
           {threadLength !== null && (
-            <> | Estimated thread length: <strong>{threadLength.toFixed(1)} mm</strong></>
+            <> {t('| Estimated thread length:')} <strong>{threadLength.toFixed(1)} {t('mm')}</strong></>
           )}
         </p>
         <p>
-          Selected hole: <strong>{selectedHoleLabel ?? 'None'}</strong>
-          {' '}| Active stitch end: <strong>{terminalHoleLabel ?? 'Path end'}</strong>
+          {t('Selected hole:')} <strong>{selectedHoleLabel ?? 'None'}</strong>
+          {' '}{t('| Active stitch end:')} <strong>{terminalHoleLabel ?? 'Path end'}</strong>
         </p>
-        <p className="hint">Use the stitch-hole inspector to set or clear the terminal stitch hole.</p>
+        <p className="hint">{t('Use the stitch-hole inspector to set or clear the terminal stitch hole.')}</p>
 
         <label className="field-row">
-          <span>Stitch Type</span>
+          <span>{t('Stitch Type')}</span>
           <select
             value={draftSettings.stitchType}
             onChange={(e) =>
@@ -68,13 +70,13 @@ export function StitchSimulatorModal({
             }
           >
             {STITCH_TYPES.map((st) => (
-              <option key={st.value} value={st.value}>{st.label}</option>
+              <option key={st.value} value={st.value}>{t(st.label)}</option>
             ))}
           </select>
         </label>
 
         <label className="field-row">
-          <span>Thread Color</span>
+          <span>{t('Thread Color')}</span>
           <input
             type="color"
             value={draftSettings.threadColor}
@@ -94,15 +96,15 @@ export function StitchSimulatorModal({
                 threadColor: e.target.value,
               }))
             }
-            placeholder="#000000"
+            placeholder={t('#000000')}
             style={{ width: 96 }}
-            aria-label="Thread color (hex)"
+            aria-label={t('Thread color (hex)')}
           />
         </label>
 
         {draftSettings.stitchType === 'saddle' && (
           <label className="field-row">
-            <span>Second Thread Color</span>
+            <span>{t('Second Thread Color')}</span>
             <input
               type="color"
               value={draftSettings.secondThreadColor}
@@ -122,15 +124,15 @@ export function StitchSimulatorModal({
                   secondThreadColor: e.target.value,
                 }))
               }
-              placeholder="#000000"
+              placeholder={t('#000000')}
               style={{ width: 96 }}
-              aria-label="Second thread color (hex)"
+              aria-label={t('Second thread color (hex)')}
             />
           </label>
         )}
 
         <label className="field-row">
-          <span>Thread Width (mm)</span>
+          <span>{t('Thread Width (mm)')}</span>
           <input
             type="number"
             min={0.3}
@@ -157,7 +159,7 @@ export function StitchSimulatorModal({
               }))
             }
           />
-          <span>Show stitch pattern</span>
+          <span>{t('Show stitch pattern')}</span>
         </label>
 
         <label className="layer-toggle-item">
@@ -171,7 +173,7 @@ export function StitchSimulatorModal({
               }))
             }
           />
-          <span>Show back stitches</span>
+          <span>{t('Show back stitches')}</span>
         </label>
 
         <label className="layer-toggle-item">
@@ -185,7 +187,7 @@ export function StitchSimulatorModal({
               }))
             }
           />
-          <span>Show even stitches</span>
+          <span>{t('Show even stitches')}</span>
         </label>
 
         <label className="layer-toggle-item">
@@ -199,7 +201,7 @@ export function StitchSimulatorModal({
               }))
             }
           />
-          <span>Show odd stitches</span>
+          <span>{t('Show odd stitches')}</span>
         </label>
 
         <label className="layer-toggle-item">
@@ -213,12 +215,12 @@ export function StitchSimulatorModal({
               }))
             }
           />
-          <span>Show direction arrows</span>
+          <span>{t('Show direction arrows')}</span>
         </label>
 
         <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button onClick={handleApply}>Apply</button>
+          <button onClick={onClose}>{t('Cancel')}</button>
+          <button onClick={handleApply}>{t('Apply')}</button>
         </div>
       </div>
     </div>

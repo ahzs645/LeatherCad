@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { LineShape } from '../cad/cad-types'
+import type { CubicShape, EllipseShape, LineShape } from '../cad/cad-types'
 import {
   getAnchorPoint,
   setAnchorPoint,
@@ -59,6 +59,34 @@ describe('setAnchorPoint', () => {
     const updated = setAnchorPoint(line, 'center', { x: 10, y: 5 })
     expect(getAnchorPoint(updated, 'start')).toEqual({ x: 5, y: 5 })
     expect(getAnchorPoint(updated, 'end')).toEqual({ x: 15, y: 5 })
+  })
+})
+
+describe('native curve constraint contracts', () => {
+  const curve: EllipseShape = { id: 'ellipse', type: 'ellipse', layerId: 'main', lineTypeId: 'cut', center: { x: 20, y: 30 }, radiusX: 10, radiusY: 4, rotationDeg: 25, startAngleDeg: 0, sweepDeg: 270 }
+  it('sets virtual position anchors by translation while retaining ellipse parameters', () => {
+    const old = getAnchorPoint(curve, 'end'), moved = setAnchorPoint(curve, 'end', { x: old.x + 7, y: old.y - 9 })
+    if (moved.type !== 'ellipse') throw new Error('Expected ellipse')
+    expect(moved.center.x).toBeCloseTo(27); expect(moved.center.y).toBeCloseTo(21)
+    expect(moved.radiusX).toBeCloseTo(10); expect(moved.radiusY).toBeCloseTo(4)
+    expect('end' in moved).toBe(false)
+  })
+  it('aligns a native chord without approximating the curve', () => {
+    const result = solveConstraints([curve], [{ id: 'horizontal', type: 'horizontal', shapeId: curve.id }])
+    expect(result.converged).toBe(true)
+    const updated = result.shapeUpdates.get(curve.id)!
+    expect(updated.type).toBe('ellipse')
+    expect(getAnchorPoint(updated, 'start').y).toBeCloseTo(getAnchorPoint(updated, 'end').y, 7)
+  })
+  it('solves coincident native anchors while leaving a locked reference and cubic controls unchanged', () => {
+    const cubic: CubicShape = { id: 'cubic', type: 'cubic', layerId: 'main', lineTypeId: 'cut', start: { x: 2, y: 3 }, control1: { x: 5, y: 20 }, control2: { x: 20, y: 30 }, end: { x: 40, y: 0 } }
+    const reference = { ...curve, locked: true }
+    const result = solveConstraints([cubic, reference], [{ id: 'coincident', type: 'coincident', shapeIdA: cubic.id, anchorA: 'start', shapeIdB: curve.id, anchorB: 'end' }])
+    expect(result.converged).toBe(true)
+    expect(result.updates.has(curve.id)).toBe(false)
+    const actual = result.updates.get(cubic.id)?.get('start'), expected = getAnchorPoint(curve, 'end')
+    if (!actual) throw new Error('Expected a moved native anchor')
+    expect(Math.hypot(actual.x - expected.x, actual.y - expected.y)).toBeLessThanOrEqual(0.001)
   })
 })
 
@@ -204,8 +232,7 @@ describe('solveConstraints', () => {
     expect(d).toBeCloseTo(20, 2)
   })
 
-  it('reports converged=false when max iterations reached without convergence', () => {
-    // Create a heavily over-constrained system that cannot converge in 2 iters
+  it('reports the final conflict when a later correction breaks an earlier relation', () => {
     const lineA = makeLine('a', 0, 0, 10, 0)
     const lineB = makeLine('b', 1000, 0, 1010, 0)
 
@@ -218,13 +245,12 @@ describe('solveConstraints', () => {
       anchorB: 'start',
     }
 
-    // With maxIterations=1 the solver won't fully converge for a 990-unit gap
-    // because each iteration only moves halfway.
-    const result = solveConstraints([lineA, lineB], [constraint], 1, 0.001)
+    const result = solveConstraints([lineA, lineB], [constraint, { ...constraint, id: 'd1', type: 'distance', targetDistance: 20 }], 1, 0.001)
 
-    // After one iteration, each point moved halfway: residual should still be ~495
+    // Distance now succeeds, but the earlier coincidence is broken by 20 mm.
     expect(result.converged).toBe(false)
     expect(result.iterations).toBe(1)
     expect(result.residual).toBeGreaterThan(0.001)
+    expect(result.conflicts.join(' ')).toContain('c1')
   })
 })

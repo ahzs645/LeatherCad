@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "status": "passed",
+  "recordedAtUtc": "2026-11-01T00:46:42.067647+00:00",
+  "baselineAppRevision": "a703237128f0199c6a696638c400da3acf314cca",
+  "engineRevision": "186feaf7b63e0928c5a27a78f874497e1a8cdfdd",
+  "scope": "Remaining-limits follow-up source, frozen before final tests; commit identity is the LeatherCad PR head.",
+  "runtime": {
+    "node": "24.19.0",
+    "chromium": "154.0.8037.57",
+    "playwright": "1.59.1",
+    "webkit": "26.4 (revision 2272)",
+    "os": "Debian GNU/Linux 13"
+  },
+  "checks": {
+    "vitest": {
+      "status": "passed",
+      "tests": 1352,
+      "files": 187
+    },
+    "cloudProtocol": {
+      "status": "passed",
+      "tests": 11,
+      "liveDeploymentTested": false
+    },
+    "chromium": {
+      "status": "passed",
+      "cases": 61,
+      "workers": 2,
+      "retries": 0,
+      "freshDependencyCache": true,
+      "projects": [
+        "development",
+        "production-build",
+        "tablet",
+        "phone"
+      ]
+    },
+    "webkit": {
+      "status": "passed",
+      "cases": 26,
+      "workers": 1,
+      "retries": 0,
+      "freshDependencyCache": true,
+      "projects": [
+        "desktop",
+        "phone-touch"
+      ]
+    },
+    "prefixedProduction": {
+      "status": "passed",
+      "cases": 9,
+      "basePath": "/LeatherCad/",
+      "realFileWorkers": true,
+      "realCalibrationWorker": true,
+      "realWasm": true
+    },
+    "frontendTypes": "passed",
+    "backendTypes": "passed",
+    "eslint": "passed",
+    "architecture": "passed",
+    "enginePair": "passed",
+    "relativeDocumentationLinks": "passed",
+    "independentPdf": {
+      "status": "passed",
+      "reader": "pypdf 6.10.0",
+      "pdfs": 8,
+      "pages": 14,
+      "report": "../fixtures/physical-calibration/pdf-measurements.json"
+    },
+    "independentStl": {
+      "status": "passed",
+      "reader": "trimesh 5.2.0",
+      "outputs": 7,
+      "report": "manufacturing-combined-mesh-2026-11-01.json"
+    },
+    "sampledProfiles": {
+      "status": "passed",
+      "evaluationsPerFinish": 438,
+      "distinctLocationsPerFinish": 310,
+      "maxSampledNormalErrorsMm": {
+        "chamfer": 0.0038050606683937894,
+        "fillet": 0.006786060714452868
+      },
+      "cutterToleranceMm": 0.01,
+      "combinedExportToleranceMm": 0.02,
+      "globalMathematicalBoundClaimed": false,
+      "report": "manufacturing-profile-2026-11-01.json"
+    },
+    "localization": {
+      "status": "passed",
+      "usedKeys": 1002,
+      "japaneseEntries": 914,
+      "japaneseResolvedKeys": 766,
+      "japaneseManufacturingKeysResolved": 109,
+      "japaneseManufacturingKeysUsed": 109,
+      "nativeLanguageExpertReview": false
+    }
+  },
+  "browserEnvironmentNote": "WebKit actually executed all cases. Missing Debian browser libraries were extracted without root privileges into the downloaded browser. The ldconfig-only GLES presence probe could not see that directory, so host-library validation was skipped after successful ldd/ctypes loading. The release workflow uses standard playwright install --with-deps webkit.",
+  "integrationRegressionsCovered": [
+    "Unread IndexedDB upgrade retains its sole draft while import Cancel/Apply remains clickable",
+    "Missing lazy modelling module reports the actionable load error while geometric errors stay specific",
+    "Genuine sealed LCC verifies inside the real browser worker before staged apply; cancellation/corruption preserve the drawing",
+    "Generated print popup contains calibrated physical geometry and detaches its editor opener",
+    "Fit gauge/checklist worker preserves the current drawing STL bytes",
+    "Base-prefixed production workers/WASM/PDF load correctly"
+  ],
+  "externalAcceptance": {
+    "liveConvexOidc": "blocked: no configured target, provider/client, deployment authorization or two test identities",
+    "physicalPrinterAndSlicer": "unperformed",
+    "realSafariIosHardware": "unperformed",
+    "specialistLanguageReview": "unperformed"
+  },
+  "productLimits": [
+    "Optional native constraint/dimension engine has no new persistent product UI",
+    "Unsupported sealed payload versions/types/radius dimensions/licensed provenance reject explicitly",
+    "Manufacturing thin-feature/topology/precision/resource guards remain; sampled profile checks are not a global certificate",
+    "Deep specialist translations remain partial; physical checklist text remains English"
+  ],
+  "separateJsmap": {
+    "pr": "https://github.com/ahzs645/jsmap/pull/6",
+    "head": "d7b953fe4c98db6d22d2a4d5ca1d54d055fdb613",
+    "regressionSuites": 17,
+    "ci": "passed",
+    "ciUrl": "https://github.com/ahzs645/jsmap/actions/runs/41254938916"
+  },
+  "capturePrivacy": {
+    "rawHarCommitted": false,
+    "authenticatedResponseBodiesCommitted": false,
+    "currentDocumentationContainsRawCaptureAccessLink": false,
+    "fixtures": "Only locally authored synthetic reference exports and calibration drawings"
+  }
+}

@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "generatedBy": "LeatherCad print pipeline",
+  "physicalPrinterChecked": false,
+  "files": [
+    {
+      "name": "xy-100mm-a4",
+      "fixture": "xy-100mm",
+      "pages": 1,
+      "paperMm": [
+        210,
+        297
+      ],
+      "measurements": {
+        "xMm": 100,
+        "yMm": 100,
+        "pitchMm": 4,
+        "tenPitchIntervalsMm": 40
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "",
+      "calibrationXPercent": 100,
+      "calibrationYPercent": 100,
+      "orientation": "portrait"
+    },
+    {
+      "name": "automated/xy-100mm-a4-calibrated-portrait",
+      "fixture": "xy-100mm",
+      "pages": 1,
+      "paperMm": [
+        210,
+        297
+      ],
+      "measurements": {
+        "xMm": 100,
+        "yMm": 100,
+        "pitchMm": 4,
+        "tenPitchIntervalsMm": 40
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "-calibrated-portrait",
+      "calibrationXPercent": 110,
+      "calibrationYPercent": 90,
+      "orientation": "portrait"
+    },
+    {
+      "name": "automated/xy-100mm-a4-calibrated-landscape",
+      "fixture": "xy-100mm",
+      "pages": 1,
+      "paperMm": [
+        297,
+        210
+      ],
+      "measurements": {
+        "xMm": 100,
+        "yMm": 100,
+        "pitchMm": 4,
+        "tenPitchIntervalsMm": 40
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "-calibrated-landscape",
+      "calibrationXPercent": 110,
+      "calibrationYPercent": 90,
+      "orientation": "landscape"
+    },
+    {
+      "name": "xy-100mm-letter",
+      "fixture": "xy-100mm",
+      "pages": 1,
+      "paperMm": [
+        215.9,
+        279.4
+      ],
+      "measurements": {
+        "xMm": 100,
+        "yMm": 100,
+        "pitchMm": 4,
+        "tenPitchIntervalsMm": 40
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "",
+      "calibrationXPercent": 100,
+      "calibrationYPercent": 100,
+      "orientation": "portrait"
+    },
+    {
+      "name": "asymmetric-tiled-a4",
+      "fixture": "asymmetric-tiled",
+      "pages": 2,
+      "paperMm": [
+        210,
+        297
+      ],
+      "measurements": {
+        "widthMm": 300,
+        "heightMm": 180,
+        "notchMm": 20,
+        "pitchMm": 4,
+        "overlapMm": 10
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "",
+      "calibrationXPercent": 100,
+      "calibrationYPercent": 100,
+      "orientation": "portrait"
+    },
+    {
+      "name": "automated/asymmetric-tiled-a4-calibrated-portrait",
+      "fixture": "asymmetric-tiled",
+      "pages": 2,
+      "paperMm": [
+        210,
+        297
+      ],
+      "measurements": {
+        "widthMm": 300,
+        "heightMm": 180,
+        "notchMm": 20,
+        "pitchMm": 4,
+        "overlapMm": 10
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "-calibrated-portrait",
+      "calibrationXPercent": 110,
+      "calibrationYPercent": 90,
+      "orientation": "portrait"
+    },
+    {
+      "name": "automated/asymmetric-tiled-a4-calibrated-landscape",
+      "fixture": "asymmetric-tiled",
+      "pages": 4,
+      "paperMm": [
+        297,
+        210
+      ],
+      "measurements": {
+        "widthMm": 300,
+        "heightMm": 180,
+        "notchMm": 20,
+        "pitchMm": 4,
+        "overlapMm": 10
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 2,
+      "suffix": "-calibrated-landscape",
+      "calibrationXPercent": 110,
+      "calibrationYPercent": 90,
+      "orientation": "landscape"
+    },
+    {
+      "name": "asymmetric-tiled-letter",
+      "fixture": "asymmetric-tiled",
+      "pages": 2,
+      "paperMm": [
+        215.9,
+        279.4
+      ],
+      "measurements": {
+        "widthMm": 300,
+        "heightMm": 180,
+        "notchMm": 20,
+        "pitchMm": 4,
+        "overlapMm": 10
+      },
+      "scalePercent": 100,
+      "marginMm": 10,
+      "tileY": 1,
+      "suffix": "",
+      "calibrationXPercent": 100,
+      "calibrationYPercent": 100,
+      "orientation": "portrait"
+    }
+  ]
+}

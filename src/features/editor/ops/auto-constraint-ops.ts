@@ -7,6 +7,7 @@
 
 import type { Point, Shape } from '../cad/cad-types'
 import type { SolverConstraint } from '../solver/constraint-solver'
+import { isNativeCurve, type NativeCurve } from '../cad/native-curve-ops'
 import { uid } from '../cad/cad-geometry'
 
 // ---------------------------------------------------------------------------
@@ -54,13 +55,13 @@ export const DEFAULT_AUTO_CONSTRAINT_SETTINGS: AutoConstraintSettings = {
 // Detection helpers
 // ---------------------------------------------------------------------------
 
-function shapeAngleDeg(shape: Shape): number {
+function shapeAngleDeg(shape: Exclude<Shape, NativeCurve>): number {
   const dx = shape.end.x - shape.start.x
   const dy = shape.end.y - shape.start.y
   return (Math.atan2(dy, dx) * 180) / Math.PI
 }
 
-function shapeLength(shape: Shape): number {
+function shapeLength(shape: Exclude<Shape, NativeCurve>): number {
   return Math.hypot(shape.end.x - shape.start.x, shape.end.y - shape.start.y)
 }
 
@@ -70,7 +71,7 @@ function normalizeAngle(deg: number): number {
   return a
 }
 
-function midPoint(shape: Shape): Point {
+function midPoint(shape: Exclude<Shape, NativeCurve>): Point {
   return {
     x: (shape.start.x + shape.end.x) / 2,
     y: (shape.start.y + shape.end.y) / 2,
@@ -94,7 +95,8 @@ export function detectAutoConstraints(
   existingShapes: Shape[],
   settings: AutoConstraintSettings,
 ): ConstraintSuggestion[] {
-  if (!settings.enabled) return []
+  // The current solver does not constrain analytic cubic/ellipse parameters.
+  if (!settings.enabled || isNativeCurve(newShape)) return []
 
   const suggestions: ConstraintSuggestion[] = []
   const angle = shapeAngleDeg(newShape)

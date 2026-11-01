@@ -1,3 +1,4 @@
+import { useTranslate } from '../../hooks/useTranslate'
 import type { Tool } from '../../cad/cad-types'
 import { DESKTOP_TOOL_ICON_ITEMS, TOOL_OPTIONS } from '../../editor-constants'
 import type { EditorTopbarProps } from './EditorTopbar.types'
@@ -39,6 +40,7 @@ export function TopbarToolSection({
   onToggleCanvasRuler,
   onOpenHelpModal,
 }: TopbarToolSectionProps) {
+  const t = useTranslate()
   return (
     <div className="group tool-group ribbon-section" data-section="Geometry">
       {isMobileLayout ? (
@@ -50,11 +52,11 @@ export function TopbarToolSection({
           >
             {TOOL_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
-                Tool: {option.label}
+                {t('Tool')}: {t(option.label)}
               </option>
             ))}
           </select>
-          <div className="mobile-view-inline-tabs" role="tablist" aria-label="Mobile view mode">
+          <div className="mobile-view-inline-tabs" role="tablist" aria-label={t('Mobile view mode')}>
             <button className={mobileViewMode === 'editor' ? 'active' : ''} onClick={() => onSetMobileViewMode('editor')}>
               2D
             </button>
@@ -70,7 +72,7 @@ export function TopbarToolSection({
               onClick={() => onSetMobileViewMode('split')}
               disabled={!showThreePreview}
             >
-              Split
+              {t('Split')}
             </button>
           </div>
         </>
@@ -82,9 +84,9 @@ export function TopbarToolSection({
               type="button"
               className={tool === toolItem.value ? 'tool-icon-button active' : 'tool-icon-button'}
               onClick={() => onSetActiveTool(toolItem.value)}
-              title={toolItem.label}
-              aria-label={toolItem.label}
-              data-tooltip={toolItem.label}
+              title={t(toolItem.label)}
+              aria-label={t(toolItem.label)}
+              data-tooltip={t(toolItem.label)}
             >
               <span className="tool-icon-badge" aria-hidden="true">
                 <img src={toolItem.iconSrc} alt="" />
@@ -111,7 +113,7 @@ export function TopbarToolSection({
             iconSize={16}
           />
           <button className="mobile-menu-toggle" onClick={onToggleMobileMenu}>
-            {showMobileMenu ? 'Close' : 'Options'}
+            {t(showMobileMenu ? 'Close' : 'Options')}
           </button>
         </>
       )}

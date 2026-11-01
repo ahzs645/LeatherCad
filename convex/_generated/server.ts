@@ -1,0 +1,11 @@
+/* Bootstrap server builders matching Convex codegen; regenerate with `convex codegen`. */
+import { queryGeneric, mutationGeneric, internalMutationGeneric, internalQueryGeneric, httpActionGeneric } from 'convex/server'
+import type { QueryBuilder, MutationBuilder, GenericQueryCtx, GenericMutationCtx } from 'convex/server'
+import type { DataModel } from './dataModel'
+export const query: QueryBuilder<DataModel, 'public'> = queryGeneric
+export const mutation: MutationBuilder<DataModel, 'public'> = mutationGeneric
+export const httpAction = httpActionGeneric
+export const internalQuery: QueryBuilder<DataModel, 'internal'> = internalQueryGeneric
+export const internalMutation: MutationBuilder<DataModel, 'internal'> = internalMutationGeneric
+export type QueryCtx = GenericQueryCtx<DataModel>
+export type MutationCtx = GenericMutationCtx<DataModel>

@@ -157,9 +157,9 @@ export function loadEditorPreferences(): EditorPreferences {
   }
 }
 
-export function saveEditorPreferences(prefs: EditorPreferences) {
+export function saveEditorPreferences(prefs: Partial<EditorPreferences>) {
   if (typeof window === 'undefined') {
     return
   }
-  safeLocalStorageSet(PREFS_STORAGE_KEY, JSON.stringify(prefs))
+  safeLocalStorageSet(PREFS_STORAGE_KEY, JSON.stringify({ ...loadEditorPreferences(), ...prefs }))
 }

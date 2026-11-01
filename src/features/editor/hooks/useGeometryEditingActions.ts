@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { Shape, BezierShape, ArcShape, LineShape, Point } from '../cad/cad-types'
 import { distance, uid } from '../cad/cad-geometry'
+import { isNativeCurve, nativeCurveBounds, nativeCurveEndpoints } from '../cad/native-curve-ops'
 import {
   buildBoundaryLines,
   buildCenterLinesBetween,
@@ -96,6 +97,10 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
   }
 
   function getShapePoints(shape: Shape): Point[] {
+    if (isNativeCurve(shape)) {
+      const bounds = nativeCurveBounds(shape)
+      return [{ x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.maxY }]
+    }
     if (shape.type === 'line') return [shape.start, shape.end]
     if (shape.type === 'arc') return [shape.start, shape.mid, shape.end]
     if (shape.type === 'bezier') return [shape.start, shape.control, shape.end]
@@ -124,6 +129,10 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
       setStatus('Select one or more shapes to convert to a path')
       return
     }
+    if (selected.some((shape) => isNativeCurve(shape) && shape.fillColor)) {
+      setStatus('Remove the fill before converting native curves to separate path segments; the filled curve was kept unchanged')
+      return
+    }
 
     setShapes((prev) => {
       if (duplicate) {
@@ -144,7 +153,8 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
       }
       return updated
     })
-    setStatus(duplicate ? `Converted a copy of ${selected.length} shape(s) to path` : `Converted ${selected.length} shape(s) to path`)
+    const conversion = duplicate ? `Converted a copy of ${selected.length} shape(s) to path` : `Converted ${selected.length} shape(s) to path`
+    setStatus(conversion + (selected.some(isNativeCurve) ? ' (native curves flattened within 0.01 mm)' : ''))
   }
 
   const handleConvertArcToBezier = () => {
@@ -563,7 +573,7 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
       return
     }
     const removedSet = new Set(removedIds)
-    setShapes(kept)
+    setShapes(() => kept)
     setSelectedShapeIds((prev) => prev.filter((id) => !removedSet.has(id)))
     setStatus(`Removed ${removedIds.length} duplicate shape${removedIds.length === 1 ? '' : 's'}`)
   }
@@ -701,8 +711,7 @@ export function useGeometryEditingActions(params: UseGeometryEditingActionsParam
     }
     const tolerance = 1e-3
     const isClosed = (shape: Shape) => {
-      const start = shape.start
-      const end = shape.end
+      const { start, end } = isNativeCurve(shape) ? nativeCurveEndpoints(shape) : shape
       return Math.hypot(start.x - end.x, start.y - end.y) < tolerance
     }
     const targets = selected.filter((shape) => shape.type !== 'text' && isClosed(shape))

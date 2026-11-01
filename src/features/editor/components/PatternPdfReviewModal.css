@@ -1,0 +1,11 @@
+.pattern-pdf-review-modal {
+  max-height: 90dvh;
+  overflow: auto;
+}
+
+@media (max-width: 1100px) {
+  .pattern-pdf-review-modal :is(button, select),
+  .pattern-pdf-review-modal .field-row {
+    min-height: 44px;
+  }
+}

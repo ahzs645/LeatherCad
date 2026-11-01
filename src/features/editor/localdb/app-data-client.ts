@@ -61,4 +61,6 @@ export interface AppDataClient {
   }
 
   exportAll(): Promise<LocalDbExport>
+  /** Local stores may provide an atomic restore. Remote clients deliberately do not. */
+  restoreAll?(data: LocalDbExport, mode: 'merge' | 'replace'): Promise<void>
 }

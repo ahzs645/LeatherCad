@@ -99,6 +99,9 @@ test('direct deep link to /workbench/split opens the mobile Split tab', async ({
 test('the mobile bar stays one row and the 3D tab keeps most of the screen', async ({ page }) => {
   await page.goto('/workbench/3d')
   await page.locator('canvas.three-preview-canvas').waitFor()
+  // The startup sample arrives independently of the 3D renderer. Check after
+  // its artwork commits so a late background load cannot silently switch to 2D.
+  await expect(page.locator('svg.canvas .shape-line').first()).toBeAttached()
 
   const viewport = page.viewportSize()
   expect(viewport).not.toBeNull()

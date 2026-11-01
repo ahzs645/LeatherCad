@@ -1,3 +1,4 @@
+import type { HandlePointKey } from '../../hooks/useCanvasInteractions'
 import type { UseEditorScreenShellsParams } from '../../editorScreenShellTypes'
 import { buildCanvasPaneParams } from './buildCanvasPaneParams'
 
@@ -178,7 +179,7 @@ export function buildEditorScreenCanvasPaneParams({
     layerStackLevels,
     onShapePointerDown: handleShapePointerDown,
     onShapeHandlePointerDown: handleShapeHandlePointerDown,
-    onShapeHandleDoubleClick: (shapeId: string, pointKey: 'start' | 'mid' | 'control' | 'end') => {
+    onShapeHandleDoubleClick: (shapeId: string, pointKey: HandlePointKey) => {
       if (pointKey !== 'control') return
       handleSmoothBezierJointAtControl(shapeId)
     },

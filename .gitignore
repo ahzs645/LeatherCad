@@ -23,6 +23,13 @@ dist-ssr
 *.sln
 *.sw?
 test-results/
+artifacts/printer-fit-calibration/
 
 # Scratch worktrees for background agents, not project files.
 .claude/worktrees/
+
+# Local cloud credentials and environment configuration.
+.env
+.env.*
+!.env.example
+!.env.cloud.example

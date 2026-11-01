@@ -2,19 +2,49 @@
 
 A web-based 2D CAD tool for leathercraft pattern design, built with React, TypeScript, and Vite.
 
+LeatherCad is local-first. Drafting, the local library, recovery, file import/export,
+printing and manufacturing run without a cloud account or backend. The current plan
+uses no Convex deployment; see [the local workflow](docs/LOCAL_FIRST_WORKFLOW.md).
+
 ## Features
 
-- 2D pattern editor with shapes, bezier curves, and text
-- Constraint solver for parametric dimensions
+- 2D pattern editor with analytic cubic/ellipse geometry, text, nested sketch groups and shape protection/opacity
+- Analytic constraint/dimension engine API, plus editor alignment constraints
 - Pattern grading
-- Geometry import: JSON, LCC, and SVG
+- Geometry import: JSON, native web LCAD, plain/observed-v1 sealed LCC, SVG, and ASCII DXF
 - Pattern PDF import (**Output → Pattern PDF**): reads a published template sheet as pieces, stitch runs, seams, and folds
 - Tracing import (reference overlays only, not editable geometry): raster images and PDF
-- Export: SVG, PDF, DXF, JSON, and LCC
+- Export: SVG, PDF, DXF, JSON, LCAD, legacy LCC, and validated STL patterns/positioning jigs
 - 3D preview via Three.js
 - Template and leather catalog management
 - Stitch hole rendering and cut line tools
 - Nesting layout optimization
+- Persistent selection of 20 interface locales, workflow-specific translations and English fallback
+- Inactive optional cloud/community implementation; hosted sharing is deferred in the current local-first plan
+- Draft recovery, acknowledged autosave, sign-in draft preservation and versioned library backup/restore
+- Searchable settings, configurable wheel/trackpad/tool rail, workspace presets and direct phone file actions
+
+The **Output** ribbon includes **DXF In**, **Save LCAD**, **STL / Jig**, and
+**Cloud**. On phones these workflows are under **Options → File → File tools → Apply**.
+The observed sealed LCC v1 format has a verified read-only import path; unsupported
+versions or payload features reject before changing the drawing. See the
+[implementation report](docs/COFFEE_CAD_IMPLEMENTATION_2026-10-31.md),
+[DXF format support](docs/DXF_IMPORT.md),
+[language coverage](docs/LOCALIZATION.md), and
+[cloud setup](docs/CLOUD_COMMUNITY.md) for supported behavior and limits.
+The current interface/options and feature backlog is in
+[NEXT_PARITY_PRIORITIES.md](docs/NEXT_PARITY_PRIORITIES.md).
+The [follow-up implementation report](docs/FOLLOWUP_IMPLEMENTATION_2026-10-31.md)
+records the subsequent fixes, interface improvements, manufacturing controls and
+verification. The earlier [analysis](docs/REMAINING_PARITY_ANALYSIS_2026-10-31.md)
+preserves the baseline findings that drove this work. Cloud activation is deferred;
+the [provider-specific runbook](docs/CLOUD_DEPLOYMENT_RUNBOOK.md) is maintainer reference.
+
+The [remaining-limits follow-up](docs/REMAINING_LIMITS_IMPLEMENTATION_2026-11-01.md)
+records verified sealed import, print scale/calibration fixes, native constraint
+engine extensions, finishing support, specialist translations and cloud activation
+tooling. The [paper/device kit](docs/PHYSICAL_DEVICE_ACCEPTANCE.md) provides printable
+calibration artifacts and the real-device acceptance walkthrough.
 
 ## Getting Started
 

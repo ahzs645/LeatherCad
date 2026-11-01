@@ -1,9 +1,9 @@
 import type { BoxStitchSource, Shape } from '../cad/cad-types'
 
-export type BoxStitchSourceShape = Extract<Shape, { type: 'line' | 'arc' | 'bezier' }>
+export type BoxStitchSourceShape = Exclude<Shape, { type: 'text' }>
 
 export function isBoxStitchSourceEligibleShape(shape: Shape): shape is BoxStitchSourceShape {
-  return shape.type === 'line' || shape.type === 'arc' || shape.type === 'bezier'
+  return shape.type !== 'text'
 }
 
 export function isExtractedBoxStitchSourceValue(

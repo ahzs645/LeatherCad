@@ -67,6 +67,7 @@ export type UseEditorTopbarPropsParams = {
   handleCloseProject: () => void
   handleOpenSecretFeatures: () => void
   handleOpenOptionsModal: () => void
+  handleOpenFileTools?: () => void
   handleOpenLengthAdjustModal: () => void
   handleImportTranslation: () => void
   handleStampSimulator: () => void
@@ -210,6 +211,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Editor
     handleCloseProject,
     handleOpenSecretFeatures,
     handleOpenOptionsModal,
+    handleOpenFileTools,
     handleOpenLengthAdjustModal,
     handleImportTranslation,
     handleStampSimulator,
@@ -494,6 +496,7 @@ export function useEditorTopbarProps(params: UseEditorTopbarPropsParams): Editor
     onCloseProject: handleCloseProject,
     onOpenSecretFeatures: handleOpenSecretFeatures,
     onOpenOptionsModal: handleOpenOptionsModal,
+    onOpenFileTools: handleOpenFileTools,
     onOpenLengthAdjustModal: handleOpenLengthAdjustModal,
     onImportTranslation: handleImportTranslation,
     onStampSimulator: handleStampSimulator,

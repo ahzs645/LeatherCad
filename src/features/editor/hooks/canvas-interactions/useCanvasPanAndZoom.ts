@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import { clamp } from '../../cad/cad-geometry'
 import type { Viewport } from '../../cad/cad-types'
-import { MAX_ZOOM, MIN_ZOOM } from '../../editor-constants'
+import { useInterfacePreferences } from '../../ops/interface-preferences'
+import { navigateWithWheel } from '../../ops/wheel-navigation'
 import type { PanState } from './canvas-interaction-types'
 
 type UseCanvasPanAndZoomParams = {
@@ -26,6 +26,7 @@ export function useCanvasPanAndZoom({
   onWheelScaleSelection,
   onWheelAdjustThickness,
 }: UseCanvasPanAndZoomParams) {
+  const { wheelMode, trackpadSensitivity } = useInterfacePreferences()
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) {
@@ -64,18 +65,19 @@ export function useCanvasPanAndZoom({
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault()
+      if (event.deltaX === 0 && event.deltaY === 0) return
 
       // Mouse-wheel modifiers (mirror source-app):
       // - Alt+Shift wheel  → scale selection (1% per tick)
       // - Alt wheel        → adjust line thickness on selection
       // - Shift wheel      → rotate selection (1° per tick)
-      // The plain/Ctrl wheel stays as zoom so pinch-zoom still works on trackpads.
-      if (event.altKey && event.shiftKey && onWheelScaleSelection) {
+      // Pinch/Ctrl/Command always navigates, including in Pan mode.
+      if (!event.ctrlKey && !event.metaKey && event.altKey && event.shiftKey && onWheelScaleSelection) {
         const factor = event.deltaY < 0 ? 1.01 : 0.99
         onWheelScaleSelection(factor)
         return
       }
-      if (event.altKey && onWheelAdjustThickness) {
+      if (!event.ctrlKey && !event.metaKey && event.altKey && onWheelAdjustThickness) {
         const deltaSteps = event.deltaY < 0 ? 1 : -1
         onWheelAdjustThickness(deltaSteps)
         return
@@ -89,20 +91,7 @@ export function useCanvasPanAndZoom({
       const rect = svg.getBoundingClientRect()
       const screenX = event.clientX - rect.left
       const screenY = event.clientY - rect.top
-      const naturalZoomIn = event.deltaY < 0
-      const zoomIn = reverseZoomDirection ? !naturalZoomIn : naturalZoomIn
-      const zoomFactor = zoomIn ? 1.1 : 0.9
-
-      setViewport((previous) => {
-        const nextScale = clamp(previous.scale * zoomFactor, MIN_ZOOM, MAX_ZOOM)
-        const worldX = (screenX - previous.x) / previous.scale
-        const worldY = (screenY - previous.y) / previous.scale
-        return {
-          x: screenX - worldX * nextScale,
-          y: screenY - worldY * nextScale,
-          scale: nextScale,
-        }
-      })
+      setViewport(previous => navigateWithWheel(previous, event, { wheelMode, trackpadSensitivity }, { x: screenX, y: screenY, height: rect.height }, reverseZoomDirection))
     }
 
     svg.addEventListener('wheel', handleWheel, { passive: false })
@@ -114,6 +103,8 @@ export function useCanvasPanAndZoom({
     setViewport,
     svgRef,
     reverseZoomDirection,
+    wheelMode,
+    trackpadSensitivity,
     onWheelRotateSelection,
     onWheelScaleSelection,
     onWheelAdjustThickness,

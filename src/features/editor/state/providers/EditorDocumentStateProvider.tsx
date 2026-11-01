@@ -5,6 +5,8 @@ import {
 } from '../../cad/line-types'
 import { DEFAULT_SNAP_SETTINGS, DEFAULT_THREE_PREVIEW_SETTINGS } from '../../editor-constants'
 import type { EditorDocumentState } from '../editor-domain-types'
+import { protectLockedShapeUpdates, protectLockedStitchUpdates } from '../../ops/shape-access'
+import { useOptionalEditorLayers } from './EditorLayerStateProvider'
 import {
   propertyStateReducer,
   useRequiredContext,
@@ -12,6 +14,7 @@ import {
 } from './property-state'
 
 const initialEditorDocumentState: EditorDocumentState = {
+  documentSessionId: 0,
   documentName: null,
   activeLocalDocumentId: null,
   lineTypes: createDefaultLineTypes(),
@@ -42,6 +45,8 @@ const initialEditorDocumentState: EditorDocumentState = {
   backdrops: [],
   activeBackdropId: null,
   projectMemo: '',
+  communityProvenance: [],
+  manufacturing: undefined,
   stitchAlwaysShapeIds: [],
   stitchThreadColor: '#fb923c',
   threePreviewSettings: DEFAULT_THREE_PREVIEW_SETTINGS,
@@ -56,6 +61,7 @@ const initialEditorDocumentState: EditorDocumentState = {
 
 function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyAction<EditorDocumentState>>) {
   return {
+    advanceDocumentSession: () => dispatch({ type: 'documentSessionId', value: (previous) => previous + 1 }),
     setDocumentName: (value: React.SetStateAction<EditorDocumentState['documentName']>) =>
       dispatch({ type: 'documentName', value }),
     setActiveLocalDocumentId: (value: React.SetStateAction<EditorDocumentState['activeLocalDocumentId']>) =>
@@ -114,6 +120,10 @@ function createEditorDocumentStateActions(dispatch: React.Dispatch<PropertyActio
       dispatch({ type: 'backdrops', value }),
     setActiveBackdropId: (value: React.SetStateAction<EditorDocumentState['activeBackdropId']>) =>
       dispatch({ type: 'activeBackdropId', value }),
+    setManufacturing: (value: React.SetStateAction<EditorDocumentState['manufacturing']>) =>
+      dispatch({ type: 'manufacturing', value }),
+    setCommunityProvenance: (value: React.SetStateAction<EditorDocumentState['communityProvenance']>) =>
+      dispatch({ type: 'communityProvenance', value }),
     setProjectMemo: (value: React.SetStateAction<EditorDocumentState['projectMemo']>) =>
       dispatch({ type: 'projectMemo', value }),
     setStitchAlwaysShapeIds: (value: React.SetStateAction<EditorDocumentState['stitchAlwaysShapeIds']>) =>
@@ -145,8 +155,21 @@ type EditorDocumentStateApi = EditorDocumentState & EditorDocumentStateActions
 const EditorDocumentStateContext = createContext<EditorDocumentState | null>(null)
 const EditorDocumentActionsContext = createContext<EditorDocumentStateActions | null>(null)
 
+export function editorDocumentReducer(state: EditorDocumentState, action: PropertyAction<EditorDocumentState>, lockedLayers: ReadonlySet<string> = new Set()): EditorDocumentState {
+  const next = propertyStateReducer(state, action)
+  if (action.type === 'shapes' && typeof action.value === 'function') {
+    return { ...next, shapes: protectLockedShapeUpdates(state.shapes, next.shapes, state.sketchGroups, lockedLayers) }
+  }
+  if (action.type === 'stitchHoles' && typeof action.value === 'function') {
+    return { ...next, stitchHoles: protectLockedStitchUpdates(state.stitchHoles, next.stitchHoles, state.shapes, state.sketchGroups, lockedLayers) }
+  }
+  return next
+}
+
 export function EditorDocumentStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(propertyStateReducer<EditorDocumentState>, initialEditorDocumentState)
+  const layers = useOptionalEditorLayers()
+  const lockedLayers = useMemo(() => new Set(layers?.filter(layer => layer.locked).map(layer => layer.id)), [layers])
+  const [state, dispatch] = useReducer((state: EditorDocumentState, action: PropertyAction<EditorDocumentState>) => editorDocumentReducer(state, action, lockedLayers), initialEditorDocumentState)
   const actions = useMemo(() => createEditorDocumentStateActions(dispatch), [dispatch])
 
   return (

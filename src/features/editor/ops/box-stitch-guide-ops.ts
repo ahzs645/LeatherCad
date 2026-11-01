@@ -1,5 +1,6 @@
 import type { Point, Shape, LineShape } from '../cad/cad-types'
 import { uid, sampleShapePoints } from '../cad/cad-geometry'
+import { isNativeCurve, nativeCurveBounds } from '../cad/native-curve-ops'
 import type { BoxStitchHelperSettings } from './box-stitch-settings'
 import {
   isBoxStitchSourceEligibleShape,
@@ -621,6 +622,10 @@ export function extractBoxStitchLine(
 }
 
 function getShapePointList(shape: Shape): Point[] {
+  if (isNativeCurve(shape)) {
+    const bounds = nativeCurveBounds(shape)
+    return [{ x: bounds.minX, y: bounds.minY }, { x: bounds.maxX, y: bounds.maxY }]
+  }
   if (shape.type === 'line') {
     return [shape.start, shape.end]
   }

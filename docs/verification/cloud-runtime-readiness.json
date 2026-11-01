@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "status": "codegen-blocked-or-failed",
+  "checks": [
+    {
+      "name": "convex-api-origin",
+      "status": "blocked",
+      "reason": "Set VITE_CONVEX_URL from the existing deployment/client registration"
+    },
+    {
+      "name": "convex-http-origin",
+      "status": "blocked",
+      "reason": "Set VITE_CONVEX_HTTP_URL for a custom-domain or local deployment"
+    },
+    {
+      "name": "oidc-authority",
+      "status": "blocked",
+      "reason": "Set VITE_OIDC_AUTHORITY from the existing deployment/client registration"
+    },
+    {
+      "name": "oidc-public-client",
+      "status": "blocked",
+      "reason": "Set VITE_OIDC_CLIENT_ID from the existing deployment/client registration"
+    },
+    {
+      "name": "editor-callback",
+      "status": "blocked",
+      "reason": "Set LEATHERCAD_CLOUD_EDITOR_URL from the existing deployment/client registration"
+    },
+    {
+      "name": "declared-backend-issuer",
+      "status": "unverified",
+      "reason": "Backend AUTH_JWT_ISSUER must be set on the selected deployment; local configuration cannot prove its remote value"
+    },
+    {
+      "name": "declared-backend-audience",
+      "status": "unverified",
+      "reason": "Backend AUTH_JWT_AUDIENCE must match the public SPA client ID; local configuration cannot prove its remote value"
+    },
+    {
+      "name": "explicit-existing-deployment",
+      "status": "blocked",
+      "reason": "Set CONVEX_DEPLOYMENT from the existing deployment/client registration"
+    },
+    {
+      "name": "cli-authorization-present",
+      "status": "blocked",
+      "reason": "Provide deployment authorization through the configured secret store or an existing CLI session; no login is started"
+    }
+  ],
+  "publicConfiguration": {
+    "apiOrigin": null,
+    "httpOrigin": null,
+    "callback": null,
+    "deploymentConfigured": false,
+    "clientIdConfigured": false
+  },
+  "credentialPresence": {
+    "deployKey": false,
+    "accessToken": false,
+    "existingCliSession": false,
+    "tokenA": false,
+    "tokenB": false
+  },
+  "checkedAt": "2026-10-31T23:48:18.806Z",
+  "environmentFiles": [],
+  "limitations": [
+    "Local declarations do not prove remote backend environment or OIDC client registration",
+    "Live issuer signature verification and two-account isolation require configured account tokens and cloud-smoke",
+    "No deployment, project creation or interactive login is performed"
+  ],
+  "remoteChecks": [],
+  "codegen": {
+    "status": "blocked",
+    "reason": "Codegen needs an explicit existing deployment matching the API origin and configured CLI authorization"
+  }
+}

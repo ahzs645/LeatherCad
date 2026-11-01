@@ -10,10 +10,10 @@
  */
 
 import { uid } from '../cad/cad-geometry'
+import { parseCommunityProvenance } from '../ops/community-provenance'
 import type {
   Backdrop,
   ArcShape,
-  BezierShape,
   DocFile,
   FoldLine,
   Layer,
@@ -22,6 +22,7 @@ import type {
   Point,
   PrintArea,
   Shape,
+  SketchGroup,
   StitchHole,
   TextShape,
 } from '../cad/cad-types'
@@ -39,6 +40,10 @@ import {
 import { parseLccPathCenter, rebuildImportedDimensions } from './lcc/lcc-dimensions'
 import { ellipseArcToShapes, ellipseToArcShapes } from './lcc/lcc-ellipse'
 import { rebuildStitchSequences } from './lcc/lcc-stitch'
+import { quadraticToCubicPoints } from './lcad/lcad-geometry'
+import { assertImportGeometryBudget, assertImportLayerBudget, assertImportTextBudget, assertImportTreeBudget } from './import-budget'
+import { nativeCurveEndpoints } from '../cad/native-curve-ops'
+import { validateGroupHierarchy } from '../ops/shape-access'
 import {
   DEFAULT_FOLD_CLEARANCE_MM,
   DEFAULT_FOLD_DIRECTION,
@@ -49,48 +54,31 @@ import {
 } from '../ops/fold-line-ops'
 
 function parseLccPathPoints(path: string): Array<{ command: 'M' | 'L' | 'C'; points: Point[] }> {
-  const tokens = path.match(/[MLC]|-?\d+(?:\.\d+)?(?:E[+-]?\d+)?/gi) ?? []
+  const tokens = path.match(/[a-zA-Z]|[-+]?(?:\d*\.?\d+(?:[eE][-+]?\d+)?)/g) ?? []
+  if (!tokens.some(token => !/^[a-z]$/i.test(token))) return []
   const commands: Array<{ command: 'M' | 'L' | 'C'; points: Point[] }> = []
-  let index = 0
-  let currentCommand: 'M' | 'L' | 'C' | null = null
-
-  const readNumber = () => {
-    const raw = tokens[index]
-    if (raw === undefined || /^[MLC]$/i.test(raw)) {
-      return null
-    }
-    index += 1
-    const value = Number(raw)
-    return Number.isFinite(value) ? value : null
-  }
-
+  let index = 0, command = '', moved = false
+  let cursor: Point = { x: 0, y: 0 }, origin: Point = cursor
   while (index < tokens.length) {
-    const token = tokens[index]
-    if (/^[MLC]$/i.test(token)) {
-      currentCommand = token.toUpperCase() as 'M' | 'L' | 'C'
-      index += 1
+    if (/^[a-z]$/i.test(tokens[index])) command = tokens[index++]
+    const kind = command.toUpperCase(), relative = command !== kind
+    if (kind === 'Z') {
+      if (!moved) throw new Error('Invalid legacy path: close before move')
+      commands.push({ command: 'L', points: [origin] }); assertImportGeometryBudget(commands.length); cursor = origin; command = ''; continue
     }
-    if (!currentCommand) {
-      index += 1
-      continue
+    if (!['M', 'L', 'C'].includes(kind)) throw new Error(`Unsupported legacy path command: ${command || '(missing)'}`)
+    if (!moved && kind !== 'M') throw new Error('Invalid legacy path: expected initial move')
+    const count = kind === 'C' ? 3 : 1, points: Point[] = []
+    for (let point = 0; point < count; point++) {
+      const x = tokens[index++], y = tokens[index++]
+      if (x === undefined || y === undefined || /^[a-z]$/i.test(x) || /^[a-z]$/i.test(y) || !Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) throw new Error('Invalid legacy path coordinates')
+      points.push({ x: Number(x) + (relative ? cursor.x : 0), y: Number(y) + (relative ? cursor.y : 0) })
     }
-    const pointCount = currentCommand === 'C' ? 3 : 1
-    const points: Point[] = []
-    for (let pointIndex = 0; pointIndex < pointCount; pointIndex += 1) {
-      const x = readNumber()
-      const y = readNumber()
-      if (x === null || y === null) {
-        break
-      }
-      points.push({ x, y })
-    }
-    if (points.length === pointCount) {
-      commands.push({ command: currentCommand, points })
-    } else if (points.length === 0) {
-      currentCommand = null
-    }
+    commands.push({ command: kind as 'M' | 'L' | 'C', points })
+    cursor = points[points.length - 1]
+    if (kind === 'M') { origin = cursor; moved = true; command = relative ? 'l' : 'L' }
+    assertImportGeometryBudget(commands.length)
   }
-
   return commands
 }
 
@@ -123,15 +111,7 @@ function pathToEditableShapes(
       continue
     }
     const [control1, control2, end] = command.points
-    shapes.push({
-      id: uid(),
-      type: 'bezier',
-      layerId,
-      lineTypeId,
-      start: cursor,
-      control: { x: (control1.x + control2.x) / 2, y: (control1.y + control2.y) / 2 },
-      end,
-    })
+    shapes.push({ id: uid(), type: 'cubic', layerId, lineTypeId, start: cursor, control1, control2, end })
     cursor = end
   }
   return shapes
@@ -181,10 +161,22 @@ export type LccImportResult = {
 }
 
 export function importLccDocument(raw: string): LccImportResult {
+  assertImportTextBudget(raw)
   // Strip UTF-8 BOM if present
   const cleaned = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
   const data = JSON.parse(cleaned) as LccFile
+  assertImportTreeBudget(data)
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('Invalid LCC document: expected a JSON object')
+  }
+  // Newer LCC files put compatibility artwork outside a signed compressed
+  // payload. Parsing that outer artwork as a normal drawing loses geometry.
+  // The synchronous adapter cannot verify/inflate it; route through the async reader.
+  if ('sealed' in data || data.meta?.file_type === 'LeathercraftCAD_Sealed') {
+    throw new Error('Sealed LCC files require the asynchronous verified reader. Open this file through the drawing importer, which supports sealed v1. The current document was not changed.')
+  }
   const warnings: string[] = []
+  const native42 = /^4\.2(?:\.|$)/.test(data.meta?.version ?? '')
 
   // Validate meta
   if (data.meta?.file_type !== 'LeathercraftCAD') {
@@ -193,6 +185,7 @@ export function importLccDocument(raw: string): LccImportResult {
 
   // Build layers
   const lccLayers = Array.isArray(data.layers) ? data.layers : []
+  assertImportLayerBudget(lccLayers.length)
   const layerIdMap = new Map<string, string>() // LCC numeric layer id → our uuid
   const layers: Layer[] = []
 
@@ -221,19 +214,22 @@ export function importLccDocument(raw: string): LccImportResult {
   const lineTypes = createDefaultLineTypes()
   const lineTypeMap = new Map<string, string>() // "layer:color:dash" → lineType.id
   const lccShapes = Array.isArray(data.shapes) ? data.shapes : []
+  if ((data.meta?.licenses !== undefined && (!Array.isArray(data.meta.licenses) || data.meta.licenses.length > 0)) || lccShapes.some(shape => shape.orig != null)) throw new Error('LCC licensed-part provenance cannot yet be preserved by this reader; keep this file in the original application')
+  const roleFor = (shape: LccShape) => native42 ? shape.type === 'S_HOLE' ? 'stitch' : shape.type === 'DIMENSION' || shape.dim === '-1' ? 'mark' : 'cut' : layerRole(parseInt(String(shape.layer), 10))
+  const styleKey = (shape: LccShape) => `${shape.layer}:${shape.color}:${shape.dash}${native42 ? `:${shape.thk}:${roleFor(shape)}` : ''}`
 
   // Pre-scan to build line type mapping
   for (const shape of lccShapes) {
-    const key = `${shape.layer}:${shape.color}:${shape.dash}`
+    const key = styleKey(shape)
     if (lineTypeMap.has(key)) continue
 
-    const role = layerRole(parseInt(shape.layer, 10))
+    const role = roleFor(shape)
     const style = resolveLccDash(shape.dash)
     const color = resolveLccColor(shape.color)
 
     // Try to find an existing line type that matches
     const existing = lineTypes.find(
-      (lt) => lt.role === role && lt.style === style && lt.color === color,
+      (lt) => lt.role === role && lt.style === style && lt.color === color && (!native42 || lt.strokeWidthMm === parseLccFloat(shape.thk)),
     )
     if (existing) {
       lineTypeMap.set(key, existing.id)
@@ -248,6 +244,7 @@ export function importLccDocument(raw: string): LccImportResult {
       style,
       color,
       visible: true,
+      ...(native42 ? { strokeWidthMm: parseLccFloat(shape.thk) } : {}),
     }
     lineTypes.push(newLt)
     lineTypeMap.set(key, newLt.id)
@@ -258,10 +255,29 @@ export function importLccDocument(raw: string): LccImportResult {
   // Build editable shapes and stitch holes; source dimension primitives are
   // collected separately and reconstructed as logical dimension overlays.
   const shapes: Shape[] = []
+  const sketchGroups: SketchGroup[] = []
+  const groupMap = new Map<string, SketchGroup>()
+  const groupLayerMap = new Map<string, string>()
+  for (const shape of lccShapes) if (!groupLayerMap.has(String(shape.gid))) groupLayerMap.set(String(shape.gid), String(shape.layer))
+  for (const source of Array.isArray(data.groups) ? data.groups : []) {
+    if (!source || !Number.isInteger(source.id) || source.id < 0 || !Number.isInteger(source.parent) || source.parent < -1 || groupMap.has(String(source.id))) throw new Error('Invalid or duplicate legacy LCC group')
+    const layerId = layerIdMap.get(groupLayerMap.get(String(source.id)) ?? '') ?? activeLayerId
+    const group: SketchGroup = { id: uid(), name: `Group ${source.id}`, layerId, visible: true, locked: false }
+    groupMap.set(String(source.id), group); sketchGroups.push(group)
+  }
+  for (const source of data.groups ?? []) {
+    if (source.parent >= 0) {
+      const parent = groupMap.get(String(source.parent))
+      if (!parent) throw new Error('Missing parent legacy LCC group')
+      groupMap.get(String(source.id))!.parentId = parent.id
+    }
+  }
+  validateGroupHierarchy(sketchGroups)
   const foldLines: FoldLine[] = []
   const stitchHoles: StitchHole[] = []
   const rawDimensionSegments: RawDimensionSegment[] = []
   const rawDimensionTexts: RawDimensionText[] = []
+  const nativeDimensions: NonNullable<DocFile['dimensionLines']> = []
   let skippedDimensionShapes = 0
   let ellipseCount = 0
   let textCount = 0
@@ -271,12 +287,26 @@ export function importLccDocument(raw: string): LccImportResult {
   const stitchNextMap = new Map<string, string>() // LCC shape id → LCC next shape id
 
   for (const lccShape of lccShapes) {
-    const lccLayerId = lccShape.layer ?? '0'
+    const beforeCount = shapes.length
+    assertImportGeometryBudget(shapes.length + stitchHoles.length + rawDimensionSegments.length + rawDimensionTexts.length + nativeDimensions.length)
+    const lccLayerId = String(lccShape.layer ?? '0')
     const layerId = layerIdMap.get(lccLayerId) ?? activeLayerId
-    const ltKey = `${lccLayerId}:${lccShape.color}:${lccShape.dash}`
+    const ltKey = styleKey(lccShape)
     const lineTypeId = lineTypeMap.get(ltKey) ?? activeLineTypeId
 
     switch (lccShape.type) {
+      case 'DIMENSION': {
+        if (lccShape.dk !== 'linear') throw new Error(`Unsupported LCC v4.2 dimension kind: ${lccShape.dk ?? '(missing)'}`)
+        if (!lccShape.dp1 || !lccShape.dp2) throw new Error('Invalid LCC v4.2 dimension points')
+        const start = pt(lccShape.dp1), end = pt(lccShape.dp2)
+        if (Math.hypot(end.x - start.x, end.y - start.y) <= 1e-9) throw new Error('Invalid LCC v4.2 zero-length dimension')
+        let angle = Math.atan2(end.y - start.y, end.x - start.x) * 180 / Math.PI
+        while (angle > 90) angle -= 180
+        while (angle <= -90) angle += 180
+        nativeDimensions.push({ id: uid(), layerId, lineTypeId, start, end, offsetMm: parseLccFloat(lccShape.doff), text: lccShape.dlbl || lccShape.tx || undefined, fontSizeMm: parseLccFloat(lccShape.fs) || undefined, precision: Math.max(0, Math.min(6, Math.round(parseLccFloat(lccShape.dprec)))), arrowOnly: lccShape.dao === '-1', singleLine: lccShape.dsl === '-1', textInside: lccShape.dti === '-1', textReverse: lccShape.dtr === '-1', labelRotationDeg: angle })
+        warnings.push('LCC v4.2 dimensions are imported as detached annotations; source associations and unit overrides are retained as label text, not live links')
+        break
+      }
       case 'LINE': {
         const isDimension = lccShape.dim === '-1'
         if (isDimension) {
@@ -300,14 +330,13 @@ export function importLccDocument(raw: string): LccImportResult {
         const end = pt(lccShape.ep)
 
         // Check for bezier control points – when bz1/bz2 are non-zero,
-        // the LCC LINE is actually a cubic bezier. We approximate as a
-        // quadratic bezier using the average of the two control points.
+        // the LCC LINE is an exact cubic bezier with two native controls.
         const bz1 = lccShape.bz1
         const bz2 = lccShape.bz2
         const hasBezier =
           (bz1[0] !== 0 || bz1[1] !== 0) || (bz2[0] !== 0 || bz2[1] !== 0)
 
-        if (!hasBezier && layerRole(parseInt(lccLayerId, 10)) === 'fold') {
+        if (!native42 && !hasBezier && layerRole(parseInt(lccLayerId, 10)) === 'fold') {
           foldLines.push({
             id: uid(),
             name: lccShape.nm?.trim() || `Crease ${foldLines.length + 1}`,
@@ -325,21 +354,7 @@ export function importLccDocument(raw: string): LccImportResult {
         }
 
         if (hasBezier) {
-          const bezier: BezierShape = {
-            id: uid(),
-            type: 'bezier',
-            layerId,
-            lineTypeId,
-            arrowStart: hasArrowStart || undefined,
-            arrowEnd: hasArrowEnd || undefined,
-            start,
-            control: {
-              x: (bz1[0] + bz2[0]) / 2,
-              y: (bz1[1] + bz2[1]) / 2,
-            },
-            end,
-          }
-          shapes.push(bezier)
+          shapes.push({ id: uid(), type: 'cubic', layerId, lineTypeId, start, control1: pt(bz1), control2: pt(bz2), end, arrowStart: hasArrowStart || undefined, arrowEnd: hasArrowEnd || undefined })
         } else {
           const line: LineShape = {
             id: uid(),
@@ -398,17 +413,11 @@ export function importLccDocument(raw: string): LccImportResult {
         if (parsedPathShapes.length > 0) {
           shapes.push(...parsedPathShapes)
         } else {
-          shapes.push({
-            id: uid(),
-            type: 'bezier',
-            layerId,
-            lineTypeId,
-            start,
-            control: hasControls
-              ? { x: (bz1[0] + bz2[0]) / 2, y: (bz1[1] + bz2[1]) / 2 }
-              : pt(lccShape.ct),
-            end,
-          })
+          if (hasControls) {
+            shapes.push({ id: uid(), type: 'cubic', layerId, lineTypeId, start, control1: pt(bz1), control2: pt(bz2), end })
+          } else {
+            shapes.push({ id: uid(), type: 'bezier', layerId, lineTypeId, start, control: pt(lccShape.ct), end })
+          }
         }
         break
       }
@@ -428,11 +437,11 @@ export function importLccDocument(raw: string): LccImportResult {
 
         if (sweepAngle !== 0) {
           // Partial arc/ellipse – create a single three-point arc
-          const arcs = ellipseArcToShapes(center, w, h, startAngle, sweepAngle, layerId, lineTypeId)
+            const arcs = ellipseArcToShapes(center, w, h, startAngle, sweepAngle, layerId, lineTypeId, parseLccFloat(lccShape.rt))
           shapes.push(...arcs)
         } else {
           // Full ellipse – 4 quadrant arcs
-          const arcs = ellipseToArcShapes(center, w, h, layerId, lineTypeId)
+          const arcs = ellipseToArcShapes(center, w, h, layerId, lineTypeId, parseLccFloat(lccShape.rt))
           shapes.push(...arcs)
         }
         break
@@ -586,11 +595,22 @@ export function importLccDocument(raw: string): LccImportResult {
         break
       }
     }
+    const group = groupMap.get(String(lccShape.gid))
+    if (group) for (const shape of shapes.slice(beforeCount)) {
+      if (shape.layerId === group.layerId) shape.groupId = group.id
+      else warnings.push('Legacy group members on different layers are imported without that group')
+    }
+    if (native42) for (const shape of shapes.slice(beforeCount)) {
+      if (lccShape.opc !== undefined) shape.opacity = Number(lccShape.opc)
+      const width = parseLccFloat(lccShape.thk)
+      if (width < 0.1) shape.strokeWidthOverride = width
+    }
   }
 
   // Rebuild stitch hole sequences from the linked list chains
+  assertImportGeometryBudget(shapes.length + stitchHoles.length + rawDimensionSegments.length + rawDimensionTexts.length + nativeDimensions.length)
   rebuildStitchSequences(stitchHoles, stitchHoleIdMap, stitchNextMap)
-  const dimensionLines = rebuildImportedDimensions(rawDimensionSegments, rawDimensionTexts)
+  const dimensionLines = [...nativeDimensions, ...rebuildImportedDimensions(rawDimensionSegments, rawDimensionTexts)]
 
   // Convert LCC print areas
   const printAreas: PrintArea[] = []
@@ -620,26 +640,32 @@ export function importLccDocument(raw: string): LccImportResult {
   const nextBackdrops: Backdrop[] = []
   let backdropPathOnlyCount = 0
   for (const entry of lccBackdrops) {
-    const src = typeof entry.src === 'string' ? entry.src : ''
-    const width = typeof entry.w === 'number' && entry.w > 0 ? entry.w : 100
-    const height = typeof entry.h === 'number' && entry.h > 0 ? entry.h : 100
-    const x = typeof entry.x === 'number' ? entry.x : 0
-    const y = typeof entry.y === 'number' ? entry.y : 0
-    const opcRaw = typeof entry.opc === 'string' ? Number(entry.opc) : 1
-    const opacity = Number.isFinite(opcRaw) && opcRaw > 0 ? Math.min(1, Math.max(0.05, opcRaw)) : 1
+    const embedded = entry.image
+    if (embedded && (!/^image\/(?:png|jpeg|webp)$/i.test(embedded.mime ?? '') || typeof embedded.base64 !== 'string')) throw new Error('Unsupported legacy embedded tracing image')
+    const src = embedded ? `data:${embedded.mime};base64,${embedded.base64!.replace(/\s/g, '')}` : typeof entry.src === 'string' ? entry.src : typeof entry.fullpath === 'string' ? entry.fullpath : ''
+    const widthValue = typeof entry.w === 'string' ? Number(entry.w) : entry.w
+    const heightValue = typeof entry.h === 'string' ? Number(entry.h) : entry.h
+    const width = typeof widthValue === 'number' && widthValue > 0 ? widthValue : 100
+    const height = typeof heightValue === 'number' && heightValue > 0 ? heightValue : 100
+    const x = entry.topleft ? Number(entry.topleft[0]) : typeof entry.x === 'number' ? entry.x : 0
+    const y = entry.topleft ? Number(entry.topleft[1]) : typeof entry.y === 'number' ? entry.y : 0
+    const opcRaw = entry.alpha !== undefined || entry.opc !== undefined ? Number(entry.alpha ?? entry.opc) : 1
+    const opacity = Number.isFinite(opcRaw) ? Math.min(1, Math.max(0, opcRaw)) : 1
     const locked = typeof entry.lock === 'string' ? entry.lock === 'true' || entry.lock === '1' : false
     if (src.startsWith('data:')) {
       nextBackdrops.push({
         id: uid(),
-        name: 'Backdrop',
+        name: typeof entry.fullpath === 'string' ? entry.fullpath.split(/[\\/]/).at(-1) || 'Backdrop' : 'Backdrop',
         bitmapDataUrl: src,
-        bitmapWidth: Math.round(width),
-        bitmapHeight: Math.round(height),
+        bitmapWidth: Number.isFinite(Number(embedded?.pxw)) && Number(embedded?.pxw) > 0 ? Number(embedded?.pxw) : Math.round(width),
+        bitmapHeight: Number.isFinite(Number(embedded?.pxh)) && Number(embedded?.pxh) > 0 ? Number(embedded?.pxh) : Math.round(height),
         leftTop: { x, y },
         width,
         height,
-        angleDeg: 0,
-        visible: true,
+        angleDeg: Number(entry.angle) || 0,
+        rotationCenter: entry.rotc ? pt(entry.rotc) : undefined,
+        dpi: Number(entry.dpi) > 0 ? Number(entry.dpi) : 300,
+        visible: entry.visible !== false,
         locked,
         opacity,
       })
@@ -647,11 +673,15 @@ export function importLccDocument(raw: string): LccImportResult {
       backdropPathOnlyCount += 1
     }
   }
+  assertImportTreeBudget(nextBackdrops)
   if (backdropPathOnlyCount > 0) {
     warnings.push(
       `${backdropPathOnlyCount} backdrop image(s) referenced by local path and cannot be loaded — re-import them to embed`,
     )
   }
+  if (data.meta?.unit_for_view === 'inch') warnings.push('Source inch display units became mm display; LCC geometry remains in millimetres')
+  if (native42 && layers.length > 1) warnings.push('LCC v4.2 layer positions are not treated as cut/fold/stitch roles; review line roles before manufacturing')
+  if (typeof data.meta?.memo === 'string' && data.meta.memo.length > 8000) warnings.push('The source memo exceeds the 8,000-character editor limit and was truncated; retain the original LCC')
 
   const doc: DocFile = {
     version: 1,
@@ -661,6 +691,8 @@ export function importLccDocument(raw: string): LccImportResult {
     lineTypes,
     activeLineTypeId,
     objects: shapes,
+    sketchGroups: sketchGroups.length ? sketchGroups : undefined,
+    projectMemo: typeof data.meta?.memo === 'string' ? data.meta.memo.slice(0, 8000) : undefined,
     foldLines,
     stitchHoles,
     backdrops: nextBackdrops.length > 0 ? nextBackdrops : undefined,
@@ -671,7 +703,7 @@ export function importLccDocument(raw: string): LccImportResult {
 
   return {
     doc,
-    warnings,
+    warnings: [...new Set(warnings)],
     summary: {
       shapeCount: shapes.length,
       stitchHoleCount: stitchHoles.length,
@@ -687,6 +719,14 @@ export function importLccDocument(raw: string): LccImportResult {
 // ---------------------------------------------------------------------------
 // LCC Export
 // ---------------------------------------------------------------------------
+
+export function getLccExportWarnings(doc: DocFile): string[] {
+  const warnings: string[] = []
+  if (doc.lineTypes.some(type => type.strokeWidthMm !== undefined) || doc.objects.some(shape => shape.strokeWidthOverride !== undefined)) warnings.push('Legacy LCC does not preserve palette/shape stroke widths')
+  if (doc.objects.some(shape => shape.locked || (shape.opacity !== undefined && shape.opacity !== 1)) || doc.sketchGroups?.length) warnings.push('Legacy LCC does not retain shape locks/opacity or sketch groups')
+  if (doc.constraints?.length || doc.patternPieces?.length || doc.assemblyConnections?.length || doc.seamConnections?.length || doc.seamAllowances?.length || doc.hardwareMarkers?.length || doc.manufacturing) warnings.push('Project constraints, assembly, hardware and manufacturing settings are not preserved by LCC; use Document JSON for a complete backup')
+  return warnings
+}
 
 let exportIdCounter = 1000
 
@@ -728,6 +768,9 @@ function emptyLccShape(): Omit<LccShape, 'id' | 'type' | 'sp' | 'ep' | 'ct' | 'c
 }
 
 export function exportLccDocument(doc: DocFile): string {
+  if (parseCommunityProvenance(doc.communityProvenance).length > 0) {
+    throw new Error('LCC export cannot preserve community source attribution. Save an .lcad or Document JSON file instead.')
+  }
   exportIdCounter = 1000
 
   const lineTypesById = Object.fromEntries(doc.lineTypes.map((lt) => [lt.id, lt]))
@@ -797,6 +840,7 @@ export function exportLccDocument(doc: DocFile): string {
         layer,
       })
     } else if (shape.type === 'bezier') {
+      const [, control1, control2] = quadraticToCubicPoints(shape.start, shape.control, shape.end)
       lccShapes.push({
         ...emptyLccShape(),
         id: nextExportId(),
@@ -804,14 +848,19 @@ export function exportLccDocument(doc: DocFile): string {
         sp: [shape.start.x, shape.start.y],
         ep: [shape.end.x, shape.end.y],
         ct: [shape.control.x, shape.control.y],
-        bz1: [shape.control.x, shape.control.y],
-        bz2: [shape.control.x, shape.control.y],
+        bz1: [control1.x, control1.y],
+        bz2: [control2.x, control2.y],
         color,
         dash,
         arst: arrowStart,
         ared: arrowEnd,
         layer,
       })
+    } else if (shape.type === 'cubic') {
+      lccShapes.push({ ...emptyLccShape(), id: nextExportId(), type: 'BEZIER', sp: [shape.start.x, shape.start.y], ep: [shape.end.x, shape.end.y], ct: [shape.control1.x, shape.control1.y], bz1: [shape.control1.x, shape.control1.y], bz2: [shape.control2.x, shape.control2.y], color, dash, arst: arrowStart, ared: arrowEnd, layer })
+    } else if (shape.type === 'ellipse') {
+      const { start, end } = nativeCurveEndpoints(shape)
+      lccShapes.push({ ...emptyLccShape(), id: nextExportId(), type: 'ELLIPSE', sp: [start.x, start.y], ep: [end.x, end.y], ct: [shape.center.x, shape.center.y], w: String(shape.radiusX * 2), h: String(shape.radiusY * 2), rt: String(shape.rotationDeg), sta: String(shape.startAngleDeg), swa: Math.abs(shape.sweepDeg) >= 360 - 1e-8 ? '0' : String(shape.sweepDeg), color, dash, layer })
     } else if (shape.type === 'text') {
       lccShapes.push({
         ...emptyLccShape(),

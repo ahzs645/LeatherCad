@@ -1,0 +1,232 @@
+{
+  "tool": "trimesh",
+  "version": "5.2.0",
+  "results": [
+    {
+      "name": "chamfer",
+      "vertices": 16,
+      "triangles": 28,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 2375.3333333333335,
+      "dimensions_mm": [
+        30.0,
+        20.0,
+        4.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 1
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 3.75,
+          "closed_contours": 1
+        }
+      ]
+    },
+    {
+      "name": "engrave-bottom",
+      "vertices": 28,
+      "triangles": 52,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 1189.4399999999998,
+      "dimensions_mm": [
+        30.0,
+        20.0,
+        2.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 3
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 1
+        }
+      ]
+    },
+    {
+      "name": "engrave-top",
+      "vertices": 28,
+      "triangles": 52,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 1189.4399999999998,
+      "dimensions_mm": [
+        30.0,
+        20.0,
+        2.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 1
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 3
+        }
+      ]
+    },
+    {
+      "name": "fillet",
+      "vertices": 56,
+      "triangles": 108,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 2388.926674212405,
+      "dimensions_mm": [
+        30.0,
+        20.0,
+        4.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 1
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 3.75,
+          "closed_contours": 1
+        }
+      ]
+    },
+    {
+      "name": "jig",
+      "vertices": 108,
+      "triangles": 216,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 4084.2182265000006,
+      "dimensions_mm": [
+        40.0,
+        30.0,
+        5.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 2
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 2
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 2
+        },
+        {
+          "z": 3.75,
+          "closed_contours": 2
+        }
+      ]
+    },
+    {
+      "name": "offsetjig",
+      "vertices": 164,
+      "triangles": 324,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 4180.4527032,
+      "dimensions_mm": [
+        40.0,
+        30.0,
+        5.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 1
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 3.75,
+          "closed_contours": 2
+        }
+      ]
+    },
+    {
+      "name": "pattern",
+      "vertices": 8,
+      "triangles": 12,
+      "watertight": true,
+      "winding_consistent": true,
+      "positive_volume": true,
+      "volume_mm3": 1200.0,
+      "dimensions_mm": [
+        30.0,
+        20.0,
+        2.0
+      ],
+      "components": 1,
+      "broken_faces": 0,
+      "sections": [
+        {
+          "z": 0.25,
+          "closed_contours": 1
+        },
+        {
+          "z": 0.75,
+          "closed_contours": 1
+        },
+        {
+          "z": 1.75,
+          "closed_contours": 1
+        }
+      ]
+    }
+  ]
+}

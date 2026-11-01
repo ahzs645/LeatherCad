@@ -1,0 +1,34 @@
+{
+  "leathercad": {
+    "unit_tests": {
+      "passed": 1025,
+      "files": 143
+    },
+    "cold_cache_browser_tests": {
+      "passed": 28,
+      "workers": 2
+    },
+    "frontend_types": "passed",
+    "backend_types": "passed",
+    "eslint": "passed",
+    "architecture": "passed",
+    "production_build": "passed with existing chunk-size warnings",
+    "node": "24.19.0"
+  },
+  "jsmap": {
+    "regression_suites_passed": 16,
+    "original_har_requests_imported": 491,
+    "runtime_editor_check": "passed, four rectangle edges, no runtime errors or failed requests",
+    "recovery_level": "preserved-runtime",
+    "route": "inspection-first"
+  },
+  "not_verified": [
+    "Live Convex deployment",
+    "Live OIDC provider sign-in"
+  ],
+  "explicit_limits": [
+    "Sealed LCC decoding unsupported; safely rejected",
+    "STL engraving/bevel/fillet/finger-hole controls absent",
+    "18 additional languages cover core shell; details fall back to English"
+  ]
+}

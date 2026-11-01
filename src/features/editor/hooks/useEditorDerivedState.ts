@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { buildGroupAccess, isShapeLocked } from '../ops/shape-access'
 import { countShapesByLineType } from '../ops/line-type-ops'
 import { countStitchHolesByShape } from '../ops/stitch-hole-ops'
 import { buildPrintPlan } from '../preview/print-preview'
@@ -46,6 +47,10 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const {
     printSelectedOnly,
     printPaper,
+    printOrientation,
+    printIntoMargin,
+    printCalibrationXPercent,
+    printCalibrationYPercent,
     printMarginMm,
     printOverlapMm,
     printTileX,
@@ -56,6 +61,10 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   } = useEditorPanelSelector((state) => ({
     printSelectedOnly: state.printSelectedOnly,
     printPaper: state.printPaper,
+    printOrientation: state.printOrientation,
+    printIntoMargin: state.printIntoMargin,
+    printCalibrationXPercent: state.printCalibrationXPercent,
+    printCalibrationYPercent: state.printCalibrationYPercent,
     printMarginMm: state.printMarginMm,
     printOverlapMm: state.printOverlapMm,
     printTileX: state.printTileX,
@@ -102,6 +111,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     tracingOverlays,
     backdrops,
     projectMemo,
+    communityProvenance,
+    manufacturing,
     stitchAlwaysShapeIds,
     stitchThreadColor,
     threePreviewSettings,
@@ -138,6 +149,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     tracingOverlays: state.tracingOverlays,
     backdrops: state.backdrops,
     projectMemo: state.projectMemo,
+    communityProvenance: state.communityProvenance,
+    manufacturing: state.manufacturing,
     stitchAlwaysShapeIds: state.stitchAlwaysShapeIds,
     stitchThreadColor: state.stitchThreadColor,
     threePreviewSettings: state.threePreviewSettings,
@@ -169,6 +182,7 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     () => Object.fromEntries(sketchGroups.map((group) => [group.id, group])),
     [sketchGroups],
   )
+  const groupAccess = useMemo(() => buildGroupAccess(sketchGroups), [sketchGroups])
   const activeSketchGroup = useMemo(
     () => (activeSketchGroupId ? sketchGroups.find((group) => group.id === activeSketchGroupId) ?? null : null),
     [sketchGroups, activeSketchGroupId],
@@ -197,7 +211,14 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     () => Object.fromEntries(patternPieces.map((piece) => [piece.boundaryShapeId, piece])),
     [patternPieces],
   )
-  const selectedShapeIdSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds])
+  const allSelectedShapeIdSet = useMemo(() => new Set(selectedShapeIds), [selectedShapeIds])
+  const selectedShapeIdSet = useMemo(() => {
+    const lockedLayers = new Set(layers.filter(layer => layer.locked).map(layer => layer.id))
+    return new Set(selectedShapeIds.filter(id => {
+      const shape = shapesById[id]
+      return shape && !lockedLayers.has(shape.layerId) && !isShapeLocked(shape, groupAccess)
+    }))
+  }, [selectedShapeIds, shapesById, layers, groupAccess])
   const shapeCountsByLineType = useMemo(() => countShapesByLineType(shapes), [shapes])
   const stitchHoleCountsByShape = useMemo(() => countStitchHolesByShape(stitchHoles), [stitchHoles])
   const selectedShapeCount = selectedShapeIds.length
@@ -239,10 +260,9 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       if (!shape.groupId) {
         return true
       }
-      const group = sketchGroupsById[shape.groupId]
-      return group ? group.visible : true
+      return groupAccess[shape.groupId]?.visible ?? true
     })
-  }, [shapes, visibleLayerIdSet, visibleLineTypeIdSet, sketchGroupsById])
+  }, [shapes, visibleLayerIdSet, visibleLineTypeIdSet, groupAccess])
 
   const independentLayerIdSet = useMemo(
     () => new Set(layers.filter((layer) => layer.independent === true).map((layer) => layer.id)),
@@ -262,10 +282,9 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
         if (!shape.groupId) {
           return true
         }
-        const group = sketchGroupsById[shape.groupId]
-        return group ? group.visible : false
+        return groupAccess[shape.groupId]?.visible ?? false
       }),
-    [linkedProjectionShapes, visibleLayerIdSet, visibleLineTypeIdSet, sketchGroupsById],
+    [linkedProjectionShapes, visibleLayerIdSet, visibleLineTypeIdSet, groupAccess],
   )
 
   const assemblyShapes = useMemo(
@@ -338,10 +357,9 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
         if (!marker.groupId) {
           return true
         }
-        const group = sketchGroupsById[marker.groupId]
-        return group ? group.visible : true
+        return groupAccess[marker.groupId]?.visible ?? true
       }),
-    [hardwareMarkers, visibleLayerIdSet, sketchGroupsById],
+    [hardwareMarkers, visibleLayerIdSet, groupAccess],
   )
 
   const workspaceStitchHoles = useMemo(
@@ -410,20 +428,23 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     if (!printSelectedOnly) {
       return printEligibleShapes
     }
-    return printEligibleShapes.filter((shape) => selectedShapeIdSet.has(shape.id))
-  }, [printSelectedOnly, assemblyShapes, selectedShapeIdSet, lineTypesById, printShowIgnoredLineTypes])
+    return printEligibleShapes.filter((shape) => allSelectedShapeIdSet.has(shape.id))
+  }, [printSelectedOnly, assemblyShapes, allSelectedShapeIdSet, lineTypesById, printShowIgnoredLineTypes])
 
   const printPlan = useMemo(
     () =>
       buildPrintPlan(printableShapes, {
         paper: printPaper,
-        marginMm: printMarginMm,
+        orientation: printOrientation,
+        marginMm: printIntoMargin ? 0 : printMarginMm,
         overlapMm: printOverlapMm,
         tileX: printTileX,
         tileY: printTileY,
         scalePercent: printScalePercent,
+        calibrationXPercent: printCalibrationXPercent,
+        calibrationYPercent: printCalibrationYPercent,
       }),
-    [printableShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
+    [printableShapes, printPaper, printOrientation, printIntoMargin, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent, printCalibrationXPercent, printCalibrationYPercent],
   )
 
   const activeExportRoleCount = useMemo(
@@ -542,6 +563,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       tracingOverlays: deepClone(tracingOverlays),
       backdrops: deepClone(backdrops),
       projectMemo,
+      communityProvenance: deepClone(communityProvenance),
+      manufacturing: manufacturing ? deepClone(manufacturing) : undefined,
       stitchAlwaysShapeIds: deepClone(stitchAlwaysShapeIds),
       stitchThreadColor,
       threePreviewSettings: deepClone(threePreviewSettings),
@@ -583,6 +606,8 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
       tracingOverlays,
       backdrops,
       projectMemo,
+      communityProvenance,
+      manufacturing,
       stitchAlwaysShapeIds,
       stitchThreadColor,
       threePreviewSettings,

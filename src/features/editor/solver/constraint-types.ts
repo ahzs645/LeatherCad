@@ -1,4 +1,4 @@
-import type { Point } from '../cad/cad-types'
+import type { Layer, Point, Shape, SketchGroup } from '../cad/cad-types'
 
 export type ConstraintAnchor = 'start' | 'end' | 'mid' | 'center'
 
@@ -77,7 +77,12 @@ export type TangentConstraint = {
   type: 'tangent'
   shapeIdA: string
   shapeIdB: string
+  /** If omitted, the nearest endpoint pair is selected once before iteration. */
+  anchorA?: 'start' | 'end'
+  anchorB?: 'start' | 'end'
 }
+
+export type ConstraintAccess = { layers?: readonly Layer[]; sketchGroups?: readonly SketchGroup[] }
 
 export type SolverConstraint =
   | DistanceConstraint
@@ -96,5 +101,7 @@ export type SolverResult = {
   iterations: number
   residual: number
   updates: Map<string, Map<string, Point>>
+  /** Complete analytic primitives. Apply these instead of reconstructing curves from virtual anchors. */
+  shapeUpdates: Map<string, Shape>
   conflicts: string[]
 }

@@ -130,6 +130,8 @@ export function usePrintPreviewState({
         tileX: printTileX,
         tileY: printTileY,
         scalePercent: printScalePercent,
+        calibrationXPercent: printCalibrationXPercent,
+        calibrationYPercent: printCalibrationYPercent,
       }),
     [
       printOutputShapes,
@@ -140,6 +142,8 @@ export function usePrintPreviewState({
       printTileX,
       printTileY,
       printScalePercent,
+      printCalibrationXPercent,
+      printCalibrationYPercent,
     ],
   )
 
@@ -159,20 +163,27 @@ export function usePrintPreviewState({
       return
     }
 
-    const opened = openPrintTilesWindow({
-      shapes: printOutputShapes,
-      stitchHoles: stitchHoles.filter((stitchHole) => printOutputShapes.some((shape) => shape.id === stitchHole.shapeId)),
-      foldLines,
-      lineTypesById: printableLineTypesById,
-      printPlan: printOutputPlan,
-      printInColor,
-      printStitchAsDots,
-      lineThicknessScalePercent: printLineThicknessScalePercent,
-      showIgnoredLineTypes: printShowIgnoredLineTypes,
-      printRulerInside,
-      calibrationXPercent: printCalibrationXPercent,
-      calibrationYPercent: printCalibrationYPercent,
-    })
+    const printedShapeIds = new Set(printOutputShapes.map(shape => shape.id))
+    let opened: boolean
+    try {
+      opened = openPrintTilesWindow({
+        shapes: printOutputShapes,
+        stitchHoles: stitchHoles.filter((stitchHole) => printedShapeIds.has(stitchHole.shapeId)),
+        foldLines,
+        lineTypesById: printableLineTypesById,
+        printPlan: printOutputPlan,
+        printInColor,
+        printStitchAsDots,
+        lineThicknessScalePercent: printLineThicknessScalePercent,
+        showIgnoredLineTypes: printShowIgnoredLineTypes,
+        printRulerInside,
+        calibrationXPercent: printCalibrationXPercent,
+        calibrationYPercent: printCalibrationYPercent,
+      })
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Printable output could not be prepared')
+      return
+    }
 
     if (!opened) {
       setStatus('Could not open print window (popup may be blocked)')

@@ -1,11 +1,10 @@
 import { clamp, distance, uid } from '../cad/cad-geometry'
 import type { Point, Shape } from '../cad/cad-types'
 import {
-  EDGE_PICK_RADIUS_COARSE_PX,
-  EDGE_PICK_RADIUS_PX,
   type EdgePickOptions,
 } from '../ops/pattern-piece-ops'
 import type { ToolRuntime } from './tool-types'
+import { getInterfacePreferences } from '../ops/interface-preferences'
 
 export const MIN_SHAPE_DISTANCE = 0.001
 
@@ -22,9 +21,10 @@ function hasCoarsePointer() {
  * glass, so a mouse-sized target is not reachable with a thumb.
  */
 export function edgePickOptions(runtime: ToolRuntime): EdgePickOptions {
+  const preferences = getInterfacePreferences()
   return {
     viewportScale: runtime.viewportScale,
-    pickRadiusPx: hasCoarsePointer() ? EDGE_PICK_RADIUS_COARSE_PX : EDGE_PICK_RADIUS_PX,
+    pickRadiusPx: hasCoarsePointer() ? preferences.touchPickRadiusPx : preferences.edgePickRadiusPx,
   }
 }
 

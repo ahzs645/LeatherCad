@@ -1,6 +1,7 @@
 import { useRef, useState, type Dispatch, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react'
 import type { BezierShape, Point, Shape } from '../../cad/cad-types'
 import { distance as pointDistance } from '../../cad/cad-geometry'
+import { isNativeCurve, transformNativeCurve } from '../../cad/native-curve-ops'
 import type {
   CanvasInteractionPreview,
   HandleDragState,
@@ -9,6 +10,7 @@ import type {
 } from './canvas-interaction-types'
 
 function translateShape(shape: Shape, dx: number, dy: number): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
   if (shape.type === 'line') {
     return {
       ...shape,
@@ -40,6 +42,8 @@ function translateShape(shape: Shape, dx: number, dy: number): Shape {
 }
 
 function withUpdatedHandlePoint(shape: Shape, pointKey: HandlePointKey, point: Point): Shape {
+  if (shape.type === 'cubic') return ['start', 'control1', 'control2', 'end'].includes(pointKey) ? { ...shape, [pointKey]: point } : shape
+  if (shape.type === 'ellipse') return pointKey === 'center' ? { ...shape, center: point } : shape
   if (shape.type === 'line' || shape.type === 'text') {
     if (pointKey === 'start' || pointKey === 'end') {
       return { ...shape, [pointKey]: point }
@@ -59,6 +63,8 @@ function withUpdatedHandlePoint(shape: Shape, pointKey: HandlePointKey, point: P
 }
 
 function getHandlePoint(shape: Shape, pointKey: HandlePointKey): Point | null {
+  if (shape.type === 'cubic') return pointKey === 'start' || pointKey === 'control1' || pointKey === 'control2' || pointKey === 'end' ? shape[pointKey] : null
+  if (shape.type === 'ellipse') return pointKey === 'center' ? shape.center : null
   if (shape.type === 'line' || shape.type === 'text') {
     return pointKey === 'start' || pointKey === 'end' ? shape[pointKey] : null
   }
@@ -156,14 +162,14 @@ export function useCanvasShapeDragInteractions({
         : `${nextSelection.length} shape${nextSelection.length === 1 ? '' : 's'} selected`,
     )
 
-    if (additive || nextSelection.length === 0) {
+    if (additive || nextSelection.length === 0 || shapesById[shapeId]?.locked) {
       return
     }
 
     const initialShapesById = new Map<string, Shape>()
     for (const id of nextSelection) {
       const shape = shapesById[id]
-      if (shape) {
+      if (shape && !shape.locked) {
         initialShapesById.set(id, shape)
       }
     }
@@ -201,6 +207,7 @@ export function useCanvasShapeDragInteractions({
 
     event.stopPropagation()
     setSelectedShapeIds([shapeId])
+    if (shapesById[shapeId]?.locked) return
     setSelectedStitchHoleId(null)
     setSelectedHardwareMarkerId(null)
     handleDragRef.current = {
@@ -230,11 +237,15 @@ export function useCanvasShapeDragInteractions({
       }
       const snapped = getSnappedPoint(point).point
       setCursorPoint(snapped)
+      const target = shapesById[handleDragState.shapeId]
+      const followControl = !event.shiftKey && (target?.type === 'bezier' || target?.type === 'cubic') &&
+        (handleDragState.pointKey === 'start' || handleDragState.pointKey === 'end')
       setInteractionPreview((previous) => {
         if (
           previous?.kind === 'handle' &&
           previous.shapeId === handleDragState.shapeId &&
           previous.pointKey === handleDragState.pointKey &&
+          previous.followControl === followControl &&
           Math.abs(previous.point.x - snapped.x) < 1e-4 &&
           Math.abs(previous.point.y - snapped.y) < 1e-4
         ) {
@@ -245,6 +256,7 @@ export function useCanvasShapeDragInteractions({
           shapeId: handleDragState.shapeId,
           pointKey: handleDragState.pointKey,
           point: snapped,
+          followControl,
         }
       })
       return true
@@ -338,8 +350,8 @@ export function useCanvasShapeDragInteractions({
           // nearest control point follows by the same delta. Shift held keeps
           // the control point fixed.
           const isBezierEndpointFollow =
-            !event.shiftKey &&
-            targetShape.type === 'bezier' &&
+            (preview.followControl ?? !event.shiftKey) &&
+            (targetShape.type === 'bezier' || targetShape.type === 'cubic') &&
             (handleDragState.pointKey === 'start' || handleDragState.pointKey === 'end')
           const followDelta = isBezierEndpointFollow
             ? { dx: preview.point.x - originalPoint.x, dy: preview.point.y - originalPoint.y }
@@ -356,6 +368,10 @@ export function useCanvasShapeDragInteractions({
                       y: next.control.y + followDelta.dy,
                     },
                   }
+                }
+                if (followDelta && next.type === 'cubic') {
+                  const key = handleDragState.pointKey === 'start' ? 'control1' : 'control2'
+                  next = { ...next, [key]: { x: next[key].x + followDelta.dx, y: next[key].y + followDelta.dy } }
                 }
                 return next
               }

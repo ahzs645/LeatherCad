@@ -1,5 +1,6 @@
 import type { Point, Shape, LineShape, ArcShape, BezierShape } from '../../cad/cad-types'
 import { distance, uid, round } from '../../cad/cad-geometry'
+import { isNativeCurve, nativeCurveEndpoints, nativeCurveToEditable, transformNativeCurve } from '../../cad/native-curve-ops'
 import {
   TAU,
   angleBetweenCcw,
@@ -306,6 +307,8 @@ export function buildNotchOnShape(
  * existing arc→bezier converter. Text shapes are returned unchanged.
  */
 export function convertShapeToPathBeziers(shape: Shape): Shape[] {
+  if (isNativeCurve(shape) && shape.fillColor) return [shape]
+  if (isNativeCurve(shape)) return nativeCurveToEditable(shape, 0.01).flatMap(convertShapeToPathBeziers)
   if (shape.type === 'bezier') return [shape]
   if (shape.type === 'arc') return convertArcToBezier(shape)
   if (shape.type === 'line') {
@@ -317,9 +320,7 @@ export function convertShapeToPathBeziers(shape: Shape): Shape[] {
       {
         id: uid(),
         type: 'bezier',
-        layerId: shape.layerId,
-        lineTypeId: shape.lineTypeId,
-        groupId: shape.groupId,
+        ...copyShapeProps(shape),
         start: { x: shape.start.x, y: shape.start.y },
         control: midpoint,
         end: { x: shape.end.x, y: shape.end.y },
@@ -474,8 +475,9 @@ export function stampTemplateAlongShape(
   let centroidY = 0
   let count = 0
   for (const shape of templateShapes) {
-    centroidX += (shape.start.x + shape.end.x) / 2
-    centroidY += (shape.start.y + shape.end.y) / 2
+    const endpoints = isNativeCurve(shape) ? nativeCurveEndpoints(shape) : shape
+    centroidX += (endpoints.start.x + endpoints.end.x) / 2
+    centroidY += (endpoints.start.y + endpoints.end.y) / 2
     count += 1
   }
   if (count === 0) return []
@@ -497,6 +499,12 @@ export function stampTemplateAlongShape(
       const transformPoint = (p: Point): Point => {
         const rotated = rotatePoint(p, anchor, cosTheta, sinTheta)
         return translatePoint(rotated, dx, dy)
+      }
+      if (isNativeCurve(template)) {
+        const tx = target.x - cosTheta * anchor.x + sinTheta * anchor.y
+        const ty = target.y - sinTheta * anchor.x - cosTheta * anchor.y
+        stamped.push({ ...transformNativeCurve(template, [cosTheta, sinTheta, -sinTheta, cosTheta, tx, ty]), id: cloneId, layerId: options.layerId, lineTypeId: options.lineTypeId, groupId: options.groupId })
+        continue
       }
       if (template.type === 'line') {
         stamped.push({

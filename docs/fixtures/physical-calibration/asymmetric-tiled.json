@@ -1,0 +1,1142 @@
+{
+  "version": 1,
+  "units": "mm",
+  "documentName": "asymmetric-tiled",
+  "objects": [
+    {
+      "id": "top",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "end": {
+        "x": 280,
+        "y": 0
+      }
+    },
+    {
+      "id": "notch-a",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 280,
+        "y": 0
+      },
+      "end": {
+        "x": 280,
+        "y": 20
+      }
+    },
+    {
+      "id": "notch-b",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 280,
+        "y": 20
+      },
+      "end": {
+        "x": 300,
+        "y": 20
+      }
+    },
+    {
+      "id": "right",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 300,
+        "y": 20
+      },
+      "end": {
+        "x": 300,
+        "y": 180
+      }
+    },
+    {
+      "id": "bottom",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 300,
+        "y": 180
+      },
+      "end": {
+        "x": 0,
+        "y": 180
+      }
+    },
+    {
+      "id": "left",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 0,
+        "y": 180
+      },
+      "end": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "registration",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 0,
+        "y": 90
+      },
+      "end": {
+        "x": 300,
+        "y": 90
+      }
+    },
+    {
+      "id": "300 x 180 mm / notch at TOP RIGHT",
+      "type": "text",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 25,
+        "y": 35
+      },
+      "end": {
+        "x": 125,
+        "y": 35
+      },
+      "text": "300 x 180 mm / notch at TOP RIGHT",
+      "fontSizeMm": 4,
+      "fontFamily": "sans-serif",
+      "transform": "none",
+      "radiusMm": 100,
+      "sweepDeg": 0
+    },
+    {
+      "id": "pitch-0",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 10,
+        "y": 165
+      },
+      "end": {
+        "x": 10,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-1",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 14,
+        "y": 165
+      },
+      "end": {
+        "x": 14,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-2",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 18,
+        "y": 165
+      },
+      "end": {
+        "x": 18,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-3",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 22,
+        "y": 165
+      },
+      "end": {
+        "x": 22,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-4",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 26,
+        "y": 165
+      },
+      "end": {
+        "x": 26,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-5",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 30,
+        "y": 165
+      },
+      "end": {
+        "x": 30,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-6",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 34,
+        "y": 165
+      },
+      "end": {
+        "x": 34,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-7",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 38,
+        "y": 165
+      },
+      "end": {
+        "x": 38,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-8",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 42,
+        "y": 165
+      },
+      "end": {
+        "x": 42,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-9",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 46,
+        "y": 165
+      },
+      "end": {
+        "x": 46,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-10",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 50,
+        "y": 165
+      },
+      "end": {
+        "x": 50,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-11",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 54,
+        "y": 165
+      },
+      "end": {
+        "x": 54,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-12",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 58,
+        "y": 165
+      },
+      "end": {
+        "x": 58,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-13",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 62,
+        "y": 165
+      },
+      "end": {
+        "x": 62,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-14",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 66,
+        "y": 165
+      },
+      "end": {
+        "x": 66,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-15",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 70,
+        "y": 165
+      },
+      "end": {
+        "x": 70,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-16",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 74,
+        "y": 165
+      },
+      "end": {
+        "x": 74,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-17",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 78,
+        "y": 165
+      },
+      "end": {
+        "x": 78,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-18",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 82,
+        "y": 165
+      },
+      "end": {
+        "x": 82,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-19",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 86,
+        "y": 165
+      },
+      "end": {
+        "x": 86,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-20",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 90,
+        "y": 165
+      },
+      "end": {
+        "x": 90,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-21",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 94,
+        "y": 165
+      },
+      "end": {
+        "x": 94,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-22",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 98,
+        "y": 165
+      },
+      "end": {
+        "x": 98,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-23",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 102,
+        "y": 165
+      },
+      "end": {
+        "x": 102,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-24",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 106,
+        "y": 165
+      },
+      "end": {
+        "x": 106,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-25",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 110,
+        "y": 165
+      },
+      "end": {
+        "x": 110,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-26",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 114,
+        "y": 165
+      },
+      "end": {
+        "x": 114,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-27",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 118,
+        "y": 165
+      },
+      "end": {
+        "x": 118,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-28",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 122,
+        "y": 165
+      },
+      "end": {
+        "x": 122,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-29",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 126,
+        "y": 165
+      },
+      "end": {
+        "x": 126,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-30",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 130,
+        "y": 165
+      },
+      "end": {
+        "x": 130,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-31",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 134,
+        "y": 165
+      },
+      "end": {
+        "x": 134,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-32",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 138,
+        "y": 165
+      },
+      "end": {
+        "x": 138,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-33",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 142,
+        "y": 165
+      },
+      "end": {
+        "x": 142,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-34",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 146,
+        "y": 165
+      },
+      "end": {
+        "x": 146,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-35",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 150,
+        "y": 165
+      },
+      "end": {
+        "x": 150,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-36",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 154,
+        "y": 165
+      },
+      "end": {
+        "x": 154,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-37",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 158,
+        "y": 165
+      },
+      "end": {
+        "x": 158,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-38",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 162,
+        "y": 165
+      },
+      "end": {
+        "x": 162,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-39",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 166,
+        "y": 165
+      },
+      "end": {
+        "x": 166,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-40",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 170,
+        "y": 165
+      },
+      "end": {
+        "x": 170,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-41",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 174,
+        "y": 165
+      },
+      "end": {
+        "x": 174,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-42",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 178,
+        "y": 165
+      },
+      "end": {
+        "x": 178,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-43",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 182,
+        "y": 165
+      },
+      "end": {
+        "x": 182,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-44",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 186,
+        "y": 165
+      },
+      "end": {
+        "x": 186,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-45",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 190,
+        "y": 165
+      },
+      "end": {
+        "x": 190,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-46",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 194,
+        "y": 165
+      },
+      "end": {
+        "x": 194,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-47",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 198,
+        "y": 165
+      },
+      "end": {
+        "x": 198,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-48",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 202,
+        "y": 165
+      },
+      "end": {
+        "x": 202,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-49",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 206,
+        "y": 165
+      },
+      "end": {
+        "x": 206,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-50",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 210,
+        "y": 165
+      },
+      "end": {
+        "x": 210,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-51",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 214,
+        "y": 165
+      },
+      "end": {
+        "x": 214,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-52",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 218,
+        "y": 165
+      },
+      "end": {
+        "x": 218,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-53",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 222,
+        "y": 165
+      },
+      "end": {
+        "x": 222,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-54",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 226,
+        "y": 165
+      },
+      "end": {
+        "x": 226,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-55",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 230,
+        "y": 165
+      },
+      "end": {
+        "x": 230,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-56",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 234,
+        "y": 165
+      },
+      "end": {
+        "x": 234,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-57",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 238,
+        "y": 165
+      },
+      "end": {
+        "x": 238,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-58",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 242,
+        "y": 165
+      },
+      "end": {
+        "x": 242,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-59",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 246,
+        "y": 165
+      },
+      "end": {
+        "x": 246,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-60",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 250,
+        "y": 165
+      },
+      "end": {
+        "x": 250,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-61",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 254,
+        "y": 165
+      },
+      "end": {
+        "x": 254,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-62",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 258,
+        "y": 165
+      },
+      "end": {
+        "x": 258,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-63",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 262,
+        "y": 165
+      },
+      "end": {
+        "x": 262,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-64",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 266,
+        "y": 165
+      },
+      "end": {
+        "x": 266,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-65",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 270,
+        "y": 165
+      },
+      "end": {
+        "x": 270,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-66",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 274,
+        "y": 165
+      },
+      "end": {
+        "x": 274,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-67",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 278,
+        "y": 165
+      },
+      "end": {
+        "x": 278,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-68",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 282,
+        "y": 165
+      },
+      "end": {
+        "x": 282,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-69",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 286,
+        "y": 165
+      },
+      "end": {
+        "x": 286,
+        "y": 170
+      }
+    },
+    {
+      "id": "pitch-70",
+      "type": "line",
+      "layerId": "main",
+      "lineTypeId": "cut",
+      "start": {
+        "x": 290,
+        "y": 165
+      },
+      "end": {
+        "x": 290,
+        "y": 170
+      }
+    }
+  ],
+  "layers": [
+    {
+      "id": "main",
+      "name": "Calibration",
+      "visible": true,
+      "locked": false
+    }
+  ],
+  "activeLayerId": "main",
+  "lineTypes": [
+    {
+      "id": "cut",
+      "name": "Calibration",
+      "role": "cut",
+      "style": "solid",
+      "color": "#111827",
+      "visible": true,
+      "strokeWidthMm": 0.25
+    }
+  ],
+  "activeLineTypeId": "cut",
+  "stitchHoles": [],
+  "foldLines": []
+}

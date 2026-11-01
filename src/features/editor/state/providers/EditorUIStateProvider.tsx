@@ -5,6 +5,9 @@ import { loadFontList } from '../../ops/font-list-ops'
 import { loadAutoSaveEnabled, loadAutoSaveEnabledFromLocalDb } from '../../ops/autosave'
 import { loadEditorPreferences } from '../../ops/editor-prefs'
 import { loadTranslationMap } from '../../ops/translation-ops'
+import { getInterfacePreferences, subscribeInterfacePreferences, updateInterfacePreferences, useInterfacePreferences } from '../../ops/interface-preferences'
+import type { DisplayUnit } from '../../ops/unit-ops'
+import { getWorkspacePreset, WORKSPACE_PRESETS } from '../../workbench/workspace-presets'
 import type { EditorUIState } from '../editor-domain-types'
 import {
   propertyStateReducer,
@@ -33,12 +36,12 @@ const initialEditorUIState: EditorUIState = {
   showProjectMemoModal: false,
   showNestingModal: false,
   desktopRibbonTab: 'build',
-  workbenchRibbonTab: 'draft',
-  workspaceMode: '2d',
+  workbenchRibbonTab: getWorkspacePreset() === 'custom' ? 'draft' : WORKSPACE_PRESETS[getWorkspacePreset() as keyof typeof WORKSPACE_PRESETS].ribbon,
+  workspaceMode: getWorkspacePreset() === 'custom' ? '2d' : WORKSPACE_PRESETS[getWorkspacePreset() as keyof typeof WORKSPACE_PRESETS].mode,
   secondaryPreviewMode: '3d-peek',
   mobileLayerAction: 'add',
   mobileFileAction: 'save-json',
-  displayUnit: 'mm',
+  displayUnit: getInterfacePreferences().displayUnit,
   gridSpacing: DEFAULT_GRID_SPACING,
   legendMode: 'layer',
   sketchWorkspaceMode: 'assembly',
@@ -295,8 +298,12 @@ const EditorUIStateContext = createContext<EditorUIState | null>(null)
 const EditorUIActionsContext = createContext<EditorUIStateActions | null>(null)
 
 export function EditorUIStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState)
+  const [state, dispatch] = useReducer(propertyStateReducer<EditorUIState>, initialEditorUIState, initial => ({ ...initial, displayUnit: getInterfacePreferences().displayUnit }))
   const actions = useMemo(() => createEditorUIStateActions(dispatch), [dispatch])
+  useEffect(() => { updateInterfacePreferences({ displayUnit: state.displayUnit }) }, [state.displayUnit])
+  useEffect(() => subscribeInterfacePreferences(() => {
+    dispatch({ type: 'displayUnit', value: getInterfacePreferences().displayUnit })
+  }), [])
 
   useEffect(() => {
     let cancelled = false
@@ -331,6 +338,17 @@ export function useEditorUISelector<T>(selector: (state: EditorUIState) => T) {
 
 export function useEditorUIActions() {
   return useRequiredContext(useContext(EditorUIActionsContext), 'EditorUIActionsContext')
+}
+
+/** Reusable dialogs can also render outside the editor, using the browser default. */
+export function useOptionalDisplayUnit(): [DisplayUnit, (unit: DisplayUnit) => void] {
+  const state = useContext(EditorUIStateContext)
+  const actions = useContext(EditorUIActionsContext)
+  const preferences = useInterfacePreferences()
+  return [state?.displayUnit ?? preferences.displayUnit, unit => {
+    actions?.setDisplayUnit(unit)
+    updateInterfacePreferences({ displayUnit: unit })
+  }]
 }
 
 export function useEditorUIStateApi(): EditorUIStateApi {

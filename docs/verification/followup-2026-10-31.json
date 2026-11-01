@@ -1,0 +1,51 @@
+{
+  "status": "passed",
+  "source_baseline": "22428162b1aa2aea938ba20c455f8da369f2c5e7",
+  "unit_tests": {
+    "passed": 1220,
+    "files": 178
+  },
+  "frontend_types": "passed",
+  "backend_types": "passed",
+  "lint": "passed",
+  "production_build": "passed with existing chunk-size warnings",
+  "browser": {
+    "passed": 47,
+    "workers": 2,
+    "retries": 0,
+    "cache": "fresh dedicated Vite cache",
+    "surfaces": [
+      "desktop development",
+      "production bundle",
+      "tablet",
+      "Chromium phone emulation"
+    ]
+  },
+  "independent_checks": {
+    "dxf": "R12, R14 and R2004 read with zero ezdxf audit errors or repairs; modern native controls retained",
+    "pdf": "pypdf reads cubic commands and opacity states",
+    "mesh": "7 outputs validated independently; see manufacturing-mesh-validation-2026-10-31.json",
+    "native_file_results": "native-independent-2026-10-31.json"
+  },
+  "jsmap": {
+    "regression_suites_passed": 17,
+    "source_publication": "separate checkout, uncommitted"
+  },
+  "not_verified": [
+    "Live Convex/OIDC deployment and provider sign-in",
+    "Physical paper/3D print fit",
+    "Real Safari/iOS device behavior"
+  ],
+  "prefixed_production_browser": {
+    "passed": 4,
+    "base_path": "/LeatherCad/"
+  },
+  "architecture": "passed",
+  "engine_pair": "186feaf7b63e0928c5a27a78f874497e1a8cdfdd",
+  "localization_core": "20 locales passed",
+  "runtime": {
+    "node": "24.19.0",
+    "browser": "system Chromium"
+  },
+  "verification_scope": "Frozen implementation working tree committed with this report; see PR checks for GitHub CI."
+}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { useEditorToolActions } from '../state/providers/EditorToolStateProvider'
 import type {
   AvatarSpec,
   HardwareMarker,
@@ -61,6 +62,10 @@ type UseEditorWorkbenchControllerParams = {
   isMobileLayout: boolean
   workspaceMode: WorkspaceMode
   handleSaveJson: () => void
+  handleSaveLcad: () => void
+  handleOpenFileTools: () => void
+  handleOpenStlExport: () => void
+  handleOpenCloudCommunity: () => void
   handleUndo: () => void
   handleRedo: () => void
   setShowHelpModal: React.Dispatch<React.SetStateAction<boolean>>
@@ -164,6 +169,10 @@ export function useEditorWorkbenchController({
   isMobileLayout,
   workspaceMode,
   handleSaveJson,
+  handleSaveLcad,
+  handleOpenFileTools,
+  handleOpenStlExport,
+  handleOpenCloudCommunity,
   handleUndo,
   handleRedo,
   setShowHelpModal,
@@ -253,6 +262,7 @@ export function useEditorWorkbenchController({
   // param chain: it is shared with the canvas and the 3D preview, not owned here.
   const selectedSeamId = useEditorSelectionSelector((state) => state.selectedSeamId)
   const { setSelectedSeamId } = useEditorSelectionActions()
+  const { setActiveTool } = useEditorToolActions()
 
   const browserNodes = useDocumentBrowserModel({
     patternPieces,
@@ -308,6 +318,19 @@ export function useEditorWorkbenchController({
       case 'save-json':
         handleSaveJson()
         break
+      case 'save-lcad':
+        handleSaveLcad()
+        break
+      case 'file-tools':
+      case 'import-dxf':
+        handleOpenFileTools()
+        break
+      case 'export-stl':
+        handleOpenStlExport()
+        break
+      case 'cloud-community':
+        handleOpenCloudCommunity()
+        break
       case 'undo':
         handleUndo()
         break
@@ -327,6 +350,8 @@ export function useEditorWorkbenchController({
 
   const handleWorkbenchRibbonCommand = (commandId: string) => {
     switch (commandId) {
+      case 'tool-cubic': setActiveTool('cubic'); break
+      case 'tool-ellipse': setActiveTool('ellipse'); break
       case 'fit-view':
         handleFitView()
         break
@@ -468,6 +493,19 @@ export function useEditorWorkbenchController({
         break
       case 'save-json':
         handleSaveJson()
+        break
+      case 'save-lcad':
+        handleSaveLcad()
+        break
+      case 'file-tools':
+      case 'import-dxf':
+        handleOpenFileTools()
+        break
+      case 'export-stl':
+        handleOpenStlExport()
+        break
+      case 'cloud-community':
+        handleOpenCloudCommunity()
         break
       case 'local-projects':
         setShowLocalProjectsModal(true)
@@ -625,7 +663,7 @@ export function useEditorWorkbenchController({
         setActiveInspectorTab('document')
         break
       case 'sketch':
-        setActiveSketchGroupId(parts[1])
+        setActiveSketchGroupId(node.id.slice('sketch:'.length))
         setActiveInspectorTab('document')
         break
       case 'tracing-overlay':

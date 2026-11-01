@@ -8,6 +8,11 @@ import {
 import type { DimensionParam, DimensionBinding } from './parametric-dimensions'
 import type { Shape, LineShape, BezierShape } from './cad-types'
 
+function lineFrom(shape: Shape): LineShape {
+  if (shape.type !== 'line') throw new Error('Expected a line result')
+  return shape
+}
+
 // ---------------------------------------------------------------------------
 // Helper factories
 // ---------------------------------------------------------------------------
@@ -194,8 +199,8 @@ describe('applyDimensionBindings', () => {
     ]
     const resolved = new Map([['width', 150]])
     const result = applyDimensionBindings(shapes, bindings, resolved)
-    expect(result[0].end.x).toBe(150)
-    expect(result[0].end.y).toBe(0)
+    expect(lineFrom(result[0]).end.x).toBe(150)
+    expect(lineFrom(result[0]).end.y).toBe(0)
   })
 
   it('adjusts line end along y axis', () => {
@@ -212,8 +217,8 @@ describe('applyDimensionBindings', () => {
     ]
     const resolved = new Map([['height', 75]])
     const result = applyDimensionBindings(shapes, bindings, resolved)
-    expect(result[0].end.x).toBe(0)
-    expect(result[0].end.y).toBe(75)
+    expect(lineFrom(result[0]).end.x).toBe(0)
+    expect(lineFrom(result[0]).end.y).toBe(75)
   })
 
   it('adjusts line end by distance, preserving direction', () => {
@@ -231,8 +236,8 @@ describe('applyDimensionBindings', () => {
     const resolved = new Map([['length', 100]])
     const result = applyDimensionBindings(shapes, bindings, resolved)
     // Original direction: (30,40), length 50 => scale by 2
-    expect(result[0].end.x).toBeCloseTo(60)
-    expect(result[0].end.y).toBeCloseTo(80)
+    expect(lineFrom(result[0]).end.x).toBeCloseTo(60)
+    expect(lineFrom(result[0]).end.y).toBeCloseTo(80)
   })
 
   it('adjusts bezier control point', () => {
@@ -268,7 +273,7 @@ describe('applyDimensionBindings', () => {
     const resolved = new Map<string, number>()
     const result = applyDimensionBindings(shapes, bindings, resolved)
     // Should be unchanged
-    expect(result[0].end.x).toBe(100)
+    expect(lineFrom(result[0]).end.x).toBe(100)
   })
 })
 

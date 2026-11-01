@@ -7,6 +7,7 @@ export type Tool =
   | 'ellipse'
   | 'arc'
   | 'bezier'
+  | 'cubic'
   | 'fold'
   | 'stitch-hole'
   | 'hardware'
@@ -42,7 +43,14 @@ export type BoxStitchSource = {
   extracted: true
 }
 
-type BaseShape = {
+export type ShapeAppearance = {
+  /** Individual editing lock; layer/group locks apply in addition. */
+  locked?: boolean
+  /** Opacity in [0, 1], independent of the line style. */
+  opacity?: number
+}
+
+type BaseShape = ShapeAppearance & {
   id: string
   layerId: string
   lineTypeId: string
@@ -56,7 +64,7 @@ type BaseShape = {
   strokeWidthOverride?: number
 }
 
-export type LineShape = {
+export type LineShape = ShapeAppearance & {
   id: BaseShape['id']
   type: 'line'
   layerId: BaseShape['layerId']
@@ -72,7 +80,7 @@ export type LineShape = {
   end: Point
 }
 
-export type ArcShape = {
+export type ArcShape = ShapeAppearance & {
   id: BaseShape['id']
   type: 'arc'
   layerId: BaseShape['layerId']
@@ -87,7 +95,7 @@ export type ArcShape = {
   end: Point
 }
 
-export type BezierShape = {
+export type BezierShape = ShapeAppearance & {
   id: BaseShape['id']
   type: 'bezier'
   layerId: BaseShape['layerId']
@@ -104,12 +112,13 @@ export type BezierShape = {
 
 export type TextTransformMode = 'none' | 'arch' | 'ring'
 
-export type TextShape = {
+export type TextShape = ShapeAppearance & {
   id: BaseShape['id']
   type: 'text'
   layerId: BaseShape['layerId']
   lineTypeId: BaseShape['lineTypeId']
   groupId?: BaseShape['groupId']
+  strokeWidthOverride?: BaseShape['strokeWidthOverride']
   start: Point
   end: Point
   text: string
@@ -122,7 +131,26 @@ export type TextShape = {
   trackingMm?: number
 }
 
-export type Shape = LineShape | ArcShape | BezierShape | TextShape
+export type CubicShape = BaseShape & {
+  type: 'cubic'
+  start: Point
+  control1: Point
+  control2: Point
+  end: Point
+}
+
+/** Angles are degrees in the canonical Y-down document coordinate system. */
+export type EllipseShape = BaseShape & {
+  type: 'ellipse'
+  center: Point
+  radiusX: number
+  radiusY: number
+  rotationDeg: number
+  startAngleDeg: number
+  sweepDeg: number
+}
+
+export type Shape = LineShape | ArcShape | BezierShape | CubicShape | EllipseShape | TextShape
 
 export type Layer = {
   id: string
@@ -142,6 +170,8 @@ export type SketchGroup = {
   visible: boolean
   locked: boolean
   annotation?: string
+  /** Parent visibility and locks are inherited; coordinates remain in document space. */
+  parentId?: string
   baseGroupId?: string
   linkMode?: 'copy' | 'mirror-x' | 'mirror-y'
   linkOffsetX?: number
@@ -710,9 +740,20 @@ export type PrintArea = {
   scalePercent: number
 }
 
+export type CommunityPatternProvenance = {
+  kind: 'community-pattern'
+  patternId: string
+  version: number
+  title: string
+  author: string
+  license: 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-NC-4.0'
+  attribution: string
+}
+
 export type DocFile = {
   version: 1
   units: 'mm'
+  manufacturing?: import('../io/manufacturing/manufacturing-settings').ManufacturingSettings
   documentName?: string
   layers: Layer[]
   activeLayerId: string
@@ -738,6 +779,7 @@ export type DocFile = {
   tracingOverlays?: TracingOverlay[]
   backdrops?: Backdrop[]
   projectMemo?: string
+  communityProvenance?: CommunityPatternProvenance[]
   stitchAlwaysShapeIds?: string[]
   stitchThreadColor?: string
   piecePlacements3d?: PiecePlacement3D[]

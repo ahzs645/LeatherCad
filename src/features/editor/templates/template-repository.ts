@@ -10,6 +10,7 @@ import type {
   Shape,
   StitchHole,
 } from '../cad/cad-types'
+import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 import { uid } from '../cad/cad-geometry'
 import { normalizeLineTypes, resolveActiveLineTypeId, resolveShapeLineTypeId } from '../cad/line-types'
 import { withEditorLocalDataClient } from '../localdb/editor-local-data-client'
@@ -164,6 +165,7 @@ function flipPoint(point: { x: number; y: number }, axis: 'horizontal' | 'vertic
 }
 
 function flipShape(shape: Shape, axis: 'horizontal' | 'vertical'): Shape {
+  if (isNativeCurve(shape)) return transformNativeCurve(shape, axis === 'horizontal' ? [-1, 0, 0, 1, 0, 0] : [1, 0, 0, -1, 0, 0])
   if (shape.type === 'arc') {
     return {
       ...shape,
@@ -360,6 +362,7 @@ export type InsertTemplateResult = {
 }
 
 function cloneShapeWithMap(shape: Shape, layerId: string, lineTypeId: string): Shape {
+  if (isNativeCurve(shape)) return { ...transformNativeCurve(shape, [1, 0, 0, 1, 0, 0]), id: uid(), layerId, lineTypeId }
   if (shape.type === 'line') {
     return {
       ...shape,

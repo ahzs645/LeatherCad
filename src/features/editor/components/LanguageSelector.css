@@ -1,0 +1,27 @@
+.editor-language-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.editor-language-selector select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.editor-language-selector-compact select {
+  width: 112px;
+}
+
+@media (max-width: 1100px) {
+  .topbar-mobile .editor-language-selector {
+    grid-column: 1 / -1;
+  }
+
+  .topbar-mobile .editor-language-selector select {
+    width: 100%;
+    min-height: 44px;
+  }
+}

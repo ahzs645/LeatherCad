@@ -1,3 +1,4 @@
+import { useTranslate } from '../hooks/useTranslate'
 import { clamp } from '../cad/cad-geometry'
 import {
   resolvePrintCalibrationDpi,
@@ -93,12 +94,13 @@ export function PrintPreviewModal({
   onFitView,
   onOpenPrintTiles,
 }: PrintPreviewModalProps) {
+  const t = useTranslate()
   if (!open) {
     return null
   }
 
-  const activeDpiX = resolvePrintCalibrationDpi(printCalibrationXPercent)
-  const activeDpiY = resolvePrintCalibrationDpi(printCalibrationYPercent)
+  const activeDpiX = resolvePrintCalibrationDpi(printOrientation === 'landscape' ? printCalibrationYPercent : printCalibrationXPercent)
+  const activeDpiY = resolvePrintCalibrationDpi(printOrientation === 'landscape' ? printCalibrationXPercent : printCalibrationYPercent)
 
   return (
     <div
@@ -111,34 +113,35 @@ export function PrintPreviewModal({
       }}
       role="presentation"
     >
-      <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="export-options-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="print-preview-title">
         <div className="layer-color-modal-header">
-          <h2>Print Preview + Tiling</h2>
-          <button onClick={onClose}>Done</button>
+          <h2 id="print-preview-title">{t('Print Preview + Tiling')}</h2>
+          <button onClick={onClose}>{t('Done')}</button>
         </div>
-        <p className="hint">Matches source-style preview settings: tiling, overlap, calibration scale, selection-only, rulers, and color controls.</p>
+        <p className="hint">{t('Matches source-style preview settings: tiling, overlap, calibration scale, selection-only, rulers, and color controls.')}</p>
 
         <div className="line-type-edit-grid">
           <label className="field-row">
-            <span>Paper</span>
-            <select className="action-select" value={printPaper} onChange={(event) => onSetPrintPaper(event.target.value as PrintPaper)}>
-              <option value="letter">Letter (216 x 279mm)</option>
-              <option value="a4">A4 (210 x 297mm)</option>
+            <span>{t('Paper')}</span>
+            <select aria-label={t('Paper')} className="action-select" value={printPaper} onChange={(event) => onSetPrintPaper(event.target.value as PrintPaper)}>
+              <option value="letter">{t('Letter (215.9 x 279.4mm)')}</option>
+              <option value="a4">{t('A4 (210 x 297mm)')}</option>
             </select>
           </label>
           <label className="field-row">
-            <span>Orientation</span>
+            <span>{t('Orientation')}</span>
             <select
+              aria-label={t('Orientation')}
               className="action-select"
               value={printOrientation}
               onChange={(event) => onSetPrintOrientation(event.target.value as PrintOrientation)}
             >
-              <option value="portrait">Portrait</option>
-              <option value="landscape">Landscape (auto-flips calibration X/Y)</option>
+              <option value="portrait">{t('Portrait')}</option>
+              <option value="landscape">{t('Landscape (auto-flips calibration X/Y)')}</option>
             </select>
           </label>
           <label className="field-row">
-            <span>Scale (%)</span>
+            <span>{t('Scale (%)')}</span>
             <input
               type="number"
               min={1}
@@ -148,7 +151,7 @@ export function PrintPreviewModal({
             />
           </label>
           <label className="field-row">
-            <span>Calibration X (%)</span>
+            <span>{t('Calibration X (%)')}</span>
             <input
               type="number"
               min={50}
@@ -159,7 +162,7 @@ export function PrintPreviewModal({
             />
           </label>
           <label className="field-row">
-            <span>Calibration Y (%)</span>
+            <span>{t('Calibration Y (%)')}</span>
             <input
               type="number"
               min={50}
@@ -170,7 +173,7 @@ export function PrintPreviewModal({
             />
           </label>
           <label className="field-row">
-            <span>Tile X</span>
+            <span>{t('Tile X')}</span>
             <input
               type="number"
               min={1}
@@ -180,18 +183,18 @@ export function PrintPreviewModal({
             />
           </label>
           <div className="field-row">
-            <span>Pages X</span>
+            <span>{t('Pages X')}</span>
             <div className="line-type-modal-actions">
               <button type="button" onClick={() => onSetPrintTileX(clamp(printTileX - 1, 1, 25))} disabled={printTileX <= 1}>
-                Remove
+                {t('Remove')}
               </button>
               <button type="button" onClick={() => onSetPrintTileX(clamp(printTileX + 1, 1, 25))}>
-                Add
+                {t('Add')}
               </button>
             </div>
           </div>
           <label className="field-row">
-            <span>Tile Y</span>
+            <span>{t('Tile Y')}</span>
             <input
               type="number"
               min={1}
@@ -201,18 +204,18 @@ export function PrintPreviewModal({
             />
           </label>
           <div className="field-row">
-            <span>Pages Y</span>
+            <span>{t('Pages Y')}</span>
             <div className="line-type-modal-actions">
               <button type="button" onClick={() => onSetPrintTileY(clamp(printTileY - 1, 1, 25))} disabled={printTileY <= 1}>
-                Remove
+                {t('Remove')}
               </button>
               <button type="button" onClick={() => onSetPrintTileY(clamp(printTileY + 1, 1, 25))}>
-                Add
+                {t('Add')}
               </button>
             </div>
           </div>
           <label className="field-row">
-            <span>Overlap (mm)</span>
+            <span>{t('Overlap (mm)')}</span>
             <input
               type="number"
               min={0}
@@ -223,7 +226,7 @@ export function PrintPreviewModal({
             />
           </label>
           <label className="field-row">
-            <span>Margin (mm)</span>
+            <span>{t('Margin (mm)')}</span>
             <input
               type="number"
               min={0}
@@ -240,26 +243,26 @@ export function PrintPreviewModal({
               checked={printIntoMargin}
               onChange={(event) => onSetPrintIntoMargin(event.target.checked)}
             />
-            <span>Print into margin (treat the gutter as printable area)</span>
+            <span>{t('Print into margin (treat the gutter as printable area)')}</span>
           </label>
         </div>
 
         <div className="control-block">
           <label className="layer-toggle-item">
             <input type="checkbox" checked={printSelectedOnly} onChange={(event) => onSetPrintSelectedOnly(event.target.checked)} />
-            <span>Print selected shapes only</span>
+            <span>{t('Print selected shapes only')}</span>
           </label>
           <label className="layer-toggle-item">
             <input type="checkbox" checked={printRulerInside} onChange={(event) => onSetPrintRulerInside(event.target.checked)} />
-            <span>Ruler inside page</span>
+            <span>{t('Ruler inside page')}</span>
           </label>
           <label className="layer-toggle-item">
             <input type="checkbox" checked={printInColor} onChange={(event) => onSetPrintInColor(event.target.checked)} />
-            <span>Print in color</span>
+            <span>{t('Print in color')}</span>
           </label>
           <label className="layer-toggle-item">
             <input type="checkbox" checked={printStitchAsDots} onChange={(event) => onSetPrintStitchAsDots(event.target.checked)} />
-            <span>Render stitch holes as dots</span>
+            <span>{t('Render stitch holes as dots')}</span>
           </label>
           <label className="layer-toggle-item">
             <input
@@ -267,10 +270,10 @@ export function PrintPreviewModal({
               checked={printShowIgnoredLineTypes}
               onChange={(event) => onSetPrintShowIgnoredLineTypes(event.target.checked)}
             />
-            <span>Show non-print line types</span>
+            <span>{t('Show non-print line types')}</span>
           </label>
           <label className="field-row">
-            <span>Line thickness (%)</span>
+            <span>{t('Line thickness (%)')}</span>
             <input
               type="number"
               min={5}
@@ -287,22 +290,26 @@ export function PrintPreviewModal({
         {printPlan ? (
           <div className="print-preview-summary">
             <div>
-              Source bounds: {printPlan.sourceBounds.width} x {printPlan.sourceBounds.height} mm
+              {t('print.sourceBounds', 'Source bounds: {width} × {height} mm').replace('{width}', String(printPlan.sourceBounds.width)).replace('{height}', String(printPlan.sourceBounds.height))}
             </div>
             <div>
-              Coverage: {printPlan.contentWidthMm} x {printPlan.contentHeightMm} mm
+              {t('print.coverage', 'Coverage: {width} × {height} mm').replace('{width}', String(printPlan.contentWidthMm)).replace('{height}', String(printPlan.contentHeightMm))}
             </div>
-            <div>Pages: {printPlan.tiles.length}</div>
+            <div>{t('print.pages', 'Pages: {count}').replace('{count}', String(printPlan.tiles.length))}</div>
+            {(printPlan.sourceBounds.width * printPlan.effectiveScaleX > printPlan.contentWidthMm + 0.001 ||
+              printPlan.sourceBounds.height * printPlan.effectiveScaleY > printPlan.contentHeightMm + 0.001) && (
+              <p role="status">{t('The drawing exceeds these pages at this scale. Increase the tile count to print the complete pattern.')}</p>
+            )}
             {printRulerInside && printPlan.tiles.length > 1 && (
               <div className="print-preview-tile-grid">
-                <span className="hint">Anchor the 100mm XY ruler on which page?</span>
+                <span className="hint">{t('Anchor the 100mm XY ruler on which page?')}</span>
                 <div className="print-preview-tile-grid-cells">
                   <button
                     type="button"
                     className={printRulerAnchorTileIndex === null ? 'active' : ''}
                     onClick={() => onSetPrintRulerAnchorTileIndex(null)}
                   >
-                    Auto
+                    {t('Auto')}
                   </button>
                   {printPlan.tiles.map((_, tileIndex) => (
                     <button
@@ -310,34 +317,34 @@ export function PrintPreviewModal({
                       type="button"
                       className={printRulerAnchorTileIndex === tileIndex ? 'active' : ''}
                       onClick={() => onSetPrintRulerAnchorTileIndex(tileIndex)}
-                      title={`Place the ruler on tile ${tileIndex + 1}`}
+                      title={t('print.rulerTile', 'Place the ruler on tile {count}').replace('{count}', String(tileIndex + 1))}
                     >
-                      Page {tileIndex + 1}
+                      {t('print.page', 'Page {count}').replace('{count}', String(tileIndex + 1))}
                     </button>
                   ))}
                 </div>
               </div>
             )}
             <div>
-              Active DPI: {activeDpiX} x {activeDpiY}
+              {t('print.activeDpi', 'Active DPI: {x} × {y}').replace('{x}', String(activeDpiX)).replace('{y}', String(activeDpiY))}
             </div>
             <div>
-              Color: {printInColor ? 'On' : 'Off'} | Ruler: {printRulerInside ? 'Inside' : 'Outside'}
+              {t('print.colorRuler', 'Color: {color} | Ruler: {ruler}').replace('{color}', t(printInColor ? 'On' : 'Off')).replace('{ruler}', t(printRulerInside ? 'Inside' : 'Outside'))}
             </div>
             <div>
-              Line thickness: {printLineThicknessScalePercent}% | Non-print lines: {printShowIgnoredLineTypes ? 'Shown' : 'Hidden'}
+              {t('print.lineSummary', 'Line thickness: {percent}% | Non-print lines: {visibility}').replace('{percent}', String(printLineThicknessScalePercent)).replace('{visibility}', t(printShowIgnoredLineTypes ? 'Shown' : 'Hidden'))}
             </div>
           </div>
         ) : (
-          <p className="hint">No shapes available for print preview with current filters.</p>
+          <p className="hint">{t('No shapes available for print preview with current filters.')}</p>
         )}
 
         <div className="line-type-modal-actions">
-          <button onClick={onTogglePrintAreas}>{showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas'}</button>
+          <button onClick={onTogglePrintAreas}>{t(showPrintAreas ? 'Hide Print Areas' : 'Show Print Areas')}</button>
           <button onClick={onOpenPrintTiles} disabled={!printPlan}>
-            Open Printable Tiles
+            {t('Open Printable Tiles')}
           </button>
-          <button onClick={onFitView}>Fit to Content</button>
+          <button onClick={onFitView}>{t('Fit to Content')}</button>
         </div>
       </div>
     </div>
