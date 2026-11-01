@@ -30,6 +30,7 @@ export function fitViewportToBounds(bounds: ViewportFitBounds, size: ViewportFit
   }
 }
 
+/** Fits the drawing's own extent; the margin (screen px) is the only padding, as in the reference editor. */
 export function fitViewportToShapes(shapes: Shape[], size: ViewportFitSize, margin = 40): Viewport {
-  return fitViewportToBounds(getBounds(shapes), size, margin)
+  return fitViewportToBounds(getBounds(shapes, 0), size, margin)
 }

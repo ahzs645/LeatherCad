@@ -101,6 +101,8 @@ type UseLoadedDocumentActionsParams = {
   setSelectedHardwareMarkerId: Dispatch<SetStateAction<string | null>>
   setLayerColorOverrides: Dispatch<SetStateAction<Record<string, string>>>
   setViewport: Dispatch<SetStateAction<Viewport>>
+  /** Applies a grid visibility saved with the drawing, when it has one. */
+  setShowGrid?: Dispatch<SetStateAction<boolean>>
   svgRef: RefObject<SVGSVGElement | null>
   setTool: Dispatch<SetStateAction<Tool>>
   setShowPrintAreas: Dispatch<SetStateAction<boolean>>
@@ -175,6 +177,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSelectedHardwareMarkerId,
     setLayerColorOverrides,
     setViewport,
+    setShowGrid,
     svgRef,
     setTool,
     setShowPrintAreas,
@@ -364,6 +367,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setLeatherImageFills(normalizedLeatherImageFills)
     setActiveLeatherImageFillId(normalizedActiveLeatherImageFillId)
     setShowCanvasRuler(normalizedShowCanvasRuler)
+    if (typeof doc.showGrid === 'boolean') setShowGrid?.(doc.showGrid)
     setShowDimensions(normalizedShowDimensions)
     setDimensionLines(doc.dimensionLines ?? [])
     setPrintAreas(doc.printAreas ?? [])
@@ -431,6 +435,7 @@ export function useLoadedDocumentActions(params: UseLoadedDocumentActionsParams)
     setSelectedHardwareMarkerId,
     setLayerColorOverrides,
     setViewport,
+    setShowGrid,
     svgRef,
     setTool,
     setShowPrintAreas,

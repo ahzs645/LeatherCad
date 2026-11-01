@@ -1,4 +1,5 @@
 import type { ArcShape, BezierShape, LineShape, Point, Shape } from '../../cad/cad-types'
+import { lcadCapHeightRatio } from './lcad-palettes'
 
 export type LcadRecord = Record<string, unknown>
 export type ShapeBase = Pick<LineShape, 'id' | 'layerId' | 'lineTypeId' | 'groupId' | 'arrowStart' | 'arrowEnd' | 'strokeWidthOverride' | 'locked' | 'opacity'>
@@ -111,8 +112,13 @@ export function primitiveShapes(source: LcadRecord, base: ShapeBase): Shape[] {
     const x = n('x'), y = n('y'), size = n('fontSize', 5), angle = n('rotation', 0)
     if (!(size > 0)) throw new Error('Invalid .lcad text size')
     const text = typeof source.content === 'string' ? source.content : ''
-    const length = Math.max(size, size * text.length * 0.6)
-    return [{ ...base, type: 'text', start: { x, y }, end: { x: x + Math.cos(angle) * length, y: y + Math.sin(angle) * length }, text, fontFamily: typeof source.fontFamily === 'string' ? source.fontFamily : 'sans-serif', fontSizeMm: size, transform: 'none', radiusMm: 20, sweepDeg: 180, trackingMm: n('letterSpacing', 0) }]
+    // The reference stores cap height; the drawn font size is larger by the family's ratio.
+    const fontSizeMm = size / lcadCapHeightRatio(source.fontFamily)
+    // Full-width (CJK) glyphs take about one em, others about 0.6 em.
+    const lineEm = (line: string) => [...line].reduce((sum, char) => sum + ((char.codePointAt(0) ?? 0) >= 0x2e80 ? 1 : 0.6), 0)
+    const length = Math.max(fontSizeMm, fontSizeMm * Math.max(1, ...text.split(/\r?\n/).map(lineEm)))
+    const lineSpacing = n('lineSpacing', 1)
+    return [{ ...base, type: 'text', start: { x, y }, end: { x: x + Math.cos(angle) * length, y: y + Math.sin(angle) * length }, text, fontFamily: typeof source.fontFamily === 'string' ? source.fontFamily : 'sans-serif', fontSizeMm, transform: 'none', radiusMm: 20, sweepDeg: 180, trackingMm: n('letterSpacing', 0), ...(lineSpacing > 0 && lineSpacing !== 1 ? { lineSpacing: Math.min(10, lineSpacing) } : {}) }]
   }
   throw new Error(`Unsupported .lcad shape type: ${String(source.type)}. Keep the original file or export plain SVG from the source app.`)
 }

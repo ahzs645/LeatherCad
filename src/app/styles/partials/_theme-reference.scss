@@ -137,6 +137,7 @@
   --cad-overlay-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
   --ruler-label-fill: #bbbbbb;
   --ruler-label-halo: #1a1a1a;
+  --canvas-text-halo: #1a1a1a;
 }
 
 .canvas-surface-light {
@@ -154,6 +155,7 @@
   --cad-overlay-shadow: 0 3px 12px rgba(43, 38, 32, 0.16);
   --ruler-label-fill: #4b5563;
   --ruler-label-halo: #ffffff;
+  --canvas-text-halo: #ffffff;
 }
 
 /* Text on amber must stay readable in both themes. */
@@ -225,4 +227,9 @@
   border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 12px;
+}
+
+/* Text shapes are drawn content at their authored weight, not bold labels. */
+.app-shell .annotation-label.text-shape {
+  font-weight: 400;
 }

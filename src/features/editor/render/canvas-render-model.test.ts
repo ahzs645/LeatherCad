@@ -375,3 +375,34 @@ describe('buildCanvasRenderModel', () => {
     ])
   })
 })
+
+describe('stroke colours', () => {
+  const build = (overrides: Partial<Parameters<typeof buildCanvasRenderModel>[0]>) => buildCanvasRenderModel({
+    visibleShapes: [{ ...line('a', 'front-layer', 0), lineTypeId: 'white' }],
+    linkedShapes: [],
+    ...baseParams,
+    lineTypesById: { white: { id: 'white', name: 'White', role: 'cut', visible: true, style: 'solid', color: '#ffffff', colorLight: '#000000' } },
+    displayLayerColorsById: { 'front-layer': '#ff8800' },
+    layerStackLevels: {},
+    viewBounds: { minX: -50, minY: -50, maxX: 100, maxY: 50 },
+    detailPadding: 0,
+    interactionPreview: null,
+    visibleStitchHoles: [],
+    visibleHardwareMarkers: [],
+    foldLines: [],
+    pieceGrainlineSegments: [],
+    pieceNotchLines: [],
+    piecePlacementGuides: [],
+    ...overrides,
+  }).layers.editableShapes[0].paint.strokeColor
+
+  it('draws line-type colours in the Assembly view unless layer colours are chosen', () => {
+    expect(build({ sketchWorkspaceMode: 'assembly' })).toBe('#ffffff')
+    expect(build({ sketchWorkspaceMode: 'assembly', strokeColors: 'layer' })).toBe('#ff8800')
+  })
+
+  it('uses the light-surface colour on the light surface', () => {
+    expect(build({ canvasSurface: 'light' })).toBe('#000000')
+    expect(build({ canvasSurface: 'dark' })).toBe('#ffffff')
+  })
+})

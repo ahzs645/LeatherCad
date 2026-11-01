@@ -13,7 +13,32 @@ type CanvasStitchLayerProps = {
   renderableTerminalHole: StitchHole | null
   renderablePersistedTerminalHoles: StitchHole[]
   hideRawStitchHoles?: boolean
+  /** Stroke colour per hole id; holes without an entry use the stitch-hole colour. */
+  holeColorById?: Record<string, string>
   viewportScale: number
+}
+
+/**
+ * Sewing-order path: joins consecutive holes of the same chain (or the same
+ * anchor shape for unchained holes). Holes of different chains are never joined.
+ */
+function buildStitchOrderPath(holes: StitchHole[]) {
+  const groups = new Map<string, StitchHole[]>()
+  for (const hole of holes) {
+    const key = hole.chainId ? `chain:${hole.chainId}` : `shape:${hole.shapeId}`
+    const group = groups.get(key)
+    if (group) group.push(hole)
+    else groups.set(key, [hole])
+  }
+  const parts: string[] = []
+  for (const group of groups.values()) {
+    const sorted = group.sort((a, b) => a.sequence - b.sequence)
+    for (let index = 1; index < sorted.length; index += 1) {
+      const previous = sorted[index - 1], current = sorted[index]
+      if (current.sequence === previous.sequence + 1) parts.push(`M${previous.point.x},${previous.point.y}L${current.point.x},${current.point.y}`)
+    }
+  }
+  return parts.join('')
 }
 
 export function CanvasStitchLayer({
@@ -26,21 +51,14 @@ export function CanvasStitchLayer({
   renderableTerminalHole,
   renderablePersistedTerminalHoles,
   hideRawStitchHoles = false,
+  holeColorById,
   viewportScale,
 }: CanvasStitchLayerProps) {
   return (
     <>
-      {!stitchSimulatorSettings?.showSimulatorPattern && (() => {
-        const sorted = [...renderableStitchHoles].sort((a, b) => a.sequence - b.sequence)
-        const pathParts: string[] = []
-        for (let i = 1; i < sorted.length; i += 1) {
-          const prev = sorted[i - 1]
-          const curr = sorted[i]
-          if (curr.sequence === prev.sequence + 1) {
-            pathParts.push(`M${prev.point.x},${prev.point.y}L${curr.point.x},${curr.point.y}`)
-          }
-        }
-        return pathParts.length > 0 ? <path d={pathParts.join('')} className="stitch-thread-line" /> : null
+      {showStitchSequenceLabels && !stitchSimulatorSettings?.showSimulatorPattern && (() => {
+        const pathData = buildStitchOrderPath(renderableStitchHoles)
+        return pathData ? <path d={pathData} className="stitch-thread-line" /> : null
       })()}
 
       {stitchSimulatorSettings?.showSimulatorPattern && renderableSimulatedSegments.length > 0 && (
@@ -138,6 +156,8 @@ export function CanvasStitchLayer({
       {!hideRawStitchHoles && renderableStitchHoles.map((stitchHole) => {
         const isSelected = stitchHole.id === selectedStitchHoleId
         const primitive = createStitchHolePrimitive(stitchHole)
+        const holeColor = isSelected ? undefined : holeColorById?.[stitchHole.id]
+        const holeStyle = holeColor ? { stroke: holeColor } : undefined
         const r = primitive.kind === 'circle' ? primitive.radiusMm : stitchHole.diameterMm ? stitchHole.diameterMm / 2 : 0.6
         const outerR = r * 2.5
         const crossR = outerR * 1.3
@@ -151,6 +171,7 @@ export function CanvasStitchLayer({
               x2={primitive.end.x}
               y2={primitive.end.y}
               className={isSelected ? 'stitch-hole-slit stitch-hole-slit-selected' : 'stitch-hole-slit'}
+              style={holeStyle}
               strokeWidth={Math.max(0.6, primitive.strokeWidthMm)}
               onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)}
             />
@@ -163,6 +184,7 @@ export function CanvasStitchLayer({
               key={stitchHole.id}
               points={primitive.points.map((point) => `${point.x},${point.y}`).join(' ')}
               className={isSelected ? 'stitch-hole-slit stitch-hole-slit-selected' : 'stitch-hole-slit'}
+              style={holeStyle}
               fill="none"
               strokeWidth={Math.max(0.6, stitchHole.widthMm ?? 0.9)}
               onPointerDown={(event) => onStitchHolePointerDown(event, stitchHole.id)}

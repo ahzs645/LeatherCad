@@ -95,6 +95,29 @@ Captured in the same state in both apps (rectangle drawn, one edge selected, dar
 
 Remaining differences worth considering next: an always-visible line-type palette (the reference's quickest way to pick cut/stitch/guide lines), dashed selection outlines, and a floating size palette next to the selection as an alternative to the inspector.
 
+## Example drawing comparison
+
+The capture included a published example: a one-piece card case (一枚革パスケース, 191 shapes, 94 stitch holes, 4 layers), saved as a gzip-compressed `.lcad`. It was opened in both editors at 1440 × 900 in both themes. The file is third-party content, so it is not committed. The tests below use small synthetic drawings.
+
+| What we saw in LeatherCad | Cause | Fix |
+| --- | --- | --- |
+| Orange zig-zag lines and arrows across the drawing | The stitch simulator was on by default, and it threads holes in chain order. In this file, `runId`/`seq` record how holes were generated, not the sewing order: two runs alternate hole by hole along each row, and one run jumps between the left and right rows on every step. | The importer keeps runs that step from neighbour to neighbour. Other runs, and holes with no run, are regrouped into one chain per row of holes by position ([`lcad-stitch-chains.ts`](../src/features/editor/io/lcad/lcad-stitch-chains.ts)). The import review says when this happens. The simulator is now opt-in (F6 or the simulator dialog), so the drawing shows its holes, as the reference does. |
+| Separately, the light "thread line" joined holes from different chains | It sorted every hole by sequence number and joined consecutive numbers, whatever chain they were in. | Joins only within a chain, and shows only with sequence labels. |
+| Everything orange, blue or purple instead of white, green, red and grey | The Assembly view coloured strokes by layer. | Strokes use their line type's colour, as in the reference. *Options → Drawing surface → Stroke colours in Assembly → Layer* restores layer colours. |
+| Line types named "Imported p6", all marked as cut lines | The file has no palette table; it refers to the reference's default slots. | The importer carries the reference's 40-slot default palette ([`lcad-palettes.ts`](../src/features/editor/io/lcad/lcad-palettes.ts)): names like "Palette 3" and "Palette 37 · stitch holes", the slot's dark and light colours, and its dash. Solid strokes import as cut lines, patterned strokes as guides, holes as stitch. |
+| White lines vanished on the light surface | A line type had one colour. | Line types have an optional light-surface colour (`colorLight`). The default slots got light variants, and pale colours without one get a dark ink of the same hue. Editing a line type's colour resets its light variant. Export writes both colours. |
+| Multi-line notes collapsed into one line, drawn small and bold, with a white halo | SVG text ignores `\n`, the text-shape class inherited label weight 600, and the halo was always white. Also, the reference stores cap height (`fontSize / 0.72` for most fonts is the drawn size). | Lines draw as `tspan`s at 1.25 em × `lineSpacing` (new optional field). Text shapes use weight 400 and a halo in the surface colour. The importer converts cap height to font size; the exporter reverses it. Font stacks end in `sans-serif`, as the reference falls back for fonts that are not installed. |
+| Grid on; the reference had it off | `gridVisible` was ignored. | Imported and saved with the drawing (`showGrid`) and applied on load. |
+| Drawing about half the size it should be after load and Fit | The fit used a bounds helper that pads 100 mm on every side. | Fit uses the drawing's own extent; the 40 px margin is the only padding. CJK text width is estimated at one em per glyph, so titles are not clipped. |
+| Holes drawn in the generic amber stitch colour | Imported holes have their own palette slot (p37). | Holes on their own marker draw in that slot's colour (white on dark, chocolate on light). Holes on a stitch line keep the stitch-hole colour. |
+| Gzip `.lcad` could not be opened | Cloud and shared copies are gzip-compressed. | Recognised by magic bytes and decompressed, with the 50 MB budget applied to the output ([`read-drawing-file.ts`](../src/features/editor/io/read-drawing-file.ts)). |
+
+What still differs:
+
+- The status bar counts 195 shapes, the reference 191: arcs over 90° are stored as several arc segments.
+- The reference's three "⚠" drawing checks have no counterpart yet.
+- The text face depends on installed fonts in both editors.
+
 ## Defects found and fixed along the way
 
 | Defect | Effect | Fix |
@@ -112,6 +135,7 @@ Remaining differences worth considering next: an always-visible line-type palett
 | Unit suite | 194 files / 1,384 tests. New tests cover the grid ladder and labels, tool keys and icons, expressions, armed commands, selection geometry, the context menu, pinch math and snapshot redo. |
 | TypeScript, ESLint, architecture check | Pass |
 | Browser (Playwright, system Chromium) | **68 / 68.** The full suite (desktop, production build, tablet, phone) passed 62/62 existing and unchanged tests. After fixing their own timing and coordinate issues, the new [`reference-interface.spec.ts`](../e2e/reference-interface.spec.ts) (rulers, keys, typed sizes, Escape cascade, geometry, menu, redo, status toggles, tour) and the phone tests in [`mobile-smoke.spec.ts`](../e2e/mobile-smoke.spec.ts) (tool list, taps, folded legend, pinch) passed 16/16 on a re-run of both files. |
+| Example drawing pass | Unit suite 197 files / 1,400 tests (new: stitch-chain regrouping, palette slots and light colours, text size and line spacing, grid visibility, gzip reading, render colours, font fallback). TypeScript, ESLint, architecture and localization checks pass. Browser suite: see below. |
 | Touch | Synthetic DevTools pinch: 155% → 620% (the reference went 100% → 400%, the same 4×). Two/three-finger double taps undo and redo. Real iPad and iPhone hardware still needs the [device walkthrough](PHYSICAL_DEVICE_ACCEPTANCE.md). |
 
 ## Behaviour changes to note
@@ -120,3 +144,6 @@ Remaining differences worth considering next: an always-visible line-type palett
 - Touch taps with drawing tools apply on lift rather than on touch-down.
 - The canvas follows the app theme by default. Choose Light or Dark in Options to force it.
 - The old in-canvas axis ruler overlay is still available: turn off *Edge rulers* and the Ruler command (S) shows it as before.
+- The Assembly view draws line-type colours, not layer colours (choose *Layer* under *Stroke colours in Assembly* for the old view).
+- The stitch simulator starts off. F6 or the simulator dialog turns it on, and a saved choice is kept.
+- Fit and load-fit frame the drawing tightly, without the extra 100 mm border.

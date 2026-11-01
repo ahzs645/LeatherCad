@@ -110,6 +110,8 @@ export function useLineTypeActions(params: UseLineTypeActionsParams) {
           ? {
               ...lineType,
               color: normalized,
+              // A new colour replaces the light-surface variant; it is derived again.
+              colorLight: undefined,
             }
           : lineType,
       ),

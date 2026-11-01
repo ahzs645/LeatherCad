@@ -1,6 +1,8 @@
 import type { DocFile, Point, Shape } from '../../cad/cad-types'
 import { quadraticToCubicPoints as cubicPoints, type LcadRecord } from './lcad-geometry'
 import { exportLcadStitchParameters } from './lcad-stitches'
+import { lcadCapHeightRatio } from './lcad-palettes'
+import { lineTypeColorForSurface } from '../../cad/line-types'
 import { parseCommunityProvenance } from '../../ops/community-provenance'
 import { nativeCurveToEditable } from '../../cad/native-curve-ops'
 
@@ -42,7 +44,7 @@ export function exportLcadDocument(doc: DocFile): { text: string; warnings: stri
       }
     }
     else {
-      shapes.push({ ...base, type: 'text', x: shape.start.x, y: shape.start.y, content: shape.text, fontFamily: shape.fontFamily, fontSize: shape.fontSizeMm, rotation: Math.atan2(shape.end.y - shape.start.y, shape.end.x - shape.start.x), letterSpacing: shape.trackingMm ?? 0, lineSpacing: 1 })
+      shapes.push({ ...base, type: 'text', x: shape.start.x, y: shape.start.y, content: shape.text, fontFamily: shape.fontFamily, fontSize: shape.fontSizeMm * lcadCapHeightRatio(shape.fontFamily), rotation: Math.atan2(shape.end.y - shape.start.y, shape.end.x - shape.start.x), letterSpacing: shape.trackingMm ?? 0, lineSpacing: shape.lineSpacing ?? 1 })
       if (shape.transform !== 'none') warnings.push(`Curved text “${shape.text.slice(0, 30)}” is exported as plain text`)
     }
   }
@@ -60,6 +62,6 @@ export function exportLcadDocument(doc: DocFile): { text: string; warnings: stri
   const unsupported: Array<[string, unknown[] | undefined]> = [['constraints', doc.constraints], ['pattern pieces', doc.patternPieces], ['seam connections', doc.seamConnections], ['assembly connections', doc.assemblyConnections], ['seam allowances', doc.seamAllowances], ['hardware markers', doc.hardwareMarkers], ['tracing overlays', doc.tracingOverlays], ['leather image fills', doc.leatherImageFills]]
   for (const [label, values] of unsupported) if (values?.length) warnings.push(`${label} are not exported in .lcad; use Document JSON for a complete LeatherCad backup`)
   if (doc.manufacturing) warnings.push('Manufacturing settings are not exported in .lcad; use Document JSON for a complete backup')
-  const payload = { version: 2, name: doc.documentName ?? 'Untitled', unit_for_view: 'mm', gridSpacing: doc.snapSettings?.gridStep ?? 5, snapSpacing: 0.1, gridVisible: true, snapEnabled: doc.snapSettings?.enabled !== false, layers: doc.layers.map(layer => ({ id: layer.id, name: layer.name, visible: layer.visible, locked: layer.locked, independent: layer.independent === true })), activeLayerId: doc.activeLayerId, palettes: doc.lineTypes.map(type => ({ id: type.id, name: type.name, colorDark: type.color, colorLight: type.color, strokeWidth: type.strokeWidthMm ?? 1, strokeDash: type.style, fillColor: 'none', alpha: 1, visible: type.visible })), activePaletteId: doc.activeLineTypeId, shapes, groups: (doc.sketchGroups ?? []).map(group => ({ id: group.id, name: group.name, visible: group.visible, locked: group.locked, parentId: group.parentId })), memo: doc.projectMemo ?? '', provenance: [], recording: { baseline: null, steps: [] }, ...(communityProvenance.length ? { leathercad: { version: 1, communityProvenance } } : {}) }
+  const payload = { version: 2, name: doc.documentName ?? 'Untitled', unit_for_view: 'mm', gridSpacing: doc.snapSettings?.gridStep ?? 5, snapSpacing: 0.1, gridVisible: doc.showGrid ?? true, snapEnabled: doc.snapSettings?.enabled !== false, layers: doc.layers.map(layer => ({ id: layer.id, name: layer.name, visible: layer.visible, locked: layer.locked, independent: layer.independent === true })), activeLayerId: doc.activeLayerId, palettes: doc.lineTypes.map(type => ({ id: type.id, name: type.name, colorDark: type.color, colorLight: lineTypeColorForSurface(type, 'light'), strokeWidth: type.strokeWidthMm ?? 1, strokeDash: type.style, fillColor: 'none', alpha: 1, visible: type.visible })), activePaletteId: doc.activeLineTypeId, shapes, groups: (doc.sketchGroups ?? []).map(group => ({ id: group.id, name: group.name, visible: group.visible, locked: group.locked, parentId: group.parentId })), memo: doc.projectMemo ?? '', provenance: [], recording: { baseline: null, steps: [] }, ...(communityProvenance.length ? { leathercad: { version: 1, communityProvenance } } : {}) }
   return { text: JSON.stringify(payload, null, 2), warnings }
 }

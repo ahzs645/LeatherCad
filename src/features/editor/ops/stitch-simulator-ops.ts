@@ -40,7 +40,9 @@ export function getDefaultStitchSimulatorSettings(): StitchSimulatorSettings {
     threadColor: '#d97706',
     secondThreadColor: '#92400e',
     threadWidthMm: 0.8,
-    showSimulatorPattern: true,
+    // Opt-in (F6 or the simulator dialog): the drawing shows its holes, as the
+    // reference editor does, until the thread is asked for.
+    showSimulatorPattern: false,
     showBackStitches: true,
     showEvenStitches: true,
     showOddStitches: true,

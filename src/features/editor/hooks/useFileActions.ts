@@ -12,6 +12,7 @@ import type { DocumentTransferReview } from '../components/DocumentTransferRevie
 import { MAX_IMPORT_FILE_BYTES } from '../io/import-budget'
 import type { PatternPdfReview } from '../ops/pattern-pdf/pattern-pdf-review'
 import { parseDocumentFile } from '../io/parse-file-import'
+import { readDrawingFileText } from '../io/read-drawing-file'
 import { isNativeCurve, transformNativeCurve } from '../cad/native-curve-ops'
 
 const OPEN_DOC_TRANSFER_PREFIX = 'leathercraft-open-doc-'
@@ -258,7 +259,7 @@ export function useFileActions(params: UseFileActionsParams) {
     if (file.size > MAX_IMPORT_FILE_BYTES) { setStatus('Could not load drawing: file exceeds the 50 MB import limit'); return }
     setStatus(`Reading "${file.name}"…`)
     try {
-      const raw = await file.text()
+      const raw = await readDrawingFileText(file)
       if (!work.isCurrent()) return
       const imported = await parseDocumentFile(raw, file.name, work.signal)
       if (!work.isCurrent()) return

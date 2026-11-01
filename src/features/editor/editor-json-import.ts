@@ -102,6 +102,7 @@ type ImportedJsonCandidate = {
   leatherImageFills?: unknown[]
   activeLeatherImageFillId?: unknown
   showCanvasRuler?: unknown
+  showGrid?: unknown
   showDimensions?: unknown
   dimensionLines?: unknown[]
   manufacturing?: unknown
@@ -320,6 +321,12 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
         sweepDeg: candidate.sweepDeg,
         strokeWidthOverride,
         trackingMm: candidate.trackingMm,
+        ...(typeof (candidate as { lineSpacing?: unknown }).lineSpacing === 'number' &&
+        Number.isFinite((candidate as { lineSpacing: number }).lineSpacing) &&
+        (candidate as { lineSpacing: number }).lineSpacing > 0 &&
+        (candidate as { lineSpacing: number }).lineSpacing !== 1
+          ? { lineSpacing: Math.min(10, (candidate as { lineSpacing: number }).lineSpacing) }
+          : {}),
       })
     }
   }
@@ -595,6 +602,7 @@ export function parseImportedJsonDocument(raw: string, options: { preserveShapeI
       leatherImageFills: nextLeatherImageFills,
       activeLeatherImageFillId: nextActiveLeatherImageFillId,
       showCanvasRuler,
+      ...(typeof parsed.showGrid === 'boolean' ? { showGrid: parsed.showGrid } : {}),
       showDimensions,
       dimensionLines: nextDimensionLines,
       printAreas: nextPrintAreas,

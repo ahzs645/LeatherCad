@@ -29,13 +29,18 @@ export type InterfacePreferences = {
    * name because the earlier field was written automatically, not chosen.
    */
   canvasSurface: 'theme' | 'light' | 'dark'
+  /**
+   * What colours strokes in the Assembly view: the line type (as the reference
+   * editor draws) or the layer (to tell stacked pieces apart).
+   */
+  strokeColors: 'line-type' | 'layer'
 }
 const defaultOrder = DESKTOP_TOOL_ICON_ITEMS.map(item => item.value)
 export const DEFAULT_INTERFACE_PREFERENCES: InterfacePreferences = {
   wheelMode: 'auto', trackpadSensitivity: 1, toolOrder: defaultOrder,
   toolLabels: false, displayUnit: 'mm', edgePickRadiusPx: 12, touchPickRadiusPx: 24,
   edgeRulers: true, invertYAxis: false, toolHints: true, tourCompleted: false, modifierPad: 'left',
-  canvasSurface: 'theme',
+  canvasSurface: 'theme', strokeColors: 'line-type',
 }
 const listeners = new Set<() => void>()
 let snapshot: InterfacePreferences | undefined
@@ -59,6 +64,7 @@ export function normalizeInterfacePreferences(value: unknown): InterfacePreferen
     tourCompleted: input.tourCompleted === true,
     modifierPad: input.modifierPad === 'right' || input.modifierPad === 'off' ? input.modifierPad : 'left',
     canvasSurface: input.canvasSurface === 'light' || input.canvasSurface === 'dark' ? input.canvasSurface : 'theme',
+    strokeColors: input.strokeColors === 'layer' ? 'layer' : 'line-type',
   }
 }
 export function getInterfacePreferences() {

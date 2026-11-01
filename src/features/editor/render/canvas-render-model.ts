@@ -1,4 +1,4 @@
-import { lineTypeStrokeDasharray, resolveLineTypeStrokeWidthMm } from '../cad/line-types'
+import { lineTypeColorForSurface, lineTypeStrokeDasharray, resolveLineTypeStrokeWidthMm } from '../cad/line-types'
 import type { DimensionLine, FoldLine, HardwareMarker, LineType, Point, Shape, StitchHole } from '../cad/cad-types'
 import { sampleShapePoints } from '../cad/cad-geometry'
 import type { AnnotationLabel, PiecePlacementGuide, SeamGuide, SketchWorkspaceMode } from '../editor-types'
@@ -181,6 +181,10 @@ type BuildCanvasRenderModelParams = {
   layerStackLevels: Record<string, number>
   selectedShapeIdSet: Set<string>
   sketchWorkspaceMode: SketchWorkspaceMode
+  /** Drawing surface; line types draw their light-surface colour on 'light'. */
+  canvasSurface?: 'light' | 'dark'
+  /** Assembly view colours strokes by layer only when this is 'layer'. */
+  strokeColors?: 'line-type' | 'layer'
   shapeStrokeOpacity: number
   highlightActiveLayerId?: string | null
   displayLayerColorsById: Record<string, string>
@@ -289,16 +293,16 @@ function resolveShapeStrokeColor(
   shape: Shape,
   params: Pick<
     BuildCanvasRenderModelParams,
-    'lineTypesById' | 'sketchWorkspaceMode' | 'displayLayerColorsById' | 'fallbackLayerStroke' | 'stitchStrokeColor' | 'foldStrokeColor' | 'cutStrokeColor'
+    'lineTypesById' | 'sketchWorkspaceMode' | 'canvasSurface' | 'strokeColors' | 'displayLayerColorsById' | 'fallbackLayerStroke' | 'stitchStrokeColor' | 'foldStrokeColor' | 'cutStrokeColor'
   >,
 ) {
   const lineType = params.lineTypesById[shape.lineTypeId]
   const lineTypeRole = lineType?.role ?? 'cut'
-  if (params.sketchWorkspaceMode === 'assembly') {
+  if (params.sketchWorkspaceMode === 'assembly' && params.strokeColors === 'layer') {
     return params.displayLayerColorsById[shape.layerId] ?? params.fallbackLayerStroke
   }
   if (lineType?.color) {
-    return lineType.color
+    return lineTypeColorForSurface(lineType, params.canvasSurface ?? 'dark')
   }
   if (lineTypeRole === 'stitch') {
     return params.stitchStrokeColor
@@ -318,6 +322,8 @@ function resolvePaint(
     | 'lineTypesById'
     | 'selectedShapeIdSet'
     | 'sketchWorkspaceMode'
+    | 'canvasSurface'
+    | 'strokeColors'
     | 'shapeStrokeOpacity'
     | 'highlightActiveLayerId'
     | 'displayLayerColorsById'
@@ -870,6 +876,8 @@ export function buildCanvasRenderModel({
   layerStackLevels,
   selectedShapeIdSet,
   sketchWorkspaceMode,
+  canvasSurface,
+  strokeColors,
   shapeStrokeOpacity,
   highlightActiveLayerId,
   displayLayerColorsById,
@@ -910,6 +918,8 @@ export function buildCanvasRenderModel({
     layerStackLevels,
     selectedShapeIdSet,
     sketchWorkspaceMode,
+    canvasSurface,
+    strokeColors,
     shapeStrokeOpacity,
     highlightActiveLayerId,
     displayLayerColorsById,

@@ -38,6 +38,7 @@ import { CanvasToolHint } from './canvas/CanvasToolHint'
 import { CanvasTouchPad } from './canvas/CanvasTouchPad'
 import { getToolHint } from '../tools/tool-executor'
 import { useInterfacePreferences } from '../ops/interface-preferences'
+import { lineTypeColorForSurface } from '../cad/line-types'
 import { CANVAS_VIEW_EVENT } from '../ops/editor-events'
 import {
   boundsIntersect,
@@ -286,6 +287,8 @@ export function EditorCanvasPane({
         layerStackLevels,
         selectedShapeIdSet,
         sketchWorkspaceMode,
+        canvasSurface: surfaceMode,
+        strokeColors: interfacePreferences.strokeColors,
         shapeStrokeOpacity,
         highlightActiveLayerId,
         displayLayerColorsById,
@@ -345,6 +348,8 @@ export function EditorCanvasPane({
       selectedShapeIdSet,
       shapeStrokeOpacity,
       sketchWorkspaceMode,
+      surfaceMode,
+      interfacePreferences.strokeColors,
       showAnnotations,
       showDimensions,
       showOpenPathLabels,
@@ -359,6 +364,20 @@ export function EditorCanvasPane({
     ],
   )
   const renderableStitchHoles = renderModel.layers.stitchHoles
+  // Holes anchored to their own marker (imported .lcad holes) draw in that
+  // marker's palette colour, as in the reference; holes on a stitch line keep
+  // the stitch-hole colour so they stand out from the line.
+  const holeColorById = useMemo(() => {
+    const markerLineTypes = new Map<string, string>()
+    for (const shape of visibleShapes) if (shape.type === 'line' && shape.stitchHoleMarker) markerLineTypes.set(shape.id, shape.lineTypeId)
+    const colors: Record<string, string> = {}
+    if (markerLineTypes.size === 0) return colors
+    for (const hole of renderableStitchHoles) {
+      const lineType = lineTypesById[markerLineTypes.get(hole.shapeId) ?? '']
+      if (lineType) colors[hole.id] = lineTypeColorForSurface(lineType, surfaceMode)
+    }
+    return colors
+  }, [lineTypesById, renderableStitchHoles, surfaceMode, visibleShapes])
   const renderableSimulatedSegments = useMemo(
     () =>
       simulatedStitchSegments.filter((segment) =>
@@ -546,6 +565,7 @@ export function EditorCanvasPane({
             renderableTerminalHole={renderableTerminalHole}
             renderablePersistedTerminalHoles={renderablePersistedTerminalHoles}
             hideRawStitchHoles={hideRawStitchHoles}
+            holeColorById={holeColorById}
             viewportScale={viewport.scale}
           />
 

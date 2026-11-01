@@ -185,3 +185,43 @@ describe('sealed LCC safety', () => {
     expect(() => exportLccDocument(doc)).toThrow('cannot preserve community source attribution')
   })
 })
+
+describe('LCAD drawings without their own palette', () => {
+  const plain = (shapes: unknown[], extra = {}) => JSON.stringify({
+    version: 2, name: 'Plain', layers: [{ id: 'main', name: 'Main' }], activeLayerId: 'main',
+    shapes: shapes.map((shape, index) => ({ id: `s${index}`, layerId: 'main', ...shape as object })), ...extra,
+  })
+
+  it('maps palette slots to the reference default colours for both surfaces', () => {
+    const { doc } = importLcadDocument(plain([
+      { type: 'line', paletteId: 'p3', strokeColor: '#ffffff', strokeDash: 'solid', x1: 0, y1: 0, x2: 10, y2: 0 },
+      { type: 'line', paletteId: 'p6', strokeColor: '#a0a0a0', strokeDash: 'dash-dot', x1: 0, y1: 5, x2: 10, y2: 5 },
+      { type: 'stitch_hole', paletteId: 'p37', strokeColor: '#ffffff', stitchType: 'round', cx: 0, cy: 10 },
+      { type: 'line', paletteId: 'p3', strokeColor: '#ff0000', x1: 0, y1: 15, x2: 10, y2: 15 },
+    ]))
+    const byName = Object.fromEntries(doc.lineTypes.map(type => [type.name + ':' + type.color, type]))
+    expect(byName['Palette 3:#ffffff']).toMatchObject({ role: 'cut', colorLight: '#000000', style: 'solid' })
+    expect(byName['Palette 6:#a0a0a0']).toMatchObject({ role: 'guide', colorLight: '#707070' })
+    expect(byName['Palette 37 · stitch holes:#ffffff']).toMatchObject({ role: 'stitch', colorLight: '#d2691e' })
+    // A stroke colour that is not the slot's own stays the shape's colour.
+    expect(byName['Palette 3:#ff0000']).toBeDefined()
+    expect(byName['Palette 3:#ff0000'].colorLight).toBeUndefined()
+  })
+
+  it('imports text at its drawn size with line spacing, and grid visibility', () => {
+    const { doc } = importLcadDocument(plain([
+      { type: 'text', paletteId: 'p1', x: 0, y: 0, content: '一行目\nsecond', fontSize: 7.2, lineSpacing: 1.5, fontFamily: 'Arial' },
+    ], { gridVisible: false }))
+    const text = doc.objects[0]
+    expect(text.type).toBe('text')
+    if (text.type !== 'text') return
+    expect(text.text).toBe('一行目\nsecond')
+    expect(text.fontSizeMm).toBeCloseTo(7.2 / 0.7188, 6)
+    expect(text.lineSpacing).toBe(1.5)
+    expect(doc.showGrid).toBe(false)
+    const exported = JSON.parse(exportLcadDocument(doc).text) as { gridVisible: boolean; shapes: Array<{ fontSize: number; lineSpacing: number }> }
+    expect(exported.gridVisible).toBe(false)
+    expect(exported.shapes[0].fontSize).toBeCloseTo(7.2, 6)
+    expect(exported.shapes[0].lineSpacing).toBe(1.5)
+  })
+})

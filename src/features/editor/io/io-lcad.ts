@@ -1,8 +1,10 @@
 import { uid } from '../cad/cad-geometry'
-import type { Backdrop, DimensionLine, DocFile, Layer, LineType, LineTypeRole, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
+import type { Backdrop, DimensionLine, DocFile, Layer, LineType, Shape, SketchGroup, StitchHole } from '../cad/cad-types'
 import { parseImportedJsonDocument } from '../editor-json-import'
 import { numberField, pointValue, primitiveShapes, recordValue, type LcadRecord, type ShapeBase } from './lcad/lcad-geometry'
 import { importLcadStitchParameters } from './lcad/lcad-stitches'
+import { LCAD_DEFAULT_PALETTE, lcadPaletteName, lcadPaletteSlotNumber, lcadRoleFor } from './lcad/lcad-palettes'
+import { planLcadStitchChains, type LcadHoleRecord } from './lcad/lcad-stitch-chains'
 import { parseCommunityProvenance } from '../ops/community-provenance'
 import { validateGroupHierarchy } from '../ops/shape-access'
 import { resolveLineTypeStrokeWidthMm } from '../cad/line-types'
@@ -58,22 +60,35 @@ export function importLcadDocument(raw: string): LcadImportResult {
     const palette = recordValue(value, 'palette')
     paletteRecords.set(idValue(palette.id), palette)
   }
+  const sameColor = (a: unknown, b: unknown) => typeof a === 'string' && typeof b === 'string' && a.trim().toLowerCase() === b.trim().toLowerCase()
   const styleFor = (source: LcadRecord): string => {
-    const palette = paletteRecords.get(idValue(source.paletteId))
-    const role: LineTypeRole = source.type === 'stitch_hole' || source.type === 'stitch' ? 'stitch' : source.type === 'centerline' ? 'guide' : source.type === 'dimension' || source.type === 'distance' ? 'mark' : 'cut'
-    const color = stringValue(source.strokeColor, stringValue(palette?.colorLight, '#1a1a1a'))
-    const style = styleValue(source.strokeDash ?? palette?.strokeDash)
+    const paletteId = idValue(source.paletteId)
+    const palette = paletteRecords.get(paletteId)
+    const slotNumber = palette ? undefined : lcadPaletteSlotNumber(paletteId)
+    const slot = slotNumber ? LCAD_DEFAULT_PALETTE[slotNumber - 1] : undefined
+    const paletteDark = stringValue(palette?.colorDark, slot?.colorDark ?? '')
+    const paletteLight = stringValue(palette?.colorLight, slot?.colorLight ?? '')
+    const dashSource = source.strokeDash ?? palette?.strokeDash ?? slot?.strokeDash
+    const style = styleValue(dashSource)
+    const role = lcadRoleFor(source.type, typeof dashSource === 'string' ? dashSource : 'solid')
+    // A stroke drawn in the palette's own colour (either surface) keeps both
+    // palette colours; any other stroke colour is the shape's own.
+    const strokeColor = typeof source.strokeColor === 'string' && source.strokeColor.length > 0 ? source.strokeColor : undefined
+    const usesPalette = Boolean(paletteDark) && (!strokeColor || sameColor(strokeColor, paletteDark) || sameColor(strokeColor, paletteLight))
+    const color = usesPalette ? paletteDark : strokeColor ?? stringValue(palette?.colorLight, '#1a1a1a')
+    const colorLight = usesPalette && paletteLight ? paletteLight : undefined
     const visible = palette?.visible !== false
     const width = palette ? widthValue(palette) : undefined
-    const key = JSON.stringify([source.paletteId ?? '', color, style, role, visible, width])
+    const key = JSON.stringify([paletteId, color, colorLight ?? '', style, role, visible, width])
     let id = styles.get(key)
     if (!id) {
       id = uid()
       styles.set(key, id)
-      lineTypes.push({ id, name: stringValue(palette?.name, `Imported ${idValue(source.paletteId) || role}`), role, color, style, visible, ...(width === undefined ? {} : { strokeWidthMm: width }) })
+      lineTypes.push({ id, name: lcadPaletteName(paletteId || role, typeof palette?.name === 'string' ? palette.name : undefined), role, color, ...(colorLight ? { colorLight } : {}), style, visible, ...(width === undefined ? {} : { strokeWidthMm: width }) })
     }
     return id
   }
+  const holeRecords: LcadHoleRecord[] = []
   const objects: Shape[] = [], stitchHoles: StitchHole[] = [], backdrops: Backdrop[] = [], dimensionLines: DimensionLine[] = []
   const appendShapes = (shapes: Shape[]) => {
     assertImportGeometryBudget(objects.length + shapes.length + stitchHoles.length + dimensionLines.length)
@@ -138,7 +153,9 @@ export function importLcadDocument(raw: string): LcadImportResult {
       const parameters = importLcadStitchParameters(source)
       const anchorId = `${id}:anchor`
       appendShapes([{ ...base, id: anchorId, type: 'line', stitchHoleMarker: true, start: point, end: point }])
-      stitchHoles.push({ id, shapeId: anchorId, chainId: idValue(source.runId) || undefined, sequence: Math.max(0, Math.round(numberField(source, 'seq', 0))), point, ...parameters, endHole: source.endHole === true })
+      const seq = Math.max(0, Math.round(numberField(source, 'seq', 0)))
+      stitchHoles.push({ id, shapeId: anchorId, chainId: idValue(source.runId) || undefined, sequence: seq, point, ...parameters, endHole: source.endHole === true })
+      holeRecords.push({ id, layerId, point, runId: idValue(source.runId) || undefined, seq })
       return
     }
     if (source.type === 'tracing_image') {
@@ -161,11 +178,17 @@ export function importLcadDocument(raw: string): LcadImportResult {
     appendShapes(converted)
   }
   for (const shape of input.shapes) convert(shape)
+  const { chains, regrouped } = planLcadStitchChains(holeRecords)
+  for (const hole of stitchHoles) {
+    const chain = chains.get(hole.id)
+    if (chain) Object.assign(hole, { chainId: chain.chainId, sequence: chain.sequence })
+  }
+  if (regrouped) warnings.add('Stitch holes from runs that do not follow the sewing path were regrouped into chains along each row of holes')
   if (lineTypes.length === 0) styleFor({ type: 'line' })
   if (input.unit_for_view === 'inch') warnings.add('Source inch display units were converted to mm display; geometry remains in its original millimetres')
   if (Array.isArray(input.provenance) && input.provenance.length > 0) warnings.add('Source provenance is not imported; keep the original .lcad file for attribution and publication history')
   if (input.recording && typeof input.recording === 'object' && Array.isArray((input.recording as LcadRecord).steps) && ((input.recording as LcadRecord).steps as unknown[]).length > 0) warnings.add('Source editing recordings are not imported')
-  const parsed = parseImportedJsonDocument(JSON.stringify({ version: 1, units: 'mm', documentName: typeof input.name === 'string' ? input.name : undefined, layers, activeLayerId, lineTypes, activeLineTypeId: lineTypes[0].id, objects, sketchGroups, foldLines: [], stitchHoles, backdrops, dimensionLines, communityProvenance, projectMemo: typeof input.memo === 'string' ? input.memo : '', snapSettings: { enabled: input.snapEnabled !== false, grid: true, gridStep: typeof input.gridSpacing === 'number' && input.gridSpacing > 0 ? input.gridSpacing : 5, endpoints: true, midpoints: true, guides: true, hardware: true }, showDimensions: dimensionLines.length > 0 }))
+  const parsed = parseImportedJsonDocument(JSON.stringify({ version: 1, units: 'mm', documentName: typeof input.name === 'string' ? input.name : undefined, layers, activeLayerId, lineTypes, activeLineTypeId: lineTypes[0].id, objects, sketchGroups, foldLines: [], stitchHoles, backdrops, dimensionLines, communityProvenance, projectMemo: typeof input.memo === 'string' ? input.memo : '', ...(typeof input.gridVisible === 'boolean' ? { showGrid: input.gridVisible } : {}), snapSettings: { enabled: input.snapEnabled !== false, grid: true, gridStep: typeof input.gridSpacing === 'number' && input.gridSpacing > 0 ? input.gridSpacing : 5, endpoints: true, midpoints: true, guides: true, hardware: true }, showDimensions: dimensionLines.length > 0 }))
   return { doc: parsed.doc, warnings: [...warnings], summary: { shapeCount: parsed.doc.objects.length, stitchHoleCount: parsed.doc.stitchHoles?.length ?? 0, layerCount: parsed.doc.layers.length } }
 }
 

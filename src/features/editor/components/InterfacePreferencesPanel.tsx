@@ -26,6 +26,9 @@ export function InterfacePreferencesPanel() {
     <label className="layer-toggle-item"><input type="checkbox" checked={prefs.edgeRulers} onChange={event => updateInterfacePreferences({ edgeRulers: event.target.checked })} /><span>{t('Edge rulers (S shows or hides them)')}</span></label>
     <label className="layer-toggle-item"><input type="checkbox" checked={prefs.invertYAxis} onChange={event => updateInterfacePreferences({ invertYAxis: event.target.checked })} /><span>{t('Invert Y axis (up = positive) in rulers and size fields')}</span></label>
     <label className="layer-toggle-item"><input type="checkbox" checked={prefs.toolHints} onChange={event => updateInterfacePreferences({ toolHints: event.target.checked })} /><span>{t('Show the tool hint bubble')}</span></label>
+    <label className="field-row"><span>{t('Stroke colours in Assembly')}</span><select aria-label={t('Stroke colours in Assembly')} value={prefs.strokeColors} onChange={event => updateInterfacePreferences({ strokeColors: event.target.value as typeof prefs.strokeColors })}>
+      <option value="line-type">{t('Line type (reference)')}</option><option value="layer">{t('Layer')}</option>
+    </select></label>
     <label className="field-row"><span>{t('Touch pad (finger and pen)')}</span><select aria-label={t('Touch pad (finger and pen)')} value={prefs.modifierPad} onChange={event => updateInterfacePreferences({ modifierPad: event.target.value as typeof prefs.modifierPad })}>
       <option value="left">{t('Left')}</option><option value="right">{t('Right')}</option><option value="off">{t('Hidden')}</option>
     </select></label>
@@ -36,6 +39,6 @@ export function InterfacePreferencesPanel() {
       const label = t(DESKTOP_TOOL_ICON_ITEMS.find(item => item.value === id)?.label ?? id)
       return <li key={id}><span>{label}</span><button type="button" aria-label={`${t('Move up')}: ${label}`} disabled={index === 0} onClick={() => moveTool(index, -1)}>↑</button><button type="button" aria-label={`${t('Move down')}: ${label}`} disabled={index === prefs.toolOrder.length - 1} onClick={() => moveTool(index, 1)}>↓</button></li>
     })}</ol>
-    <button type="button" onClick={() => updateInterfacePreferences({ ...DEFAULT_INTERFACE_PREFERENCES, displayUnit: prefs.displayUnit, canvasSurface: prefs.canvasSurface, tourCompleted: prefs.tourCompleted })}>{t('Reset input and tool preferences')}</button>
+    <button type="button" onClick={() => updateInterfacePreferences({ ...DEFAULT_INTERFACE_PREFERENCES, displayUnit: prefs.displayUnit, canvasSurface: prefs.canvasSurface, strokeColors: prefs.strokeColors, tourCompleted: prefs.tourCompleted })}>{t('Reset input and tool preferences')}</button>
   </>
 }

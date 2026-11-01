@@ -1,9 +1,14 @@
 {
   "schemaVersion": 1,
   "methodology": "Static t() literal/conditional keys plus known tool/ribbon/settings/manufacturing label and application-owned error registries. Runtime key expressions and candidate unwired JSX/attribute copy are listed for manual review. User-generated labels, generated measurement-checklist text and imported translation overrides are outside this inventory. Resolved means a built-in key or English-fallback alias exists; this does not assess translation quality or complete product coverage.",
-  "sourceFiles": 501,
-  "usedKeys": 1002,
+  "sourceFiles": 519,
+  "usedKeys": 1054,
   "dynamicCalls": [
+    {
+      "location": "src/features/editor/components/CanvasContextMenu.tsx:96",
+      "expression": "item.label",
+      "workflow": "shell-and-other"
+    },
     {
       "location": "src/features/editor/components/ChangeShapeSizeModal.tsx:60",
       "expression": "label",
@@ -55,7 +60,7 @@
       "workflow": "interchange-manufacturing"
     },
     {
-      "location": "src/features/editor/components/InterfacePreferencesPanel.tsx:26",
+      "location": "src/features/editor/components/InterfacePreferencesPanel.tsx:36",
       "expression": "DESKTOP_TOOL_ICON_ITEMS.find(item => item.value === id)?.label ?? id",
       "workflow": "options"
     },
@@ -68,6 +73,16 @@
       "location": "src/features/editor/components/OptionsNavigation.tsx:53",
       "expression": "scope",
       "workflow": "options"
+    },
+    {
+      "location": "src/features/editor/components/ScreenTour.tsx:111",
+      "expression": "current.title",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ScreenTour.tsx:112",
+      "expression": "current.text",
+      "workflow": "shell-and-other"
     },
     {
       "location": "src/features/editor/components/StitchSimulatorModal.tsx:73",
@@ -98,6 +113,61 @@
       "location": "src/features/editor/components/StlManufacturingControls.tsx:26",
       "expression": "MANUFACTURING_ROLE_LABELS[role]",
       "workflow": "manufacturing"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:65",
+      "expression": "label",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:74",
+      "expression": "placeholder",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:281",
+      "expression": "option.label",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:317",
+      "expression": "action.label",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:350",
+      "expression": "toolLabel(tool)",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:350",
+      "expression": "toolLabel(tool)",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:351",
+      "expression": "TOOL_IDLE_HINTS[tool]",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:352",
+      "expression": "lastResult",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/canvas/CanvasToolHint.tsx:19",
+      "expression": "TOOL_IDLE_HINTS[tool]",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/canvas/CanvasToolHint.tsx:22",
+      "expression": "toolLabel(tool)",
+      "workflow": "shell-and-other"
+    },
+    {
+      "location": "src/features/editor/components/canvas/CanvasToolHint.tsx:25",
+      "expression": "hint",
+      "workflow": "shell-and-other"
     },
     {
       "location": "src/features/editor/components/topbar/EditorTopbarSections.tsx:162",
@@ -215,57 +285,57 @@
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchRibbon.tsx:20",
+      "location": "src/features/editor/workbench/WorkbenchRibbon.tsx:23",
       "expression": "group.title",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchRibbon.tsx:34",
+      "location": "src/features/editor/workbench/WorkbenchRibbon.tsx:37",
       "expression": "item.label",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchRibbon.tsx:38",
+      "location": "src/features/editor/workbench/WorkbenchRibbon.tsx:41",
       "expression": "group.title",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:26",
+      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:47",
       "expression": "toolLabel",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:27",
+      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:53",
       "expression": "selectionText",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:37",
+      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:102",
       "expression": "statusText",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:40",
+      "location": "src/features/editor/workbench/WorkbenchStatusbar.tsx:105",
       "expression": "statusText",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:24",
+      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:21",
       "expression": "toolItem.label",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:25",
+      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:21",
       "expression": "toolItem.label",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:26",
+      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:29",
       "expression": "toolItem.label",
       "workflow": "shell-and-other"
     },
     {
-      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:31",
+      "location": "src/features/editor/workbench/WorkbenchToolRail.tsx:36",
       "expression": "toolItem.label",
       "workflow": "shell-and-other"
     }
@@ -997,62 +1067,77 @@
       "text": "Close"
     },
     {
-      "location": "src/features/editor/components/EditorCanvasPane.tsx:522",
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:596",
       "workflow": "shell-and-other",
       "text": "2D view controls"
     },
     {
-      "location": "src/features/editor/components/EditorCanvasPane.tsx:523",
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:597",
       "workflow": "shell-and-other",
       "text": "Zoom out"
     },
     {
-      "location": "src/features/editor/components/EditorCanvasPane.tsx:526",
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:597",
+      "workflow": "shell-and-other",
+      "text": "Zoom out"
+    },
+    {
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:605",
+      "workflow": "shell-and-other",
+      "text": "Reset to 100%"
+    },
+    {
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:609",
       "workflow": "shell-and-other",
       "text": "Zoom in"
     },
     {
-      "location": "src/features/editor/components/EditorCanvasPane.tsx:529",
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:609",
+      "workflow": "shell-and-other",
+      "text": "Zoom in"
+    },
+    {
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:612",
+      "workflow": "shell-and-other",
+      "text": "Fit the drawing in view"
+    },
+    {
+      "location": "src/features/editor/components/EditorCanvasPane.tsx:612",
       "workflow": "shell-and-other",
       "text": "Fit"
     },
     {
-      "location": "src/features/editor/components/EditorCanvasPane.tsx:530",
-      "workflow": "shell-and-other",
-      "text": "Reset"
-    },
-    {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:45",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:47",
       "workflow": "shell-and-other",
       "text": "Loading inspector…"
     },
     {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:52",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:54",
       "workflow": "shell-and-other",
       "text": "Loading document settings…"
     },
     {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:69",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:79",
       "workflow": "shell-and-other",
       "text": "The model is not loaded in this mode."
     },
     {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:70",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:80",
       "workflow": "shell-and-other",
       "text": "Switch to Both or 3D Assembly to load the model and its tools."
     },
     {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:72",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:82",
       "workflow": "shell-and-other",
       "text": "Show the model"
     },
     {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:79",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:89",
       "workflow": "shell-and-other",
       "text": "Loading 3D workspace…"
     },
     {
-      "location": "src/features/editor/components/EditorDesktopShell.tsx:80",
+      "location": "src/features/editor/components/EditorDesktopShell.tsx:90",
       "workflow": "shell-and-other",
       "text": "Preparing the assembly preview and material tools."
     },
@@ -1257,97 +1342,97 @@
       "text": "Close"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:134",
+      "location": "src/features/editor/components/HelpModal.tsx:141",
       "workflow": "shell-and-other",
       "text": "Help & About"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:135",
+      "location": "src/features/editor/components/HelpModal.tsx:142",
       "workflow": "shell-and-other",
       "text": "Close"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:138",
+      "location": "src/features/editor/components/HelpModal.tsx:145",
       "workflow": "shell-and-other",
       "text": "Help sections"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:154",
+      "location": "src/features/editor/components/HelpModal.tsx:161",
       "workflow": "shell-and-other",
       "text": "About LeatherCad"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:156",
+      "location": "src/features/editor/components/HelpModal.tsx:163",
       "workflow": "shell-and-other",
       "text": "LeatherCad is an open web reimplementation of Leathercraft CAD (Taiwan Studio, 2024). Built with React, TypeScript, and Three.js."
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:164",
+      "location": "src/features/editor/components/HelpModal.tsx:171",
       "workflow": "shell-and-other",
       "text": "Keyboard shortcuts"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:175",
+      "location": "src/features/editor/components/HelpModal.tsx:182",
       "workflow": "shell-and-other",
       "text": "Release Notes"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:186",
+      "location": "src/features/editor/components/HelpModal.tsx:193",
       "workflow": "shell-and-other",
       "text": "Source-App Parity"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:197",
+      "location": "src/features/editor/components/HelpModal.tsx:204",
       "workflow": "shell-and-other",
       "text": "Read Me"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:204",
+      "location": "src/features/editor/components/HelpModal.tsx:211",
       "workflow": "shell-and-other",
       "text": "License agreement"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:211",
+      "location": "src/features/editor/components/HelpModal.tsx:218",
       "workflow": "shell-and-other",
       "text": "Support development"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:213",
+      "location": "src/features/editor/components/HelpModal.tsx:220",
       "workflow": "shell-and-other",
       "text": "LeatherCad is free and open-source. If you find it useful, you can donate via the following methods."
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:219",
+      "location": "src/features/editor/components/HelpModal.tsx:226",
       "workflow": "shell-and-other",
       "text": "Buy Me a Coffee"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:224",
+      "location": "src/features/editor/components/HelpModal.tsx:231",
       "workflow": "shell-and-other",
       "text": "Other payment options"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:228",
+      "location": "src/features/editor/components/HelpModal.tsx:235",
       "workflow": "shell-and-other",
       "text": "Crypto wallets"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:237",
+      "location": "src/features/editor/components/HelpModal.tsx:244",
       "workflow": "shell-and-other",
       "text": "Copy wallet address"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:239",
+      "location": "src/features/editor/components/HelpModal.tsx:246",
       "workflow": "shell-and-other",
       "text": "Copy"
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:245",
+      "location": "src/features/editor/components/HelpModal.tsx:252",
       "workflow": "shell-and-other",
       "text": "Wallet addresses shown are placeholders — replace with project owner's actual addresses."
     },
     {
-      "location": "src/features/editor/components/HelpModal.tsx:252",
+      "location": "src/features/editor/components/HelpModal.tsx:259",
       "workflow": "shell-and-other",
       "text": "Resources"
     },
@@ -1397,37 +1482,52 @@
       "text": "Reset Colors"
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:72",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:67",
+      "workflow": "shell-and-other",
+      "text": "Legend"
+    },
+    {
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:88",
+      "workflow": "shell-and-other",
+      "text": "Hide legend"
+    },
+    {
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:88",
+      "workflow": "shell-and-other",
+      "text": "Hide legend"
+    },
+    {
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:95",
       "workflow": "shell-and-other",
       "text": "Legend mode"
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:74",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:97",
       "workflow": "shell-and-other",
       "text": "Layer"
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:77",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:100",
       "workflow": "shell-and-other",
       "text": "Stack"
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:139",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:162",
       "workflow": "shell-and-other",
       "text": "No line types available."
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:145",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:168",
       "workflow": "shell-and-other",
       "text": "Cut lines"
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:149",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:172",
       "workflow": "shell-and-other",
       "text": "Stitch lines"
     },
     {
-      "location": "src/features/editor/components/LayerLegendPanel.tsx:153",
+      "location": "src/features/editor/components/LayerLegendPanel.tsx:176",
       "workflow": "shell-and-other",
       "text": "Bend lines / areas"
     },
@@ -3682,6 +3782,16 @@
       "text": "3D Preview"
     },
     {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:172",
+      "workflow": "shell-and-other",
+      "text": "free"
+    },
+    {
+      "location": "src/features/editor/components/ToolOptionsBar.tsx:180",
+      "workflow": "shell-and-other",
+      "text": "free"
+    },
+    {
       "location": "src/features/editor/components/TracingModal.tsx:104",
       "workflow": "shell-and-other",
       "text": "Tracing Overlays"
@@ -5172,337 +5282,367 @@
       "text": "Layer Colors"
     },
     {
-      "location": "src/features/editor/workbench/EditorWorkbench.tsx:249",
+      "location": "src/features/editor/workbench/EditorWorkbench.tsx:206",
+      "workflow": "shell-and-other",
+      "text": "Document"
+    },
+    {
+      "location": "src/features/editor/workbench/EditorWorkbench.tsx:274",
       "workflow": "shell-and-other",
       "text": "Show inspector dock"
     },
     {
-      "location": "src/features/editor/workbench/EditorWorkbench.tsx:251",
+      "location": "src/features/editor/workbench/EditorWorkbench.tsx:276",
       "workflow": "shell-and-other",
       "text": "Show inspector dock"
     },
     {
-      "location": "src/features/editor/workbench/EditorWorkbench.tsx:255",
+      "location": "src/features/editor/workbench/EditorWorkbench.tsx:280",
       "workflow": "shell-and-other",
       "text": "Inspector"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:113",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:117",
       "workflow": "shell-and-other",
       "text": "Context Actions"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:115",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:119",
+      "workflow": "shell-and-other",
+      "text": "Arrange"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:122",
       "workflow": "shell-and-other",
       "text": "Align X"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:116",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:123",
       "workflow": "shell-and-other",
       "text": "Align Y"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:117",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:124",
       "workflow": "shell-and-other",
       "text": "Align XY"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:118",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:126",
       "workflow": "shell-and-other",
       "text": "Grid"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:119",
-      "workflow": "shell-and-other",
-      "text": "Offset"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:123",
-      "workflow": "shell-and-other",
-      "text": "Mark closed shapes as painted/filled template parts"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:125",
-      "workflow": "shell-and-other",
-      "text": "Paint Closed Parts"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:127",
-      "workflow": "shell-and-other",
-      "text": "Box Stitch Helper"
-    },
-    {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:128",
       "workflow": "shell-and-other",
-      "text": "Bevel"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:129",
-      "workflow": "shell-and-other",
-      "text": "Round"
+      "text": "Edit"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:130",
       "workflow": "shell-and-other",
-      "text": "Edge Constraint"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:131",
-      "workflow": "shell-and-other",
-      "text": "Align Constraint"
+      "text": "Offset"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:132",
       "workflow": "shell-and-other",
-      "text": "Apply Constraints"
+      "text": "Mark closed shapes as painted/filled template parts"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:133",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:132",
       "workflow": "shell-and-other",
-      "text": "Create Piece"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:134",
-      "workflow": "shell-and-other",
-      "text": "Piece Tab"
+      "text": "Paint Closed Parts"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:135",
       "workflow": "shell-and-other",
-      "text": "Apply Seam"
+      "text": "Bevel"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:136",
       "workflow": "shell-and-other",
-      "text": "Clear Seam"
-    },
-    {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:137",
-      "workflow": "shell-and-other",
-      "text": "Text Defaults"
+      "text": "Round"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:138",
       "workflow": "shell-and-other",
-      "text": "Extract Box Source"
+      "text": "Text Defaults"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:139",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:140",
       "workflow": "shell-and-other",
-      "text": "Clear Box Source"
+      "text": "Constraints"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:142",
+      "workflow": "shell-and-other",
+      "text": "Edge Constraint"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:143",
+      "workflow": "shell-and-other",
+      "text": "Align Constraint"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:144",
+      "workflow": "shell-and-other",
+      "text": "Apply Constraints"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:146",
+      "workflow": "shell-and-other",
+      "text": "Stitching"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:148",
+      "workflow": "shell-and-other",
+      "text": "Box Stitch Helper"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:149",
       "workflow": "shell-and-other",
-      "text": "Geometry"
+      "text": "Extract Box Source"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:150",
+      "workflow": "shell-and-other",
+      "text": "Clear Box Source"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:153",
       "workflow": "shell-and-other",
-      "text": "Box stitch source:"
+      "text": "Pattern piece"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:155",
+      "workflow": "shell-and-other",
+      "text": "Create Piece"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:156",
+      "workflow": "shell-and-other",
+      "text": "Piece Tab"
     },
     {
       "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:158",
       "workflow": "shell-and-other",
+      "text": "Apply Seam"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:159",
+      "workflow": "shell-and-other",
+      "text": "Clear Seam"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:170",
+      "workflow": "shell-and-other",
+      "text": "Geometry"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:174",
+      "workflow": "shell-and-other",
+      "text": "Box stitch source:"
+    },
+    {
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:179",
+      "workflow": "shell-and-other",
       "text": "Start X"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:166",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:187",
       "workflow": "shell-and-other",
       "text": "Start Y"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:176",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:197",
       "workflow": "shell-and-other",
       "text": "End X"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:184",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:205",
       "workflow": "shell-and-other",
       "text": "End Y"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:196",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:217",
       "workflow": "shell-and-other",
       "text": "Mid X"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:204",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:225",
       "workflow": "shell-and-other",
       "text": "Mid Y"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:216",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:237",
       "workflow": "shell-and-other",
       "text": "Ctrl X"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:224",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:245",
       "workflow": "shell-and-other",
       "text": "Ctrl Y"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:237",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:258",
       "workflow": "shell-and-other",
       "text": "Extract as Box Stitch Line"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:240",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:261",
       "workflow": "shell-and-other",
       "text": "Clear Box Stitch Source"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:249",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:270",
       "workflow": "shell-and-other",
       "text": "Stitch Hole"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:251",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:272",
       "workflow": "shell-and-other",
       "text": "Stitch end:"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:255",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:276",
       "workflow": "shell-and-other",
       "text": "Type"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:260",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:281",
       "workflow": "shell-and-other",
       "text": "Round"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:261",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:282",
       "workflow": "shell-and-other",
       "text": "Slit"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:265",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:286",
       "workflow": "shell-and-other",
       "text": "Shape"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:275",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:296",
       "workflow": "shell-and-other",
       "text": "Round"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:276",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:297",
       "workflow": "shell-and-other",
       "text": "Slit"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:277",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:298",
       "workflow": "shell-and-other",
       "text": "Diamond"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:278",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:299",
       "workflow": "shell-and-other",
       "text": "French"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:279",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:300",
       "workflow": "shell-and-other",
       "text": "Flat"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:283",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:304",
       "workflow": "shell-and-other",
       "text": "Sequence"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:296",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:317",
       "workflow": "shell-and-other",
       "text": "Angle"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:304",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:325",
       "workflow": "shell-and-other",
       "text": "Diameter"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:314",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:335",
       "workflow": "shell-and-other",
       "text": "Width"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:324",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:345",
       "workflow": "shell-and-other",
       "text": "Height"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:334",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:355",
       "workflow": "shell-and-other",
       "text": "Tilt"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:348",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:369",
       "workflow": "shell-and-other",
       "text": "Inverted"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:353",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:374",
       "workflow": "shell-and-other",
       "text": "End Stitch Here"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:356",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:377",
       "workflow": "shell-and-other",
       "text": "Clear End Stitch"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:364",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:385",
       "workflow": "shell-and-other",
       "text": "Hardware Marker"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:367",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:388",
       "workflow": "shell-and-other",
       "text": "Kind"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:372",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:393",
       "workflow": "shell-and-other",
       "text": "Snap"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:373",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:394",
       "workflow": "shell-and-other",
       "text": "Rivet"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:374",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:395",
       "workflow": "shell-and-other",
       "text": "Buckle"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:375",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:396",
       "workflow": "shell-and-other",
       "text": "Custom"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:379",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:400",
       "workflow": "shell-and-other",
       "text": "Label"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:386",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:407",
       "workflow": "shell-and-other",
       "text": "Hole dia"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:400",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:421",
       "workflow": "shell-and-other",
       "text": "Spacing"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:419",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:440",
       "workflow": "shell-and-other",
       "text": "Visible"
     },
     {
-      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:423",
+      "location": "src/features/editor/workbench/SelectionInspectorPanel.tsx:444",
       "workflow": "shell-and-other",
       "text": "Delete Marker"
     },
@@ -6151,9 +6291,15 @@
   "missingKeySets": {
     "missing-0": [],
     "missing-1": [
+      "{count} selected",
+      "{count} selected · Enter edits size and position",
       "#000000",
+      "3 points",
+      "Accepts arithmetic and units, e.g. 100/3 or 5/32in",
       "AI",
+      "Angle snap",
       "Attribution ",
+      "Back",
       "Back up saved local projects, templates, catalogs, template folders and app preferences. Save the open drawing first. Sign-in state and recovery drafts are excluded.",
       "board.addImages",
       "board.attachedImage",
@@ -6220,6 +6366,12 @@
       "CC BY-NC 4.0 — noncommercial, credit required",
       "CC0 — public domain dedication",
       "Choose library backup",
+      "Click to go back to 100%",
+      "Click to measure the rulers from the selection corner (relative origin).",
+      "Click to toggle snapping",
+      "Click to toggle the grid (G)",
+      "Click to toggle unit (N)",
+      "Close tour",
       "cloudStorage.indexNeeded",
       "cloudStorage.jsonUsage",
       "cloudStorage.more",
@@ -6284,10 +6436,13 @@
       "community.tools",
       "Confirm content retirement",
       "Confirm publication retirement",
+      "Constraint",
       "content retired",
       "Create a new pattern instead",
+      "Cursor position",
       "Cut",
       "Database restore uses one transaction. Browser preferences are restored separately with rollback on reported failures; keep the backup until you verify the result.",
+      "Delete selected shapes",
       "Description ",
       "Detected pattern pieces and stitch marks",
       "Detection is a suggestion. Check outlines, stitch pitch, folds and seams before replacing the drawing.",
@@ -6295,14 +6450,24 @@
       "Download library backup",
       "Downloaded local library backup.",
       "Drawing preview",
+      "Drawing surface",
       "DXF",
+      "Edge rulers (S shows or hides them)",
       "Edit",
       "Edit pattern details",
       "Editing pattern",
       "export.center",
       "export.format",
+      "Finish",
+      "Fixed radius",
       "Fold",
+      "Font",
+      "GRID OFF",
+      "GRID ON",
+      "Half-moon",
       "Hardware",
+      "Hide the ribbon (click a tab to show it again)",
+      "Hole",
       "I reviewed the backup and restore mode",
       "I reviewed this page and its inferred geometry",
       "Import reviewed page",
@@ -6313,7 +6478,10 @@
       "interchange.opening",
       "interchange.stlExported",
       "interchange.unavailable",
+      "Invert Y axis (up = positive) in rulers and size fields",
+      "Keep aspect",
       "Layers to append",
+      "Left",
       "Library backup exceeds the 100 MB limit.",
       "Library operation failed.",
       "License ",
@@ -6328,10 +6496,13 @@
       "Merge — keep current records on ID conflicts",
       "Merge adds missing IDs. Existing projects, templates, catalogs and setting keys are kept.",
       "mm",
+      "Multi",
+      "Multi-select: each tap adds to the selection (like holding Shift)",
       "My shared patterns",
       "No public patterns available.",
       "Notch",
       "Nothing selected",
+      "On touch screens: pinch to zoom, drag with two fingers to pan, two-finger double tap to undo, three-finger double tap to redo.",
       "Open an attributed local copy",
       "Page",
       "Pattern Label",
@@ -6342,6 +6513,7 @@
       "Piece Notch",
       "pieces",
       "Pieces + Seams",
+      "Position & size",
       "Preview Settings",
       "Preview shows the first 500 shapes. All selected geometry will be imported.",
       "projects",
@@ -6352,6 +6524,7 @@
       "R12 (AC1009)",
       "R14 (AC1014)",
       "Rect",
+      "Redo (three-finger double tap)",
       "Remove downloadable content and image references for every version of this pattern? Credits and license history remain. Existing copies keep their license. This cannot be undone.",
       "Replace removes the saved local library and restores this backup. Download a current backup before proceeding.",
       "Replace the saved local library",
@@ -6360,7 +6533,10 @@
       "Retire downloadable content",
       "Review pattern PDF",
       "review warnings",
+      "Right",
       "Rivet",
+      "Rotate and Scale apply relative to the pivot. Fields accept arithmetic such as 100/3 or 5/32in.",
+      "Rulers measure from the selection corner. Click to measure from the origin.",
       "Save next pattern version",
       "Save pattern",
       "Seam (Multi-Edge)",
@@ -6368,16 +6544,29 @@
       "Seam+",
       "Search patterns",
       "Search public pattern titles ",
+      "Shape actions",
+      "Shape in progress cancelled",
+      "Shapes",
       "Share the current drawing",
+      "Show the screen tour",
+      "Show the tool hint bubble",
       "Sign-in is not available in this installation.",
+      "Size & position",
       "Snap",
+      "SNAP OFF",
+      "SNAP ON",
       "Stamp",
       "Stitch Hole",
       "SVG",
       "SVG In",
       "templates",
       "Texture Source",
+      "To stitch a whole path, select it and use Stitch › Fixed, Var or Count.",
+      "Tool options",
+      "Touch actions",
+      "Touch pad (finger and pen)",
       "Transfer warnings",
+      "Undo (two-finger double tap)",
       "Upload local projects",
       "Use inferred fold lines",
       "Use inferred stitching and seam matches",
@@ -6398,6 +6587,8 @@
       "— pick an item —",
       "· updated",
       "{count} custom translation entries loaded.",
+      "{count} selected",
+      "{count} selected · Enter edits size and position",
       "{count} settings sections shown.",
       "#000000",
       "→ Path",
@@ -6405,10 +6596,12 @@
       "| Active stitch end:",
       "| Estimated thread length:",
       "1 settings section shown.",
+      "3 points",
       "3-point (click start, mid, end)",
       "3D Assets",
       "45° chamfer",
       "A4 (210 x 297mm)",
+      "Accepts arithmetic and units, e.g. 100/3 or 5/32in",
       "Acrylic",
       "Activate Selected",
       "Activate the layer containing the selected shape",
@@ -6423,6 +6616,7 @@
       "Align T",
       "All settings",
       "Anchor the 100mm XY ruler on which page?",
+      "Angle snap",
       "Angle step (°)",
       "Appearance changes the preview. STL stores geometry only.",
       "Applies to SVG, PDF, and DXF exports.",
@@ -6446,6 +6640,7 @@
       "Auto-save",
       "Auto: mouse zoom, trackpad pan",
       "Axis angle (°)",
+      "Back",
       "Back up saved local projects, templates, catalogs, template folders and app preferences. Save the open drawing first. Sign-in state and recovery drafts are excluded.",
       "Bezier",
       "Bezier Guides",
@@ -6543,8 +6738,14 @@
       "Clear Snap",
       "Clear Snap Pt",
       "Clear the search to reset this category.",
+      "Click to go back to 100%",
+      "Click to measure the rulers from the selection corner (relative origin).",
+      "Click to toggle snapping",
+      "Click to toggle the grid (G)",
+      "Click to toggle unit (N)",
       "Clipboard",
       "Close Project…",
+      "Close tour",
       "Cloud & Community",
       "Cloud saves and local copies are separate. Opening a copy preserves existing local projects.",
       "Cloud sharing is not available in this installation. Your projects remain on this device.",
@@ -6650,6 +6851,7 @@
       "Compensate for printer scale errors. 100 % matches the ruler test square exactly.",
       "Confirm content retirement",
       "Confirm publication retirement",
+      "Constraint",
       "content retired",
       "Continue from the selected hole when re-running auto pitch",
       "Continuous distance marking (prompt loops until cancelled)",
@@ -6667,6 +6869,7 @@
       "Create Piece",
       "Ctrl / Command or pinch always zooms. Existing Alt and Shift selection shortcuts are preserved.",
       "Current size",
+      "Cursor position",
       "Curves",
       "Custom rotation pivot active — click to clear",
       "Custom snap anchor active — click to clear",
@@ -6686,6 +6889,7 @@
       "deg",
       "Delete Layer",
       "Delete Project",
+      "Delete selected shapes",
       "Delete Selection",
       "Derive from measured length",
       "Description ",
@@ -6712,6 +6916,7 @@
       "Downloaded local library backup.",
       "Drawing",
       "Drawing preview",
+      "Drawing surface",
       "Drill stitch holes through the jig floor",
       "Duplicate selection onto the layer directly below the active one",
       "Duplicate To Below",
@@ -6720,6 +6925,7 @@
       "DXF import units",
       "Edge finish",
       "Edge finishing",
+      "Edge rulers (S shows or hides them)",
       "Edge size (mm)",
       "Edit",
       "Edit Angle…",
@@ -6759,12 +6965,14 @@
       "Fillet divisions",
       "Fillet…",
       "Find a setting…",
+      "Finish",
       "Finishes exposed pattern edges and the outside of jig bodies. Jig pockets and bores retain their fit dimensions. Edge size must fit the material thickness and height steps; engraving depth is measured from each flat face.",
       "Fit",
       "Fit calibration exceeded 30 seconds. Reload the page and try again.",
       "Fit to Content",
       "Fixed",
       "Fixed pitch (every hole equal)",
+      "Fixed radius",
       "Flat length (mm)",
       "Flat pattern and model side by side",
       "Flat width (mm)",
@@ -6775,6 +6983,7 @@
       "Fold",
       "Fold outlines",
       "Follow app theme",
+      "Font",
       "Fonts…",
       "Force last pricking iron tooth to land on path endpoint",
       "Free",
@@ -6786,13 +6995,16 @@
       "Geometry tools",
       "Grid background",
       "Grid Off",
+      "GRID OFF",
       "Grid On",
+      "GRID ON",
       "Grid: Black",
       "Grid: White",
       "Grouped",
       "Guide outlines",
       "Guides Off",
       "Guides On",
+      "Half-moon",
       "Half-moon ratio (click start + end, ratio of chord)",
       "Half-moon ratio (height / chord)",
       "Hardware",
@@ -6807,11 +7019,14 @@
       "Hide Other Layers",
       "Hide Others",
       "Hide Print Areas",
+      "Hide the ribbon (click a tab to show it again)",
       "Hide Type",
       "Highlight Layer",
       "Highlight shapes on the active layer",
       "History",
+      "Hole",
       "Holes include both ends of an open path. Existing holes on selected stitch paths are replaced.",
+      "Horizontal",
       "Horizontal only",
       "I reviewed the backup and restore mode",
       "I reviewed this page and its inferred geometry",
@@ -6845,16 +7060,19 @@
       "interchange.opening",
       "interchange.stlExported",
       "interchange.unavailable",
+      "Invert Y axis (up = positive) in rulers and size fields",
       "Item",
       "Jig body and holes",
       "Jig drill diameter (mm)",
       "Jig height (mm)",
       "Jig width (mm)",
+      "Keep aspect",
       "Layer",
       "Layer Colors",
       "Layers to append",
       "Layout",
       "Leather",
+      "Left",
       "Length Adjust…",
       "Lengths use the selected display unit; geometry is stored in millimetres.",
       "Letter (215.9 x 279.4mm)",
@@ -6938,6 +7156,8 @@
       "Move To Below",
       "Move To Layer…",
       "Move up",
+      "Multi",
+      "Multi-select: each tap adds to the selection (like holding Shift)",
       "My shared patterns",
       "Native geometry",
       "Negative clearance makes an interference fit. Calibrate with your printer and material.",
@@ -6961,6 +7181,7 @@
       "Off",
       "Offset",
       "On",
+      "On touch screens: pinch to zoom, drag with two fingers to pan, two-finger double tap to undo, three-finger double tap to redo.",
       "Open an attributed local copy",
       "Open Export Center",
       "Open in New Tab",
@@ -7001,6 +7222,7 @@
       "Place holes",
       "Place text inside the dimension line",
       "Polyline",
+      "Position & size",
       "Positions use the drawing coordinates in millimetres.",
       "Precision (mm)",
       "Preset",
@@ -7034,6 +7256,7 @@
       "Radius (click start + end, fixed radius)",
       "Rect",
       "Rectangle with margin",
+      "Redo (three-finger double tap)",
       "Reduce pricking-iron blade count by one (end-of-stitch helper)",
       "Reference length (mm)",
       "Refresh",
@@ -7065,15 +7288,18 @@
       "Reverse wheel-zoom direction",
       "Review pattern PDF",
       "review warnings",
+      "Right",
       "Rivet",
       "Rot -1",
       "Rot -5",
       "Rot +1",
       "Rot +5",
+      "Rotate and Scale apply relative to the pivot. Fields accept arithmetic such as 100/3 or 5/32in.",
       "Rotate...",
       "Rotate…",
       "Ruler",
       "Ruler inside page",
+      "Rulers measure from the selection corner. Click to measure from the origin.",
       "s",
       "Save Current Project",
       "Save JSON",
@@ -7115,6 +7341,9 @@
       "Set Snap Pt",
       "Settings categories",
       "shape",
+      "Shape actions",
+      "Shape in progress cancelled",
+      "Shapes",
       "Share the current drawing",
       "Shop",
       "Show",
@@ -7131,6 +7360,8 @@
       "Show odd stitches",
       "Show Print Areas",
       "Show stitch pattern",
+      "Show the screen tour",
+      "Show the tool hint bubble",
       "Show tool labels",
       "Show Type",
       "Shown",
@@ -7139,11 +7370,14 @@
       "Single lines",
       "Single measure line (do not split around label)",
       "Size",
+      "Size & position",
       "Sketch Focus",
       "Sketches",
       "Snap",
       "Snap Off",
+      "SNAP OFF",
       "Snap On",
+      "SNAP ON",
       "Solid floor thickness (mm)",
       "Solver steps",
       "Split",
@@ -7197,6 +7431,7 @@
       "Through region",
       "Tile X",
       "Tile Y",
+      "To stitch a whole path, select it and use Stitch › Fixed, Var or Count.",
       "Toggle group visibility",
       "Toggle layer lock",
       "Toggle layer visibility",
@@ -7205,8 +7440,11 @@
       "Toggle whether the active layer is ignored by operations",
       "Toggle whether the active layer is independent of linked-group transforms",
       "Tool",
+      "Tool options",
       "Tool order",
+      "Touch actions",
       "Touch edge-pick radius (px)",
+      "Touch pad (finger and pen)",
       "Tracing",
       "Tracing Controls",
       "Trackpad sensitivity",
@@ -7215,6 +7453,7 @@
       "Trim",
       "Turns",
       "Type",
+      "Undo (two-finger double tap)",
       "Unignore",
       "Unlock",
       "Unlock Layer",
@@ -7229,6 +7468,7 @@
       "Variable pitch (solver fits start → end)",
       "Version",
       "Version ",
+      "Vertical",
       "Vertical only",
       "View / Reset",
       "View + Layers",
@@ -7253,8 +7493,8 @@
       "locale": "en",
       "label": "English",
       "dictionaryEntries": 0,
-      "usedKeys": 1002,
-      "resolvedKeys": 1002,
+      "usedKeys": 1054,
+      "resolvedKeys": 1054,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7282,16 +7522,16 @@
           "resolvedKeys": 109
         },
         "options": {
-          "usedKeys": 159,
-          "resolvedKeys": 159
+          "usedKeys": 169,
+          "resolvedKeys": 169
         },
         "print-preview": {
           "usedKeys": 49,
           "resolvedKeys": 49
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 405
+          "usedKeys": 449,
+          "resolvedKeys": 449
         }
       },
       "missingKeyCount": 0,
@@ -7301,8 +7541,8 @@
       "locale": "ja",
       "label": "日本語",
       "dictionaryEntries": 914,
-      "usedKeys": 1002,
-      "resolvedKeys": 766,
+      "usedKeys": 1054,
+      "resolvedKeys": 769,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7330,27 +7570,27 @@
           "resolvedKeys": 109
         },
         "options": {
-          "usedKeys": 159,
-          "resolvedKeys": 156
+          "usedKeys": 169,
+          "resolvedKeys": 157
         },
         "print-preview": {
           "usedKeys": 49,
           "resolvedKeys": 49
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 340
+          "usedKeys": 449,
+          "resolvedKeys": 344
         }
       },
-      "missingKeyCount": 236,
+      "missingKeyCount": 285,
       "missingKeySet": "missing-1"
     },
     {
       "locale": "hy",
       "label": "Հայերեն",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7378,7 +7618,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7386,19 +7626,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "da",
       "label": "Dansk",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7426,7 +7666,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7434,19 +7674,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "de",
       "label": "Deutsch",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7474,7 +7714,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7482,19 +7722,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "es",
       "label": "Español",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7522,7 +7762,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7530,19 +7770,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "fi",
       "label": "Suomi",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7570,7 +7810,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7578,19 +7818,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "fr",
       "label": "Français",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7618,7 +7858,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7626,19 +7866,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "it",
       "label": "Italiano",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7666,7 +7906,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7674,19 +7914,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "ko",
       "label": "한국어",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7714,7 +7954,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7722,19 +7962,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "no",
       "label": "Norsk",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7762,7 +8002,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7770,19 +8010,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "pl",
       "label": "Polski",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7810,7 +8050,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7818,19 +8058,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "pt-BR",
       "label": "Português (Brasil)",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7858,7 +8098,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7866,19 +8106,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "pt",
       "label": "Português",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7906,7 +8146,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7914,19 +8154,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "ro",
       "label": "Română",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -7954,7 +8194,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -7962,19 +8202,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "ru",
       "label": "Русский",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -8002,7 +8242,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -8010,19 +8250,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "tr",
       "label": "Türkçe",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -8050,7 +8290,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -8058,19 +8298,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "uk",
       "label": "Українська",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -8098,7 +8338,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -8106,19 +8346,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "zh-TW",
       "label": "繁體中文",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -8146,7 +8386,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -8154,19 +8394,19 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     },
     {
       "locale": "zh-CN",
       "label": "简体中文",
       "dictionaryEntries": 170,
-      "usedKeys": 1002,
-      "resolvedKeys": 145,
+      "usedKeys": 1054,
+      "resolvedKeys": 146,
       "missingCoreKeys": [],
       "byWorkflow": {
         "cloud-community": {
@@ -8194,7 +8434,7 @@
           "resolvedKeys": 28
         },
         "options": {
-          "usedKeys": 159,
+          "usedKeys": 169,
           "resolvedKeys": 7
         },
         "print-preview": {
@@ -8202,11 +8442,11 @@
           "resolvedKeys": 13
         },
         "shell-and-other": {
-          "usedKeys": 405,
-          "resolvedKeys": 65
+          "usedKeys": 449,
+          "resolvedKeys": 66
         }
       },
-      "missingKeyCount": 857,
+      "missingKeyCount": 908,
       "missingKeySet": "missing-2"
     }
   ],
@@ -8348,6 +8588,36 @@
       ]
     },
     {
+      "key": "{count} selected",
+      "fallbacks": [
+        "{count} selected"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:308"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "{count} selected · Enter edits size and position",
+      "fallbacks": [
+        "{count} selected · Enter edits size and position"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasToolHint.tsx:18"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "{count} settings sections shown.",
       "fallbacks": [
         "{count} settings sections shown."
@@ -8469,6 +8739,21 @@
       ]
     },
     {
+      "key": "3 points",
+      "fallbacks": [
+        "3 points"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:232"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "3-point (click start, mid, end)",
       "fallbacks": [
         "3-point (click start, mid, end)"
@@ -8553,6 +8838,21 @@
       ],
       "workflows": [
         "print-preview"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Accepts arithmetic and units, e.g. 100/3 or 5/32in",
+      "fallbacks": [
+        "Accepts arithmetic and units, e.g. 100/3 or 5/32in"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:76"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -8764,6 +9064,21 @@
       ],
       "workflows": [
         "print-preview"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Angle snap",
+      "fallbacks": [
+        "Angle snap"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:196"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -9140,7 +9455,7 @@
         "Auto: mouse zoom, trackpad pan"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:17"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:18"
       ],
       "workflows": [
         "options"
@@ -9174,6 +9489,21 @@
       ],
       "workflows": [
         "geometry-dialogs"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Back",
+      "fallbacks": [
+        "Back"
+      ],
+      "locations": [
+        "src/features/editor/components/ScreenTour.tsx:116"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -10328,6 +10658,7 @@
         "src/features/editor/components/PatternPdfReviewModal.tsx:47",
         "src/features/editor/components/StitchSimulatorModal.tsx:222",
         "src/features/editor/components/SvgImportOptionsModal.tsx:88",
+        "src/features/editor/components/ToolOptionsBar.tsx:342",
         "src/features/editor/components/request-even-stitch-count.ts:32"
       ],
       "workflows": [
@@ -10849,6 +11180,81 @@
       ]
     },
     {
+      "key": "Click to go back to 100%",
+      "fallbacks": [
+        "Click to go back to 100%"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:55"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Click to measure the rulers from the selection corner (relative origin).",
+      "fallbacks": [
+        "Click to measure the rulers from the selection corner (relative origin)."
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasEdgeRulers.tsx:216"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Click to toggle snapping",
+      "fallbacks": [
+        "Click to toggle snapping"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:76"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Click to toggle the grid (G)",
+      "fallbacks": [
+        "Click to toggle the grid (G)"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:88"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Click to toggle unit (N)",
+      "fallbacks": [
+        "Click to toggle unit (N)"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:64"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Clipboard",
       "fallbacks": [
         "Clipboard"
@@ -10887,6 +11293,21 @@
       ],
       "locations": [
         "src/features/editor/components/topbar/EditorTopbarSections.tsx:787"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Close tour",
+      "fallbacks": [
+        "Close tour"
+      ],
+      "locations": [
+        "src/features/editor/components/ScreenTour.tsx:114"
       ],
       "workflows": [
         "shell-and-other"
@@ -12589,6 +13010,21 @@
       ]
     },
     {
+      "key": "Constraint",
+      "fallbacks": [
+        "Constraint"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:184"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "content retired",
       "fallbacks": [
         "content retired"
@@ -12849,7 +13285,7 @@
         "Ctrl / Command or pinch always zooms. Existing Alt and Shift selection shortcuts are preserved."
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:19"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:20"
       ],
       "workflows": [
         "options"
@@ -12885,6 +13321,21 @@
       ],
       "workflows": [
         "geometry-dialogs"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Cursor position",
+      "fallbacks": [
+        "Cursor position"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:49"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -13317,6 +13768,7 @@
         "Delete"
       ],
       "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:54",
         "src/features/editor/components/topbar/EditorTopbarSections.tsx:507",
         "src/features/editor/workbench/workbench-models.ts:395"
       ],
@@ -13350,6 +13802,21 @@
       ],
       "locations": [
         "src/features/editor/components/LocalProjectsModal.tsx:149"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Delete selected shapes",
+      "fallbacks": [
+        "Delete selected shapes"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:52"
       ],
       "workflows": [
         "shell-and-other"
@@ -13698,7 +14165,8 @@
         "src/features/editor/components/CloudCommunityDialog.tsx:129",
         "src/features/editor/components/ExportOptionsModal.tsx:79",
         "src/features/editor/components/LocalProjectsModal.tsx:84",
-        "src/features/editor/components/PrintPreviewModal.tsx:119"
+        "src/features/editor/components/PrintPreviewModal.tsx:119",
+        "src/features/editor/components/ScreenTour.tsx:114"
       ],
       "workflows": [
         "cloud-community",
@@ -13908,6 +14376,21 @@
       ]
     },
     {
+      "key": "Drawing surface",
+      "fallbacks": [
+        "Drawing surface"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:25"
+      ],
+      "workflows": [
+        "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Drill stitch holes through the jig floor",
       "fallbacks": [
         "Drill stitch holes through the jig floor"
@@ -14040,6 +14523,21 @@
       ],
       "workflows": [
         "manufacturing"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Edge rulers (S shows or hides them)",
+      "fallbacks": [
+        "Edge rulers (S shows or hides them)"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:26"
+      ],
+      "workflows": [
+        "options"
       ],
       "kinds": [
         "translation-call"
@@ -14235,7 +14733,7 @@
         "Enter a finite length within the field limits."
       ],
       "locations": [
-        "src/features/editor/components/LengthInput.tsx:22"
+        "src/features/editor/components/LengthInput.tsx:27"
       ],
       "workflows": [
         "options"
@@ -14733,6 +15231,21 @@
       ]
     },
     {
+      "key": "Finish",
+      "fallbacks": [
+        "Finish"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:341"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Finishes exposed pattern edges and the outside of jig bodies. Jig pockets and bores retain their fit dimensions. Edge size must fit the material thickness and height steps; engraving depth is measured from each flat face.",
       "fallbacks": [
         "Finishes exposed pattern edges and the outside of jig bodies. Jig pockets and bores retain their fit dimensions. Edge size must fit the material thickness and height steps; engraving depth is measured from each flat face."
@@ -14817,6 +15330,21 @@
       ],
       "workflows": [
         "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Fixed radius",
+      "fallbacks": [
+        "Fixed radius"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:233"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -14974,6 +15502,21 @@
       ]
     },
     {
+      "key": "Font",
+      "fallbacks": [
+        "Font"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:262"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Fonts…",
       "fallbacks": [
         "Fonts…"
@@ -15009,10 +15552,12 @@
         "Free"
       ],
       "locations": [
-        "src/features/editor/components/OptionsModal.tsx:428"
+        "src/features/editor/components/OptionsModal.tsx:428",
+        "src/features/editor/components/ToolOptionsBar.tsx:193"
       ],
       "workflows": [
-        "options"
+        "options",
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -15103,7 +15648,7 @@
         "Geometry tools"
       ],
       "locations": [
-        "src/features/editor/workbench/WorkbenchToolRail.tsx:16"
+        "src/features/editor/workbench/WorkbenchToolRail.tsx:17"
       ],
       "workflows": [
         "shell-and-other"
@@ -15143,6 +15688,21 @@
       ]
     },
     {
+      "key": "GRID OFF",
+      "fallbacks": [
+        "GRID OFF"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:91"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Grid On",
       "fallbacks": [
         "Grid On"
@@ -15155,6 +15715,21 @@
       ],
       "kinds": [
         "label-registry"
+      ]
+    },
+    {
+      "key": "GRID ON",
+      "fallbacks": [
+        "GRID ON"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:91"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
       ]
     },
     {
@@ -15248,6 +15823,21 @@
       ]
     },
     {
+      "key": "Half-moon",
+      "fallbacks": [
+        "Half-moon"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:234"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Half-moon ratio (click start + end, ratio of chord)",
       "fallbacks": [
         "Half-moon ratio (click start + end, ratio of chord)"
@@ -15332,9 +15922,11 @@
         "Hidden"
       ],
       "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:30",
         "src/features/editor/components/PrintPreviewModal.tsx:335"
       ],
       "workflows": [
+        "options",
         "print-preview"
       ],
       "kinds": [
@@ -15478,6 +16070,22 @@
       ]
     },
     {
+      "key": "Hide the ribbon (click a tab to show it again)",
+      "fallbacks": [
+        "Hide the ribbon (click a tab to show it again)"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchRibbon.tsx:50",
+        "src/features/editor/workbench/WorkbenchRibbon.tsx:51"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Hide Type",
       "fallbacks": [
         "Hide Type"
@@ -15538,6 +16146,21 @@
       ]
     },
     {
+      "key": "Hole",
+      "fallbacks": [
+        "Hole"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:273"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Hole diameter (mm)",
       "fallbacks": [
         "Hole diameter (mm)"
@@ -15562,6 +16185,21 @@
       ],
       "workflows": [
         "geometry-dialogs"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Horizontal",
+      "fallbacks": [
+        "Horizontal"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:194"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -16204,6 +16842,21 @@
       ]
     },
     {
+      "key": "Invert Y axis (up = positive) in rulers and size fields",
+      "fallbacks": [
+        "Invert Y axis (up = positive) in rulers and size fields"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:27"
+      ],
+      "workflows": [
+        "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Item",
       "fallbacks": [
         "Item"
@@ -16279,6 +16932,21 @@
       ]
     },
     {
+      "key": "Keep aspect",
+      "fallbacks": [
+        "Keep aspect"
+      ],
+      "locations": [
+        "src/features/editor/workbench/SelectionGeometryControls.tsx:121"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Landscape (auto-flips calibration X/Y)",
       "fallbacks": [
         "Landscape (auto-flips calibration X/Y)"
@@ -16319,7 +16987,7 @@
       ],
       "locations": [
         "src/features/editor/components/topbar/EditorTopbarSections.tsx:446",
-        "src/features/editor/workbench/WorkbenchStatusbar.tsx:30"
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:95"
       ],
       "workflows": [
         "shell-and-other"
@@ -16398,6 +17066,21 @@
       ],
       "workflows": [
         "manufacturing"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Left",
+      "fallbacks": [
+        "Left"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:30"
+      ],
+      "workflows": [
+        "options"
       ],
       "kinds": [
         "translation-call"
@@ -17550,6 +18233,21 @@
       ]
     },
     {
+      "key": "Mode",
+      "fallbacks": [
+        "Mode"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:223"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Modify",
       "fallbacks": [
         "Modify"
@@ -17570,7 +18268,7 @@
         "Mouse edge-pick radius (px)"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:21"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:22"
       ],
       "workflows": [
         "options"
@@ -17617,7 +18315,7 @@
         "Move down"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:27"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:37"
       ],
       "workflows": [
         "options"
@@ -17722,10 +18420,40 @@
         "Move up"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:27"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:37"
       ],
       "workflows": [
         "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Multi",
+      "fallbacks": [
+        "Multi"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:42"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Multi-select: each tap adds to the selection (like holding Shift)",
+      "fallbacks": [
+        "Multi-select: each tap adds to the selection (like holding Shift)"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:38"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -17812,13 +18540,15 @@
         "Next"
       ],
       "locations": [
+        "src/features/editor/components/ScreenTour.tsx:117",
         "src/features/editor/workbench/workbench-models.ts:473"
       ],
       "workflows": [
         "shell-and-other"
       ],
       "kinds": [
-        "label-registry"
+        "label-registry",
+        "translation-call"
       ]
     },
     {
@@ -18103,6 +18833,21 @@
       ],
       "workflows": [
         "print-preview"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "On touch screens: pinch to zoom, drag with two fingers to pan, two-finger double tap to undo, three-finger double tap to redo.",
+      "fallbacks": [
+        "On touch screens: pinch to zoom, drag with two fingers to pan, two-finger double tap to undo, three-finger double tap to redo."
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:32"
+      ],
+      "workflows": [
+        "options"
       ],
       "kinds": [
         "translation-call"
@@ -18545,7 +19290,7 @@
         "Pan"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:17"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:18"
       ],
       "workflows": [
         "options"
@@ -18951,6 +19696,21 @@
       ]
     },
     {
+      "key": "Position & size",
+      "fallbacks": [
+        "Position & size"
+      ],
+      "locations": [
+        "src/features/editor/workbench/SelectionGeometryControls.tsx:110"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Positions use the drawing coordinates in millimetres.",
       "fallbacks": [
         "Positions use the drawing coordinates in millimetres."
@@ -18972,7 +19732,7 @@
       ],
       "locations": [
         "src/features/editor/components/topbar/EditorTopbarSections.tsx:38",
-        "src/features/editor/workbench/WorkbenchStatusbar.tsx:44"
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:109"
       ],
       "workflows": [
         "shell-and-other"
@@ -19650,6 +20410,7 @@
         "Redo"
       ],
       "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:50",
         "src/features/editor/components/topbar/EditorTopbarSections.tsx:746",
         "src/features/editor/workbench/workbench-models.ts:386",
         "src/features/editor/workbench/workbench-models.ts:547"
@@ -19659,6 +20420,21 @@
       ],
       "kinds": [
         "label-registry",
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Redo (three-finger double tap)",
+      "fallbacks": [
+        "Redo (three-finger double tap)"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:48"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
         "translation-call"
       ]
     },
@@ -19956,7 +20732,7 @@
         "Reset input and tool preferences"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:29"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:39"
       ],
       "workflows": [
         "options"
@@ -20131,6 +20907,21 @@
       ]
     },
     {
+      "key": "Right",
+      "fallbacks": [
+        "Right"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:30"
+      ],
+      "workflows": [
+        "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Rivet",
       "fallbacks": [
         "Rivet"
@@ -20203,6 +20994,21 @@
       ],
       "kinds": [
         "label-registry"
+      ]
+    },
+    {
+      "key": "Rotate and Scale apply relative to the pivot. Fields accept arithmetic such as 100/3 or 5/32in.",
+      "fallbacks": [
+        "Rotate and Scale apply relative to the pivot. Fields accept arithmetic such as 100/3 or 5/32in."
+      ],
+      "locations": [
+        "src/features/editor/workbench/SelectionGeometryControls.tsx:133"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
       ]
     },
     {
@@ -20290,6 +21096,21 @@
       ],
       "workflows": [
         "print-preview"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Rulers measure from the selection corner. Click to measure from the origin.",
+      "fallbacks": [
+        "Rulers measure from the selection corner. Click to measure from the origin."
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasEdgeRulers.tsx:215"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -21038,6 +21859,36 @@
       ]
     },
     {
+      "key": "Shape actions",
+      "fallbacks": [
+        "Shape actions"
+      ],
+      "locations": [
+        "src/features/editor/components/CanvasContextMenu.tsx:80"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Shape in progress cancelled",
+      "fallbacks": [
+        "Shape in progress cancelled"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:342"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "shape.appearance",
       "fallbacks": [
         "Appearance and protection"
@@ -21138,6 +21989,21 @@
       ],
       "workflows": [
         "geometry-inspector"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Shapes",
+      "fallbacks": [
+        "Shapes"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:94"
+      ],
+      "workflows": [
+        "shell-and-other"
       ],
       "kinds": [
         "translation-call"
@@ -21384,12 +22250,42 @@
       ]
     },
     {
+      "key": "Show the screen tour",
+      "fallbacks": [
+        "Show the screen tour"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:33"
+      ],
+      "workflows": [
+        "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Show the tool hint bubble",
+      "fallbacks": [
+        "Show the tool hint bubble"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:28"
+      ],
+      "workflows": [
+        "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Show tool labels",
       "fallbacks": [
         "Show tool labels"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:23"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:24"
       ],
       "workflows": [
         "options"
@@ -21535,6 +22431,22 @@
       ]
     },
     {
+      "key": "Size & position",
+      "fallbacks": [
+        "Size & position"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:310",
+        "src/features/editor/components/ToolOptionsBar.tsx:311"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Sketch Focus",
       "fallbacks": [
         "Sketch Focus"
@@ -21595,6 +22507,21 @@
       ]
     },
     {
+      "key": "SNAP OFF",
+      "fallbacks": [
+        "SNAP OFF"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:79"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Snap On",
       "fallbacks": [
         "Snap On"
@@ -21607,6 +22534,21 @@
       ],
       "kinds": [
         "label-registry"
+      ]
+    },
+    {
+      "key": "SNAP ON",
+      "fallbacks": [
+        "SNAP ON"
+      ],
+      "locations": [
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:79"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
       ]
     },
     {
@@ -22312,6 +23254,7 @@
         "Text"
       ],
       "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:255",
         "src/features/editor/editor-constants.ts:118",
         "src/features/editor/editor-constants.ts:94"
       ],
@@ -22319,7 +23262,8 @@
         "shell-and-other"
       ],
       "kinds": [
-        "label-registry"
+        "label-registry",
+        "translation-call"
       ]
     },
     {
@@ -22595,6 +23539,21 @@
       ]
     },
     {
+      "key": "To stitch a whole path, select it and use Stitch › Fixed, Var or Count.",
+      "fallbacks": [
+        "To stitch a whole path, select it and use Stitch › Fixed, Var or Count."
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:290"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Toggle group visibility",
       "fallbacks": [
         "Toggle group visibility"
@@ -22706,7 +23665,22 @@
       ],
       "locations": [
         "src/features/editor/components/topbar/TopbarToolSection.tsx:55",
-        "src/features/editor/workbench/WorkbenchStatusbar.tsx:26"
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:47"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Tool options",
+      "fallbacks": [
+        "Tool options"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:349"
       ],
       "workflows": [
         "shell-and-other"
@@ -22721,7 +23695,7 @@
         "Tool order"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:24"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:34"
       ],
       "workflows": [
         "options"
@@ -22765,12 +23739,42 @@
       ]
     },
     {
+      "key": "Touch actions",
+      "fallbacks": [
+        "Touch actions"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:34"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Touch edge-pick radius (px)",
       "fallbacks": [
         "Touch edge-pick radius (px)"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:22"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:23"
+      ],
+      "workflows": [
+        "options"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Touch pad (finger and pen)",
+      "fallbacks": [
+        "Touch pad (finger and pen)"
+      ],
+      "locations": [
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:29"
       ],
       "workflows": [
         "options"
@@ -22816,7 +23820,7 @@
         "Trackpad sensitivity"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:20"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:21"
       ],
       "workflows": [
         "options"
@@ -22891,7 +23895,7 @@
         "Type"
       ],
       "locations": [
-        "src/features/editor/workbench/WorkbenchStatusbar.tsx:31"
+        "src/features/editor/workbench/WorkbenchStatusbar.tsx:96"
       ],
       "workflows": [
         "shell-and-other"
@@ -22906,6 +23910,7 @@
         "Undo"
       ],
       "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:46",
         "src/features/editor/components/topbar/EditorTopbarSections.tsx:745",
         "src/features/editor/workbench/workbench-models.ts:385",
         "src/features/editor/workbench/workbench-models.ts:546"
@@ -22915,6 +23920,21 @@
       ],
       "kinds": [
         "label-registry",
+        "translation-call"
+      ]
+    },
+    {
+      "key": "Undo (two-finger double tap)",
+      "fallbacks": [
+        "Undo (two-finger double tap)"
+      ],
+      "locations": [
+        "src/features/editor/components/canvas/CanvasTouchPad.tsx:44"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
         "translation-call"
       ]
     },
@@ -23129,6 +24149,21 @@
       ]
     },
     {
+      "key": "Vertical",
+      "fallbacks": [
+        "Vertical"
+      ],
+      "locations": [
+        "src/features/editor/components/ToolOptionsBar.tsx:195"
+      ],
+      "workflows": [
+        "shell-and-other"
+      ],
+      "kinds": [
+        "translation-call"
+      ]
+    },
+    {
       "key": "Vertical only",
       "fallbacks": [
         "Vertical only"
@@ -23195,7 +24230,7 @@
         "Wheel behavior"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:16"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:17"
       ],
       "workflows": [
         "options"
@@ -23407,7 +24442,7 @@
         "Zoom"
       ],
       "locations": [
-        "src/features/editor/components/InterfacePreferencesPanel.tsx:17"
+        "src/features/editor/components/InterfacePreferencesPanel.tsx:18"
       ],
       "workflows": [
         "options"

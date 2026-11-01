@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAdaptiveTextFontSize, resolveTextShapeFontSize, shapeBounds, shapeHandleEntries, withPreviewApplied } from './canvas-geometry'
+import { resolveAdaptiveTextFontSize, resolveTextShapeFontSize, shapeBounds, shapeHandleEntries, textLinePitchMm, withGenericFontFallback, withPreviewApplied } from './canvas-geometry'
 import type { CubicShape, EllipseShape } from '../../cad/cad-types'
 
 const cubic: CubicShape = { id: 'cubic', type: 'cubic', layerId: 'layer', lineTypeId: 'cut', start: { x: 0, y: 0 }, control1: { x: 0, y: 100 }, control2: { x: 100, y: 100 }, end: { x: 100, y: 0 } }
@@ -78,5 +78,18 @@ describe('resolveTextShapeFontSize', () => {
     expect(resolveTextShapeFontSize(0)).toBe(2)
     expect(resolveTextShapeFontSize(Number.NaN)).toBe(2)
     expect(resolveTextShapeFontSize(-4)).toBe(2)
+  })
+})
+
+describe('text helpers', () => {
+  it('ends font stacks in a generic family', () => {
+    expect(withGenericFontFallback('游明朝')).toBe('"游明朝", sans-serif')
+    expect(withGenericFontFallback('Georgia, serif')).toBe('Georgia, serif')
+    expect(withGenericFontFallback('')).toBe('sans-serif')
+  })
+
+  it('spaces lines at 1.25 em times the line spacing', () => {
+    expect(textLinePitchMm({}, 8)).toBe(10)
+    expect(textLinePitchMm({ lineSpacing: 2 }, 8)).toBe(20)
   })
 })

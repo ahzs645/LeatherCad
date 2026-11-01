@@ -33,7 +33,10 @@ export type LineType = {
   name: string
   role: LineTypeRole
   style: LineTypeStyle
+  /** Stroke colour on a dark drawing surface. */
   color: string
+  /** Stroke colour on a light drawing surface; derived from `color` when absent. */
+  colorLight?: string
   visible: boolean
   strokeWidthMm?: number
   ignoreInPrint?: boolean
@@ -129,6 +132,8 @@ export type TextShape = ShapeAppearance & {
   sweepDeg: number
   /** Extra space inserted between glyphs (mm). Source-app v2.1.7 "Tracking". */
   trackingMm?: number
+  /** Multiplier on the 1.25 em line pitch of multi-line text. Defaults to 1. */
+  lineSpacing?: number
 }
 
 export type CubicShape = BaseShape & {
@@ -791,6 +796,8 @@ export type DocFile = {
   leatherImageFills?: LeatherImageFill[]
   activeLeatherImageFillId?: string | null
   showCanvasRuler?: boolean
+  /** Grid visibility saved with the drawing (reference `gridVisible`). */
+  showGrid?: boolean
   showDimensions?: boolean
   dimensionLines?: DimensionLine[]
   printAreas?: PrintArea[]

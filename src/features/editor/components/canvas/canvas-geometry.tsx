@@ -271,6 +271,38 @@ export function resolveTextShapeFontSize(fontSizeMm: number) {
   return round(Math.max(TEXT_MIN_WORLD_MM, safe))
 }
 
+const GENERIC_FONT_FAMILIES = /(^|,)\s*(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[a-z-]+)\s*$/i
+
+/**
+ * A font stack that ends in a generic family. A drawing's font may not be
+ * installed (an imported 游明朝, say); like the reference editor, fall back to
+ * the sans-serif face rather than the browser's Times default for SVG text.
+ */
+export function withGenericFontFallback(fontFamily: string) {
+  const family = fontFamily.trim()
+  if (!family) return 'sans-serif'
+  if (GENERIC_FONT_FAMILIES.test(family)) return family
+  const quoted = family.includes(',') || /^["']/.test(family) ? family : `"${family.replace(/"/g, '')}"`
+  return `${quoted}, sans-serif`
+}
+
+/** Line pitch of multi-line text: 1.25 em times the shape's line spacing, as in the reference editor. */
+export function textLinePitchMm(shape: Pick<TextShape, 'lineSpacing'>, fontSizeMm: number) {
+  const spacing = typeof shape.lineSpacing === 'number' && Number.isFinite(shape.lineSpacing) && shape.lineSpacing > 0 ? shape.lineSpacing : 1
+  return fontSizeMm * 1.25 * spacing
+}
+
+function renderTextLines(shape: TextShape, fontSizeMm: number) {
+  const lines = shape.text.split(/\r?\n/)
+  if (lines.length === 1) return shape.text
+  const pitch = textLinePitchMm(shape, fontSizeMm)
+  return lines.map((line, index) => (
+    <tspan key={index} x={round(shape.start.x)} y={round(shape.start.y + index * pitch)}>
+      {line.length > 0 ? line : '\u00a0'}
+    </tspan>
+  ))
+}
+
 export function renderTextShape(shape: TextShape, options: RenderTextShapeOptions) {
   const normalized = options.normalizeTextShape(shape)
   const scale = options.viewportScale && options.viewportScale > 0 ? options.viewportScale : 1
@@ -281,12 +313,14 @@ export function renderTextShape(shape: TextShape, options: RenderTextShapeOption
     : 0
   const textStyle: React.CSSProperties = {
     fill: options.color,
-    fontFamily: normalized.fontFamily,
+    fontFamily: withGenericFontFallback(normalized.fontFamily),
     fontSize: `${fontSize}px`,
     letterSpacing: trackingMm !== 0 ? `${trackingMm}` : undefined,
     opacity: options.opacity,
     paintOrder: 'stroke',
-    stroke: '#f8fafc',
+    // Halo in the surface colour, so text stays legible over strokes without a
+    // bright outline on the dark surface.
+    stroke: 'var(--canvas-text-halo, #f8fafc)',
     strokeLinejoin: 'round',
     strokeWidth: `${haloStrokeWidth}px`,
   }
@@ -306,7 +340,7 @@ export function renderTextShape(shape: TextShape, options: RenderTextShapeOption
         transform={`rotate(${round(baselineAngle)} ${round(normalized.start.x)} ${round(normalized.start.y)})`}
         onPointerDown={options.interactive ? (event) => options.onPointerDown(event, shape.id) : undefined}
       >
-        {normalized.text}
+        {renderTextLines(normalized, fontSize)}
       </text>
     )
   }

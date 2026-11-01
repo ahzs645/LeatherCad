@@ -387,6 +387,7 @@ export function useEditorScreenController() {
 
   const { applyLoadedDocument } = useLoadedDocumentActions({
     clearDraft,
+    setShowGrid,
     setDocumentName,
     setActiveLocalDocumentId,
     setLayers,

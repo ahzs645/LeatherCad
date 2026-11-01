@@ -85,6 +85,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'cut',
     style: 'solid',
     color: '#22d3ee',
+    colorLight: '#0e7490',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -95,6 +96,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'stitch',
     style: 'solid',
     color: '#22c55e',
+    colorLight: '#15803d',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -105,6 +107,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'fold',
     style: 'solid',
     color: '#f8fafc',
+    colorLight: '#1f1b16',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -115,6 +118,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'guide',
     style: 'dashed',
     color: '#eab308',
+    colorLight: '#a16207',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -125,6 +129,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'mark',
     style: 'dotted',
     color: '#d946ef',
+    colorLight: '#a21caf',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -135,6 +140,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'stitch',
     style: 'dash-dot-dot',
     color: '#f8fafc',
+    colorLight: '#1f1b16',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -145,6 +151,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'stitch',
     style: 'dotted',
     color: '#d4d4d8',
+    colorLight: '#52525b',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -155,6 +162,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'stitch',
     style: 'solid',
     color: '#f59e0b',
+    colorLight: '#c2410c',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -165,6 +173,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'stitch',
     style: 'dashed',
     color: '#ef4444',
+    colorLight: '#b91c1c',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -175,6 +184,7 @@ const BASE_LINE_TYPES: LineType[] = [
     role: 'stitch',
     style: 'dashed',
     color: '#f9a8d4',
+    colorLight: '#be185d',
     visible: true,
     strokeWidthMm: DEFAULT_LINE_TYPE_STROKE_WIDTH_MM,
     ignoreInPrint: false,
@@ -247,6 +257,7 @@ export function parseLineType(value: unknown, index: number): LineType | null {
     role?: unknown
     style?: unknown
     color?: unknown
+    colorLight?: unknown
     visible?: unknown
     strokeWidthMm?: unknown
     ignoreInPrint?: unknown
@@ -262,6 +273,9 @@ export function parseLineType(value: unknown, index: number): LineType | null {
     role: isLineTypeRole(candidate.role) ? candidate.role : fallback.role,
     style: isLineTypeStyle(candidate.style) ? candidate.style : fallback.style,
     color: normalizeHexColor(candidate.color, fallback.color),
+    ...(typeof candidate.colorLight === 'string' && HEX_COLOR_PATTERN.test(candidate.colorLight.trim())
+      ? { colorLight: candidate.colorLight.trim().toLowerCase() }
+      : {}),
     visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
     strokeWidthMm: resolveLineTypeStrokeWidthMm(
       typeof candidate.strokeWidthMm === 'number' ? { strokeWidthMm: candidate.strokeWidthMm } : fallback,
@@ -324,4 +338,54 @@ export function lineTypeStrokeDasharray(style: LineTypeStyle) {
     return '2 6'
   }
   return undefined
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim())
+  if (!match) return null
+  const digits = match[1].length === 3 ? match[1].split('').map((digit) => digit + digit).join('') : match[1]
+  return [0, 2, 4].map((offset) => parseInt(digits.slice(offset, offset + 2), 16)) as [number, number, number]
+}
+
+function rgbToHex(rgb: [number, number, number]) {
+  return `#${rgb.map((channel) => Math.round(Math.min(255, Math.max(0, channel))).toString(16).padStart(2, '0')).join('')}`
+}
+
+const toLinear = (channel: number) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+
+/** WCAG relative luminance of a hex colour (0 black – 1 white). */
+export function relativeLuminance(color: string) {
+  const rgb = hexToRgb(color)
+  if (!rgb) return 0
+  const [r, g, b] = rgb.map((channel) => toLinear(channel / 255))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** Luminance at or below which a stroke already reads on the light surface. */
+const LIGHT_SURFACE_MAX_LUMINANCE = 0.3
+/** Luminance a pale stroke is darkened to. */
+const LIGHT_SURFACE_TARGET_LUMINANCE = 0.1
+
+/**
+ * A stroke colour that reads on a light drawing surface, for colours chosen for
+ * the dark one. Near-white and pale strokes are pulled down to a dark ink of the
+ * same hue (white becomes near-black); colours that already contrast stay as
+ * they are.
+ */
+export function adaptStrokeColorForLightSurface(color: string) {
+  const rgb = hexToRgb(color)
+  if (!rgb) return color
+  const luminance = relativeLuminance(color)
+  if (luminance <= LIGHT_SURFACE_MAX_LUMINANCE) return color
+  const max = Math.max(...rgb), min = Math.min(...rgb)
+  if (max - min < 40) return '#1f1b16'
+  // Luminance scales roughly with the 2.2 power of a uniform channel scale.
+  const factor = (LIGHT_SURFACE_TARGET_LUMINANCE / luminance) ** (1 / 2.2)
+  return rgbToHex([rgb[0] * factor, rgb[1] * factor, rgb[2] * factor])
+}
+
+/** The colour a line type draws with on the given drawing surface. */
+export function lineTypeColorForSurface(lineType: Pick<LineType, 'color' | 'colorLight'>, surface: 'light' | 'dark') {
+  if (surface === 'dark') return lineType.color
+  return lineType.colorLight ?? adaptStrokeColorForLightSurface(lineType.color)
 }

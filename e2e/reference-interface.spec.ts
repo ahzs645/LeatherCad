@@ -168,7 +168,7 @@ test('compact controls share one height and radius across the workbench', async 
       '.workbench-inspector-tabs button',
       '.workbench-tree-actions button',
     ]
-    return selectors.flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)]
+    return selectors.flatMap((selector) => Array.from(document.querySelectorAll<HTMLElement>(selector))
       .filter((element) => element.offsetParent)
       .map((element) => ({ selector, height: Math.round(element.getBoundingClientRect().height), radius: getComputedStyle(element).borderTopLeftRadius })))
   })
