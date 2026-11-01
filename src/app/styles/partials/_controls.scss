@@ -1,0 +1,292 @@
+/*
+ * One control scale for the workbench. Loaded last so it is the single source
+ * of truth for control size, radius and type; earlier partials keep layout and
+ * colour. On coarse pointers the tokens grow together, so a group of controls
+ * (zoom buttons, a tool bar, a header) never mixes touch and mouse sizes.
+ *
+ *   --ctl-h        compact control: header, tool bar, overlays, command line,
+ *                  inspector fields and actions, browser row buttons
+ *   --ctl-h-tab    segmented / tab controls
+ *   --ctl-h-tool   tool rail buttons (icon only)
+ *   --ctl-h-xs     status bar items
+ *   --ctl-radius   every control; panels and popovers use --panel-radius
+ */
+
+.app-shell {
+  --ctl-h: 26px;
+  --ctl-h-tab: 26px;
+  --ctl-h-tool: 36px;
+  --ctl-h-xs: 20px;
+  --ctl-pad-x: 10px;
+  --ctl-radius: 4px;
+  --panel-radius: 6px;
+  --ctl-font: 12px;
+  --ctl-font-small: 11px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .app-shell {
+    --ctl-h: 44px;
+    --ctl-h-tab: 44px;
+    --ctl-h-tool: 44px;
+    --ctl-h-xs: 32px;
+    --ctl-pad-x: 12px;
+  }
+}
+
+/* ---- Compact controls ---- */
+.app-shell .workbench-quick-action,
+.app-shell .workbench-mode-toggle button,
+.app-shell .workbench-theme-trigger,
+.app-shell .workbench-header-trailing select,
+.app-shell .tool-options-bar button,
+.app-shell .tool-options-bar input,
+.app-shell .tool-options-bar select,
+.app-shell .canvas-pane .canvas-view-controls button,
+.app-shell .legend-collapsed .legend-expand,
+.app-shell .legend-mode-tabs button,
+.app-shell .workbench-2d-surface .precision-strip input,
+.app-shell .workbench-2d-surface .precision-strip button,
+.app-shell .workbench-inspector-content button,
+.app-shell .workbench-inspector-content input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+.app-shell .workbench-inspector-content select,
+.app-shell .workbench-tree-actions button,
+.app-shell .screen-tour-actions button {
+  box-sizing: border-box;
+  height: var(--ctl-h);
+  min-height: var(--ctl-h);
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font);
+  line-height: 1;
+}
+
+.app-shell .workbench-quick-action,
+.app-shell .workbench-tree-actions button,
+.app-shell .tool-options-bar button.tool-option-icon {
+  width: var(--ctl-h);
+  min-width: var(--ctl-h);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-shell .workbench-mode-toggle button,
+.app-shell .tool-options-bar button:not(.tool-option-icon),
+.app-shell .canvas-pane .canvas-view-controls button,
+.app-shell .legend-collapsed .legend-expand,
+.app-shell .legend-mode-tabs button,
+.app-shell .workbench-2d-surface .precision-strip button,
+.app-shell .workbench-inspector-content button,
+.app-shell .screen-tour-actions button {
+  padding: 0 var(--ctl-pad-x);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.app-shell .canvas-pane .canvas-view-controls button {
+  min-width: var(--ctl-h);
+}
+
+.app-shell .canvas-pane .canvas-view-controls button.canvas-zoom-readout {
+  min-width: calc(var(--ctl-h) * 2);
+}
+
+.app-shell .workbench-mode-toggle {
+  height: calc(var(--ctl-h) + 4px);
+  padding: 2px;
+  border-radius: calc(var(--ctl-radius) + 2px);
+  box-sizing: border-box;
+}
+
+.app-shell .workbench-mode-toggle button {
+  height: var(--ctl-h);
+  min-height: 0;
+}
+
+.app-shell .workbench-header-trailing select,
+.app-shell .tool-options-bar input,
+.app-shell .tool-options-bar select,
+.app-shell .workbench-inspector-content input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']),
+.app-shell .workbench-inspector-content select,
+.app-shell .workbench-2d-surface .precision-strip input {
+  padding: 0 8px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.app-shell .workbench-inspector-content textarea {
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font);
+}
+
+/* Inspector action grids: same height, label on one line. */
+.app-shell .workbench-inspector-content .workbench-action-grid button {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Tabs and segmented controls ---- */
+.app-shell .workbench-header-tabs button {
+  height: var(--ctl-h-tab);
+  min-height: var(--ctl-h-tab);
+  padding: 0 10px;
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font);
+  line-height: 1;
+}
+
+.app-shell .workbench-inspector-tabs {
+  gap: 4px;
+}
+
+.app-shell .workbench-inspector-tabs button,
+.app-shell .workbench-inspector-collapse {
+  height: var(--ctl-h-tab);
+  min-height: var(--ctl-h-tab);
+  padding: 0 8px;
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.app-shell .workbench-inspector-collapse {
+  width: var(--ctl-h-tab);
+  min-width: var(--ctl-h-tab);
+  padding: 0;
+}
+
+/* ---- Tool rail ---- */
+.app-shell .workbench-tool-rail .tool-icon-button {
+  height: var(--ctl-h-tool);
+  min-height: var(--ctl-h-tool);
+  border-radius: var(--ctl-radius);
+}
+
+.app-shell .workbench-tool-rail .tool-icon-button:not(:has(.tool-rail-label)) {
+  width: var(--ctl-h-tool);
+  min-width: var(--ctl-h-tool);
+}
+
+/* ---- Ribbon commands keep their icon-over-label size, with the shared radius ---- */
+.app-shell .workbench-ribbon-command {
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font-small);
+}
+
+/* ---- Status bar ---- */
+.app-shell .workbench-statusbar {
+  font-size: var(--ctl-font-small);
+}
+
+.app-shell .workbench-statusbar button,
+.app-shell .workbench-statusbar button.statusbar-toggle {
+  height: var(--ctl-h-xs);
+  min-height: var(--ctl-h-xs);
+  padding: 0 8px;
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font-small);
+  line-height: 1;
+}
+
+/* ---- Overlay panels and popovers share one radius ---- */
+.app-shell .canvas-pane .canvas-view-controls,
+.app-shell .canvas-pane .legend-panel,
+.app-shell .canvas-tool-hint,
+.app-shell .canvas-touch-pad,
+.app-shell .canvas-context-menu,
+.app-shell .tool-options-bar,
+.app-shell .workbench-2d-surface .precision-strip,
+.app-shell .screen-tour-card {
+  border-radius: var(--panel-radius);
+}
+
+.app-shell .canvas-touch-pad button {
+  border-radius: var(--ctl-radius);
+}
+
+/* Inspector and tool-bar field labels use the small size consistently. */
+.app-shell .tool-option-field,
+.app-shell .selection-geometry .tool-option-field {
+  font-size: var(--ctl-font-small);
+}
+
+/* ---- Document browser rows: one line, compact height, shared radius ---- */
+.app-shell .workbench-tree-node-button {
+  min-height: var(--ctl-h);
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-radius: var(--ctl-radius);
+  font-size: var(--ctl-font);
+  line-height: 1.25;
+}
+
+.app-shell .workbench-tree-node-button > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell .workbench-tree-branch-summary,
+.app-shell .workbench-tree-section {
+  border-radius: var(--panel-radius);
+}
+
+/* ---- Touch pad buttons match the touch control size ---- */
+.app-shell .canvas-touch-pad button {
+  width: var(--ctl-h);
+  height: var(--ctl-h);
+  min-height: var(--ctl-h);
+}
+
+/* ---- Phone top bar uses the same radius and type ---- */
+.app-shell .topbar button,
+.app-shell .topbar select {
+  border-radius: var(--ctl-radius);
+  font-size: 13px;
+}
+
+/* ---- Active tool: amber wash with an amber icon, as in the reference ---- */
+.app-shell .workbench-tool-rail .tool-icon-button.active {
+  background: var(--cad-accent-soft);
+  border-color: var(--cad-accent);
+  color: var(--cad-accent-strong);
+}
+
+.app-shell .workbench-tool-rail .tool-icon-button.active .tool-icon-badge img {
+  filter: var(--tool-icon-accent-filter);
+}
+
+.app-shell .workbench-tool-rail .tool-icon-button {
+  background: transparent;
+  border-color: transparent;
+}
+
+.app-shell .workbench-tool-rail .tool-icon-button:hover:not(.active) {
+  background: var(--cad-button-hover);
+  border-color: var(--cad-chrome-border);
+}
+
+/* Header tabs share the header's vertical centre with its other controls. */
+.app-shell .workbench-header > .workbench-header-tabs {
+  align-self: center;
+  align-items: center;
+  height: var(--ctl-h-tab);
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.app-shell .workbench-header-tabs button.active::after {
+  bottom: 1px;
+}
+
+/* Document browser sections size to their content instead of stretching. */
+.app-shell .workbench-browser-tree {
+  align-content: start;
+}

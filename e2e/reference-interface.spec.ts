@@ -152,3 +152,43 @@ test('the screen tour opens from Options and does not block the page', async ({ 
   await tour.getByRole('button', { name: 'Close tour' }).click()
   await expect(tour).toHaveCount(0)
 })
+
+test('compact controls share one height and radius across the workbench', async ({ page }) => {
+  await boot(page)
+  // Regions that use the compact control size; a mixed group (like a zoom bar
+  // with two touch-sized and two mouse-sized buttons) should fail here.
+  const measured = await page.evaluate(() => {
+    const selectors = [
+      '.workbench-header .workbench-quick-action',
+      '.workbench-header-trailing select',
+      '.tool-options-bar button',
+      '.canvas-view-controls button',
+      '.precision-strip input',
+      '.precision-strip button',
+      '.workbench-inspector-tabs button',
+      '.workbench-tree-actions button',
+    ]
+    return selectors.flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)]
+      .filter((element) => element.offsetParent)
+      .map((element) => ({ selector, height: Math.round(element.getBoundingClientRect().height), radius: getComputedStyle(element).borderTopLeftRadius })))
+  })
+  expect(measured.length).toBeGreaterThan(10)
+  expect(new Set(measured.map((item) => item.height))).toEqual(new Set([26]))
+  expect(new Set(measured.map((item) => item.radius))).toEqual(new Set(['4px']))
+})
+
+test('the ribbon can be hidden and comes back from a tab; the status bar shows the cursor', async ({ page }) => {
+  await boot(page)
+  const canvasTop = async () => (await page.locator('.canvas-pane').boundingBox())?.y ?? 0
+  const before = await canvasTop()
+  await page.getByTestId('workbench-ribbon-collapse').click()
+  await expect(page.locator('.workbench-ribbon')).toHaveCount(0)
+  expect(await canvasTop()).toBeLessThan(before - 50)
+  await page.getByTestId('ribbon-tab-output').click()
+  await expect(page.getByTestId('ribbon-command-options')).toBeVisible()
+
+  const at = await canvasPoint(page, 0.5, 0.3)
+  await page.mouse.move(at.x, at.y)
+  await expect(page.getByTestId('statusbar-cursor')).toHaveText(/X -?\d+\.\d{2}\s+Y -?\d+\.\d{2}/)
+  await expect(page.locator('.workbench-statusbar')).toContainText(/Shapes \d+/)
+})

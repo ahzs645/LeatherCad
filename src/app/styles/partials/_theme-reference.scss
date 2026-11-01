@@ -38,6 +38,8 @@
   --shape-preview-color: #e8b44a;
   --tool-icon-filter: brightness(0) saturate(100%) invert(92%) sepia(6%) saturate(240%) hue-rotate(2deg);
   --tool-icon-active-filter: brightness(0) saturate(100%);
+  /* #e8b44a */
+  --tool-icon-accent-filter: brightness(0) saturate(100%) invert(76%) sepia(61%) saturate(560%) hue-rotate(352deg) brightness(97%) contrast(92%);
 
   --cad-chrome-bg: #26262c;
   --cad-chrome-raised: #2c2c33;
@@ -92,6 +94,8 @@
   --shape-preview-color: #a8690b;
   --tool-icon-filter: brightness(0) saturate(100%) invert(14%) sepia(12%) saturate(700%) hue-rotate(350deg);
   --tool-icon-active-filter: brightness(0) saturate(100%) invert(100%);
+  /* #8a560a */
+  --tool-icon-accent-filter: brightness(0) saturate(100%) invert(31%) sepia(73%) saturate(1500%) hue-rotate(23deg) brightness(92%) contrast(97%);
 
   --cad-chrome-bg: #fbfaf6;
   --cad-chrome-raised: #ffffff;

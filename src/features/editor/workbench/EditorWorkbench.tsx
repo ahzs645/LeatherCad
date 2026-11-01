@@ -9,6 +9,9 @@ import type {
   WorkbenchRibbonTab,
 } from './workbench-types'
 import { DocumentBrowserDock } from './DocumentBrowserDock'
+import { safeLocalStorageGet, safeLocalStorageSet } from '../ops/safe-storage'
+
+const RIBBON_COLLAPSED_KEY = 'leathercad.ribbon-collapsed'
 import { WorkbenchHeader } from './WorkbenchHeader'
 import { WorkbenchIcon } from './workbench-icons'
 import { WorkbenchInspectorDock } from './WorkbenchInspectorDock'
@@ -133,6 +136,12 @@ export function EditorWorkbench({
   const canvasFirst = useWorkspacePreset() === 'canvas'
   // On tablets the document browser is a sheet over the canvas, closed until asked for.
   const [browserSheetOpen, setBrowserSheetOpen] = useState(false)
+  // The ribbon can be hidden for drawing space; choosing a tab shows it again.
+  const [ribbonCollapsed, setRibbonCollapsedState] = useState(() => safeLocalStorageGet(RIBBON_COLLAPSED_KEY) === '1')
+  const setRibbonCollapsed = (collapsed: boolean) => {
+    setRibbonCollapsedState(collapsed)
+    safeLocalStorageSet(RIBBON_COLLAPSED_KEY, collapsed ? '1' : '0')
+  }
   const showThreeInMain = workspaceMode === '3d'
   const showThreeInPeek = showPeek && secondaryPreviewMode === '3d-peek'
   const showTwoDInPeek = showPeek && secondaryPreviewMode === '2d-peek'
@@ -147,7 +156,7 @@ export function EditorWorkbench({
     : `${browserWidth}px ${splitterWidth}px ${toolRailWidth}px minmax(0, 1fr) ${inspectorColumns}`
 
   return (
-    <div className={`workbench-shell${canvasFirst ? ' workbench-canvas-first' : ''}`}>
+    <div className={`workbench-shell${canvasFirst ? ' workbench-canvas-first' : ''}${canvasFirst || ribbonCollapsed ? ' workbench-no-ribbon' : ''}`}>
       <WorkbenchHeader
         docLabel={docLabel}
         quickActions={quickActions}
@@ -155,14 +164,18 @@ export function EditorWorkbench({
         activeRibbonTab={activeRibbonTab}
         themeMode={themeMode}
         onInvokeQuickAction={onInvokeQuickAction}
-        onSetRibbonTab={onSetRibbonTab}
+        onSetRibbonTab={(tab) => {
+          if (ribbonCollapsed) setRibbonCollapsed(false)
+          onSetRibbonTab(tab)
+        }}
         onSetWorkspaceMode={onSetWorkspaceMode}
         onSetThemeMode={onSetThemeMode}
       />
 
-      {!canvasFirst && <WorkbenchRibbon
+      {!canvasFirst && !ribbonCollapsed && <WorkbenchRibbon
         groups={ribbonGroups}
         onInvokeCommand={onInvokeRibbonCommand}
+        onCollapse={() => setRibbonCollapsed(true)}
       />}
 
       <main

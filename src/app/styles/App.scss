@@ -10,3 +10,6 @@
 
 // Shared mobile and breakpoint rules.
 @use './partials/responsive';
+
+// One control scale (sizes, radii, type), loaded last.
+@use './partials/controls';

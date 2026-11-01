@@ -6,11 +6,14 @@ import { resolveRibbonCommandIcon } from './workbench-icon-resolvers'
 type WorkbenchRibbonProps = {
   groups: RibbonCommandGroup[]
   onInvokeCommand: (commandId: string) => void
+  /** Hide the ribbon; the header tabs bring it back. */
+  onCollapse?: () => void
 }
 
 export function WorkbenchRibbon({
   groups,
   onInvokeCommand,
+  onCollapse,
 }: WorkbenchRibbonProps) {
   const t = useTranslate()
   return (
@@ -39,6 +42,18 @@ export function WorkbenchRibbon({
           </section>
         ))}
       </div>
+      {onCollapse && (
+        <button
+          type="button"
+          className="workbench-ribbon-collapse"
+          data-testid="workbench-ribbon-collapse"
+          aria-label={t('Hide the ribbon (click a tab to show it again)')}
+          title={t('Hide the ribbon (click a tab to show it again)')}
+          onClick={onCollapse}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      )}
     </section>
   )
 }

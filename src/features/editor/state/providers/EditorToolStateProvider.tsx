@@ -160,3 +160,8 @@ export function useEditorToolStateApi(): EditorToolStateApi {
     [state, actions],
   )
 }
+
+/** Tool state inside the editor providers, otherwise null (standalone UI and tests). */
+export function useOptionalEditorToolState() {
+  return useContext(EditorToolStateContext)
+}

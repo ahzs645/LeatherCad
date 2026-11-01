@@ -2,6 +2,9 @@ import { useTranslate } from '../hooks/useTranslate'
 import { requestCanvasView } from '../ops/editor-events'
 import { useOptionalEditorDocumentApi } from '../state/providers/EditorDocumentStateProvider'
 import { useOptionalEditorUIApi } from '../state/providers/EditorUIStateProvider'
+import { useOptionalEditorToolState } from '../state/providers/EditorToolStateProvider'
+import { useInterfacePreferences } from '../ops/interface-preferences'
+import { toDisplayValue } from '../ops/unit-ops'
 
 type WorkbenchStatusbarProps = {
   toolLabel: string
@@ -32,11 +35,21 @@ export function WorkbenchStatusbar({
   const t = useTranslate()
   const ui = useOptionalEditorUIApi()
   const documentApi = useOptionalEditorDocumentApi()
+  const toolState = useOptionalEditorToolState()
+  const { invertYAxis } = useInterfacePreferences()
   const snapEnabled = documentApi?.state.snapSettings.enabled
   const showGrid = ui?.state.showGrid
+  const cursor = toolState?.cursorPoint ?? null
+  const shapeCount = documentApi?.state.shapes.length
+  const coordinate = (mm: number) => toDisplayValue(mm, displayUnit).toFixed(displayUnit === 'in' ? 3 : 2)
   return (
     <footer className="workbench-statusbar">
       <span>{`${t('Tool')} ${t(toolLabel)}`}</span>
+      {toolState && (
+        <span className="statusbar-cursor" data-testid="statusbar-cursor" title={t('Cursor position')}>
+          {cursor ? `X ${coordinate(cursor.x)}  Y ${coordinate(invertYAxis ? -cursor.y : cursor.y)}` : 'X —  Y —'}
+        </span>
+      )}
       <span>{selectionText === 'No selection' ? t(selectionText) : selectionText}</span>
       {ui ? (
         <button type="button" className="statusbar-toggle" title={t('Click to go back to 100%')} onClick={() => requestCanvasView('reset')}>
@@ -78,6 +91,7 @@ export function WorkbenchStatusbar({
           {showGrid ? t('GRID ON') : t('GRID OFF')}
         </button>
       )}
+      {typeof shapeCount === 'number' && <span>{`${t('Shapes')} ${shapeCount}`}</span>}
       <span>{`${t('Layer')} ${activeLayerName}`}</span>
       <span>{`${t('Type')} ${activeLineTypeName}`}</span>
       {statusText && (

@@ -51,6 +51,50 @@ A second pass aligned the whole workbench with the reference's colours and fixed
 
 The tablet smoke test now opens the Document tab before checking that pieces and seams are reachable. The reference-interface spec checks that the canvas follows the system theme in both directions.
 
+## Consistency pass and second comparison
+
+**Measured, not eyeballed.** A script records the rendered height, radius and font size of every visible button, select and input in each region (header, ribbon, document browser, tool rail, tool bar, canvas overlays, command line, inspector, status bar, phone top bar) at 1440×900, 1024×768 (touch) and 390×844 (touch). Before this pass the desktop alone had **12 control heights** (18–44 px) and **6 radii** (0–8 px). The command-line input was 21 px with square corners next to a 31 px rounded Run button. The tablet zoom group mixed 44 px and 30 px buttons, because an old rule sized only the first two buttons of the group.
+
+**One scale, loaded last** ([`_controls.scss`](../src/app/styles/partials/_controls.scss)):
+
+| Token | Mouse | Touch | Used by |
+| --- | --- | --- | --- |
+| `--ctl-h` | 26 px | 44 px | Header, tool bar, canvas overlays, command line, inspector fields and actions, browser rows and V/L buttons, tour |
+| `--ctl-h-tab` | 26 px | 44 px | Header tabs, inspector tabs |
+| `--ctl-h-tool` | 36 px | 44 px | Tool rail |
+| `--ctl-h-xs` | 20 px | 32 px | Status bar |
+| `--ctl-radius` / `--panel-radius` | 4 px / 6 px | same | All controls / panels and popovers |
+| `--ctl-font` / `--ctl-font-small` | 12 px / 11 px | same | Controls / labels and status bar |
+
+After the pass, every region measures the same on desktop (compact controls 26 px with a 4 px radius, status 20 px, rail 36 px, ribbon commands 56 px). On touch screens every group is 44 px. The values follow the reference's compact proportions: it uses 25–26 px controls, 3–4 px radii and 36 px tool buttons. Text stays at 12 px rather than the reference's 11 px, for readability.
+
+Fixes found along the way:
+
+- The header tabs sat 6.5 px below the other header controls.
+- Empty document-browser sections stretched into tall blank boxes.
+- The *Canvas first* preset left the shell grid with a missing row.
+- The active tool used a solid amber fill. It now uses the reference's amber wash with an amber icon.
+
+### Region-by-region comparison with the reference (current state)
+
+Captured in the same state in both apps (rectangle drawn, one edge selected, dark theme) with the offline replay of the captured reference build.
+
+| Region | Reference | LeatherCad now | Status |
+| --- | --- | --- | --- |
+| Drawing surface | Dark grid, 1-2-5 ticks, edge rulers with cursor marker and selection band, hint bubble | Same, in light and dark | Matches |
+| Tool options | In the 44 px top bar, by tool | Bar above the canvas, same per-tool fields, icon selection actions | Matches (placement differs) |
+| Chrome above the canvas | One 44 px bar | Header + ribbon + tool bar (canvas at 183 px). The ribbon can now be hidden (canvas at 96 px) and returns when a tab is clicked | Intentional difference; much closer when collapsed |
+| Tool rail | 36 px buttons, amber wash for the active tool, undo/redo pinned on top | 36 px buttons, amber wash for the active tool; undo/redo in the header | Matches except undo/redo placement |
+| Numeric size and position | Floating palette near the selection | Inspector *Position & size* (Enter focuses it) | Equivalent, different placement |
+| Right-click menu | Shape-aware, layer submenu | Shape-aware, grouped, layer actions inline | Equivalent |
+| Selection on canvas | Dashed outline with square handles | Thicker stroke with amber handles; amber window box | Partly aligned |
+| Line types / layers | 40-slot palette and layer list always visible on the right | Line type in the status bar and ribbon, layers in the document browser | Different structure (LeatherCad also has pieces, seams and 3D) |
+| Bottom / status | Go-to X/Y, selection info, cursor X/Y, units, snap, shape count | Command line (accepts `x,y`), selection, **cursor X/Y**, zoom, units, snap, grid, **shape count** | Matches |
+| Colours | Graphite + amber, dark only (light canvas option) | Same palette in dark; warm-paper variant in light | Matches, plus a light theme |
+| Phone | No phone layout | Dedicated phone shell, 44 px targets | LeatherCad only |
+
+Remaining differences worth considering next: an always-visible line-type palette (the reference's quickest way to pick cut/stitch/guide lines), dashed selection outlines, and a floating size palette next to the selection as an alternative to the inspector.
+
 ## Defects found and fixed along the way
 
 | Defect | Effect | Fix |
