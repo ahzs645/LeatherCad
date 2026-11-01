@@ -1,6 +1,83 @@
 import { readFile } from 'node:fs/promises'
 import { expect, test } from '@playwright/test'
 
+test('an unread recovery store preserves its draft without blocking import review actions', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  const blocker = await context.newPage()
+  await blocker.route('**/recovery-storage-blocker', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Storage upgrade blocker</title>' }))
+  await blocker.goto('./recovery-storage-blocker')
+  const unreadDocument = { version: 1, units: 'mm', documentName: 'Previously unread recovery drawing', objects: [],
+    layers: [{ id: 'main', name: 'Main', visible: true, locked: false }], activeLayerId: 'main', foldLines: [] }
+  const stored = { version: 1, id: 'unread-before-import', savedAt: Date.now(), reason: 'autosave', localDocumentId: null, serializedDoc: JSON.stringify(unreadDocument) }
+  try {
+    // Hold an older native IndexedDB connection open. Dexie's real schema
+    // upgrade cannot finish, so recovery must report unread storage instead
+    // of treating it as empty. No browser API mocks or arbitrary delays.
+    await blocker.evaluate(snapshot => new Promise<void>((resolve, reject) => {
+      localStorage.setItem('leathercad-autosave-enabled-v1', 'true')
+      const request = indexedDB.open('leathercad-local-v1', 1)
+      request.onupgradeneeded = () => { request.result.createObjectStore('settings', { keyPath: 'key' }) }
+      request.onerror = () => reject(new Error(request.error?.message ?? 'Could not open the blocked-store fixture'))
+      request.onsuccess = () => {
+        const db = request.result
+        db.onversionchange = () => { /* Deliberately block the app's upgrade until explicit release. */ }
+        ;(window as unknown as Window & { releaseRecoveryStore: () => void }).releaseRecoveryStore = () => db.close()
+        const transaction = db.transaction('settings', 'readwrite')
+        transaction.objectStore('settings').put({ key: 'leathercad-recovery-autosave-v2', value: JSON.stringify(snapshot), updatedAt: Date.now() })
+        transaction.oncomplete = () => resolve()
+        transaction.onerror = () => reject(new Error(transaction.error?.message ?? 'Could not seed the blocked-store fixture'))
+      }
+    }), stored)
+    await page.goto('./', { waitUntil: 'domcontentloaded' })
+    await page.locator('svg.canvas').waitFor()
+    const warning = page.locator('aside.draft-recovery-failure')
+    // Both current slots and the legacy store must finish their own bounded
+    // checks before an unread result is shown. Wait for that observable result.
+    await warning.waitFor()
+    await expect(warning).toContainText('Automatic saving and sign-in are paused')
+    await expect(warning.getByRole('button', { name: 'Dismiss', exact: true })).toHaveCount(0)
+    const points = [{ x: 10, y: 10 }, { x: 50, y: 10 }, { x: 50, y: 30 }, { x: 10, y: 30 }]
+    const imported = { version: 2, name: 'Explicit import while recovery store is unread', unit_for_view: 'mm',
+      layers: [{ id: 'main', name: 'Main', visible: true, locked: false }], activeLayerId: 'main', groups: [],
+      shapes: points.map((point, index) => ({ id: `imported-${index}`, type: 'line', layerId: 'main', strokeColor: '#111111', strokeDash: 'solid',
+        x1: point.x, y1: point.y, x2: points[(index + 1) % points.length].x, y2: points[(index + 1) % points.length].y })) }
+    const input = page.locator('input[accept*=".lcad"]')
+    const upload = () => input.setInputFiles({ name: 'storage-unread-import.lcad', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) })
+    const review = page.getByRole('dialog', { name: 'Review drawing import' })
+    await upload()
+    await expect(review).toBeVisible()
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click()
+    await expect(review).toHaveCount(0)
+    await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(0)
+    await expect(warning).toContainText('Automatic saving and sign-in are paused')
+    await upload()
+    await review.getByRole('button', { name: 'Replace current drawing', exact: true }).click()
+    await expect(review).toHaveCount(0)
+    await expect(page.getByText(imported.name, { exact: true })).toBeVisible()
+    await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(4)
+    await expect(warning).toContainText('Automatic saving and sign-in are paused')
+    await page.evaluate(() => window.dispatchEvent(new Event('pagehide')))
+    expect(await page.evaluate(() => localStorage.getItem('leathercad-recovery-autosave-v2'))).toBeNull()
+
+    // Once the blocked database becomes readable, Retry must expose the old
+    // stored draft rather than acknowledge an empty store or silently replace
+    // the explicitly imported drawing.
+    await blocker.evaluate(() => (window as unknown as Window & { releaseRecoveryStore: () => void }).releaseRecoveryStore())
+    await warning.getByRole('button', { name: 'Check stored drafts again', exact: true }).click()
+    const recovery = page.getByRole('dialog', { name: 'Recover saved drawing' })
+    await expect(recovery.getByRole('button', { name: 'Download saved draft', exact: true })).toBeEnabled()
+    await expect(warning).toHaveCount(0)
+    const pending = page.waitForEvent('download')
+    await recovery.getByRole('button', { name: 'Download saved draft', exact: true }).click()
+    const backup = JSON.parse(await readFile(await (await pending).path(), 'utf8')) as { documentName: string }
+    expect(backup.documentName).toBe(unreadDocument.documentName)
+    await expect(page.getByText(imported.name, { exact: true })).toBeVisible()
+    await recovery.getByRole('button', { name: 'Discard stored drafts', exact: true }).click()
+    await expect(recovery).toHaveCount(0)
+    await expect(page.getByText(imported.name, { exact: true })).toBeVisible()
+  } finally { await blocker.close() }
+})
+
 test('saved drafts survive reload, offer backup before recovery, and require explicit discard', async ({ page }) => {
   await page.goto('/')
   await page.locator('svg.canvas').waitFor()

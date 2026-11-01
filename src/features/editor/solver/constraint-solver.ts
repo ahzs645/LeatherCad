@@ -1,39 +1,10 @@
 import type { Point, Shape } from '../cad/cad-types'
+import { isShapeLike } from '../cad/cad-geometry'
 import { isNativeCurve, nativeCurveBounds, nativeCurveEndpoints, nativeCurvePointAt, transformNativeCurve } from '../cad/native-curve-ops'
-import type {
-  AngleConstraint,
-  CoincidentConstraint,
-  DistanceConstraint,
-  EqualLengthConstraint,
-  HorizontalConstraint,
-  ParallelConstraint,
-  PerpendicularConstraint,
-  SolverConstraint,
-  SolverResult,
-  SymmetricConstraint,
-  TangentConstraint,
-  VerticalConstraint,
-} from './constraint-types'
-
-export type {
-  AngleConstraint,
-  CoincidentConstraint,
-  ConstraintAnchor,
-  DistanceConstraint,
-  EqualLengthConstraint,
-  HorizontalConstraint,
-  ParallelConstraint,
-  PerpendicularConstraint,
-  SolverConstraint,
-  SolverResult,
-  SymmetricConstraint,
-  TangentConstraint,
-  VerticalConstraint,
-} from './constraint-types'
-
-// ---------------------------------------------------------------------------
-// Anchor helpers
-// ---------------------------------------------------------------------------
+import { buildGroupAccess, isShapeLocked } from '../ops/shape-access'
+import { constraintCurveLength, constraintDirection, constraintTangent, endpoints, magnitude, rotateConstraintShape, scaleConstraintShape, separation, subtract, translateConstraintShape } from './constraint-geometry'
+import type { ConstraintAccess, SolverConstraint, SolverResult, TangentConstraint } from './constraint-types'
+export type * from './constraint-types'
 
 export function getAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | 'center'): Point {
   if (isNativeCurve(shape)) {
@@ -95,623 +66,212 @@ export function setAnchorPoint(shape: Shape, anchor: 'start' | 'end' | 'mid' | '
       const currentMid = getAnchorPoint(shape, 'mid')
       const dx = point.x - currentMid.x
       const dy = point.y - currentMid.y
-      return translateShape(clone, dx, dy)
+      return translateConstraintShape(clone, dx, dy)
     }
 
     case 'center': {
       const currentCenter = getAnchorPoint(shape, 'center')
       const dx = point.x - currentCenter.x
       const dy = point.y - currentCenter.y
-      return translateShape(clone, dx, dy)
+      return translateConstraintShape(clone, dx, dy)
     }
   }
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
+const RAD = Math.PI / 180
+/** Signed smallest rotation; unoriented relations are equivalent modulo pi. */
+function angleDelta(value: number, unoriented = false): number {
+  const period = unoriented ? Math.PI : 2 * Math.PI
+  return ((value + period / 2) % period + period) % period - period / 2
+}
+const directionAngle = (p: Point) => Math.atan2(p.y, p.x)
 
-function translateShape(shape: Shape, dx: number, dy: number): Shape {
-  if (isNativeCurve(shape)) return transformNativeCurve(shape, [1, 0, 0, 1, dx, dy])
-  const movePoint = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy })
-
-  switch (shape.type) {
-    case 'line':
-      return { ...shape, start: movePoint(shape.start), end: movePoint(shape.end) }
-    case 'arc':
-      return { ...shape, start: movePoint(shape.start), mid: movePoint(shape.mid), end: movePoint(shape.end) }
-    case 'bezier':
-      return { ...shape, start: movePoint(shape.start), control: movePoint(shape.control), end: movePoint(shape.end) }
-    case 'text':
-      return { ...shape, start: movePoint(shape.start), end: movePoint(shape.end) }
-  }
+function constraintShapeIds(c: SolverConstraint): string[] {
+  if (c.type === 'horizontal' || c.type === 'vertical') return [c.shapeId]
+  return c.type === 'symmetric' ? [c.shapeIdA, c.shapeIdB, c.axisShapeId] : [c.shapeIdA, c.shapeIdB]
 }
 
-function dist(a: Point, b: Point): number {
-  return Math.hypot(a.x - b.x, a.y - b.y)
+type EndpointPair = { a: 'start' | 'end'; b: 'start' | 'end' }
+function tangentPair(c: TangentConstraint, a: Shape, b: Shape): EndpointPair {
+  const anchors = ['end', 'start'] as const
+  const pairs = anchors.flatMap(aa => anchors.map(bb => ({ a: aa, b: bb })))
+    .filter(pair => (!c.anchorA || pair.a === c.anchorA) && (!c.anchorB || pair.b === c.anchorB))
+  pairs.sort((one, two) => separation(endpoints(a)[one.a], endpoints(b)[one.b]) - separation(endpoints(a)[two.a], endpoints(b)[two.b]))
+  return pairs[0]
 }
-
-function shapeLength(shape: Shape): number {
-  return dist(getAnchorPoint(shape, 'start'), getAnchorPoint(shape, 'end'))
-}
-
-function shapeDirection(shape: Shape): { dx: number; dy: number } {
-  const dx = getAnchorPoint(shape, 'end').x - getAnchorPoint(shape, 'start').x
-  const dy = getAnchorPoint(shape, 'end').y - getAnchorPoint(shape, 'start').y
-  return { dx, dy }
-}
-
-function normalizeDir(dx: number, dy: number): { dx: number; dy: number } {
-  const len = Math.hypot(dx, dy)
-  if (len < 1e-12) return { dx: 1, dy: 0 }
-  return { dx: dx / len, dy: dy / len }
-}
-
-// ---------------------------------------------------------------------------
-// Constraint-specific update strategies
-// ---------------------------------------------------------------------------
-
-function solveCoincident(
-  shapeMap: Map<string, Shape>,
-  c: CoincidentConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  const pA = getAnchorPoint(shapeA, c.anchorA)
-  const pB = getAnchorPoint(shapeB, c.anchorB)
-  const d = dist(pA, pB)
-
-  if (d > tolerance) {
-    const mid: Point = { x: (pA.x + pB.x) / 2, y: (pA.y + pB.y) / 2 }
-    shapeMap.set(c.shapeIdA, setAnchorPoint(shapeA, c.anchorA, mid))
-    shapeMap.set(c.shapeIdB, setAnchorPoint(shapeB, c.anchorB, mid))
-  }
-  return d
-}
-
-function solveDistance(
-  shapeMap: Map<string, Shape>,
-  c: DistanceConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  const pA = getAnchorPoint(shapeA, c.anchorA)
-  const pB = getAnchorPoint(shapeB, c.anchorB)
-  const d = dist(pA, pB)
-  const error = Math.abs(d - c.targetDistance)
-
-  if (error > tolerance) {
-    if (d < 1e-12) {
-      const half = c.targetDistance / 2
-      shapeMap.set(c.shapeIdA, setAnchorPoint(shapeA, c.anchorA, { x: pA.x - half, y: pA.y }))
-      shapeMap.set(c.shapeIdB, setAnchorPoint(shapeB, c.anchorB, { x: pB.x + half, y: pB.y }))
-    } else {
-      const ux = (pB.x - pA.x) / d
-      const uy = (pB.y - pA.y) / d
-      const correction = (d - c.targetDistance) / 2
-      shapeMap.set(c.shapeIdA, setAnchorPoint(shapeA, c.anchorA, {
-        x: pA.x + ux * correction,
-        y: pA.y + uy * correction,
-      }))
-      shapeMap.set(c.shapeIdB, setAnchorPoint(shapeB, c.anchorB, {
-        x: pB.x - ux * correction,
-        y: pB.y - uy * correction,
-      }))
-    }
-  }
-  return error
-}
-
-function solveHorizontal(
-  shapeMap: Map<string, Shape>,
-  c: HorizontalConstraint,
-  tolerance: number,
-): number {
-  const shape = shapeMap.get(c.shapeId)
-  if (!shape) return 0
-
-  const error = Math.abs(getAnchorPoint(shape, 'end').y - getAnchorPoint(shape, 'start').y)
-  if (error > tolerance) {
-    const avgY = (getAnchorPoint(shape, 'start').y + getAnchorPoint(shape, 'end').y) / 2
-    let updated = setAnchorPoint(shape, 'start', { x: getAnchorPoint(shape, 'start').x, y: avgY })
-    updated = setAnchorPoint(updated, 'end', { x: getAnchorPoint(shape, 'end').x, y: avgY })
-    shapeMap.set(c.shapeId, updated)
-  }
-  return error
-}
-
-function solveVertical(
-  shapeMap: Map<string, Shape>,
-  c: VerticalConstraint,
-  tolerance: number,
-): number {
-  const shape = shapeMap.get(c.shapeId)
-  if (!shape) return 0
-
-  const error = Math.abs(getAnchorPoint(shape, 'end').x - getAnchorPoint(shape, 'start').x)
-  if (error > tolerance) {
-    const avgX = (getAnchorPoint(shape, 'start').x + getAnchorPoint(shape, 'end').x) / 2
-    let updated = setAnchorPoint(shape, 'start', { x: avgX, y: getAnchorPoint(shape, 'start').y })
-    updated = setAnchorPoint(updated, 'end', { x: avgX, y: getAnchorPoint(shape, 'end').y })
-    shapeMap.set(c.shapeId, updated)
-  }
-  return error
-}
-
-function solveParallel(
-  shapeMap: Map<string, Shape>,
-  c: ParallelConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  const dirA = shapeDirection(shapeA)
-  const dirB = shapeDirection(shapeB)
-  const lenA = Math.hypot(dirA.dx, dirA.dy)
-  const lenB = Math.hypot(dirB.dx, dirB.dy)
-  if (lenA < 1e-12 || lenB < 1e-12) return 0
-
-  // Cross product = sin(angle between)
-  const cross = (dirA.dx * dirB.dy - dirA.dy * dirB.dx) / (lenA * lenB)
-  const error = Math.abs(cross)
-
-  if (error > tolerance * 0.01) {
-    // Rotate shapeB to be parallel to shapeA
-    const nA = normalizeDir(dirA.dx, dirA.dy)
-    const dot = (dirB.dx * nA.dx + dirB.dy * nA.dy)
-    const sign = dot >= 0 ? 1 : -1
-
-    const midB: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
-    }
-
-    const halfLen = lenB / 2
-    const newStart: Point = {
-      x: midB.x - nA.dx * halfLen * sign,
-      y: midB.y - nA.dy * halfLen * sign,
-    }
-    const newEnd: Point = {
-      x: midB.x + nA.dx * halfLen * sign,
-      y: midB.y + nA.dy * halfLen * sign,
-    }
-
-    // Only adjust half the error (split between shapes)
-    const blendedStart: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + newStart.x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + newStart.y) / 2,
-    }
-    const blendedEnd: Point = {
-      x: (getAnchorPoint(shapeB, 'end').x + newEnd.x) / 2,
-      y: (getAnchorPoint(shapeB, 'end').y + newEnd.y) / 2,
-    }
-
-    let updated = setAnchorPoint(shapeB, 'start', blendedStart)
-    updated = setAnchorPoint(updated, 'end', blendedEnd)
-    shapeMap.set(c.shapeIdB, updated)
-  }
-  return error
-}
-
-function solvePerpendicular(
-  shapeMap: Map<string, Shape>,
-  c: PerpendicularConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  const dirA = shapeDirection(shapeA)
-  const dirB = shapeDirection(shapeB)
-  const lenA = Math.hypot(dirA.dx, dirA.dy)
-  const lenB = Math.hypot(dirB.dx, dirB.dy)
-  if (lenA < 1e-12 || lenB < 1e-12) return 0
-
-  // Dot product = cos(angle between) — should be 0 for perpendicular
-  const dot = (dirA.dx * dirB.dx + dirA.dy * dirB.dy) / (lenA * lenB)
-  const error = Math.abs(dot)
-
-  if (error > tolerance * 0.01) {
-    // Rotate shapeB to be perpendicular to shapeA
-    const nA = normalizeDir(dirA.dx, dirA.dy)
-    // Perpendicular direction
-    const perpDx = -nA.dy
-    const perpDy = nA.dx
-    const cross = dirB.dx * perpDy - dirB.dy * perpDx
-    const sign = cross >= 0 ? 1 : -1
-
-    const midB: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
-    }
-
-    const halfLen = lenB / 2
-    const newStart: Point = {
-      x: midB.x - perpDx * halfLen * sign,
-      y: midB.y - perpDy * halfLen * sign,
-    }
-    const newEnd: Point = {
-      x: midB.x + perpDx * halfLen * sign,
-      y: midB.y + perpDy * halfLen * sign,
-    }
-
-    const blendedStart: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + newStart.x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + newStart.y) / 2,
-    }
-    const blendedEnd: Point = {
-      x: (getAnchorPoint(shapeB, 'end').x + newEnd.x) / 2,
-      y: (getAnchorPoint(shapeB, 'end').y + newEnd.y) / 2,
-    }
-
-    let updated = setAnchorPoint(shapeB, 'start', blendedStart)
-    updated = setAnchorPoint(updated, 'end', blendedEnd)
-    shapeMap.set(c.shapeIdB, updated)
-  }
-  return error
-}
-
-function solveEqualLength(
-  shapeMap: Map<string, Shape>,
-  c: EqualLengthConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  const lenA = shapeLength(shapeA)
-  const lenB = shapeLength(shapeB)
-  const error = Math.abs(lenA - lenB)
-
-  if (error > tolerance) {
-    const targetLen = (lenA + lenB) / 2
-    // Scale shapeB to target length from its midpoint
-    const midB: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
-    }
-    const dirB = normalizeDir(
-      getAnchorPoint(shapeB, 'end').x - getAnchorPoint(shapeB, 'start').x,
-      getAnchorPoint(shapeB, 'end').y - getAnchorPoint(shapeB, 'start').y,
-    )
-    const halfTarget = targetLen / 2
-    let updated = setAnchorPoint(shapeB, 'start', {
-      x: midB.x - dirB.dx * halfTarget,
-      y: midB.y - dirB.dy * halfTarget,
-    })
-    updated = setAnchorPoint(updated, 'end', {
-      x: midB.x + dirB.dx * halfTarget,
-      y: midB.y + dirB.dy * halfTarget,
-    })
-    shapeMap.set(c.shapeIdB, updated)
-  }
-  return error
-}
-
-function solveAngle(
-  shapeMap: Map<string, Shape>,
-  c: AngleConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  const dirA = shapeDirection(shapeA)
-  const dirB = shapeDirection(shapeB)
-  const lenB = Math.hypot(dirB.dx, dirB.dy)
-  if (lenB < 1e-12) return 0
-
-  const angleA = Math.atan2(dirA.dy, dirA.dx)
-  const angleB = Math.atan2(dirB.dy, dirB.dx)
-  const targetRad = (c.targetAngleDeg * Math.PI) / 180
-
-  let currentAngle = angleB - angleA
-  // Normalize to [-PI, PI]
-  while (currentAngle > Math.PI) currentAngle -= 2 * Math.PI
-  while (currentAngle < -Math.PI) currentAngle += 2 * Math.PI
-
-  let targetNorm = targetRad
-  while (targetNorm > Math.PI) targetNorm -= 2 * Math.PI
-  while (targetNorm < -Math.PI) targetNorm += 2 * Math.PI
-
-  const errorRad = Math.abs(currentAngle - targetNorm)
-  const errorDeg = (errorRad * 180) / Math.PI
-
-  if (errorDeg > tolerance * 0.5) {
-    const desiredAngle = angleA + targetNorm
-    const midB: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + getAnchorPoint(shapeB, 'end').x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + getAnchorPoint(shapeB, 'end').y) / 2,
-    }
-    const halfLen = lenB / 2
-    const newStart: Point = {
-      x: midB.x - Math.cos(desiredAngle) * halfLen,
-      y: midB.y - Math.sin(desiredAngle) * halfLen,
-    }
-    const newEnd: Point = {
-      x: midB.x + Math.cos(desiredAngle) * halfLen,
-      y: midB.y + Math.sin(desiredAngle) * halfLen,
-    }
-
-    // Blend for stability
-    const blendedStart: Point = {
-      x: (getAnchorPoint(shapeB, 'start').x + newStart.x) / 2,
-      y: (getAnchorPoint(shapeB, 'start').y + newStart.y) / 2,
-    }
-    const blendedEnd: Point = {
-      x: (getAnchorPoint(shapeB, 'end').x + newEnd.x) / 2,
-      y: (getAnchorPoint(shapeB, 'end').y + newEnd.y) / 2,
-    }
-
-    let updated = setAnchorPoint(shapeB, 'start', blendedStart)
-    updated = setAnchorPoint(updated, 'end', blendedEnd)
-    shapeMap.set(c.shapeIdB, updated)
-  }
-  return errorDeg
-}
-
-function solveSymmetric(
-  shapeMap: Map<string, Shape>,
-  c: SymmetricConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  const axisShape = shapeMap.get(c.axisShapeId)
-  if (!shapeA || !shapeB || !axisShape) return 0
-
-  const pA = getAnchorPoint(shapeA, c.anchorA)
-  const axisStart = getAnchorPoint(axisShape, 'start')
-  const axisEnd = getAnchorPoint(axisShape, 'end')
-  const axisDir = normalizeDir(axisEnd.x - axisStart.x, axisEnd.y - axisStart.y)
-
-  // Reflect pA across the axis line
-  const vx = pA.x - axisStart.x
-  const vy = pA.y - axisStart.y
-  const dot = vx * axisDir.dx + vy * axisDir.dy
-  const reflected: Point = {
-    x: 2 * (axisStart.x + dot * axisDir.dx) - pA.x,
-    y: 2 * (axisStart.y + dot * axisDir.dy) - pA.y,
-  }
-
-  const pB = getAnchorPoint(shapeB, c.anchorB)
-  const error = dist(pB, reflected)
-
-  if (error > tolerance) {
-    const target: Point = {
-      x: (pB.x + reflected.x) / 2,
-      y: (pB.y + reflected.y) / 2,
-    }
-    shapeMap.set(c.shapeIdB, setAnchorPoint(shapeB, c.anchorB, target))
-  }
-  return error
-}
-
-function solveTangent(
-  shapeMap: Map<string, Shape>,
-  c: TangentConstraint,
-  tolerance: number,
-): number {
-  const shapeA = shapeMap.get(c.shapeIdA)
-  const shapeB = shapeMap.get(c.shapeIdB)
-  if (!shapeA || !shapeB) return 0
-
-  // Tangent constraint: shapes touch at a single point and have the same
-  // tangent direction there. We approximate by checking if an endpoint of B
-  // lies on the tangent line of A's closest endpoint, and vice versa.
-  // For simplicity, we enforce coincident endpoints + parallel tangent.
-
-  // Find closest endpoint pair
-  const pairs = [
-    { aAnc: 'end' as const, bAnc: 'start' as const, d: dist(getAnchorPoint(shapeA, 'end'), getAnchorPoint(shapeB, 'start')) },
-    { aAnc: 'start' as const, bAnc: 'end' as const, d: dist(getAnchorPoint(shapeA, 'start'), getAnchorPoint(shapeB, 'end')) },
-    { aAnc: 'end' as const, bAnc: 'end' as const, d: dist(getAnchorPoint(shapeA, 'end'), getAnchorPoint(shapeB, 'end')) },
-    { aAnc: 'start' as const, bAnc: 'start' as const, d: dist(getAnchorPoint(shapeA, 'start'), getAnchorPoint(shapeB, 'start')) },
-  ]
-  pairs.sort((a, b) => a.d - b.d)
-  const best = pairs[0]
-
-  // Enforce coincident at the closest endpoint pair
-  const pA = getAnchorPoint(shapeA, best.aAnc)
-  const pB = getAnchorPoint(shapeB, best.bAnc)
-  const error = dist(pA, pB)
-
-  if (error > tolerance) {
-    const mid: Point = { x: (pA.x + pB.x) / 2, y: (pA.y + pB.y) / 2 }
-    shapeMap.set(c.shapeIdA, setAnchorPoint(shapeA, best.aAnc, mid))
-    shapeMap.set(c.shapeIdB, setAnchorPoint(shapeB, best.bAnc, mid))
-  }
-
-  return error
-}
-
-// ---------------------------------------------------------------------------
-// Constraint conflict detection
-// ---------------------------------------------------------------------------
-
-function detectConflicts(constraints: SolverConstraint[]): string[] {
-  const conflicts: string[] = []
-
-  // Count constraints per shape
-  const shapeConstraintCount = new Map<string, number>()
-  for (const c of constraints) {
-    const ids = getConstraintShapeIds(c)
-    for (const id of ids) {
-      shapeConstraintCount.set(id, (shapeConstraintCount.get(id) ?? 0) + 1)
-    }
-  }
-
-  // Check for over-constrained shapes (heuristic: >4 constraints on one shape)
-  for (const [shapeId, count] of shapeConstraintCount) {
-    if (count > 4) {
-      conflicts.push(`Shape ${shapeId.slice(0, 8)}... may be over-constrained (${count} constraints)`)
-    }
-  }
-
-  // Check for contradictory horizontal+vertical on same shape (would need point shape)
-  const horizontalShapes = new Set<string>()
-  const verticalShapes = new Set<string>()
-  for (const c of constraints) {
-    if (c.type === 'horizontal') horizontalShapes.add(c.shapeId)
-    if (c.type === 'vertical') verticalShapes.add(c.shapeId)
-  }
-  for (const id of horizontalShapes) {
-    if (verticalShapes.has(id)) {
-      conflicts.push(`Shape ${id.slice(0, 8)}... has both horizontal and vertical constraints`)
-    }
-  }
-
-  return conflicts
-}
-
-function getConstraintShapeIds(c: SolverConstraint): string[] {
-  switch (c.type) {
-    case 'horizontal':
-    case 'vertical':
-      return [c.shapeId]
-    case 'symmetric':
-      return [c.shapeIdA, c.shapeIdB, c.axisShapeId]
-    default:
-      return [c.shapeIdA, c.shapeIdB]
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Solver
-// ---------------------------------------------------------------------------
 
 /**
- * Enhanced Gauss-Seidel iterative constraint solver with constraint-specific
- * update strategies.
- *
- * Supports: distance, coincident, horizontal, vertical, parallel,
- * perpendicular, equal-length, angle, symmetric, tangent constraints.
- *
- * Includes basic overconstrained system detection.
+ * Exact primitive projections with a final whole-system residual check.
+ * Positional/length residuals are mm; angular residuals are degrees. Tangency
+ * requires endpoint contact AND parallel limiting tangents (G1, either sign).
+ * Full native changes live in shapeUpdates; updates is the legacy anchor view.
  */
 export function solveConstraints(
   shapes: Shape[],
   constraints: SolverConstraint[],
   maxIterations = 200,
   tolerance = 0.001,
+  access: ConstraintAccess = {},
 ): SolverResult {
-  if (constraints.length === 0) {
-    return {
-      converged: true,
-      iterations: 0,
-      residual: 0,
-      updates: new Map(),
-      conflicts: [],
+  const unchanged = (conflicts: string[], residual = Infinity): SolverResult => ({ converged: conflicts.length === 0, iterations: 0, residual, updates: new Map(), shapeUpdates: new Map(), conflicts })
+  if (!constraints.length) return unchanged([], 0)
+  if (!Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 10000 || !Number.isFinite(tolerance) || tolerance <= 0) return unchanged(['Invalid solver iteration limit or tolerance'])
+  if (new Set(shapes.map(shape => shape.id)).size !== shapes.length) return unchanged(['Duplicate shape IDs'])
+  if (new Set(constraints.map(c => c.id)).size !== constraints.length) return unchanged(['Duplicate constraint IDs'])
+  if (shapes.some(shape => !isShapeLike(shape))) return unchanged(['Invalid input geometry'])
+
+  const shapeMap = new Map(shapes.map(shape => [shape.id, shape]))
+  const groups = buildGroupAccess([...(access.sketchGroups ?? [])])
+  const lockedLayers = new Set(access.layers?.filter(layer => layer.locked).map(layer => layer.id))
+  const locked = new Set(shapes.filter(shape => isShapeLocked(shape, groups) || lockedLayers.has(shape.layerId)).map(shape => shape.id))
+  const pairs = new Map<string, EndpointPair>()
+  const errors = new Map<string, string>()
+  const lengths = new WeakMap<Shape, number>()
+  const length = (shape: Shape) => {
+    let value = lengths.get(shape)
+    if (value === undefined) { value = constraintCurveLength(shape, Math.min(1e-7, tolerance / 32)); lengths.set(shape, value) }
+    return value
+  }
+
+  const process = (c: SolverConstraint, apply: boolean): number => {
+    const ids = constraintShapeIds(c)
+    for (const id of ids) if (!shapeMap.has(id)) throw new Error(`Missing shape ${id}`)
+    const a = shapeMap.get(ids[0])!, b = shapeMap.get(ids[1])!
+    const freeA = !locked.has(a.id), freeB = b && !locked.has(b.id)
+    const pending = new Map<string, Shape>()
+    const put = (shape: Shape) => {
+      if (locked.has(shape.id)) return
+      if (!isShapeLike(shape)) throw new Error('Correction exceeds valid geometry bounds')
+      pending.set(shape.id, shape)
     }
-  }
+    const turn = (shape: Shape, angle: number, center = getAnchorPoint(shape, 'center')) => put(rotateConstraintShape(shape, angle, center))
+    const pairMustDiffer = () => { if (a.id === b.id) throw new Error('This unsatisfied self-relation cannot move two independent curves') }
+    let residual: number
 
-  const shapeMap = new Map<string, Shape>()
-  for (const s of shapes) {
-    shapeMap.set(s.id, { ...s })
-  }
-
-  const conflicts = detectConflicts(constraints)
-  const unsupported = new Set<SolverConstraint>()
-  for (const constraint of constraints) {
-    const involved = getConstraintShapeIds(constraint).map(id => shapeMap.get(id))
-    const hasNative = involved.some(shape => shape && isNativeCurve(shape))
-    const axis = constraint.type === 'symmetric' ? shapeMap.get(constraint.axisShapeId) : undefined
-    const curvedAxis = Boolean(axis && isNativeCurve(axis))
-    if (hasNative && (!['coincident', 'distance', 'symmetric'].includes(constraint.type) || curvedAxis)) {
-      unsupported.add(constraint)
-      conflicts.push(`Constraint ${constraint.id} (${constraint.type}) does not support native curve directions. Choose a position constraint or convert the curve explicitly.`)
-    }
-  }
-
-  let iterations = 0
-  let residual = Infinity
-
-  for (let iter = 0; iter < maxIterations; iter++) {
-    iterations = iter + 1
-    residual = 0
-
-    for (const constraint of constraints) {
-      if (unsupported.has(constraint)) continue
-      let error = 0
-
-      switch (constraint.type) {
-        case 'coincident':
-          error = solveCoincident(shapeMap, constraint, tolerance)
-          break
-        case 'distance':
-          error = solveDistance(shapeMap, constraint, tolerance)
-          break
-        case 'horizontal':
-          error = solveHorizontal(shapeMap, constraint, tolerance)
-          break
-        case 'vertical':
-          error = solveVertical(shapeMap, constraint, tolerance)
-          break
-        case 'parallel':
-          error = solveParallel(shapeMap, constraint, tolerance)
-          break
-        case 'perpendicular':
-          error = solvePerpendicular(shapeMap, constraint, tolerance)
-          break
-        case 'equal-length':
-          error = solveEqualLength(shapeMap, constraint, tolerance)
-          break
-        case 'angle':
-          error = solveAngle(shapeMap, constraint, tolerance)
-          break
-        case 'symmetric':
-          error = solveSymmetric(shapeMap, constraint, tolerance)
-          break
-        case 'tangent':
-          error = solveTangent(shapeMap, constraint, tolerance)
-          break
+    switch (c.type) {
+      case 'coincident':
+      case 'distance': {
+        if (c.type === 'distance' && (!Number.isFinite(c.targetDistance) || c.targetDistance < 0)) throw new Error('Distance must be finite and nonnegative')
+        const pa = getAnchorPoint(a, c.anchorA), pb = getAnchorPoint(b, c.anchorB), delta = subtract(pb, pa), d = magnitude(delta)
+        const target = c.type === 'distance' ? c.targetDistance : 0
+        residual = Math.abs(d - target)
+        if (apply && residual > tolerance) {
+          pairMustDiffer()
+          const error = d - target, ux = d > 1e-12 ? delta.x / d : 1, uy = d > 1e-12 ? delta.y / d : 0
+          const shareA = freeA ? freeB ? 0.5 : 1 : 0, shareB = freeB ? freeA ? 0.5 : 1 : 0
+          if (freeA) put(setAnchorPoint(a, c.anchorA, { x: pa.x + ux * error * shareA, y: pa.y + uy * error * shareA }))
+          if (freeB) put(setAnchorPoint(b, c.anchorB, { x: pb.x - ux * error * shareB, y: pb.y - uy * error * shareB }))
+        }
+        break
       }
-
-      residual = Math.max(residual, error)
+      case 'horizontal':
+      case 'vertical': {
+        const angle = angleDelta((c.type === 'horizontal' ? 0 : Math.PI / 2) - directionAngle(constraintDirection(a)), true)
+        residual = Math.abs(angle) / RAD
+        if (apply && residual > tolerance && freeA) turn(a, angle)
+        break
+      }
+      case 'parallel':
+      case 'perpendicular':
+      case 'angle': {
+        if (c.type === 'angle' && !Number.isFinite(c.targetAngleDeg)) throw new Error('Angle must be finite')
+        const target = c.type === 'parallel' ? 0 : c.type === 'perpendicular' ? Math.PI / 2 : (c.targetAngleDeg % 360) * RAD
+        const axial = [a, b].some(shape => shape.type === 'ellipse' && Math.abs(shape.sweepDeg) >= 360 - 1e-8)
+        const correction = angleDelta(directionAngle(constraintDirection(a)) + target - directionAngle(constraintDirection(b)), c.type !== 'angle' || axial)
+        residual = Math.abs(correction) / RAD
+        if (apply && residual > tolerance) {
+          pairMustDiffer()
+          if (freeB) turn(b, correction)
+          else if (freeA) turn(a, -correction)
+        }
+        break
+      }
+      case 'equal-length': {
+        const la = length(a), lb = length(b)
+        residual = Math.abs(la - lb)
+        if (apply && residual > tolerance) {
+          pairMustDiffer()
+          const target = freeA && freeB ? (la + lb) / 2 : freeA ? lb : la
+          if (freeA) put(scaleConstraintShape(a, target / la, getAnchorPoint(a, 'center')))
+          if (freeB) put(scaleConstraintShape(b, target / lb, getAnchorPoint(b, 'center')))
+        }
+        break
+      }
+      case 'symmetric': {
+        const axis = shapeMap.get(c.axisShapeId)!, origin = axis.type === 'ellipse' && Math.abs(axis.sweepDeg) >= 360 - 1e-8 ? axis.center : endpoints(axis).start, direction = constraintDirection(axis), norm = magnitude(direction)
+        const ux = direction.x / norm, uy = direction.y / norm
+        const reflect = (p: Point): Point => {
+          const dot = (p.x - origin.x) * ux + (p.y - origin.y) * uy
+          return { x: 2 * (origin.x + dot * ux) - p.x, y: 2 * (origin.y + dot * uy) - p.y }
+        }
+        const pa = getAnchorPoint(a, c.anchorA), pb = getAnchorPoint(b, c.anchorB)
+        residual = separation(reflect(pa), pb)
+        if (apply && residual > tolerance) {
+          pairMustDiffer()
+          if (axis.id === a.id || axis.id === b.id) throw new Error('A reflection axis must be independent of the moved curves')
+          if (freeB) put(setAnchorPoint(b, c.anchorB, reflect(pa)))
+          else if (freeA) put(setAnchorPoint(a, c.anchorA, reflect(pb)))
+        }
+        break
+      }
+      case 'tangent': {
+        if (!pairs.has(c.id)) pairs.set(c.id, tangentPair(c, a, b))
+        const pair = pairs.get(c.id)!, pa = endpoints(a)[pair.a], pb = endpoints(b)[pair.b]
+        const ta = constraintTangent(a, pair.a), tb = constraintTangent(b, pair.b)
+        const correction = angleDelta(directionAngle(ta) - directionAngle(tb), true)
+        residual = Math.max(separation(pa, pb), Math.abs(correction) / RAD)
+        if (apply && residual > tolerance) {
+          pairMustDiffer()
+          if (freeB) put(translateConstraintShape(rotateConstraintShape(b, correction, pb), pa.x - pb.x, pa.y - pb.y))
+          else if (freeA) put(translateConstraintShape(rotateConstraintShape(a, -correction, pa), pb.x - pa.x, pb.y - pa.y))
+        }
+        break
+      }
     }
-
-    if (residual <= tolerance) {
-      break
-    }
+    if (!Number.isFinite(residual)) throw new Error('Constraint has a nonfinite residual')
+    if (apply) for (const [id, updated] of pending) shapeMap.set(id, updated)
+    return residual
   }
 
-  // Build the updates map
-  const updates = new Map<string, Map<string, Point>>()
-  const anchors: Array<'start' | 'end' | 'mid' | 'center'> = ['start', 'end', 'mid', 'center']
+  const safelyProcess = (c: SolverConstraint, apply: boolean): number => {
+    if (errors.has(c.id)) return Infinity
+    try { return process(c, apply) } catch (error) {
+      errors.set(c.id, `Constraint ${c.id} (${c.type}): ${error instanceof Error ? error.message : String(error)}`)
+      return Infinity
+    }
+  }
+  let iterations = 0, residual = Infinity
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    iterations = iteration + 1
+    for (const c of constraints) safelyProcess(c, true)
+    // Later projections can invalidate earlier ones: measure the returned geometry.
+    residual = Math.max(...constraints.map(c => safelyProcess(c, false)))
+    if (residual <= tolerance || errors.size === constraints.length) break
+  }
 
+  const conflicts = [...errors.values()]
+  for (const c of constraints) {
+    if (errors.has(c.id)) continue
+    const error = safelyProcess(c, false)
+    if (error > tolerance) {
+      const protectedIds = constraintShapeIds(c).filter(id => locked.has(id))
+      conflicts.push(`Constraint ${c.id} (${c.type}) remains unsatisfied${protectedIds.length ? `; locked shapes: ${protectedIds.join(', ')}` : '; conflicting or nonconvergent relations'}`)
+    }
+  }
+  const updates = new Map<string, Map<string, Point>>(), shapeUpdates = new Map<string, Shape>()
   for (const original of shapes) {
-    const updated = shapeMap.get(original.id)
-    if (!updated) continue
-
-    const anchorUpdates = new Map<string, Point>()
-    for (const anchor of anchors) {
-      const oldP = getAnchorPoint(original, anchor)
-      const newP = getAnchorPoint(updated, anchor)
-      if (Math.abs(oldP.x - newP.x) > 1e-9 || Math.abs(oldP.y - newP.y) > 1e-9) {
-        anchorUpdates.set(anchor, newP)
-      }
+    const updated = shapeMap.get(original.id)!
+    if (updated === original) continue
+    shapeUpdates.set(original.id, updated)
+    const points = new Map<string, Point>()
+    for (const anchor of ['start', 'end', 'mid', 'center'] as const) {
+      const before = getAnchorPoint(original, anchor), after = getAnchorPoint(updated, anchor)
+      if (separation(before, after) > 1e-9) points.set(anchor, after)
     }
-    if (anchorUpdates.size > 0) {
-      updates.set(original.id, anchorUpdates)
+    if (updated.type === 'cubic' && original.type === 'cubic') for (const key of ['control1', 'control2'] as const) {
+      if (separation(original[key], updated[key]) > 1e-9) points.set(key, updated[key])
     }
+    if (points.size) updates.set(original.id, points)
   }
-
-  return {
-    converged: unsupported.size === 0 && residual <= tolerance,
-    iterations,
-    residual,
-    updates,
-    conflicts,
-  }
+  return { converged: errors.size === 0 && residual <= tolerance, iterations, residual, updates, shapeUpdates, conflicts }
 }

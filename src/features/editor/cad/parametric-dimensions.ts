@@ -1,6 +1,9 @@
-import type { Point, Shape } from './cad-types'
-import { distance } from './cad-geometry'
-import { isNativeCurve, nativeCurveEndpoints, nativeCurvePointAt } from './native-curve-ops'
+import type { CubicShape, Point, Shape } from './cad-types'
+import { distance, isShapeLike } from './cad-geometry'
+import { nativeCurveEndpoints, nativeCurvePointAt, transformNativeCurve } from './native-curve-ops'
+import { evaluateShapeAt } from '../ops/geometry/path-core'
+import { buildGroupAccess, isShapeLocked } from '../ops/shape-access'
+import type { ConstraintAccess } from '../solver/constraint-types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -15,12 +18,14 @@ export type DimensionParam = {
   expression?: string
 }
 
+export type DimensionAnchor = 'start' | 'end' | 'mid' | 'control' | 'control1' | 'control2' | 'center' | 'quarter' | 'threeQuarter'
+
 export type DimensionBinding = {
   id: string
   paramId: string
   shapeId: string
-  anchorFrom: 'start' | 'end' | 'mid' | 'control'
-  anchorTo: 'start' | 'end' | 'mid' | 'control'
+  anchorFrom: DimensionAnchor
+  anchorTo: DimensionAnchor
   axis: 'x' | 'y' | 'distance'
 }
 
@@ -251,137 +256,132 @@ export function resolveAllParams(params: DimensionParam[]): Map<string, number> 
   return resolved
 }
 
-// ---------------------------------------------------------------------------
-// Anchor helpers
-// ---------------------------------------------------------------------------
+// Cubic landmarks are affine combinations of the four stored controls.
+function cubicWeights(anchor: DimensionAnchor): number[] {
+  if (anchor === 'start') return [1, 0, 0, 0]
+  if (anchor === 'end') return [0, 0, 0, 1]
+  if (anchor === 'control' || anchor === 'control1') return [0, 1, 0, 0]
+  if (anchor === 'control2') return [0, 0, 1, 0]
+  if (anchor === 'center') return [0.5, 0, 0, 0.5]
+  const t = anchor === 'quarter' ? 0.25 : anchor === 'threeQuarter' ? 0.75 : 0.5, u = 1 - t
+  return [u ** 3, 3 * u * u * t, 3 * u * t * t, t ** 3]
+}
 
-function getAnchorPoint(
-  shape: Shape,
-  anchor: 'start' | 'end' | 'mid' | 'control',
-): Point {
-  if (isNativeCurve(shape)) {
+function getAnchorPoint(shape: Shape, anchor: DimensionAnchor): Point {
+  if (shape.type === 'cubic') {
+    const weights = cubicWeights(anchor), points = [shape.start, shape.control1, shape.control2, shape.end]
+    return points.reduce((sum, point, i) => ({ x: sum.x + point.x * weights[i], y: sum.y + point.y * weights[i] }), { x: 0, y: 0 })
+  }
+  if (shape.type === 'ellipse') {
+    if (anchor === 'center') return shape.center
+    if (anchor === 'control1' || anchor === 'control2') throw new Error(`An ellipse has no ${anchor} anchor; use center and parameter landmarks`)
     if (anchor === 'start' || anchor === 'end') return nativeCurveEndpoints(shape)[anchor]
-    if (anchor === 'control' && shape.type === 'cubic') return shape.control1
-    return nativeCurvePointAt(shape, 0.5)
+    return nativeCurvePointAt(shape, anchor === 'quarter' ? 0.25 : anchor === 'threeQuarter' ? 0.75 : 0.5)
   }
   if (anchor === 'start') return shape.start
   if (anchor === 'end') return shape.end
-  if (anchor === 'mid') {
-    if (shape.type === 'arc') return shape.mid
-    // For other shapes, compute midpoint of start/end
-    return {
-      x: (shape.start.x + shape.end.x) / 2,
-      y: (shape.start.y + shape.end.y) / 2,
-    }
-  }
-  if (anchor === 'control') {
+  if (anchor === 'control2') throw new Error('The control2 anchor requires a cubic curve')
+  if (anchor === 'quarter' || anchor === 'threeQuarter') return evaluateShapeAt(shape, anchor === 'quarter' ? 0.25 : 0.75)
+  if (anchor === 'mid' && shape.type === 'arc') return shape.mid
+  if (anchor === 'control' || anchor === 'control1') {
     if (shape.type === 'bezier') return shape.control
     if (shape.type === 'arc') return shape.mid
-    // Fallback: midpoint
-    return {
-      x: (shape.start.x + shape.end.x) / 2,
-      y: (shape.start.y + shape.end.y) / 2,
-    }
   }
-  return shape.start
+  return { x: (shape.start.x + shape.end.x) / 2, y: (shape.start.y + shape.end.y) / 2 }
 }
 
-function setAnchorPoint(
-  shape: Shape,
-  anchor: 'start' | 'end' | 'mid' | 'control',
-  point: Point,
-): Shape {
-  if (shape.type === 'ellipse') throw new Error('Ellipse dimension bindings cannot move virtual anchors. Edit its radii or use a position constraint.')
-  if (shape.type === 'cubic') {
-    if (anchor === 'control') return { ...shape, control1: point }
-    if (anchor === 'mid') throw new Error('Cubic midpoint bindings are unsupported. Choose an endpoint or control anchor.')
-    return { ...shape, [anchor]: point }
+function moveCubicAnchor(shape: CubicShape, from: DimensionAnchor, to: DimensionAnchor, delta: Point): CubicShape {
+  const f = cubicWeights(from), t = cubicWeights(to), dot = (a: number[], b: number[]) => a.reduce((sum, v, i) => sum + v * b[i], 0)
+  const projection = dot(f, t) / dot(f, f), independent = t.map((value, i) => value - projection * f[i]), denominator = dot(t, independent)
+  if (Math.abs(denominator) < 1e-12) throw new Error('Coincident cubic anchor definitions cannot have a nonzero dimension')
+  const updated = { ...shape }
+  for (const [i, key] of (['start', 'control1', 'control2', 'end'] as const).entries()) {
+    updated[key] = { x: shape[key].x + independent[i] / denominator * delta.x, y: shape[key].y + independent[i] / denominator * delta.y }
   }
-  const clone = { ...shape }
-  if (anchor === 'start') {
-    return { ...clone, start: point }
-  }
-  if (anchor === 'end') {
-    return { ...clone, end: point }
-  }
-  if (anchor === 'mid') {
-    if (clone.type === 'arc') return { ...clone, mid: point }
-    // For non-arc shapes, 'mid' is virtual – move end to match
-    return { ...clone, end: point }
-  }
-  if (anchor === 'control') {
-    if (clone.type === 'bezier') return { ...clone, control: point }
-    if (clone.type === 'arc') return { ...clone, mid: point }
-    return clone
-  }
-  return clone
+  return updated
 }
 
-// ---------------------------------------------------------------------------
-// applyDimensionBindings
-// ---------------------------------------------------------------------------
+/** Fix the source landmark and move the target using a nonsingular affine map. */
+function moveEllipseAnchor(shape: Extract<Shape, { type: 'ellipse' }>, from: Point, to: Point, target: Point): Shape {
+  const vx = to.x - from.x, vy = to.y - from.y, wx = target.x - from.x, wy = target.y - from.y
+  const length = Math.hypot(vx, vy), targetLength = Math.hypot(wx, wy)
+  if (length < 1e-10) throw new Error('Coincident ellipse landmarks cannot be separated by an affine dimension')
+  if (targetLength < 1e-10) throw new Error('A dimension cannot collapse distinct ellipse landmarks')
+  const ux = vx / length, uy = vy / length, nx = -uy, ny = ux, zx = wx / length, zy = wy / length
+  // Retain the perpendicular direction unless that would make the map singular.
+  const dot = (vx * wx + vy * wy) / (length * targetLength)
+  const px = Math.abs(dot) < 1e-8 ? -wy / targetLength : nx, py = Math.abs(dot) < 1e-8 ? wx / targetLength : ny
+  const a = zx * ux + px * nx, b = zy * ux + py * nx, c = zx * uy + px * ny, d = zy * uy + py * ny
+  return transformNativeCurve(shape, [a, b, c, d, from.x - a * from.x - c * from.y, from.y - b * from.x - d * from.y])
+}
 
+function moveLegacyAnchor(shape: Exclude<Shape, { type: 'cubic' | 'ellipse' }>, anchor: DimensionAnchor, point: Point): Shape {
+  if (anchor === 'start' || anchor === 'end') return { ...shape, [anchor]: point }
+  if (anchor === 'control' || anchor === 'control1') {
+    if (shape.type === 'bezier') return { ...shape, control: point }
+    if (shape.type === 'arc') return { ...shape, mid: point }
+  }
+  if (anchor === 'mid' && shape.type === 'arc') return { ...shape, mid: point }
+  // Virtual affine landmarks on the legacy primitives: changing the endpoint
+  // changes the midpoint by half that amount. Iteration checks the true result.
+  const current = getAnchorPoint(shape, anchor), dx = point.x - current.x, dy = point.y - current.y
+  if (anchor === 'quarter' || anchor === 'threeQuarter') throw new Error('Quarter dimension mutation requires a native cubic or ellipse')
+  return { ...shape, end: { x: shape.end.x + 2 * dx, y: shape.end.y + 2 * dy } }
+}
+
+export type DimensionBindingOptions = ConstraintAccess & { tolerance?: number; maxIterations?: number }
+
+/** Atomic projection of bindings; incompatible or locked requests throw, never return partial success. */
 export function applyDimensionBindings(
   shapes: Shape[],
   bindings: DimensionBinding[],
   resolvedParams: Map<string, number>,
+  options: DimensionBindingOptions = {},
 ): Shape[] {
-  const shapeMap = new Map<string, Shape>()
-  for (const s of shapes) {
-    shapeMap.set(s.id, { ...s })
+  const tolerance = options.tolerance ?? 1e-6, maxIterations = options.maxIterations ?? 64
+  if (!Number.isFinite(tolerance) || tolerance <= 0 || !Number.isInteger(maxIterations) || maxIterations < 1 || maxIterations > 10000) throw new Error('Invalid dimension iteration limit or tolerance')
+  if (new Set(shapes.map(shape => shape.id)).size !== shapes.length) throw new Error('Duplicate shape IDs')
+  const shapeMap = new Map(shapes.map(shape => [shape.id, shape]))
+  const groups = buildGroupAccess([...(options.sketchGroups ?? [])]), lockedLayers = new Set(options.layers?.filter(layer => layer.locked).map(layer => layer.id))
+  const active = bindings.filter(binding => resolvedParams.has(binding.paramId))
+  for (const binding of active) {
+    const value = resolvedParams.get(binding.paramId)!
+    if (!Number.isFinite(value) || (binding.axis === 'distance' && value < 0)) throw new Error(`Dimension ${binding.id} must be finite${binding.axis === 'distance' ? ' and nonnegative' : ''}`)
+    if (!shapeMap.has(binding.shapeId)) throw new Error(`Dimension ${binding.id} references a missing shape`)
   }
-
-  for (const binding of bindings) {
-    const paramValue = resolvedParams.get(binding.paramId)
-    if (paramValue === undefined) continue
-
-    const shape = shapeMap.get(binding.shapeId)
-    if (!shape || shape.locked) continue
-
-    const from = getAnchorPoint(shape, binding.anchorFrom)
-    const to = getAnchorPoint(shape, binding.anchorTo)
-
-    let newTo: Point
-
-    if (binding.axis === 'x') {
-      newTo = { x: from.x + paramValue, y: to.y }
-    } else if (binding.axis === 'y') {
-      newTo = { x: to.x, y: from.y + paramValue }
-    } else {
-      // distance – keep direction from->to, set magnitude
-      const dx = to.x - from.x
-      const dy = to.y - from.y
-      const currentDist = Math.hypot(dx, dy)
-      if (currentDist < 1e-9) {
-        // If the two anchors coincide, extend along X by default
-        newTo = { x: from.x + paramValue, y: from.y }
-      } else {
-        const scale = paramValue / currentDist
-        newTo = {
-          x: from.x + dx * scale,
-          y: from.y + dy * scale,
-        }
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    for (const binding of active) {
+      const value = resolvedParams.get(binding.paramId)!, shape = shapeMap.get(binding.shapeId)!
+      if (Math.abs(measureDimension(shape, binding) - value) <= tolerance) continue
+      if (isShapeLocked(shape, groups) || lockedLayers.has(shape.layerId)) throw new Error(`Dimension ${binding.id} cannot change a locked shape`)
+      const from = getAnchorPoint(shape, binding.anchorFrom), to = getAnchorPoint(shape, binding.anchorTo)
+      let target: Point
+      if (binding.axis === 'x') target = { x: from.x + value, y: to.y }
+      else if (binding.axis === 'y') target = { x: to.x, y: from.y + value }
+      else {
+        const dx = to.x - from.x, dy = to.y - from.y, length = Math.hypot(dx, dy)
+        target = length < 1e-10 ? { x: from.x + value, y: from.y } : { x: from.x + dx * value / length, y: from.y + dy * value / length }
       }
+      // A zero signed projection can rotate a nonzero ellipse chord onto the
+      // free axis; only a zero Euclidean distance requires a collapsed curve.
+      if (shape.type === 'ellipse' && binding.axis !== 'distance' && distance(from, target) < 1e-10) {
+        const length = distance(from, to)
+        target = binding.axis === 'x' ? { x: target.x, y: from.y + length } : { x: from.x + length, y: target.y }
+      }
+      const updated = shape.type === 'ellipse' ? moveEllipseAnchor(shape, from, to, target)
+        : shape.type === 'cubic' ? moveCubicAnchor(shape, binding.anchorFrom, binding.anchorTo, { x: target.x - to.x, y: target.y - to.y })
+          : moveLegacyAnchor(shape, binding.anchorTo, target)
+      if (!isShapeLike(updated)) throw new Error(`Dimension ${binding.id} exceeds valid geometry bounds`)
+      shapeMap.set(shape.id, updated)
     }
-
-    const updatedShape = setAnchorPoint(shape, binding.anchorTo, newTo)
-    shapeMap.set(shape.id, updatedShape)
+    if (active.every(binding => Math.abs(measureDimension(shapeMap.get(binding.shapeId)!, binding) - resolvedParams.get(binding.paramId)!) <= tolerance)) return shapes.map(shape => shapeMap.get(shape.id)!)
   }
-
-  return shapes.map((s) => shapeMap.get(s.id) ?? s)
+  const failed = active.filter(binding => Math.abs(measureDimension(shapeMap.get(binding.shapeId)!, binding) - resolvedParams.get(binding.paramId)!) > tolerance)
+  throw new Error(`Conflicting or nonconvergent dimension bindings: ${failed.map(binding => binding.id).join(', ')}`)
 }
 
-// ---------------------------------------------------------------------------
-// measureDimension
-// ---------------------------------------------------------------------------
-
-export function measureDimension(
-  shape: Shape,
-  binding: DimensionBinding,
-): number {
-  const from = getAnchorPoint(shape, binding.anchorFrom)
-  const to = getAnchorPoint(shape, binding.anchorTo)
-
+export function measureDimension(shape: Shape, binding: DimensionBinding): number {
+  const from = getAnchorPoint(shape, binding.anchorFrom), to = getAnchorPoint(shape, binding.anchorTo)
   if (binding.axis === 'x') return to.x - from.x
   if (binding.axis === 'y') return to.y - from.y
   return distance(from, to)

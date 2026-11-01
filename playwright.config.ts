@@ -70,6 +70,8 @@ export default defineConfig({
         /production-build\.spec\.ts$/,
         /manufacturing\.spec\.ts$/,
         /native-curves\.spec\.ts$/,
+        /browser-compatibility\.spec\.ts$/,
+        /calibration\.spec\.ts$/,
       ],
     },
     {
@@ -79,7 +81,7 @@ export default defineConfig({
         baseURL: previewURL,
         ...chromiumLaunchOverride,
       },
-      testMatch: /(?:production-build|manufacturing|native-curves|interchange)\.spec\.ts$/,
+      testMatch: /(?:production-build|manufacturing|calibration|native-curves|interchange)\.spec\.ts$/,
     },
     {
       // Crosses the 1100px mobile breakpoint defined in the editor layout.

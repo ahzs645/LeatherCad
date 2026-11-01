@@ -20,7 +20,7 @@ const ATELIER = [
 // browser dependencies on first use otherwise makes Vite re-optimize and reload
 // an already edited document. Include the known runtime imports at startup.
 const LAZY_BROWSER_DEPENDENCIES = [
-  'clipper-lib', 'dexie', 'opentype.js', 'pdfjs-dist/legacy/build/pdf.mjs', 'three',
+  'clipper-lib', 'dexie', 'manifold-3d', 'opentype.js', 'pdfjs-dist/legacy/build/pdf.mjs', 'three',
   '@atelier/geometry > delaunator',
   'three/addons/controls/OrbitControls.js',
   'three/addons/controls/TransformControls.js',

@@ -28,6 +28,7 @@
     "vite-manual-chunks.test.ts",
     "playwright.config.ts",
     "playwright.release.config.ts",
+    "playwright.webkit.config.ts",
     "e2e/**/*.ts"
   ]
 }

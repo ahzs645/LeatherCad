@@ -27,6 +27,7 @@ export function createStlMeshBuilder(extraPoints: Point[] = []) {
       const contour = outer.map((point) => new Vector2(point.x, point.y))
       const cutouts = holes.map((ring) => ring.map((point) => new Vector2(point.x, point.y)))
       const points = [outer, ...holes].flat()
+      const landmarks = new Set(points.map(point => `${point.x.toFixed(4)},${point.y.toFixed(4)}`))
       const unique = new Map([...points, ...extraPoints].map((point) => [`${point.x.toFixed(4)},${point.y.toFixed(4)}`, point]))
       const sorted = [...unique.values()].sort((a, b) => a.x - b.x)
       const edgePoints = (a: Point, b: Point) => {
@@ -61,8 +62,7 @@ export function createStlMeshBuilder(extraPoints: Point[] = []) {
           // Earcut can bridge aligned holes with a long edge that skips other
           // contour vertices. Split those T-junctions so caps and walls share
           // identical edges, rather than emitting a merely visual closed mesh.
-          const center = vertex({ x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 }, (elevation(a) + elevation(b) + elevation(c)) / 3)
-          const zAt = (point: Point) => {
+          const linearElevation = (point: Point) => {
             // A subdivided cap edge lies on one original triangle edge.
             for (let edge = 0; edge < 3; edge++) {
               const p = ordered[edge], q = ordered[(edge + 1) % 3]
@@ -72,7 +72,35 @@ export function createStlMeshBuilder(extraPoints: Point[] = []) {
             }
             return elevation(point)
           }
-          boundary.forEach((point, index) => addTriangles([center, vertex(point, zAt(point)), vertex(boundary[(index + 1) % boundary.length], zAt(boundary[(index + 1) % boundary.length]))]))
+          const zAt = (point: Point) => landmarks.has(`${point.x.toFixed(4)},${point.y.toFixed(4)}`) ? elevation(point) : linearElevation(point)
+          const hasElevationBreak = boundary.some(point => Math.abs(zAt(point) - linearElevation(point)) > 1e-8)
+          if (hasElevationBreak) {
+            // A contour point can be collinear in XY and still be a real 3D
+            // breakpoint. Triangulate the convex triangle boundary while keeping
+            // every landmark; a centroid fan would distort a chamfer at holes.
+            const remaining = [...boundary], direction = upward ? 1 : -1
+            while (remaining.length > 3) {
+              let clipped = false
+              for (let i = 0; i < remaining.length; i++) {
+                const before = remaining[(i + remaining.length - 1) % remaining.length], at = remaining[i], after = remaining[(i + 1) % remaining.length]
+                if (signedArea([before, at, after]) * direction <= 1e-10) continue
+                const dx = after.x - before.x, dy = after.y - before.y, lengthSquared = dx * dx + dy * dy
+                const skipsLandmark = remaining.some(point => {
+                  if (point === before || point === at || point === after) return false
+                  const t = ((point.x - before.x) * dx + (point.y - before.y) * dy) / lengthSquared
+                  return t > 1e-8 && t < 1 - 1e-8 && Math.abs(dx * (point.y - before.y) - dy * (point.x - before.x)) < 1e-8
+                })
+                if (skipsLandmark) continue
+                addTriangles([vertex(before, zAt(before)), vertex(at, zAt(at)), vertex(after, zAt(after))])
+                remaining.splice(i, 1); clipped = true; break
+              }
+              if (!clipped) throw new Error('Could not triangulate a finished surface without dropping an elevation landmark. Reduce edge size or simplify the outline.')
+            }
+            addTriangles(remaining.map(point => vertex(point, zAt(point))) as StlTriangle)
+          } else {
+            const center = vertex({ x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 }, (elevation(a) + elevation(b) + elevation(c)) / 3)
+            boundary.forEach((point, index) => addTriangles([center, vertex(point, zAt(point)), vertex(boundary[(index + 1) % boundary.length], zAt(boundary[(index + 1) % boundary.length]))]))
+          }
         }
       }
     }
@@ -94,7 +122,11 @@ export function createStlMeshBuilder(extraPoints: Point[] = []) {
       }
     }
   }
-  return { mesh, caps, walls, surface }
+  const append = (other: StlMesh) => {
+    const remap = other.vertices.map(point => vertex(point, point.z))
+    for (const [a, b, c] of other.triangles) addTriangles([remap[a], remap[b], remap[c]])
+  }
+  return { mesh, caps, walls, surface, append }
 }
 
 export function validateStlMesh(mesh: StlMesh) {

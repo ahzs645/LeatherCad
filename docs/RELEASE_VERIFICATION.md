@@ -17,6 +17,7 @@ pnpm lint
 pnpm check:architecture
 pnpm typecheck
 pnpm test
+pnpm test:cloud-readiness
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:release
@@ -27,6 +28,10 @@ pnpm test:release
 `test:release` starts only a production preview of the existing `dist/`. It verifies boot, PDF worker/vector import through review, lazy file tools/library download, cloud availability, native-curve creation/edit/export, interchange failure paths, advanced STL workers/settings/fonts, and the pairing artifact. The full `pnpm test:e2e` remains the desktop/tablet/phone and simulation gate. Pages runs the built-bundle gate before uploading its artifact. The manual/tag-triggered **Verify release pair** workflow runs the clean-install checks and retains the bundle and browser failure evidence; it does not publish a release.
 
 For a system Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. A path-prefixed build can use `LEATHERCAD_RELEASE_URL=http://127.0.0.1:41742/LeatherCad/` with the release gate. Verify the exact built artifact intended for deployment.
+
+`LEATHERCAD_RELEASE_URL` also accepts an existing HTTPS app directory URL. Remote origins are tested directly without starting local Vite. Local HTTP loopback URLs require an explicit preview port. Release test navigation stays inside the configured directory, including `/LeatherCad/`; provide an app directory URL without query parameters or credentials.
+
+`pnpm exec playwright install --with-deps webkit` and `pnpm test:webkit` add Linux WebKit checks for imports, recovery, downloads, phone touch and physical print scale. The manual/tag release verification workflow runs this gate too. Safari/iOS hardware still needs the [physical and device acceptance walkthrough](PHYSICAL_DEVICE_ACCEPTANCE.md); Playwright viewport descriptors do not reproduce that operating system.
 
 ## Updating the engine pair
 

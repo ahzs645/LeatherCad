@@ -1,11 +1,11 @@
 import { useRef } from 'react'
 import type { DraftRecoveryDialogProps } from '../hooks/useDraftRecovery'
 import { useModalDialogFocus } from '../hooks/useModalDialogFocus'
-import { useTranslate } from '../hooks/useTranslate'
+import { useEditorLocale, useTranslate } from '../hooks/useTranslate'
 import './DraftRecoveryDialog.css'
 
 export function DraftRecoveryDialog(props: DraftRecoveryDialogProps) {
-  const t = useTranslate(), ref = useRef<HTMLDivElement>(null)
+  const t = useTranslate(), locale = useEditorLocale(), ref = useRef<HTMLDivElement>(null)
   const open = props.loading || Boolean(props.draft)
   useModalDialogFocus({ dialogRef: ref, open, onClose: () => undefined, closeOnEscape: false })
   return <>
@@ -24,7 +24,7 @@ export function DraftRecoveryDialog(props: DraftRecoveryDialogProps) {
           {props.drafts.length > 1 ? <label>{t('Saved draft')}<select value={props.selected} onChange={event => props.onSelect(Number(event.target.value))} disabled={props.busy}>
             {props.drafts.map((item, index) => <option key={item.key} value={index}>{item.snapshot?.reason === 'signin' ? t('Before sign-in') : t('Automatic save')}</option>)}
           </select></label> : null}
-          {props.draft?.snapshot?.savedAt ? <p>{t('Saved')} {new Date(props.draft.snapshot.savedAt).toLocaleString()}</p> : null}
+          {props.draft?.snapshot?.savedAt ? <p>{t('Saved')} {new Date(props.draft.snapshot.savedAt).toLocaleString(locale)}</p> : null}
           {props.error || props.draft?.error ? <p role="alert">{t(props.error || props.draft?.error || '')}</p> : null}
           {props.draft?.warning ? <p role="alert">{t(props.draft.warning)} <button onClick={props.onRetry} disabled={props.busy}>{t('Check stored drafts again')}</button></p> : null}
           <div className="line-type-modal-actions">

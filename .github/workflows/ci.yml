@@ -62,6 +62,9 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      - name: Cloud activation protocol tests
+        run: pnpm test:cloud-readiness
+
       # `pnpm test:e2e` is not run here. It is a local gate -- see e2e/README.md.
       #
       # The suite drives a real browser against two servers it starts itself:

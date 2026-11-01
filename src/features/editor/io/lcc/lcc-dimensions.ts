@@ -1,6 +1,7 @@
 import { uid } from '../../cad/cad-geometry'
 import type { DimensionLine, Point } from '../../cad/cad-types'
 import type { RawDimensionSegment, RawDimensionText } from './lcc-types'
+export const MAX_LEGACY_DIMENSION_PRIMITIVES = 2048
 
 export function parseLccPathCenter(path: string | undefined) {
   if (!path) {
@@ -368,6 +369,7 @@ function rebuildGroupedDimensions(segments: RawDimensionSegment[], texts: RawDim
 }
 
 export function rebuildImportedDimensions(segments: RawDimensionSegment[], texts: RawDimensionText[]): DimensionLine[] {
+  if (segments.length + texts.length > MAX_LEGACY_DIMENSION_PRIMITIVES) throw new Error('LCC exceeds the 2,048 legacy dimension-reconstruction primitive limit. Re-save as native DIMENSION records or LCAD in the original application.')
   if (segments.length === 0 && texts.length === 0) {
     return []
   }

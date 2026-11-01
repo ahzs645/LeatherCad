@@ -1,0 +1,37 @@
+{
+  "scope": "Owned synthetic fixture; no captured user/account/session data",
+  "observedBuild": "Coffee Craft CAD Web2026-10-27",
+  "referenceScriptSha256": "b5830eaade610a428de0776d1989361fc7ddfae9fc2f48e0833f67551af586a1",
+  "fixture": "docs/fixtures/interchange/reference-sealed-rectangle.lcc",
+  "fixtureSha256": "3c7182be21fe1fcd358a58bb1a7be2d5eab48783f3b14e0e24933b4d7c49a8f6",
+  "protocol": {
+    "containerVersion": 1,
+    "encoding": "zlib+base64",
+    "minimumReader": "4.2.0",
+    "innerVersion": "4.2.0",
+    "integrity": "HMAC-SHA-256 over literal UTF-8 sealed.data text",
+    "headerCoveredByMac": false,
+    "establishesAuthorshipOrLicense": false,
+    "compressedBytes": 610,
+    "decodedBytes": 2259,
+    "innerShapeTypes": { "LINE": 4 },
+    "ignoredOuterCompatibilityShapeTypes": { "TEXT": 1 }
+  },
+  "originalRuntime": {
+    "context": "Anonymous network-isolated replay, no account/session responses replayed",
+    "validFixtureOpensAsShapes": 4,
+    "nativeLcadConversionLineCount": 4,
+    "tamperedMacRejected": true,
+    "tamperedDataRejected": true,
+    "existingDocumentRetainedForBothTamperCases": true,
+    "pageErrors": []
+  },
+  "leatherCad": {
+    "verifier": "reference-v1-format-integrity",
+    "validFixtureLineCount": 4,
+    "widthMm": 24,
+    "heightMm": 16,
+    "unitRegressionFile": "src/features/editor/io/io-lcc-sealed.test.ts",
+    "productionWorkerAcceptanceFile": "e2e/interchange.spec.ts"
+  }
+}

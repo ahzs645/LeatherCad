@@ -13,7 +13,7 @@ function referenceDrawing(overlap = false, text = false) {
   ], groups: [] }
 }
 async function openManufacturing(page: Page, overlap = false, text = false) {
-  await page.goto('/')
+  await page.goto('./')
   await page.locator('svg.canvas').waitFor()
   await page.locator('input[accept*=".lcad"]').setInputFiles({ name: 'manufacturing.lcad', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(referenceDrawing(overlap, text))) })
   const review = page.getByRole('dialog', { name: 'Review drawing import' })
@@ -87,11 +87,16 @@ test('manufacturing face depths and through cuts change exported geometry', asyn
   const result = await downloadGeometry(page, dialog)
   expect(result.extent(2)).toBe(2)
   expect(new Set(result.vertices.map((p) => p[2])).has(1)).toBe(true)
+  await dialog.getByLabel('Edge finish', { exact: true }).selectOption('fillet')
+  await dialog.getByLabel('Edge size (mm)', { exact: true }).fill('0.25')
+  expect((await downloadGeometry(page, dialog)).extent(2)).toBeCloseTo(2, 5)
   await dialog.getByRole('button', { name: 'Reset all region overrides', exact: true }).click()
   await expect(dialog.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled()
 })
 
-test('uploaded font engraving exports top and bottom recesses and rejects incompatible finishing', async ({ page }) => {
+test('uploaded font engraving combines with chamfers and fillets using lazy WASM', async ({ page }) => {
+  const wasmRequests: string[] = []
+  page.on('request', request => { if (request.url().includes('manifold') && new URL(request.url()).pathname.endsWith('.wasm')) wasmRequests.push(request.url()) })
   let dialog = await openManufacturing(page, false, true)
   await dialog.getByLabel('Engraving face', { exact: true }).selectOption('top')
   await expect(dialog.getByRole('alert')).toContainText('Load the exact')
@@ -108,10 +113,26 @@ test('uploaded font engraving exports top and bottom recesses and rejects incomp
   const bottom = await downloadGeometry(page, dialog)
   expect(new Set(bottom.vertices.map((p) => p[2])).has(0.5)).toBe(true)
   await dialog.getByLabel('Edge finish', { exact: true }).selectOption('chamfer')
-  await expect(dialog.getByRole('alert')).toContainText('uniform pattern thickness without engraving')
+  const chamfered = await downloadGeometry(page, dialog)
+  expect(chamfered.extent(2)).toBeCloseTo(2, 5)
+  expect(new Set(chamfered.vertices.map(p => p[2])).has(0.5)).toBe(true)
+  await dialog.getByLabel('Edge finish', { exact: true }).selectOption('fillet')
+  expect((await downloadGeometry(page, dialog)).extent(2)).toBeCloseTo(2, 5)
+  expect(wasmRequests.length).toBeGreaterThan(0)
+  const deploymentBase = new URL('./', page.url()).pathname
+  expect(wasmRequests.every(url => new URL(url).pathname.startsWith(deploymentBase))).toBe(true)
+})
+
+test('a failed solid-engine download preserves the drawing and basic export remains usable', async ({ page }) => {
+  await page.route('**/*manifold*.wasm*', route => route.abort())
+  const dialog = await openManufacturing(page)
+  await dialog.getByLabel('Mode', { exact: true }).selectOption('jig')
+  await dialog.getByLabel('Edge finish', { exact: true }).selectOption('chamfer')
+  await expect(dialog.getByRole('alert')).toContainText('solid finishing engine could not load')
   await expect(dialog.getByRole('button', { name: 'Download STL', exact: true })).toBeDisabled()
   await dialog.getByLabel('Edge finish', { exact: true }).selectOption('none')
-  await expect(dialog.getByRole('button', { name: 'Download STL', exact: true })).toBeEnabled()
+  expect((await downloadGeometry(page, dialog)).extent(2)).toBe(5)
+  await expect(page.getByText('Manufacturing acceptance', { exact: true })).toBeVisible()
 })
 
 test('replacing the drawing resets manufacturing settings and cancels the previous session', async ({ page }) => {

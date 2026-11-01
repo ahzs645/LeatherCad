@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "a703237",
+  "scope": "App-owned recovery decisions/actions, analytic geometry and protection controls in every selectable locale; Japanese print/manufacturing and selected cloud-library copy; shared specialist control labels in 19 non-English locales.",
+  "checks": {
+    "focusedUnitTests": {
+      "files": 4,
+      "passed": 24,
+      "command": "node node_modules/vitest/vitest.mjs run src/features/editor/components/StlCalibrationDownload.test.tsx src/features/editor/components/SpecialistLocalization.test.tsx src/features/editor/components/LanguageSelector.test.tsx src/features/editor/workbench/NativeCurveInspectorControls.test.tsx"
+    },
+    "browser": {
+      "engine": "Chromium",
+      "casesPassed": 4,
+      "source": "Private Vite dev server; no shared dist build",
+      "cases": [
+        "Desktop Japanese/German switching and reload persistence",
+        "Phone Options language selector",
+        "Japanese/German print paper ID/dimensions, numeric input, desktop and phone layout/scroll reachability",
+        "Real calibration Worker gauge/checklist downloads,88x60x8mm extents, unchanged original STL and Japanese phone panel"
+      ],
+      "note": "Print case was rerun after explicit localized select accessibility labels were added."
+    },
+    "appTypecheck": "passed",
+    "scopedEslint": "passed",
+    "reactReview": "Applied vercel:react-best-practices; unconditional translation hooks, whole-message placeholders, stable operation IDs and canonical data, localized accessible names.",
+    "audit": {
+      "usedKeys": 1002,
+      "placeholderErrors": 0,
+      "missingRequiredKeys": 0
+    },
+    "calibration": {
+      "gaugeFilename": "leathercad-printer-fit-gauge.stl",
+      "checklistFilename": "leathercad-printer-fit-checklist.txt",
+      "gaugeExtentsMm": [
+        88,
+        60,
+        8
+      ],
+      "originalStlByteIdentical": true,
+      "generationDeadlineMs": 30000,
+      "checklistAvailableWithoutWorker": true,
+      "physicalChecks": "unperformed"
+    }
+  },
+  "screenshots": [
+    "specialist-print-desktop.png",
+    "specialist-print-phone.png",
+    "specialist-print-german-phone.png",
+    "specialist-calibration-panel.png",
+    "specialist-calibration-phone.png"
+  ],
+  "limits": [
+    "No native-speaking CAD/manufacturing expert review has been performed.",
+    "Deep cloud/community workflows and technical diagnostics remain partially English.",
+    "Audit excludes unwired candidates and dynamic expressions from the translated-key denominator.",
+    "Actual WebKit and integrated suite validation are owned by the root integration pass.",
+    "Fit-gauge measurement checklist is English; physical hardware measurements remain unperformed."
+  ]
+}

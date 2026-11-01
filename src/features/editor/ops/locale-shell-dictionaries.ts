@@ -1,5 +1,8 @@
 import type { TranslationMap } from './translation-ops'
 import { INTERFACE_SHELL_DICTIONARIES } from './locale-interface-shell'
+import { RECOVERY_DICTIONARIES } from './locale-recovery'
+import { SPECIALIST_CONTROL_DICTIONARIES } from './locale-specialist-controls'
+import { NATIVE_EDITOR_DICTIONARIES } from './locale-native-editor'
 
 // The same main editing actions are translated in every selectable language.
 // Advanced dialogs fall back to English unless the locale supplies more keys.
@@ -183,6 +186,9 @@ export const SHELL_DICTIONARIES: Record<string, TranslationMap> = Object.fromEnt
     if (values.length !== SHELL_TRANSLATION_KEYS.length) throw new Error(`Incomplete interface dictionary: ${locale}`)
     const entries: TranslationMap = Object.fromEntries(SHELL_TRANSLATION_KEYS.map((key, index) => [key, values[index]]))
     Object.assign(entries, INTERFACE_SHELL_DICTIONARIES[locale])
+    Object.assign(entries, RECOVERY_DICTIONARIES[locale])
+    Object.assign(entries, SPECIALIST_CONTROL_DICTIONARIES[locale])
+    Object.assign(entries, NATIVE_EDITOR_DICTIONARIES[locale])
     entries.Drafting = entries.Draft
     entries.Assembly = entries['3D Assembly']
     entries.Printing = entries.Print

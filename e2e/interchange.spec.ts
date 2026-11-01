@@ -19,7 +19,7 @@ function referenceRectangle() {
 }
 
 async function importRectangle(page: Page) {
-  await page.goto('/')
+  await page.goto('./')
   await page.locator('svg.canvas').waitFor()
   await page.locator('input[accept*=".lcad"]').setInputFiles({
     name: 'rectangle.lcad', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(referenceRectangle())),
@@ -50,6 +50,54 @@ test('native LCAD import/export keeps a rectangle and sealed LCC rejection prese
   await expect(page.locator('.workbench-statusbar [role="status"]')).toContainText(/sealed/i)
   await expect(page.getByText('Interchange rectangle', { exact: true })).toBeVisible()
   await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(4)
+})
+
+test('genuine sealed LCC uses the browser worker, reviews real geometry, and preserves the document on cancel or corruption', async ({ page }) => {
+  const workers: string[] = []
+  page.on('worker', worker => workers.push(worker.url()))
+  await importRectangle(page)
+  const workerCount = workers.length
+  const raw = await readFile(new URL('../docs/fixtures/interchange/reference-sealed-rectangle.lcc', import.meta.url), 'utf8')
+  const input = page.locator('input[accept*=".lcad"]')
+  const upload = async (text: string, name = 'Verified rectangle.lcc') => input.setInputFiles({ name, mimeType: 'application/json', buffer: Buffer.from(text) })
+  await upload(raw)
+  const review = page.getByRole('dialog', { name: 'Review drawing import' })
+  await expect(review).toBeVisible()
+  await expect(review.getByText('Verified sealed LCC v1', { exact: true })).toBeVisible()
+  await expect(review.getByText('24.00 × 16.00 mm', { exact: true })).toBeVisible()
+  await expect(review.locator('svg polyline')).toHaveCount(4)
+  expect(workers.slice(workerCount).some(url => /document-import\.worker/.test(url))).toBe(true)
+  await review.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(page.getByText('Interchange rectangle', { exact: true })).toBeVisible()
+  await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(4)
+
+  await upload(raw)
+  await expect(review).toBeVisible()
+  await review.getByRole('button', { name: 'Replace current drawing', exact: true }).click()
+  await expect(page.getByText('Verified rectangle', { exact: true })).toBeVisible()
+  await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(4)
+  await page.getByTestId('ribbon-tab-output').click()
+  const pending = page.waitForEvent('download')
+  await page.getByTestId('ribbon-command-save-json').click()
+  const saved = JSON.parse(await readFile(await (await pending).path(), 'utf8')) as { objects: Array<{ type: string; start: { x: number; y: number }; end: { x: number; y: number } }> }
+  expect(saved.objects).toHaveLength(4)
+  expect(saved.objects.every(shape => shape.type === 'line')).toBe(true)
+  const points = saved.objects.flatMap(shape => [shape.start, shape.end])
+  expect(Math.max(...points.map(point => point.x)) - Math.min(...points.map(point => point.x))).toBe(24)
+  expect(Math.max(...points.map(point => point.y)) - Math.min(...points.map(point => point.y))).toBe(16)
+
+  for (const kind of ['MAC', 'data', 'version', 'encoding']) {
+    const outer = JSON.parse(raw.replace(/^\uFEFF/, '')) as { sealed: { ver: number; enc: string; data: string; mac: string } }
+    if (kind === 'MAC') outer.sealed.mac = '0'.repeat(64)
+    if (kind === 'data') outer.sealed.data = (outer.sealed.data[0] === 'A' ? 'B' : 'A') + outer.sealed.data.slice(1)
+    if (kind === 'version') outer.sealed.ver = 2
+    if (kind === 'encoding') outer.sealed.enc = 'gzip+base64'
+    await upload(JSON.stringify(outer), `invalid-${kind}.lcc`)
+    await expect(page.locator('.workbench-statusbar [role="status"]')).toContainText(/Could not load.*Sealed LCC files/)
+    await expect(review).toHaveCount(0)
+    await expect(page.getByText('Verified rectangle', { exact: true })).toBeVisible()
+    await expect(page.locator('svg.canvas .canvas-editable-geometry-layer .shape-line')).toHaveCount(4)
+  }
 })
 
 test('STL export produces finite millimetre geometry for the imported pattern and jig', async ({ page }, testInfo) => {
@@ -92,7 +140,7 @@ test('DXF imports append geometry and cloud setup is explicit', async ({ page })
   await page.getByTestId('ribbon-command-cloud-community').click()
   const cloud = page.getByRole('dialog', { name: 'Cloud & Community' })
   await expect(cloud).toBeVisible()
-  await expect(cloud.getByText(/Cloud sharing is not available/)).toBeVisible()
+  await expect(cloud.getByText(/Cloud sharing is not available/).or(cloud.getByRole('button', { name: 'Sign in', exact: true }))).toBeVisible()
 })
 
 test('a failed tool download can be closed without reloading the drawing', async ({ page }) => {
@@ -109,7 +157,7 @@ test('a failed tool download can be closed without reloading the drawing', async
 
 test('phone file tools keep touch targets and keyboard focus inside the dialog', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
+  await page.goto('./')
   await page.locator('select.tool-select-mobile').waitFor()
   await page.getByRole('button', { name: 'Options', exact: true }).click()
   await page.getByRole('button', { name: 'File', exact: true }).click()

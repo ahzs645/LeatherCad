@@ -1,0 +1,351 @@
+{
+  "schemaVersion": 1,
+  "dateUtc": "2026-11-01",
+  "method": "Independent Python trimesh reread of exported ASCII STL; checks closed edges, orientation, positive volume, broken faces, components, dimensions and horizontal slice contours. This does not prove all manufacturing tolerances or replace slicer and physical inspection.",
+  "software": {
+    "python": "3.12.14",
+    "trimesh": "5.2.0",
+    "numpy": "2.5.4"
+  },
+  "physicalChecks": "unperformed",
+  "fixtures": [
+    {
+      "fixture": "chamfer-top-engraving.stl",
+      "sha256": "581cf6673c8da3804aa26e2ceb197f2150139b0571d3e84840784db57bbaafad",
+      "triangles": 60,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          40.0,
+          20.0,
+          4.0
+        ]
+      ],
+      "dimensionsMm": [
+        40.0,
+        20.0,
+        4.0
+      ],
+      "volumeMm3": 3159.7733328533336,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 1,
+      "componentVolumesMm3": [
+        3159.7733328533336
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 1
+        },
+        "1.75": {
+          "contours": 1
+        },
+        "3.75": {
+          "contours": 3
+        },
+        "5.5": {
+          "contours": 0
+        },
+        "7.5": {
+          "contours": 0
+        }
+      }
+    },
+    {
+      "fixture": "fillet-bottom-engraving.stl",
+      "sha256": "fcf53b12635846e81ba1014cbd305d7004489d7e8dcc34a7aecf1704f1f625cb",
+      "triangles": 236,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          40.0,
+          20.0,
+          4.0
+        ]
+      ],
+      "dimensionsMm": [
+        40.0,
+        20.0,
+        4.0
+      ],
+      "volumeMm3": 3176.5141149894293,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 1,
+      "componentVolumesMm3": [
+        3176.5141149894293
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 3
+        },
+        "1.75": {
+          "contours": 1
+        },
+        "3.75": {
+          "contours": 1
+        },
+        "5.5": {
+          "contours": 0
+        },
+        "7.5": {
+          "contours": 0
+        }
+      }
+    },
+    {
+      "fixture": "fillet-stepped-engraving.stl",
+      "sha256": "b5459ab93980f57125b9c9620085704c46418b972992c35c19dfa831b74c2ec6",
+      "triangles": 384,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          30.0,
+          20.0,
+          4.0
+        ]
+      ],
+      "dimensionsMm": [
+        30.0,
+        20.0,
+        4.0
+      ],
+      "volumeMm3": 1971.2877630381518,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 1,
+      "componentVolumesMm3": [
+        1971.2877630381518
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 1
+        },
+        "1.75": {
+          "contours": 3
+        },
+        "3.75": {
+          "contours": 3
+        },
+        "5.5": {
+          "contours": 0
+        },
+        "7.5": {
+          "contours": 0
+        }
+      }
+    },
+    {
+      "fixture": "jig-drilled-engraved-fillet.stl",
+      "sha256": "0568beb4e8e36f042e80bb9215fd21b016e61b81995946192270c4286d6dae2f",
+      "triangles": 570,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          30.0,
+          20.0,
+          5.0
+        ]
+      ],
+      "dimensionsMm": [
+        30.0,
+        20.0,
+        5.0
+      ],
+      "volumeMm3": 2352.0104378846713,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 1,
+      "componentVolumesMm3": [
+        2352.0104378846713
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 3
+        },
+        "1.75": {
+          "contours": 5
+        },
+        "3.75": {
+          "contours": 2
+        },
+        "5.5": {
+          "contours": 0
+        },
+        "7.5": {
+          "contours": 0
+        }
+      }
+    },
+    {
+      "fixture": "nested-three-height-chamfer.stl",
+      "sha256": "9a840f0f0bcca02fcde344baf48eb35cc43c1f1190b8ba2cfdffa2b2e4389c37",
+      "triangles": 3576,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          40.0,
+          20.0,
+          6.0
+        ]
+      ],
+      "dimensionsMm": [
+        40.0,
+        20.0,
+        6.0
+      ],
+      "volumeMm3": 3057.741797501511,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 1,
+      "componentVolumesMm3": [
+        3057.741797501511
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 2
+        },
+        "1.75": {
+          "contours": 2
+        },
+        "3.75": {
+          "contours": 1
+        },
+        "5.5": {
+          "contours": 1
+        },
+        "7.5": {
+          "contours": 0
+        }
+      }
+    },
+    {
+      "fixture": "nested-three-height-fillet.stl",
+      "sha256": "1c4d3b2b322aa12bb2ef2c930c6e81be9b399ca621c069b973f8a3309f1749d4",
+      "triangles": 4950,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          40.0,
+          20.0,
+          6.0
+        ]
+      ],
+      "dimensionsMm": [
+        40.0,
+        20.0,
+        6.0
+      ],
+      "volumeMm3": 3081.646965458769,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 1,
+      "componentVolumesMm3": [
+        3081.646965458769
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 2
+        },
+        "1.75": {
+          "contours": 2
+        },
+        "3.75": {
+          "contours": 1
+        },
+        "5.5": {
+          "contours": 1
+        },
+        "7.5": {
+          "contours": 0
+        }
+      }
+    },
+    {
+      "fixture": "printer-fit-gauge.stl",
+      "sha256": "3bc5558a6dcca8fb5433cdff40345665668cbb3098c17b303ef1ca07396541be",
+      "triangles": 4708,
+      "boundsMm": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          88.0,
+          60.0,
+          8.0
+        ]
+      ],
+      "dimensionsMm": [
+        88.0,
+        60.0,
+        8.0
+      ],
+      "volumeMm3": 19703.09658863,
+      "watertight": true,
+      "windingConsistent": true,
+      "positiveVolume": true,
+      "brokenFaces": 0,
+      "components": 3,
+      "componentVolumesMm3": [
+        19248.099213749996,
+        56.425374880000014,
+        398.5720000000001
+      ],
+      "sectionsAtZMm": {
+        "0.25": {
+          "contours": 9
+        },
+        "1.75": {
+          "contours": 9
+        },
+        "3.75": {
+          "contours": 15
+        },
+        "5.5": {
+          "contours": 2
+        },
+        "7.5": {
+          "contours": 1
+        }
+      }
+    }
+  ]
+}

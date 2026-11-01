@@ -119,7 +119,7 @@ export function getShapePoints(shape: Shape) {
   return sampleTextShapePoints(shape)
 }
 
-export function getBounds(shapes: Shape[]) {
+export function getBounds(shapes: Shape[], padding = 100) {
   if (shapes.length === 0) {
     return {
       minX: -500,
@@ -141,7 +141,21 @@ export function getBounds(shapes: Shape[]) {
       maxX = Math.max(maxX, bounds.maxX); maxY = Math.max(maxY, bounds.maxY)
       continue
     }
-    for (const point of getShapePoints(shape)) {
+    const points = getShapePoints(shape)
+    if (shape.type === 'arc') {
+      const circle = circleThroughPoints(shape.start, shape.mid, shape.end)
+      if (circle) {
+        const angle = (p: Point) => Math.atan2(p.y - circle.center.y, p.x - circle.center.x)
+        const start = angle(shape.start), end = angle(shape.end)
+        const forward = deltaCcw(start, angle(shape.mid)) <= deltaCcw(start, end)
+        const span = forward ? deltaCcw(start, end) : deltaCcw(end, start)
+        for (const candidate of [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2]) {
+          const distance = forward ? deltaCcw(start, candidate) : deltaCcw(candidate, start)
+          if (distance <= span + 1e-10) points.push({ x: circle.center.x + circle.radius * Math.cos(candidate), y: circle.center.y + circle.radius * Math.sin(candidate) })
+        }
+      }
+    }
+    for (const point of points) {
       minX = Math.min(minX, point.x)
       minY = Math.min(minY, point.y)
       maxX = Math.max(maxX, point.x)
@@ -149,12 +163,11 @@ export function getBounds(shapes: Shape[]) {
     }
   }
 
-  const padding = 100
   return {
     minX: minX - padding,
     minY: minY - padding,
-    width: Math.max(100, maxX - minX + padding * 2),
-    height: Math.max(100, maxY - minY + padding * 2),
+    width: Math.max(padding, maxX - minX + padding * 2),
+    height: Math.max(padding, maxY - minY + padding * 2),
   }
 }
 

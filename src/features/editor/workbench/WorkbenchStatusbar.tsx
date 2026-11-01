@@ -34,7 +34,7 @@ export function WorkbenchStatusbar({
           className="workbench-status-message"
           role="status"
           aria-live="polite"
-          title={statusText}
+          title={t(statusText)}
           style={{ minWidth: 0, maxWidth: '45vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
           {t(statusText)}

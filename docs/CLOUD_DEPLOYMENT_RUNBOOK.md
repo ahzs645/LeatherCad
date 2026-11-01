@@ -2,6 +2,8 @@
 
 Cloud code is implemented and tested locally. No deployment, identity-provider registration, live user account or external write has been configured or verified in this workspace. Local editing remains the primary workflow.
 
+Use the [activation commands](CLOUD_ACTIVATION.md) and [.env.cloud.example](../.env.cloud.example) to inspect configuration, generate types against an explicit existing target and run read-only or opt-in two-account smoke checks.
+
 ## Configure a real environment
 
 1. Select separate development and production Convex deployments using the normal CLI authorization process. Register an existing public SPA OIDC client for Authorization Code + PKCE S256. Do not create a browser client secret.

@@ -47,6 +47,10 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   const {
     printSelectedOnly,
     printPaper,
+    printOrientation,
+    printIntoMargin,
+    printCalibrationXPercent,
+    printCalibrationYPercent,
     printMarginMm,
     printOverlapMm,
     printTileX,
@@ -57,6 +61,10 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
   } = useEditorPanelSelector((state) => ({
     printSelectedOnly: state.printSelectedOnly,
     printPaper: state.printPaper,
+    printOrientation: state.printOrientation,
+    printIntoMargin: state.printIntoMargin,
+    printCalibrationXPercent: state.printCalibrationXPercent,
+    printCalibrationYPercent: state.printCalibrationYPercent,
     printMarginMm: state.printMarginMm,
     printOverlapMm: state.printOverlapMm,
     printTileX: state.printTileX,
@@ -427,13 +435,16 @@ export function useEditorDerivedState(params: UseEditorDerivedStateParams) {
     () =>
       buildPrintPlan(printableShapes, {
         paper: printPaper,
-        marginMm: printMarginMm,
+        orientation: printOrientation,
+        marginMm: printIntoMargin ? 0 : printMarginMm,
         overlapMm: printOverlapMm,
         tileX: printTileX,
         tileY: printTileY,
         scalePercent: printScalePercent,
+        calibrationXPercent: printCalibrationXPercent,
+        calibrationYPercent: printCalibrationYPercent,
       }),
-    [printableShapes, printPaper, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent],
+    [printableShapes, printPaper, printOrientation, printIntoMargin, printMarginMm, printOverlapMm, printTileX, printTileY, printScalePercent, printCalibrationXPercent, printCalibrationYPercent],
   )
 
   const activeExportRoleCount = useMemo(

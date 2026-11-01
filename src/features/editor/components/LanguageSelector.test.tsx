@@ -119,7 +119,7 @@ describe('interface languages', () => {
       expect(coverage.fallback).toBe('en')
       if (locale === 'en' || locale === 'ja') continue
       for (const key of SHELL_TRANSLATION_KEYS) expect(SHELL_DICTIONARIES[locale][key]?.trim().length).toBeGreaterThan(0)
-      expect(coverage.scope).toBe('core-shell')
+      expect(coverage.scope).toBe('shell-recovery-and-specialist-controls')
     }
     expect(getLocaleCoverage('ja').scope).toBe('shell-and-main-dialogs')
   })

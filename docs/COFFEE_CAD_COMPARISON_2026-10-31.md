@@ -1,6 +1,6 @@
 # Coffee Craft CAD comparison and jsmap test
 
-Reviewed 2026-10-31. The reference is the supplied [Drive file](https://drive.google.com/file/d/1a-pA-GHKp7jzNOTDICV48bWbLQj3FRXj/view), a HAR recording of `cad.coffee-craft.net`, not the older desktop app used by the existing parity audit.
+Reviewed 2026-10-31. The reference is the privately supplied `cadcoffee` HAR recording of `cad.coffee-craft.net`, identified by the hash below. Its access link and raw recording are omitted because the capture includes account data. This is the captured web app, distinct from the older desktop version used by the existing parity audit.
 
 This is the baseline audit. The subsequent [implementation report](COFFEE_CAD_IMPLEMENTATION_2026-10-31.md) records completed fixes, new functionality, verification and remaining limits.
 

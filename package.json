@@ -27,7 +27,14 @@
     "test:ai-builder-functional": "vitest run src/features/editor/ai-builder/ai-builder-functional.test.ts",
     "check:engine": "node scripts/verify-engine-pair.mjs",
     "test:release": "playwright test --config playwright.release.config.ts",
-    "audit:localization": "node scripts/audit-localization.mjs --out docs/verification/localization-coverage.json --check-core"
+    "audit:localization": "node scripts/audit-localization.mjs --out docs/verification/localization-coverage.json --check-core",
+    "calibration:print": "node scripts/generate-print-calibration.mjs",
+    "test:webkit": "playwright test --config playwright.webkit.config.ts",
+    "cloud:preflight": "node scripts/cloud-preflight.mjs",
+    "cloud:codegen": "node scripts/cloud-preflight.mjs --codegen",
+    "cloud:smoke": "node scripts/cloud-smoke.mjs",
+    "test:cloud-readiness": "node --test scripts/cloud-readiness.test.mjs",
+    "calibration:stl": "node scripts/generate-stl-calibration.mjs"
   },
   "dependencies": {
     "@atelier/core": "link:../atelier/packages/core",
@@ -42,6 +49,7 @@
     "convex": "^1.49.0",
     "convex-helpers": "^0.1.133",
     "dexie": "^4.4.2",
+    "manifold-3d": "3.5.4",
     "oidc-client-ts": "^3.5.0",
     "opentype.js": "^1.3.4",
     "pdfjs-dist": "^5.5.207",

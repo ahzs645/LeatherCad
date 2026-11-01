@@ -1,5 +1,7 @@
 # LeatherCad follow-up implementation
 
+This report records the October 31 implementation and its verification. The [November remaining-limits follow-up](REMAINING_LIMITS_IMPLEMENTATION_2026-11-01.md) supersedes its sealed-format, printing, localization and manufacturing boundaries with subsequent tested work.
+
 This implements the recovery, fidelity, interface, manufacturing and connected-workflow changes identified in the [remaining-work analysis](REMAINING_PARITY_ANALYSIS_2026-10-31.md). Six agents implemented separate tracks, then reviewed other tracks and resolved integration failures. The reference informed behavior and interface organization; captured application code and authenticated responses are not included in this repository.
 
 ## Interface lessons applied
@@ -100,7 +102,7 @@ Remaining boundaries:
 1. Live Convex/OIDC activation, exact production-origin callback and deployed account-isolation checks require real service configuration.
 2. Paper calibration, printer fit/clearance and real supported-device Safari/iOS behavior require those devices/equipment. Chromium phone emulation does not establish them.
 3. Sealed LCC decoding still needs a supported verifiable reader contract. Partial ellipses use a warned LCAD fallback; JSON and modern DXF preserve their analytic parameters. General DXF spline approximation and supported-entity limits are documented.
-4. Native directional/tangent solver constraints and some finishing combinations reject explicitly. Additional capability requires its own geometric acceptance cases.
+4. Native directional/tangent and ellipse-dimension engine combinations now have measured acceptance cases; these APIs have no production interface callers. Ambiguous or nonconvergent relations still reject. See [NATIVE_CONSTRAINTS.md](NATIVE_CONSTRAINTS.md). Some finishing combinations remain unsupported.
 5. Localization has a used-key inventory and a passing shared-core check for all 20 locales; specialist coverage remains uneven. Japanese is broader; the other 18 dictionaries cover the core shell with English fallback. Native-language review is still needed. See [LOCALIZATION.md](LOCALIZATION.md).
 6. Reference behavior blocked by uncaptured dynamic assets is still code/UI evidence. jsmap remains an inspection/replay tool; separate jsmap improvements pass 17 suites and remain in their own checkout.
 

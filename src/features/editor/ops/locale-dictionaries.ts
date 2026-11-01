@@ -2,6 +2,10 @@ import type { TranslationMap } from './translation-ops'
 import { JAPANESE_OPTIONS } from './locale-ja-options'
 import { JAPANESE_INTERFACE } from './locale-ja-interface'
 import { SHELL_DICTIONARIES } from './locale-shell-dictionaries'
+import { RECOVERY_DICTIONARIES } from './locale-recovery'
+import { SPECIALIST_CONTROL_DICTIONARIES } from './locale-specialist-controls'
+import { JAPANESE_SPECIALIST } from './locale-ja-specialist'
+import { NATIVE_EDITOR_DICTIONARIES } from './locale-native-editor'
 
 export const EDITOR_LANGUAGES = [
   { locale: 'en', label: 'English' },
@@ -37,6 +41,10 @@ export function isEditorLocale(value: unknown): value is EditorLocale {
 export const JAPANESE_UI: TranslationMap = {
   ...JAPANESE_OPTIONS,
   ...JAPANESE_INTERFACE,
+  ...RECOVERY_DICTIONARIES.ja,
+  ...SPECIALIST_CONTROL_DICTIONARIES.ja,
+  ...JAPANESE_SPECIALIST,
+  ...NATIVE_EDITOR_DICTIONARIES.ja,
   Language: '言語',
   'Interface language': '表示言語',
   'Compact Workbench': 'コンパクト作業台',
@@ -173,7 +181,7 @@ export function getLocaleCoverage(locale: EditorLocale) {
   return {
     locale,
     translatedEntryCount: locale === 'en' ? 0 : Object.keys(locale === 'ja' ? JAPANESE_UI : SHELL_DICTIONARIES[locale]).length,
-    scope: locale === 'en' ? 'source-language' : locale === 'ja' ? 'shell-and-main-dialogs' : 'core-shell',
+    scope: locale === 'en' ? 'source-language' : locale === 'ja' ? 'shell-and-main-dialogs' : 'shell-recovery-and-specialist-controls',
     fallback: 'en',
   } as const
 }

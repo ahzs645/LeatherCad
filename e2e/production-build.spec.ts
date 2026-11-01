@@ -58,7 +58,7 @@ test('the built bundle boots with no runtime error', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(String(error)))
 
-  await page.goto('/')
+  await page.goto('./')
 
   await expect(page.getByRole('tablist', { name: 'Workbench ribbon tabs' })).toBeVisible()
   // A chunk boundary drawn through an import cycle builds cleanly and then
@@ -70,7 +70,7 @@ test('a pattern PDF imports in the built bundle', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(String(error)))
 
-  await page.goto('/')
+  await page.goto('./')
   await page.getByRole('tab', { name: 'Output' }).click()
 
   const [chooser] = await Promise.all([
@@ -98,7 +98,7 @@ test('a pattern PDF imports in the built bundle', async ({ page }) => {
 test('the built bundle opens lazy file tools and preserves editing when cloud is unavailable', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(String(error)))
-  await page.goto('/')
+  await page.goto('./')
   await page.getByRole('tab', { name: 'Output' }).click()
   await page.getByRole('button', { name: 'File Tools', exact: true }).click()
   const files = page.getByRole('dialog', { name: 'File tools', exact: true })

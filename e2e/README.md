@@ -22,6 +22,7 @@ shells, the viewport breakpoints, or the fold drape worker.
 pnpm test:e2e                      # everything
 pnpm test:e2e --project=mobile     # one project
 pnpm test:e2e --ui                 # pick through it interactively
+pnpm test:webkit                   # separate Linux WebKit gate
 ```
 
 `playwright.config.ts` starts both servers itself — the dev server, and a
@@ -42,9 +43,16 @@ the machine:
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chrome pnpm test:e2e
 ```
 
-Every project is Chromium-based, including `mobile` — it takes the iPhone 13
+Every project in the default configuration is Chromium-based, including `mobile` — it takes the iPhone 13
 descriptor for its viewport and touch behaviour but overrides
 `defaultBrowserType`, so that one variable covers the whole suite.
+
+The separate `playwright.webkit.config.ts` uses real Linux WebKit, including an
+iPhone viewport/touch descriptor. Install its browser and OS dependencies with
+`pnpm exec playwright install --with-deps webkit`, then run `pnpm test:webkit`.
+It exercises imports, recovery, STL workers, phone downloads/touch and physical
+print geometry. The manual/tag release workflow runs it; actual Safari/iOS and
+printer measurements remain in [the device walkthrough](../docs/PHYSICAL_DEVICE_ACCEPTANCE.md).
 
 ## The projects
 

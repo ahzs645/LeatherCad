@@ -32,7 +32,7 @@ export function parseBackdrop(value: unknown): Backdrop | null {
     fullPath: typeof candidate.fullPath === 'string' ? candidate.fullPath : undefined,
     visible: typeof candidate.visible === 'boolean' ? candidate.visible : true,
     locked: typeof candidate.locked === 'boolean' ? candidate.locked : false,
-    opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0.05, 1) : 1,
+    opacity: typeof candidate.opacity === 'number' ? clamp(candidate.opacity, 0, 1) : 1,
   }
 }
 

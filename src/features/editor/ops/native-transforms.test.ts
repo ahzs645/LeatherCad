@@ -116,11 +116,13 @@ describe('native anchors and constraints', () => {
     expect(applyParametricConstraints([locked, ellipse], layers, [constraint], groups)[0]).toBe(locked)
     expect(applyParametricConstraints([{ ...cubic, locked: true }, ellipse], layers, [constraint])[0]).toEqual({ ...cubic, locked: true })
   })
-  it('measures native virtual endpoints and rejects unsupported ellipse dimension mutation explicitly', () => {
+  it('measures and applies native virtual endpoint dimensions without flattening', () => {
     const binding: DimensionBinding = { id: 'dimension', paramId: 'width', shapeId: ellipse.id, anchorFrom: 'start', anchorTo: 'end', axis: 'distance' }
     const start = nativeCurvePointAt(ellipse, 0), end = nativeCurvePointAt(ellipse, 1)
     expect(measureDimension(ellipse, binding)).toBeCloseTo(Math.hypot(end.x - start.x, end.y - start.y), 8)
-    expect(() => applyDimensionBindings([ellipse], [binding], new Map([['width', 100]]))).toThrow('virtual anchors')
+    const resizedEllipse = applyDimensionBindings([ellipse], [binding], new Map([['width', 100]]))[0]
+    expect(resizedEllipse.type).toBe('ellipse')
+    expect(measureDimension(resizedEllipse, binding)).toBeCloseTo(100, 7)
     const updated = applyDimensionBindings([cubic], [{ ...binding, shapeId: cubic.id, anchorTo: 'control', axis: 'y' }], new Map([['width', 20]]))[0]
     if (updated.type !== 'cubic') throw new Error('Expected cubic')
     expect(updated.control1.y).toBe(cubic.start.y + 20)

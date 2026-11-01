@@ -21,23 +21,29 @@ export function useStlGeneration(doc: DocFile, options: Partial<StlExportOptions
   useEffect(() => {
     if (!enabled) return
     if (typeof Worker === 'undefined') return
-    const worker = new Worker(new URL('../io/manufacturing/manufacturing.worker.ts', import.meta.url), { type: 'module' })
+    const generation: { worker?: Worker; timeout?: number } = {}
     let active = true
     const finish = (result: StlExportResult | null, error = '') => {
       if (!active) return
-      window.clearTimeout(timeout)
+      window.clearTimeout(generation.timeout)
       setState((previous) => ({ doc, options, fontBuffer, result, error, faceScope: faceScope(doc, options),
         faces: result?.faces ?? (previous && sameDrawing(previous.doc, doc) && previous.faceScope === faceScope(doc, options) ? previous.faces : []) }))
-      worker.terminate()
+      active = false; generation.worker?.terminate()
     }
-    worker.onmessage = (event: MessageEvent<{ result?: StlExportResult; error?: string }>) => finish(event.data.result ?? null, event.data.error)
-    worker.onerror = () => finish(null, 'The manufacturing worker could not load. Save the drawing, then reload to try again.')
-    const timeout = window.setTimeout(() => finish(null, 'Manufacturing generation exceeded 30 seconds. Export fewer shapes or increase the curve tolerance.'), 30_000)
-    // The dialog sends a complete settings snapshot and separate binary font bytes.
-    // Avoid cloning the same embedded base64 font a second time with the document.
-    const workerDoc = fontBuffer && doc.manufacturing ? { ...doc, manufacturing: { ...doc.manufacturing, engravingFont: undefined } } : doc
-    worker.postMessage({ doc: workerDoc, options, fontBuffer })
-    return () => { active = false; window.clearTimeout(timeout); worker.terminate() }
+    try {
+      const worker = new Worker(new URL('../io/manufacturing/manufacturing.worker.ts', import.meta.url), { type: 'module' })
+      generation.worker = worker
+      worker.onmessage = (event: MessageEvent<{ result?: StlExportResult; error?: string }>) => finish(event.data.result ?? null, event.data.error)
+      worker.onerror = () => finish(null, 'The manufacturing worker could not load. Save the drawing, then reload to try again.')
+      generation.timeout = window.setTimeout(() => finish(null, 'Manufacturing generation exceeded 30 seconds. Export fewer shapes or increase the curve tolerance.'), 30_000)
+      // Avoid cloning the same embedded base64 font a second time with its binary bytes.
+      const workerDoc = fontBuffer && doc.manufacturing ? { ...doc, manufacturing: { ...doc.manufacturing, engravingFont: undefined } } : doc
+      worker.postMessage({ doc: workerDoc, options, fontBuffer })
+    } catch {
+      generation.worker?.terminate(); window.clearTimeout(generation.timeout)
+      queueMicrotask(() => finish(null, 'Could not start background manufacturing. Save the drawing, then try reloading or another browser.'))
+    }
+    return () => { active = false; window.clearTimeout(generation.timeout); generation.worker?.terminate() }
   }, [doc, options, enabled, fontBuffer])
   if (!enabled) return { result: null, error: '', pending: false, faces: [] }
   if (typeof Worker === 'undefined') return { result: null, error: 'This browser does not support background manufacturing generation.', pending: false, faces: [] }

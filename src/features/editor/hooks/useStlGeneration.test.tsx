@@ -34,6 +34,21 @@ afterEach(async () => {
 })
 
 describe('background manufacturing generation', () => {
+  it('reports synchronous worker permission failures without losing the drawing', async () => {
+    vi.stubGlobal('Worker', class { constructor() { throw new DOMException('Blocked', 'SecurityError') } })
+    await render({ thicknessMm: 2 })
+    expect(host?.textContent).toMatch(/Could not start background manufacturing/)
+    expect(doc.objects).toEqual([])
+  })
+  it('terminates a worker and clears its timer when posting a job fails synchronously', async () => {
+    vi.useFakeTimers()
+    class PostFailure extends FakeWorker { postMessage = vi.fn(() => { throw new DOMException('Not cloneable', 'DataCloneError') }) }
+    vi.stubGlobal('Worker', PostFailure)
+    await render({ thicknessMm: 2 })
+    expect(host?.textContent).toMatch(/Could not start background manufacturing/)
+    expect(FakeWorker.instances[0].terminated).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+  })
   it('terminates superseded CPU work and ignores its late result', async () => {
     vi.stubGlobal('Worker', FakeWorker)
     await render({ thicknessMm: 2 })

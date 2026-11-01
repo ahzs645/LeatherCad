@@ -9,7 +9,7 @@ function nativeDrawing() {
 }
 
 async function openNative(page: Page) {
-  await page.goto('/')
+  await page.goto('./')
   await page.locator('svg.canvas').waitFor()
   await page.locator('input[accept*=".lcad"]').setInputFiles({ name: 'curves.lcad', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(nativeDrawing())) })
   const review = page.getByRole('dialog', { name: 'Review drawing import' })

@@ -1,37 +1,38 @@
 # Current follow-up priorities
 
-The recovery/fidelity/interface/manufacturing/cloud implementation from the [remaining-work analysis](REMAINING_PARITY_ANALYSIS_2026-10-31.md) has been worked through. Read the [follow-up implementation report](FOLLOWUP_IMPLEMENTATION_2026-10-31.md) for shipped behavior and verification. The older comparison and unchecked desktop lists are historical evidence, not a current missing-feature inventory.
+The remaining limits from the previous implementation have been worked through in the [November follow-up report](REMAINING_LIMITS_IMPLEMENTATION_2026-11-01.md). Read that report and the linked format/manufacturing guides for tested support. The older comparison and unchecked desktop lists are historical evidence, not a current missing-feature inventory.
 
-## Completed in source
+## Implemented software
 
-- Acknowledged autosave, startup recovery/download/discard, unread-store handling, sign-in draft preservation and backup/restore UI.
-- LCAD palette/shape widths, DXF weights and default Y-axis orientation; exact native cubic/ellipse models and legacy LCC cubic controls.
-- Import workers/budgets, preflight/layer selection, export loss review and explicit document-session cancellation.
-- Settings categories/search/scoped reset, consistent dialogs, wheel/trackpad options, tool ordering, canvas-first presets, phone shortcuts and nested groups.
-- Physical STL tolerance, saved settings/fonts, jig outlines/drilling/finger holes, face depths/through cuts, engraving and supported edge finishing.
-- Cloud update/save-as-copy, stale-action checks, incremental lists, Trash/purge, image/font storage, quotas, publication retirement, board image attachments, moderation, search and notifications.
-- Pinned engine pairing, built-bundle browser checks, independent DXF/PDF/mesh validation and localization inventory.
+- Acknowledged autosave, startup recovery/download/discard, unread-store handling, sign-in draft preservation and transactional database backup/restore UI.
+- Exact native cubic/ellipse models and editing, LCAD/legacy LCC fidelity, modern DXF structure, bounded import workers, staged reviews, layer selection and export loss warnings.
+- Verified read-only compatibility for the observed sealed LCC v1 subset. Unknown versions and unrepresentable content remain explicit errors.
+- Settings categories/search/scoped reset, wheel/trackpad and tool options, workspace presets, phone shortcuts, nested groups and lock/opacity controls.
+- Correct physical print scale, calibrated portrait/landscape tiling, constant physical overlap, guarded populated print popups and a reproducible calibration kit.
+- Saved manufacturing settings/fonts, jigs, drilling/finger holes, per-face depth/through cuts, engraving and expanded finishing support with geometric checks.
+- Analytic native constraint/dimension engine combinations, complete shape updates, locks and measured final residuals. This engine still needs product UI integration.
+- Cloud ownership/revision/quota/asset/community workflows, plus safe configuration preflight, guarded code generation and live smoke tooling.
+- Expanded specialist translations, placeholder/workflow audits, Linux WebKit checks, pinned engine pairing and independent PDF/DXF/mesh validation.
+- The separate jsmap changes are pushed in [PR #6](https://github.com/ahzs645/jsmap/pull/6), with all 17 suites and CI passing. Captured runtime replay remains distinct from recovered standalone source.
 
-## Next acceptance work
+## Next acceptance and product work
 
 | Priority | Work | Completion criterion |
 | --- | --- | --- |
-| P0 for service activation | Configure an actual Convex deployment and registered OIDC client. | Normal codegen/deployment; production-origin callback, expiry and network failure; independent users/anonymous access checks; confirmed draft preservation through real redirects. Follow [the runbook](CLOUD_DEPLOYMENT_RUNBOOK.md). |
-| P1 for physical production | Validate paper output and printed tool fit. | Measure a 100mm calibration sheet, tiled asymmetric pattern and known stitch pitch; inspect STL in the intended slicer and measure a printed clearance fixture. Existing automated geometry checks are not physical measurements. |
-| P1 for supported devices | Exercise real Safari/iOS storage, download, touch and WebGL. | A device walkthrough using recovery, file review, 2D/3D routes and downloads. Chromium phone emulation establishes a different test surface. |
-| P2 | Complete specialist localization by workflow. | Use [the inventory](verification/localization-coverage.json), translate used labels/accessibility/errors, test layout expansion and obtain native-language review. Shared-core checks pass in all 20 locales; the 18 smaller dictionaries still use English fallback outside that core. |
-| P2 | Extend supported native constraints and manufacturing combinations where designs require them. | Measured native-curve constraints and topology-safe finishing across engraving/unequal depths/jigs. Current unsupported combinations reject explicitly. |
-| P2 | Broaden reference-and-LeatherCad behavioral fixtures. | Matched asymmetric curves, stitches, images, dimensions and physical outputs; classify evidence as runtime-tested, code-only or blocked. Complete the missing reference STL asset capture if available. |
+| P0 for service activation | Supply an existing Convex deployment and registered OIDC client. | Follow [activation](CLOUD_ACTIVATION.md) and the [runbook](CLOUD_DEPLOYMENT_RUNBOOK.md): real codegen/deployment, production callback/expiry/failure checks, two test accounts and anonymous isolation, and unsaved-draft redirects. No live target or credentials are configured here. |
+| P1 for physical production | Measure paper output and printed tool fit. | Use the [paper/device kit](PHYSICAL_DEVICE_ACCEPTANCE.md) and STL calibration workflow. Record printer/driver/paper, 100mm axes, pitch, asymmetric tiling, intended slicer and measured clearance. Digital geometry checks are not physical measurements. |
+| P1 for supported devices | Exercise real Safari/iOS storage, Files, touch and WebGL. | Follow the device walkthrough on actual hardware, including recovery, file review, downloads, 2D/3D routes and background/foreground behavior. Linux WebKit and Chromium phone descriptors cover different test surfaces. |
+| P2 | Finish localization by workflow and obtain technical language review. | Use [the inventory](verification/localization-coverage.json) and [coverage guide](LOCALIZATION.md). Recovery/native controls and Japanese specialist dialogs have expanded; deeper cloud/moderation, other specialist workflows and the 18 smaller dictionaries still need work. |
+| P2 | Integrate the optional constraint/dimension engine into the product. | A persistent, accessible UI applies complete analytic shape updates through normal locks/history, reports conflicts, and saves constraints. [Current engine semantics](NATIVE_CONSTRAINTS.md) are tested; new solver UI is not implemented. |
+| P2 | Broaden supported interchange and reference fixtures. | Preserve licensed-part provenance and additional v4.2 records before accepting them; extend unknown sealed versions only with a tested contract. Match asymmetric curves, stitches, images, dimensions and physical outputs. Missing reference STL dependencies still limit original-runtime manufacturing comparisons. |
 
-## Explicit format and product boundaries
+## Explicit boundaries
 
-- Sealed LCC requires a supported signature/version reader; it remains rejected before document mutation. LCAD, SVG or a compatible plain LCC export is the available route.
-- Partial ellipses use a warned bounded fallback in LCAD. JSON and modern DXF retain their analytic parameters. General rational/multispan DXF splines have a reported approximation target; unsupported binary/3D/text/hatch entities remain documented in [DXF_IMPORT.md](DXF_IMPORT.md).
-- LCAD/legacy LCC do not preserve all LeatherCad manufacturing/assembly/project state. Loss review recommends JSON for the complete project.
-- Finishing currently supports uniform-thickness patterns without engraving. The UI explains unsupported combinations; it does not emit a misleading mesh.
-- Whole-library database restore is transactional, while database plus browser preferences cannot be made crash-atomic across two stores. Keep a prior backup until checking restoration.
-- Live collaboration, billing/membership and account-wide erasure are separate product work. Retained immutable publication credits can eventually require the documented operator allowance/recovery path.
+- Sealed format integrity is not authorship or license verification. Supported content is reviewed before applying; unsupported payload features reject without changing the drawing.
+- Partial ellipses still use a warned bounded fallback in LCAD. JSON and modern DXF retain analytic parameters; general DXF splines have a reported approximation target. See [DXF support](DXF_IMPORT.md).
+- LCAD/legacy LCC do not preserve all manufacturing/assembly/project state. Loss review recommends JSON for the complete project.
+- Finishing support and geometric/resource guards are specified in [the manufacturing guide](MANUFACTURING_EXPORT.md). An invalid or unsupported combination must report an error rather than emit an inaccurate mesh.
+- Whole-library database restore is transactional; database plus browser preferences cannot be crash-atomic across two stores. Retain a prior backup until checking restoration.
+- Live collaboration, billing/membership and account-wide erasure remain separate product work. Retained immutable publication credits can require the documented operator allowance/recovery path.
 
-Reference-only controls such as pen-lift guard, loupe/modifier-pad behavior, recording/grant UI and every adjustable picking variant still need a focused behavior mapping before adding controls. LeatherCad already has snap indicators, coarse-pointer picking, existing AI/automation surfaces, print calibration, Mandala controls and pricking-iron groups/presets; do not rebuild them from stale checkboxes.
-
-The separate jsmap fixes and coverage tooling remain in their own checkout. They do not turn the preserved captured runtime into a recovered standalone source application.
+Reference-only controls such as pen-lift guard, loupe/modifier-pad behavior, recording/grant UI and every adjustable picking variant still need focused behavior mapping before implementation. LeatherCad already has snap indicators, coarse-pointer picking, AI/automation surfaces, print calibration, Mandala controls and pricking-iron groups/presets; use current code and evidence instead of stale checkboxes.

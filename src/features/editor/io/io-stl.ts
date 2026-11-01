@@ -19,18 +19,23 @@ export type StlExportResult = {
   volumeMm3: number; watertight: true; dimensionsMm: { width: number; height: number; depth: number }
   faces: ManufacturingFace[]; toleranceMm: number; settings: ManufacturingSettings
 }
+export type StlExportPlan = {
+  settings: ManufacturingSettings; warnings: string[]; faces: ManufacturingFace[]
+  material: Point[][]; printable: Point[][]; footprint: Point[][]; holeRings: Point[][]; engraving: Point[][]
+  outlineCount: number; stitchHoleCount: number
+}
 
 function positive(value: number, label: string, maximum = 100) {
   if (!Number.isFinite(value) || value <= 0 || value > maximum) throw new Error(`${label} must be greater than 0 and no more than ${maximum} mm.`)
 }
 
-function holeRing(hole: StitchHole, options: ManufacturingSettings, forceRound?: number): Point[] | null {
-  if (forceRound !== undefined || options.stitchHoles === 'round') return manufacturingCircle(hole.point, (forceRound ?? options.roundHoleDiameterMm) / 2, options.toleranceMm / 2)
+function holeRing(hole: StitchHole, options: ManufacturingSettings, forceRound?: number, geometryToleranceMm = options.toleranceMm): Point[] | null {
+  if (forceRound !== undefined || options.stitchHoles === 'round') return manufacturingCircle(hole.point, (forceRound ?? options.roundHoleDiameterMm) / 2, geometryToleranceMm / 2)
   const shape = hole.renderShape ?? (hole.holeType === 'round' ? 'round' : 'slit')
   if (shape === 'round') {
     const diameter = hole.diameterMm ?? hole.widthMm ?? 1.2
     positive(diameter, 'Stitch hole diameter')
-    return manufacturingCircle(hole.point, diameter / 2, options.toleranceMm / 2)
+    return manufacturingCircle(hole.point, diameter / 2, geometryToleranceMm / 2)
   }
   const kind = shape === 'diamond' ? 'diamond' : shape === 'flat' ? 'flat' : 'french'
   const width = options.holeSizeOverrides ? options[`${kind}WidthMm`] : hole.widthMm ?? 1.1
@@ -49,8 +54,9 @@ function rectangle(x0: number, y0: number, x1: number, y1: number): Point[][] {
 }
 
 /** All dimensions are mm. Flattening reserves half the tolerance for Boolean rounding/offsets. */
-export function buildStlExport(doc: DocFile, partial: Partial<StlExportOptions> = {}): StlExportResult {
+export function prepareStlExport(doc: DocFile, partial: Partial<StlExportOptions> = {}): StlExportPlan {
   const settings = parseManufacturingSettings({ ...DEFAULT_MANUFACTURING_SETTINGS, ...doc.manufacturing, ...partial })
+  const geometryToleranceMm = settings.edgeFinish !== 'none' && (settings.mode === 'jig' || settings.regions.length > 0 || settings.textEngrave !== 'none') ? settings.toleranceMm / 2 : settings.toleranceMm
   const warnings: string[] = []
   const layers = new Map(doc.layers.map((layer) => [layer.id, layer]))
   const groups = buildGroupAccess(doc.sketchGroups ?? [])
@@ -60,7 +66,7 @@ export function buildStlExport(doc: DocFile, partial: Partial<StlExportOptions> 
   const geometry = scoped.filter((shape) => shape.type !== 'text' && !(shape.type === 'line' && shape.stitchHoleMarker) && settings.targetRoles.includes(styles.get(shape.lineTypeId)?.role ?? 'cut'))
   if (!geometry.length) throw new Error('No visible cut outlines to export. Choose closed geometry in the target line roles or change the selection.')
   if (geometry.length > 2000) throw new Error('Export at most 2,000 shapes at a time.')
-  const rings = manufacturingOutlines(geometry, settings.toleranceMm)
+  const rings = manufacturingOutlines(geometry, geometryToleranceMm)
   if (rings.flat().some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y) || Math.abs(p.x) > 1_000_000 || Math.abs(p.y) > 1_000_000)) throw new Error('Outline coordinates must be finite and within 1,000,000 mm of the document origin.')
   const material = clipRings(orientNestedRings(rings))
   if (!material.length) throw new Error('The selected outlines contain no printable area.')
@@ -72,10 +78,10 @@ export function buildStlExport(doc: DocFile, partial: Partial<StlExportOptions> 
     const points = material.flat(), xs = points.map((p) => p.x), ys = points.map((p) => p.y)
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys)
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
-    footprint = settings.jigOuterMode === 'offset' ? clipRings(offsetRings(material, settings.jigMarginMm, settings.toleranceMm / 2))
+    footprint = settings.jigOuterMode === 'offset' ? clipRings(offsetRings(material, settings.jigMarginMm, geometryToleranceMm / 2))
       : settings.jigOuterMode === 'dimensions' ? rectangle(cx - settings.jigWidthMm / 2, cy - settings.jigHeightMm / 2, cx + settings.jigWidthMm / 2, cy + settings.jigHeightMm / 2)
         : rectangle(x0 - settings.jigMarginMm, y0 - settings.jigMarginMm, x1 + settings.jigMarginMm, y1 + settings.jigMarginMm)
-    const pockets = clipRings(offsetRings(material, settings.jigClearanceMm, settings.toleranceMm / 2))
+    const pockets = clipRings(offsetRings(material, settings.jigClearanceMm, geometryToleranceMm / 2))
     if (!pockets.length) throw new Error('Negative jig clearance removes every pocket. Reduce the interference fit.')
     if (pockets.filter((ring) => signedArea(ring) > 0).length < material.filter((ring) => signedArea(ring) > 0).length) warnings.push('Pocket offsets merged nearby pockets or removed a narrow pocket. Inspect the preview before printing.')
     if (clipRings(pockets, footprint, true).length || ringArea(clipRings(footprint, pockets, true)) < 0.0001) throw new Error('Jig dimensions or margin must leave material outside every pocket. Increase the outside size or reduce clearance.')
@@ -98,7 +104,7 @@ export function buildStlExport(doc: DocFile, partial: Partial<StlExportOptions> 
   const useHoles = settings.mode === 'pattern' ? settings.stitchHoles !== 'none' : settings.jigStitchThrough
   let holeVertices = 0
   const candidates = useHoles ? holes.map((hole) => {
-    const ring = holeRing(hole, settings, settings.mode === 'jig' ? settings.jigStitchDiameterMm : undefined)
+    const ring = holeRing(hole, settings, settings.mode === 'jig' ? settings.jigStitchDiameterMm : undefined, geometryToleranceMm)
     holeVertices += ring?.length ?? 0
     if (holeVertices > 50_000) throw new Error('Stitch holes exceed 50,000 sampled vertices. Export fewer holes or increase curve tolerance.')
     return ring
@@ -109,7 +115,7 @@ export function buildStlExport(doc: DocFile, partial: Partial<StlExportOptions> 
   if (holeRings.some((ring) => clipRings([ring], printable, true).length)) throw new Error('Stitch hole(s) cross an outline or cutout. Reduce their size or move them inward.')
   const stitchHoleCount = holeRings.length
   if (settings.mode === 'jig') for (const hole of settings.fingerHoles) {
-    const ring = manufacturingCircle(hole, hole.diameterMm / 2, settings.toleranceMm / 2)
+    const ring = manufacturingCircle(hole, hole.diameterMm / 2, geometryToleranceMm / 2)
     holeVertices += ring.length
     if (holeVertices > 50_000) throw new Error('Jig holes exceed 50,000 sampled vertices. Export fewer holes or increase curve tolerance.')
     if (clipRings([ring], footprint, true).length) throw new Error('A finger hole crosses the outside of the jig. Move it inside or reduce its diameter.')
@@ -123,28 +129,61 @@ export function buildStlExport(doc: DocFile, partial: Partial<StlExportOptions> 
     fontKey = 'manufacturing-document-font'
     loadFontFromBuffer(manufacturingFontBuffer(settings.engravingFont), fontKey)
   }
-  const rawEngraving = settings.textEngrave === 'none' ? [] : manufacturingTextRings(texts, fontKey, settings.toleranceMm)
-  const engraving = intersectRings(rawEngraving, printable)
+  const rawEngraving = settings.textEngrave === 'none' ? [] : manufacturingTextRings(texts, fontKey, geometryToleranceMm)
+  const engravingMaterial = clipRings(printable, holeRings, true)
+  const engraving = intersectRings(rawEngraving, engravingMaterial)
   if (rawEngraving.length && !engraving.length) warnings.push('Text engraving lies outside the remaining material and was omitted.')
-  else if (rawEngraving.length && clipRings(rawEngraving, printable, true).length) warnings.push('Text engraving crosses a cut boundary. Only portions over the remaining material are engraved.')
+  else if (rawEngraving.length && clipRings(rawEngraving, engravingMaterial, true).length) warnings.push('Text engraving crosses a cut boundary. Only portions over the remaining material are engraved.')
   if (texts.length && settings.textEngrave === 'none') warnings.push('Text is omitted. Enable engraving and load its font, or convert lettering into closed outlines.')
-  let mesh: StlMesh
+  return { settings, warnings, faces, material, printable, footprint, holeRings, engraving, outlineCount: rings.length, stitchHoleCount }
+}
+
+export function requiresSolidFinishing(plan: StlExportPlan) {
+  return plan.settings.edgeFinish !== 'none' && (plan.settings.mode === 'jig' || plan.engraving.length > 0 || new Set(plan.faces.filter(face => !face.through && face.heightMm > 0).map(face => face.heightMm)).size > 1)
+}
+
+function simpleStlMesh(plan: StlExportPlan) {
+  const { settings, faces, printable, holeRings, engraving } = plan
+  if (requiresSolidFinishing(plan)) throw new Error('Combined finishing requires the asynchronous solid modeller. Use buildStlExportAsync.')
   if (settings.edgeFinish !== 'none') {
-    if (settings.mode !== 'pattern') throw new Error('Edge finishing is available for patterns. Choose a pattern or turn edge finishing off for this jig.')
-    if (settings.textEngrave !== 'none' || faces.some((face) => face.through || face.heightMm !== settings.thicknessMm)) throw new Error('Edge finishing currently requires uniform pattern thickness without engraving. Export those operations separately, or turn edge finishing off.')
-    mesh = buildFinishedPattern(clipRings(material, holeRings, true), settings.thicknessMm, settings.edgeSizeMm, settings.edgeFinish, settings.filletSteps, settings.toleranceMm)
-  } else mesh = buildLevelMesh(faces, holeRings, engraving, settings.textEngrave, settings.textDepthMm)
+    const height = faces.find(face => !face.through && face.heightMm > 0)?.heightMm ?? 0
+    return buildFinishedPattern(clipRings(printable, holeRings, true), height, settings.edgeSizeMm, settings.edgeFinish, settings.filletSteps, settings.toleranceMm)
+  }
+  return buildLevelMesh(faces, holeRings, engraving, settings.textEngrave, settings.textDepthMm)
+}
+
+export function completeStlExport(plan: StlExportPlan, mesh: StlMesh): StlExportResult {
+  const { settings, warnings, faces, outlineCount, stitchHoleCount } = plan
   if (!mesh.vertices.length) throw new Error('Manufacturing operations removed all printable material.')
-  const xs = mesh.vertices.map((p) => p.x), ys = mesh.vertices.map((p) => p.y), zs = mesh.vertices.map((p) => p.z)
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys)
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, depth = 0
+  for (const p of mesh.vertices) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); depth = Math.max(depth, p.z) }
   mesh.vertices = mesh.vertices.map((p) => ({ x: p.x - minX, y: maxY - p.y, z: p.z }))
   mesh.triangles = mesh.triangles.map(([a, b, c]) => [a, c, b])
   const validation = validateStlMesh(mesh)
-  return { mesh, warnings, triangleCount: mesh.triangles.length, outlineCount: rings.length, stitchHoleCount, ...validation,
-    dimensionsMm: { width: maxX - minX, height: maxY - minY, depth: Math.max(...zs) }, faces, toleranceMm: settings.toleranceMm, settings }
+  return { mesh, warnings, triangleCount: mesh.triangles.length, outlineCount, stitchHoleCount, ...validation,
+    dimensionsMm: { width: maxX - minX, height: maxY - minY, depth }, faces, toleranceMm: settings.toleranceMm, settings }
+}
+
+export function buildStlExport(doc: DocFile, options: Partial<StlExportOptions> = {}): StlExportResult {
+  const plan = prepareStlExport(doc, options)
+  return completeStlExport(plan, simpleStlMesh(plan))
+}
+
+export async function buildStlExportAsync(doc: DocFile, options: Partial<StlExportOptions> = {}): Promise<StlExportResult> {
+  const plan = prepareStlExport(doc, options)
+  if (!requiresSolidFinishing(plan)) return completeStlExport(plan, simpleStlMesh(plan))
+  const { buildCombinedFinishedMesh } = await import('./manufacturing/manufacturing-solid-finishing').catch(() => {
+    throw new Error('The solid finishing engine could not load. Save the drawing and reload to try again.')
+  })
+  return completeStlExport(plan, await buildCombinedFinishedMesh(plan))
 }
 
 export function buildAsciiStl(doc: DocFile, options: Partial<StlExportOptions> = {}) {
   const result = buildStlExport(doc, options)
+  return { ...result, content: serializeAsciiStl(result.mesh, `${doc.documentName ?? 'LeatherCad'}_mm`) }
+}
+
+export async function buildAsciiStlAsync(doc: DocFile, options: Partial<StlExportOptions> = {}) {
+  const result = await buildStlExportAsync(doc, options)
   return { ...result, content: serializeAsciiStl(result.mesh, `${doc.documentName ?? 'LeatherCad'}_mm`) }
 }

@@ -71,11 +71,12 @@ describe('native curve constraint contracts', () => {
     expect(moved.radiusX).toBeCloseTo(10); expect(moved.radiusY).toBeCloseTo(4)
     expect('end' in moved).toBe(false)
   })
-  it('reports unsupported native directional/tangent constraints without approximating the curve', () => {
+  it('aligns a native chord without approximating the curve', () => {
     const result = solveConstraints([curve], [{ id: 'horizontal', type: 'horizontal', shapeId: curve.id }])
-    expect(result.converged).toBe(false)
-    expect(result.updates.size).toBe(0)
-    expect(result.conflicts.join(' ')).toContain('does not support native curve directions')
+    expect(result.converged).toBe(true)
+    const updated = result.shapeUpdates.get(curve.id)!
+    expect(updated.type).toBe('ellipse')
+    expect(getAnchorPoint(updated, 'start').y).toBeCloseTo(getAnchorPoint(updated, 'end').y, 7)
   })
   it('solves coincident native anchors while leaving a locked reference and cubic controls unchanged', () => {
     const cubic: CubicShape = { id: 'cubic', type: 'cubic', layerId: 'main', lineTypeId: 'cut', start: { x: 2, y: 3 }, control1: { x: 5, y: 20 }, control2: { x: 20, y: 30 }, end: { x: 40, y: 0 } }
@@ -231,8 +232,7 @@ describe('solveConstraints', () => {
     expect(d).toBeCloseTo(20, 2)
   })
 
-  it('reports converged=false when max iterations reached without convergence', () => {
-    // Create a heavily over-constrained system that cannot converge in 2 iters
+  it('reports the final conflict when a later correction breaks an earlier relation', () => {
     const lineA = makeLine('a', 0, 0, 10, 0)
     const lineB = makeLine('b', 1000, 0, 1010, 0)
 
@@ -245,13 +245,12 @@ describe('solveConstraints', () => {
       anchorB: 'start',
     }
 
-    // With maxIterations=1 the solver won't fully converge for a 990-unit gap
-    // because each iteration only moves halfway.
-    const result = solveConstraints([lineA, lineB], [constraint], 1, 0.001)
+    const result = solveConstraints([lineA, lineB], [constraint, { ...constraint, id: 'd1', type: 'distance', targetDistance: 20 }], 1, 0.001)
 
-    // After one iteration, each point moved halfway: residual should still be ~495
+    // Distance now succeeds, but the earlier coincidence is broken by 20 mm.
     expect(result.converged).toBe(false)
     expect(result.iterations).toBe(1)
     expect(result.residual).toBeGreaterThan(0.001)
+    expect(result.conflicts.join(' ')).toContain('c1')
   })
 })

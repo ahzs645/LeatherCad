@@ -672,6 +672,11 @@ export function parseDimensionLine(value: unknown): DimensionLine | null {
     labelPoint?: unknown
     labelRotationDeg?: unknown
     labelPlacement?: unknown
+    precision?: unknown
+    arrowOnly?: unknown
+    singleLine?: unknown
+    textInside?: unknown
+    textReverse?: unknown
     layerId?: unknown
     lineTypeId?: unknown
   }
@@ -708,6 +713,11 @@ export function parseDimensionLine(value: unknown): DimensionLine | null {
       candidate.labelPlacement === 'baseline' || candidate.labelPlacement === 'center'
         ? candidate.labelPlacement
         : undefined,
+    precision: typeof candidate.precision === 'number' && Number.isInteger(candidate.precision) && candidate.precision >= 0 && candidate.precision <= 6 ? candidate.precision : undefined,
+    arrowOnly: typeof candidate.arrowOnly === 'boolean' ? candidate.arrowOnly : undefined,
+    singleLine: typeof candidate.singleLine === 'boolean' ? candidate.singleLine : undefined,
+    textInside: typeof candidate.textInside === 'boolean' ? candidate.textInside : undefined,
+    textReverse: typeof candidate.textReverse === 'boolean' ? candidate.textReverse : undefined,
     layerId: candidate.layerId,
     lineTypeId: candidate.lineTypeId,
   }

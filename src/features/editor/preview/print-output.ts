@@ -3,7 +3,7 @@ import { arcPath, round } from '../cad/cad-geometry'
 import { resolveLineTypeStrokeWidthMm, shouldIgnoreLineTypeInPrint } from '../cad/line-types'
 import type { FoldLine, LineType, Shape, StitchHole } from '../cad/cad-types'
 import { createStitchHolePrimitive } from '../ops/stitch-hole-render'
-import { resolvePrintCalibrationDpi, type PrintPlan } from './print-preview'
+import { applyPrintCalibration, resolvePrintCalibrationDpi, type PrintPlan } from './print-preview'
 import { buildTextGlyphPlacements, normalizeTextShape, textBaselineAngleDeg } from '../ops/text-shape-ops'
 
 type PrintTileOutputOptions = {
@@ -36,12 +36,42 @@ function escapeXml(value: string) {
   })
 }
 
+const MAX_PRINT_ITEMS = 1_000_000
+const MAX_PRINT_HTML_BYTES = 32 * 1024 * 1024
+const PRINT_BUDGET_ERROR = 'Printable output exceeds the processing budget (625 pages, 1,000,000 items or 32 MiB HTML). Reduce the page count or print a smaller selection.'
+
+function safePrintColor(value: string | undefined) {
+  if (!value || value.length > 100 || !/^(?:#[0-9a-f]{3,4}|#[0-9a-f]{6}|#[0-9a-f]{8}|[a-z]+|(?:rgb|rgba|hsl|hsla)\([0-9+.,%/\s-]+\))$/i.test(value)) return '#111827'
+  return escapeXml(value)
+}
+
+function checkPrintBudget(options: PrintTileOutputOptions) {
+  const { tileX, tileY } = options.printPlan
+  const pages = tileX * tileY
+  const objects = options.shapes.length + options.stitchHoles.length + options.foldLines.length
+  if (![tileX, tileY].every(count => Number.isInteger(count) && count >= 1 && count <= 25) || pages > 625 || options.printPlan.tiles.length > 625 || objects > 200000 || pages * objects > MAX_PRINT_ITEMS) throw new Error(PRINT_BUDGET_ERROR)
+  let items = objects, markupBytes = 2048 + options.stitchHoles.length * 512 + options.foldLines.length * 256
+  for (const shape of options.shapes) {
+    if (shape.type === 'text') {
+      const characters = shape.text.length, fontCharacters = shape.fontFamily.length
+      items += shape.transform === 'none' ? Math.ceil(characters / 20) : characters
+      markupBytes += shape.transform === 'none' ? 400 + (characters + fontCharacters) * 6 : characters * (400 + fontCharacters * 6)
+    } else markupBytes += 256
+  }
+  if (options.printRulerInside) {
+    const first = options.printPlan.tiles[0]
+    const ticks = first ? Math.ceil(first.width / 10) + Math.ceil(first.height / 10) + 2 : 0
+    items += ticks; markupBytes += ticks * 192
+  }
+  if (pages * items > MAX_PRINT_ITEMS || pages * markupBytes > MAX_PRINT_HTML_BYTES) throw new Error(PRINT_BUDGET_ERROR)
+}
+
 function resolveStroke(shape: Shape, lineTypesById: Record<string, LineType>, printInColor: boolean) {
   const lineType = lineTypesById[shape.lineTypeId]
   if (!lineType || !printInColor) {
     return '#111827'
   }
-  return lineType.color
+  return safePrintColor(lineType.color)
 }
 
 function resolveDash(shape: Shape, lineTypesById: Record<string, LineType>, printStitchAsDots: boolean) {
@@ -108,7 +138,7 @@ function shapeToSvgMarkup(
   const textShape = normalizeTextShape(shape)
   const fontFamily = escapeXml(textShape.fontFamily)
   const textValue = escapeXml(textShape.text)
-  const fontSize = Math.max(4, round(textShape.fontSizeMm))
+  const fontSize = round(textShape.fontSizeMm)
   if (textShape.transform === 'none') {
     const angle = round(textBaselineAngleDeg(textShape))
     return `<text x="${round(textShape.start.x)}" y="${round(textShape.start.y)}" fill="${stroke}" font-size="${fontSize}" font-family="${fontFamily}" transform="rotate(${angle} ${round(textShape.start.x)} ${round(textShape.start.y)})"${ignoredAttr}>${textValue}</text>`
@@ -133,7 +163,7 @@ function stitchHoleToSvgMarkup(
   }
 
   const lineType = lineTypesById[parentShape.lineTypeId]
-  const color = options.printInColor ? lineType?.color ?? '#111827' : '#111827'
+  const color = options.printInColor ? safePrintColor(lineType?.color) : '#111827'
   const primitive = createStitchHolePrimitive(stitchHole, {
     mode: options.printStitchAsDots ? 'dots' : 'native',
     dotRadiusMm: 0.6,
@@ -160,12 +190,14 @@ function foldLineMarkup(foldLine: FoldLine, printInColor: boolean) {
 function rulerMarkup(tile: { minX: number; minY: number; width: number; height: number }) {
   const ticks: string[] = []
   const step = 10
-  for (let x = tile.minX; x <= tile.minX + tile.width; x += step) {
+  for (let index = 0; index <= Math.floor(tile.width / step); index++) {
+    const x = tile.minX + index * step
     ticks.push(
       `<line x1="${round(x)}" y1="${round(tile.minY)}" x2="${round(x)}" y2="${round(tile.minY + 2)}" stroke="#4b5563" stroke-width="0.3" />`,
     )
   }
-  for (let y = tile.minY; y <= tile.minY + tile.height; y += step) {
+  for (let index = 0; index <= Math.floor(tile.height / step); index++) {
+    const y = tile.minY + index * step
     ticks.push(
       `<line x1="${round(tile.minX)}" y1="${round(y)}" x2="${round(tile.minX + 2)}" y2="${round(y)}" stroke="#4b5563" stroke-width="0.3" />`,
     )
@@ -174,14 +206,6 @@ function rulerMarkup(tile: { minX: number; minY: number; width: number; height: 
 }
 
 function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][number]) {
-  // Source v1.5.5 — calibration is entered in portrait orientation; auto-swap when landscape.
-  const isLandscape = options.printPlan.orientation === 'landscape'
-  const effectiveCalibrationX = isLandscape ? options.calibrationYPercent : options.calibrationXPercent
-  const effectiveCalibrationY = isLandscape ? options.calibrationXPercent : options.calibrationYPercent
-  const scaleX = Math.max(0.5, Math.min(2, effectiveCalibrationX / 100))
-  const scaleY = Math.max(0.5, Math.min(2, effectiveCalibrationY / 100))
-  const shiftX = tile.minX * (1 - scaleX)
-  const shiftY = tile.minY * (1 - scaleY)
   const shapeMarkup = options.shapes
     .filter((shape) => shouldPrintShape(shape, options.lineTypesById, options.showIgnoredLineTypes))
     .map((shape) =>
@@ -207,9 +231,11 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
   const foldMarkup = options.foldLines.map((foldLine) => foldLineMarkup(foldLine, options.printInColor)).join('\n')
   const ruler = options.printRulerInside ? rulerMarkup(tile) : ''
 
-  return `<svg class="print-svg" xmlns="http://www.w3.org/2000/svg" width="${options.printPlan.paperWidthMm}mm" height="${options.printPlan.paperHeightMm}mm" viewBox="${round(tile.minX)} ${round(tile.minY)} ${round(tile.width)} ${round(tile.height)}">
+  const { paperWidthMm, paperHeightMm, marginMm } = options.printPlan
+  return `<svg class="print-svg" xmlns="http://www.w3.org/2000/svg" width="${paperWidthMm}mm" height="${paperHeightMm}mm" viewBox="0 0 ${paperWidthMm} ${paperHeightMm}">
+  <svg x="${marginMm}" y="${marginMm}" width="${paperWidthMm - 2 * marginMm}" height="${paperHeightMm - 2 * marginMm}" viewBox="${tile.minX} ${tile.minY} ${tile.width} ${tile.height}" preserveAspectRatio="none" overflow="hidden">
   <rect x="${round(tile.minX)}" y="${round(tile.minY)}" width="${round(tile.width)}" height="${round(tile.height)}" fill="#ffffff" />
-  <g transform="translate(${round(shiftX)} ${round(shiftY)}) scale(${round(scaleX)} ${round(scaleY)})">
+  <g>
     ${shapeMarkup}
     ${stitchHoleMarkup}
     ${foldMarkup}
@@ -217,22 +243,30 @@ function tileSvg(options: PrintTileOutputOptions, tile: PrintPlan['tiles'][numbe
   ${ruler}
   <rect x="${round(tile.minX)}" y="${round(tile.minY)}" width="${round(tile.width)}" height="${round(tile.height)}" fill="none" stroke="#374151" stroke-width="0.35" />
   <text x="${round(tile.minX + 4)}" y="${round(tile.minY + 6)}" font-size="4" fill="#111827">Page ${tile.row + 1}-${tile.col + 1}</text>
-</svg>`
+</svg></svg>`
 }
 
-export function buildPrintableHtml(options: PrintTileOutputOptions) {
-  const activeDpiX = resolvePrintCalibrationDpi(options.calibrationXPercent)
-  const activeDpiY = resolvePrintCalibrationDpi(options.calibrationYPercent)
+export function buildPrintableHtml(input: PrintTileOutputOptions) {
+  // Callers may have built their preview plan with default calibration. Rebuild
+  // its world tiles here so output calibration never creates gaps or applies twice.
+  const options = { ...input, printPlan: applyPrintCalibration(input.printPlan, input.calibrationXPercent, input.calibrationYPercent) }
+  checkPrintBudget(options)
+  const landscape = options.printPlan.orientation === 'landscape'
+  const activeDpiX = resolvePrintCalibrationDpi(landscape ? options.calibrationYPercent : options.calibrationXPercent)
+  const activeDpiY = resolvePrintCalibrationDpi(landscape ? options.calibrationXPercent : options.calibrationYPercent)
+  let generatedBytes = 0
   const pages = options.printPlan.tiles
     .map(
-      (tile) => `
-<section class="print-page">
-  ${tileSvg(options, tile)}
-</section>`,
+      (tile) => {
+        const page = `<section class="print-page">${tileSvg(options, tile)}</section>`
+        generatedBytes += new TextEncoder().encode(page).length
+        if (generatedBytes > MAX_PRINT_HTML_BYTES) throw new Error(PRINT_BUDGET_ERROR)
+        return page
+      },
     )
     .join('\n')
 
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -306,18 +340,26 @@ export function buildPrintableHtml(options: PrintTileOutputOptions) {
   ${pages}
 </body>
 </html>`
+  if (new TextEncoder().encode(html).length > MAX_PRINT_HTML_BYTES) throw new Error(PRINT_BUDGET_ERROR)
+  return html
 }
 
 export function openPrintTilesWindow(options: PrintTileOutputOptions) {
   if (typeof window === 'undefined') {
     return false
   }
-  const popup = window.open('', '_blank', 'noopener,noreferrer')
+  // Prepare and reject excessive output before opening a window. noopener in
+  // window.open's features returns no writable handle in current browsers.
+  const html = buildPrintableHtml(options)
+  const popup = window.open('', '_blank')
   if (!popup) {
     return false
   }
-  popup.document.open()
-  popup.document.write(buildPrintableHtml(options))
-  popup.document.close()
+  try {
+    popup.opener = null
+    popup.document.open()
+    popup.document.write(html)
+    popup.document.close()
+  } catch (error) { popup.close(); throw error }
   return true
 }

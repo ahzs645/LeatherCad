@@ -7,6 +7,7 @@ import type { StlExportOptions, StlExportResult } from '../io/io-stl'
 import { DEFAULT_MANUFACTURING_SETTINGS, parseManufacturingSettings, type ManufacturingSettings } from '../io/manufacturing/manufacturing-settings'
 import { serializeAsciiStl } from '../io/stl-mesh'
 import { StlManufacturingControls } from './StlManufacturingControls'
+import { StlCalibrationDownload } from './StlCalibrationDownload'
 import { embedManufacturingFont, manufacturingFontBuffer, MAX_MANUFACTURING_FONT_BYTES } from '../io/manufacturing/manufacturing-font-data'
 
 const StlMeshPreview = lazy(() => import('./StlMeshPreview'))
@@ -54,10 +55,10 @@ export function StlExportModal({ open, onClose, doc, selectedShapeIds, onExporte
     <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="stl-export-title" ref={dialogRef} tabIndex={-1} onClick={(event) => event.stopPropagation()} style={{ width: 'min(900px, 95vw)', maxHeight: '90vh', overflowY: 'auto' }}>
       <h3 id="stl-export-title">{t('stl.title', 'STL Export')}</h3>
       <p>{t('stl.description', 'Create a flat 3D pattern or a positioning jig from closed, visible cut outlines. STL coordinates are in millimetres.')}</p>
-      <label className="field-row"><span>{t('stl.mode', 'Mode')}</span><select aria-label={t('stl.mode', 'Mode')} value={options.mode} onChange={(event) => updateOptions({ ...options, mode: event.target.value as ManufacturingSettings['mode'], edgeFinish: event.target.value === 'jig' ? 'none' : options.edgeFinish, regions: [] })}><option value="pattern">{t('stl.pattern', '3D pattern')}</option><option value="jig">{t('stl.jig', 'Positioning jig')}</option></select></label>
+      <label className="field-row"><span>{t('stl.mode', 'Mode')}</span><select aria-label={t('stl.mode', 'Mode')} value={options.mode} onChange={(event) => updateOptions({ ...options, mode: event.target.value as ManufacturingSettings['mode'], regions: [] })}><option value="pattern">{t('stl.pattern', '3D pattern')}</option><option value="jig">{t('stl.jig', 'Positioning jig')}</option></select></label>
       <label className="layer-toggle-item"><input type="checkbox" checked={onlySelected} onChange={(event) => setOnlySelected(event.target.checked)} /><span>{t('stl.selected', 'Use selected shapes only')}</span></label>
       <StlManufacturingControls settings={options} onChange={updateOptions} faces={faces} />
-      {options.textEngrave !== 'none' && <label className="field-row"><span>Engraving font (.ttf/.otf)</span><input type="file" aria-label="Engraving font (.ttf/.otf)" accept=".ttf,.otf" onChange={(event) => {
+      {options.textEngrave !== 'none' && <label className="field-row"><span>{t('Engraving font (.ttf/.otf)')}</span><input type="file" aria-label={t('Engraving font (.ttf/.otf)')} accept=".ttf,.otf" onChange={(event) => {
         const file = event.target.files?.[0]; if (!file) return
         const request = ++fontRequest.current
         setFontError(''); setFontBuffer(undefined); setFontName(''); setOptions((current) => ({ ...current, engravingFont: undefined }))
@@ -69,19 +70,20 @@ export function StlExportModal({ open, onClose, doc, selectedShapeIds, onExporte
           loadFontFromBuffer(buffer, 'manufacturing-engraving'); setFontBuffer(buffer); setFontName(embedded.name)
           setOptions((current) => ({ ...current, engravingFont: embedded })); setSaved(false)
         }).catch(() => { if (request === fontRequest.current) setFontError('Could not read this font. Choose a valid .ttf or .otf font.') })
-      }} /><span>{fontName || 'Load the exact font. It will be embedded when you save manufacturing settings.'}</span></label>}
-      {fontError && <p role="alert">{fontError}</p>}
-      {pending && <p role="status">Generating manufacturing mesh… You can keep changing settings or close to cancel.</p>}
-      {error && <p role="alert">{error}</p>}
+      }} /><span>{fontName || t('Load the exact font. It will be embedded when you save manufacturing settings.')}</span></label>}
+      {fontError && <p role="alert">{t(fontError)}</p>}
+      {pending && <p role="status">{t('Generating manufacturing mesh… You can keep changing settings or close to cancel.')}</p>}
+      {error && <p role="alert">{t(error)}</p>}
       {result && <>
         <Suspense fallback={<p>{t('stl.loading', 'Loading 3D preview…')}</p>}><StlMeshPreview mesh={result.mesh} color={options.previewColor} materialPreset={options.materialPreset} label={t('stl.preview', 'STL mesh preview')} unavailableMessage={t('stl.previewUnavailable', '3D preview is unavailable in this browser. The validated STL can still be downloaded.')} /></Suspense>
         <p>{t('stl.size', 'Size')}: {result.dimensionsMm.width.toFixed(2)} × {result.dimensionsMm.height.toFixed(2)} × {result.dimensionsMm.depth.toFixed(2)} mm</p>
         <p>{result.triangleCount.toLocaleString()} {t('stl.triangles', 'triangles')} · {result.stitchHoleCount} {t('stl.exportedHoles', 'stitch holes')} · {t('stl.watertight', 'Watertight mesh')}</p>
-        <p>Curve tolerance: {result.toleranceMm} mm. Mesh checks do not replace slicer inspection or fit calibration.</p>
+        <p>{t('manufacturing.curveWarning', 'Curve tolerance: {tolerance} mm. Mesh checks do not replace slicer inspection or fit calibration.').replace('{tolerance}', String(result.toleranceMm))}</p>
         {result.warnings.length > 0 && <ul>{result.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
       </>}
-      {saved && <p role="status">Manufacturing settings saved with this drawing.</p>}
-      <div className="modal-actions"><button onClick={onClose}>{t('common.cancel', 'Cancel')}</button>{onManufacturingSettingsChange && <button onClick={saveSettings} disabled={!result}>Save manufacturing settings</button>}<button onClick={download} disabled={!result}>{t('stl.download', 'Download STL')}</button></div>
+      {saved && <p role="status">{t('Manufacturing settings saved with this drawing.')}</p>}
+      <StlCalibrationDownload />
+      <div className="modal-actions"><button onClick={onClose}>{t('common.cancel', 'Cancel')}</button>{onManufacturingSettingsChange && <button onClick={saveSettings} disabled={!result}>{t('Save manufacturing settings')}</button>}<button onClick={download} disabled={!result}>{t('stl.download', 'Download STL')}</button></div>
     </div>
   </div>
 }

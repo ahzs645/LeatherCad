@@ -269,8 +269,10 @@ export function useFileActions(params: UseFileActionsParams) {
         fileName: file.name, title: 'Review drawing import', actionLabel: 'Replace current drawing',
         summary: [
           { label: 'Format', value: imported.format },
+          ...(imported.integrity ? [{ label: 'Format integrity', value: 'Verified sealed LCC v1' }] : []),
           { label: 'Shapes', value: String(doc.objects.length) },
           { label: 'Stitch holes', value: String(doc.stitchHoles?.length ?? 0) },
+          { label: 'Dimensions', value: String(doc.dimensionLines?.length ?? 0) },
           { label: 'Layers', value: doc.layers.slice(0, 20).map(layer => layer.name).join(', ') + (doc.layers.length > 20 ? ` … (${doc.layers.length} total)` : '') },
           { label: 'Geometry units', value: 'mm' },
           { label: 'Drawing size', value: bounds ? `${(bounds.maxX - bounds.minX).toFixed(2)} × ${(bounds.maxY - bounds.minY).toFixed(2)} mm` : 'Empty drawing' },
